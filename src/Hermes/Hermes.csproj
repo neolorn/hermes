@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>The sending engine: kinds, the outbox, the checks, dispatch, templates, the endpoints, the schema</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hermes.Core\Hermes.Core.csproj" />
+    <ProjectReference Include="..\Hermes.Channels\Hermes.Channels.csproj" />
+  </ItemGroup>
+
+</Project>

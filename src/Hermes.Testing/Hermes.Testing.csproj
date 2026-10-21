@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>In-memory providers, fixed secrets, an on-demand dispatcher and a test database's migration</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hermes.Core\Hermes.Core.csproj" />
+    <ProjectReference Include="..\Hermes.Channels\Hermes.Channels.csproj" />
+    <ProjectReference Include="..\Hermes\Hermes.csproj" />
+  </ItemGroup>
+
+</Project>
