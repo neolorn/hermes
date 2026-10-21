@@ -53,6 +53,28 @@ public sealed class PublicSurfaceBuildTests
         Assert.Contains("RS0017", removed.Output, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task MSG_ENG_004_AC1_PublicMemberWithoutDocumentationFailsTheBuild()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        ProbeProject probe = CopyCore(folder);
+        probe.WriteSource("PublicAPI.Unshipped.txt", "#nullable enable\nHermes.Core.Probe\nHermes.Core.Probe.Probe() -> void\n");
+        probe.WriteSource("Probe.cs", """
+            namespace Hermes.Core;
+
+            public sealed class Probe
+            {
+            }
+            """);
+
+        ProcessResult undocumented = await probe.BuildAsync(cancellationToken);
+
+        Assert.NotEqual(0, undocumented.ExitCode);
+        Assert.Contains("error CS1591", undocumented.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("RS0016", undocumented.Output, StringComparison.Ordinal);
+    }
+
     private static ProbeProject CopyCore(ScratchFolder folder)
     {
         ProbeProject probe = new(folder, Packages.Core);
