@@ -44,6 +44,8 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<IOptionsChangeTokenSource<MessagingOptions>>(provider => provider.GetRequiredService<ConfigurationState>());
         services.AddSingleton<IValidateOptions<MessagingOptions>, MessagingOptionsValidator>();
         services.TryAddSingleton(TimeProvider.System);
+        services.AddLogging();
+        services.TryAddSingleton<IAlertSink, LoggingAlertSink>();
         services.AddSingleton<IHostedService, MessagingStartup>();
         return services;
     }

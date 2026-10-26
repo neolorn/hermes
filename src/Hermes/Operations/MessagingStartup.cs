@@ -7,6 +7,7 @@ using Hermes.Core;
 using Hermes.Sending;
 
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
@@ -16,11 +17,16 @@ namespace Hermes.Operations;
 /// Runs the engine's startup checks in <see cref="StartingAsync"/>, which the host calls on
 /// every lifecycle service before any hosted service's <c>StartAsync</c>, so they complete
 /// before a host's own hosted service starts or a request is served (<c>04</c> MSG-LIB-003):
-/// the configuration, then the declarations.
+/// the configuration, the declarations, then the seams.
 /// </summary>
-internal sealed class MessagingStartup(IConfiguration configuration, ConfigurationState state, IOptionsMonitor<MessagingOptions> options, Declarations declarations) : IHostedLifecycleService
+internal sealed class MessagingStartup(
+    IConfiguration configuration,
+    ConfigurationState state,
+    IOptionsMonitor<MessagingOptions> options,
+    Declarations declarations,
+    IServiceProvider services) : IHostedLifecycleService
 {
-    public Task StartingAsync(CancellationToken cancellationToken)
+    public async Task StartingAsync(CancellationToken cancellationToken)
     {
         string? key = ConfigurationCheck.InvalidKey(configuration.GetSection("Hermes"), TimeZoneInfo.GetSystemTimeZones(), declarations.NeedsPublicBaseAddress);
         if (key is not null)
@@ -36,7 +42,19 @@ internal sealed class MessagingStartup(IConfiguration configuration, Configurati
             throw Failure(Codes.DeclarationInvalid, ("declaration", declaration), ("field", field));
         }
 
-        return Task.CompletedTask;
+        if (SeamCheck.Missing(services.GetRequiredService<IServiceProviderIsService>(), declarations, current) is { } seam)
+        {
+            throw Failure(Codes.DeclarationMissing, ("key", seam));
+        }
+
+        AsyncServiceScope scope = services.CreateAsyncScope();
+        await using (scope.ConfigureAwait(false))
+        {
+            if (SeamCheck.InvalidProtector(scope.ServiceProvider.GetServices<IContentProtector>()) is { } protector)
+            {
+                throw Failure(Codes.DeclarationInvalid, ("declaration", protector), ("field", "Id"));
+            }
+        }
     }
 
     public Task StartAsync(CancellationToken cancellationToken)

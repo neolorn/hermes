@@ -13,3 +13,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starts, a reloaded value outside its rule leaving the last valid one in force
 - Kinds, categories and retired kinds declared in `AddHermes`, each checked when the host
   starts, the first outside its rule stopping the start
+- The secret, consent, observer, protector and alert seams a host supplies, the start
+  stopping where a required one is missing or two host protectors share an `Id`

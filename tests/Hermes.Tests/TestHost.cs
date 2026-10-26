@@ -30,13 +30,29 @@ internal static class TestHost
         return new ConfigurationBuilder().AddInMemoryCollection(configuration).Build().GetSection("Hermes");
     }
 
-    internal static IHost Build(Dictionary<string, string?> configuration, Action<DeclarationBuilder>? declare = null, Action<IServiceCollection>? services = null)
+    /// <summary>
+    /// A host with <paramref name="configuration"/>, the kinds and categories <paramref name="declare"/>
+    /// declares, the services <paramref name="services"/> registers before <c>AddHermes</c> and
+    /// <paramref name="after"/> after it, logging to <paramref name="logs"/> where given.
+    /// </summary>
+    internal static IHost Build(
+        Dictionary<string, string?> configuration,
+        Action<DeclarationBuilder>? declare = null,
+        Action<IServiceCollection>? services = null,
+        Action<IServiceCollection>? after = null,
+        LogCapture? logs = null)
     {
         HostApplicationBuilder builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings { EnvironmentName = Environments.Development });
         builder.Configuration.AddInMemoryCollection(configuration);
         builder.Logging.ClearProviders();
+        if (logs is not null)
+        {
+            builder.Logging.AddProvider(logs);
+        }
+
         services?.Invoke(builder.Services);
         builder.Services.AddHermes(builder.Configuration, declare ?? (_ => { }));
+        after?.Invoke(builder.Services);
         return builder.Build();
     }
 }
