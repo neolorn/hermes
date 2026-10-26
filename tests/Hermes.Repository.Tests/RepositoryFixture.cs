@@ -6,15 +6,18 @@ using System.Linq;
 namespace Hermes.Repository.Tests;
 
 /// <summary>
-/// A small repository tree under <c>tmp/</c> that keeps every rule: the core and channel
-/// packages with their test projects, the repository's tests, the solution, and copies of the
-/// repository's shared settings, tool manifest and scanner configuration. A test breaks one
-/// rule in it and checks the rule finds that.
+/// A repository tree under <c>tmp/</c> that keeps every rule: copies of the repository's
+/// project files and lockfiles, its solution, its shared settings, package sources, tool
+/// manifest and scanner configuration, without any source file. A test breaks one rule in it
+/// and checks the rule finds that.
 /// </summary>
 internal sealed class RepositoryFixture : IDisposable
 {
     private static readonly IReadOnlyList<string> SharedFiles =
-        ["Directory.Build.props", "Directory.Packages.props", "global.json", ".config/dotnet-tools.json", "build/gates/gitleaks.toml"];
+    [
+        "Hermes.sln", "Directory.Build.props", "Directory.Packages.props", "global.json", "nuget.config", ".gitignore",
+        ".config/dotnet-tools.json", "build/gates/gitleaks.toml",
+    ];
 
     private readonly ScratchFolder _folder = new();
 
@@ -25,16 +28,15 @@ internal sealed class RepositoryFixture : IDisposable
             Write(file, File.ReadAllText(RepositoryRoot.Combine(file)));
         }
 
-        string[] sources = [Packages.Core, Packages.Channels];
-        WriteSource(Packages.Core, []);
-        WriteSource(Packages.Channels, [Packages.Core]);
-        foreach (string source in sources)
+        foreach (ProjectFile project in ProjectFile.ReadAll(RepositoryRoot.Path))
         {
-            WriteTest(Packages.TestProject(source), [source]);
+            Write(project.RelativePath, File.ReadAllText(project.Path));
+            string lockFile = Path.Combine(project.Folder, "packages.lock.json");
+            if (File.Exists(lockFile))
+            {
+                Write(Path.Combine(Path.GetDirectoryName(project.RelativePath)!, "packages.lock.json"), File.ReadAllText(lockFile));
+            }
         }
-
-        WriteTest(Packages.RepositoryTests, sources);
-        WriteSolution([.. sources.Select(name => $"src/{name}/{name}.csproj"), .. sources.Select(Packages.TestProject).Append(Packages.RepositoryTests).Select(name => $"tests/{name}/{name}.csproj")]);
     }
 
     internal string Root => _folder.Path;

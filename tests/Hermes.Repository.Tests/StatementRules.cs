@@ -10,14 +10,17 @@ namespace Hermes.Repository.Tests;
 /// The hand-written statements of <c>07</c> MSG-ENG-005: none reads the database's clock
 /// and none takes a session-level advisory lock.
 /// </summary>
+/// <remarks>
+/// A statement is the contents of a string literal of a C# file under <c>src/</c>, or a SQL
+/// file there without its comments, so a comment that quotes a call is no statement. The
+/// migrations are read too, hand-written SQL among them, save the files EF Core generates in
+/// full: each migration's <c>.Designer.cs</c> and the model snapshot.
+/// </remarks>
 internal static partial class StatementRules
 {
-    private static readonly IReadOnlyList<string> StatementFiles = ["*.cs", "*.sql"];
-
     /// <summary>
     /// Answers each hand-written statement under <c>src/</c> of the repository at
-    /// <paramref name="root"/> that reads the database's clock. The migrations EF Core
-    /// generates are not hand-written.
+    /// <paramref name="root"/> that reads the database's clock.
     /// </summary>
     internal static IReadOnlyList<string> ClockViolations(string root)
     {
@@ -43,24 +46,45 @@ internal static partial class StatementRules
         return SessionLockPattern().Matches(text).Select(sessionLock => $"{where} calls {sessionLock.Value.Trim()}; every advisory lock is transaction-scoped.");
     }
 
-    private static IEnumerable<(string Where, string Text)> Statements(string root)
+    /// <summary>The statements of the files under <c>src/</c>, each with the file that holds it.</summary>
+    internal static IEnumerable<(string Where, string Text)> Statements(string root)
     {
-        string migrations = Path.Combine(root, "src", Packages.Engine, "Migrations") + Path.DirectorySeparatorChar;
         string source = Path.Combine(root, "src");
         if (!Directory.Exists(source))
         {
-            return [];
+            yield break;
         }
 
-        return StatementFiles.SelectMany(pattern => ProjectFile.Enumerate(source, pattern))
-            .Where(file => !file.EndsWith(".g.cs", StringComparison.Ordinal))
-            .Where(file => !file.StartsWith(migrations, StringComparison.Ordinal))
-            .Select(file => (Path.GetRelativePath(root, file).Replace('\\', '/'), File.ReadAllText(file)));
+        foreach (string file in ProjectFile.Enumerate(source, "*.cs").Where(file => !IsGenerated(file)).Order(StringComparer.Ordinal))
+        {
+            string where = Path.GetRelativePath(root, file).Replace('\\', '/');
+            foreach (string literal in CSharpSource.Read(File.ReadAllText(file)).Literals)
+            {
+                yield return (where, literal);
+            }
+        }
+
+        foreach (string file in ProjectFile.Enumerate(source, "*.sql").Order(StringComparer.Ordinal))
+        {
+            yield return (Path.GetRelativePath(root, file).Replace('\\', '/'), SqlCommentPattern().Replace(File.ReadAllText(file), " "));
+        }
+    }
+
+    private static bool IsGenerated(string file)
+    {
+        string name = Path.GetFileName(file);
+        return name.EndsWith(".g.cs", StringComparison.Ordinal)
+            || name.EndsWith(".Designer.cs", StringComparison.Ordinal)
+            || name.EndsWith("ModelSnapshot.cs", StringComparison.Ordinal);
     }
 
     [GeneratedRegex(@"\b(now\s*\(\s*\)|current_timestamp\b|clock_timestamp\s*\()", RegexOptions.IgnoreCase)]
     private static partial Regex ClockPattern();
 
-    [GeneratedRegex(@"\bpg_advisory_lock(_shared)?\s*\(", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\bpg_(try_)?advisory_lock(_shared)?\s*\(", RegexOptions.IgnoreCase)]
     private static partial Regex SessionLockPattern();
+
+    /// <summary>A SQL comment: a line's rest after <c>--</c>, or a block between <c>/*</c> and <c>*/</c>.</summary>
+    [GeneratedRegex(@"--[^\n]*|/\*.*?\*/", RegexOptions.Singleline)]
+    private static partial Regex SqlCommentPattern();
 }

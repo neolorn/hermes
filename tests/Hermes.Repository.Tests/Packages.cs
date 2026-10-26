@@ -35,6 +35,9 @@ internal static class Packages
 
     internal static IReadOnlyList<string> All { get; } = [Core, Channels, Engine, JanusChannels, Janus, Testing, Cli];
 
+    /// <summary>The packages whose projects the repository holds from phase 0; <c>Hermes.Cli</c>'s comes with phase 1 (plan).</summary>
+    internal static IReadOnlyList<string> Present { get; } = [Core, Channels, Engine, JanusChannels, Janus, Testing];
+
     /// <summary>The folders a project may hold, by project (<c>07</c> MSG-ENG-001); every other project is flat.</summary>
     internal static FrozenDictionary<string, IReadOnlyList<string>> Folders { get; } = new Dictionary<string, IReadOnlyList<string>>
     {
