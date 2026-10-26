@@ -64,3 +64,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The send's types: `Send` and its values, `SendReceipt`, `SendRecord` with its
   deliveries, attempts and calls, `Result` and `Failure`, and the `IMessages` and
   `ITemplateSource` contracts, none of which prints a destination, a value or a person
+- Templates rendered strictly and within their bounds: the allowed tags and filters, the
+  library's `format_date` and `format_number`, HTML parts encoded, a render past its steps,
+  over its channel's limit or unable to compute refused with its code

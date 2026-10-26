@@ -14,4 +14,10 @@ internal static class Codes
     internal const string SecretInvalid = "messaging.startup.secretinvalid";
 
     internal const string SchemaMismatch = "messaging.startup.schemamismatch";
+
+    internal const string TooLong = "messaging.send.toolong";
+
+    internal const string RenderLimit = "messaging.send.renderlimit";
+
+    internal const string RenderFailed = "messaging.send.renderfailed";
 }

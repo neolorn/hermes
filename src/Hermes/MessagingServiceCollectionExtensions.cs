@@ -1,6 +1,7 @@
 using System;
 
 using Hermes.Channels;
+using Hermes.Content;
 using Hermes.Core;
 using Hermes.Operations;
 using Hermes.Sending;
@@ -58,6 +59,8 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<ContentKeyReservations>();
         services.AddSingleton<LibraryProtector>();
         services.AddScoped<ContentProtection>();
+        services.AddSingleton<TemplateParser>();
+        services.AddSingleton<TemplateRenderer>();
         services.TryAddSingleton<ChannelsUnderEngine>();
         services.AddHermesChannels(configuration);
 
