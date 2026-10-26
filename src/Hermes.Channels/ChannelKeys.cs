@@ -15,6 +15,8 @@ internal static class ChannelKeys
 {
     internal const string Timeout = "Dispatch:Timeout";
 
+    internal const string Host = "Email:Host";
+
     internal const string FromAddress = "Email:From:Address";
 
     internal const string Sender = "Sms:Sender";
@@ -29,10 +31,22 @@ internal static class ChannelKeys
 
     private static readonly ChannelsOptions Defaults = new();
 
+    /// <summary>The SMTP server's keys, read only where the shipped email provider is used.</summary>
+    private static readonly HashSet<string> Smtp = new(StringComparer.Ordinal)
+    {
+        Host, "Email:Port", "Email:Security", "Email:TrustedAuthority", "Email:TrustedAuthorityRevocation", "Email:ShortLivedMaxValidity",
+    };
+
     /// <summary>The keys holding one value.</summary>
     internal static IReadOnlyList<ConfigurationKey> Keys { get; } =
     [
         ConfigurationKeys.Duration(Timeout, startOnly: false, TimeSpan.FromSeconds(1), TimeSpan.FromMinutes(2), Defaults.Dispatch.Timeout),
+        ConfigurationKeys.Text(Host, startOnly: true, HostRule.IsHostName),
+        ConfigurationKeys.Whole("Email:Port", startOnly: true, 1, 65_535, null),
+        ConfigurationKeys.Choice("Email:Security", startOnly: true, ["ImplicitTls", "StartTls"], "ImplicitTls"),
+        ConfigurationKeys.Text("Email:TrustedAuthority", startOnly: true, EmailAuthority.IsAuthority),
+        ConfigurationKeys.Choice("Email:TrustedAuthorityRevocation", startOnly: true, ["published", "none"], "published"),
+        ConfigurationKeys.Duration("Email:ShortLivedMaxValidity", startOnly: false, TimeSpan.FromDays(1), TimeSpan.FromDays(10), Defaults.Email.ShortLivedMaxValidity),
         ConfigurationKeys.Text(FromAddress, AddressRule.IsAddress),
         ConfigurationKeys.Text("Email:From:DisplayName", text => TextLength.ScalarValues(text) is >= 1 and <= 128),
         ConfigurationKeys.Whole("Email:Rate", startOnly: false, 1, 1_000, Defaults.Email.Rate),
@@ -85,10 +99,17 @@ internal static class ChannelKeys
         _ => new[] { path },
     })];
 
+    /// <summary>Whether the key at <paramref name="path"/> takes effect only at the next start.</summary>
+    internal static bool IsStartOnly(string path)
+    {
+        return Keys.Any(key => key.StartOnly && string.Equals(key.Path, path, StringComparison.Ordinal));
+    }
+
     /// <summary>
     /// The keys <paramref name="use"/> reads and checks: <c>Dispatch:Timeout</c> where the
-    /// providers are registered alone, each used channel's own keys, and
-    /// <c>Push:Subject</c> where the shipped push provider is used.
+    /// providers are registered alone, each used channel's own keys, the SMTP server's keys
+    /// where the shipped email provider is used, and <c>Push:Subject</c> where the shipped
+    /// push provider is used.
     /// </summary>
     internal static IReadOnlyList<string> Read(ChannelUse use)
     {
@@ -96,6 +117,7 @@ internal static class ChannelKeys
         {
             Timeout => use.ProvidersAlone,
             Subject => use.ShippedPush,
+            _ when Smtp.Contains(path) => use.ShippedEmail,
             _ when path.StartsWith("Email:", StringComparison.Ordinal) => use.Email,
             _ when path.StartsWith("Sms:", StringComparison.Ordinal) => use.Sms,
             _ when path.StartsWith("Push:", StringComparison.Ordinal) => use.Push,
@@ -103,13 +125,18 @@ internal static class ChannelKeys
         })];
     }
 
-    /// <summary>The keys <paramref name="use"/> requires: a used channel's sender, its allowed prefixes, and the shipped push provider's subject.</summary>
+    /// <summary>The keys <paramref name="use"/> requires: a used channel's sender, its allowed prefixes, the shipped email provider's server and the shipped push provider's subject.</summary>
     internal static IReadOnlyList<string> Required(ChannelUse use)
     {
         List<string> required = [];
         if (use.Email)
         {
             required.Add(FromAddress);
+        }
+
+        if (use.ShippedEmail)
+        {
+            required.Add(Host);
         }
 
         if (use.Sms)

@@ -105,7 +105,8 @@ internal sealed class ChannelsConfiguration : IOptionsChangeTokenSource<Channels
             Dictionary<string, string> candidate = new(inForce, StringComparer.Ordinal);
             IReadOnlyList<string> required = ChannelKeys.Required(use);
             HashSet<string> invalid = new(StringComparer.Ordinal);
-            foreach (string path in ChannelKeys.Read(use))
+            // A start-only key keeps the value the start took until the next start.
+            foreach (string path in ChannelKeys.Read(use).Where(path => !ChannelKeys.IsStartOnly(path)))
             {
                 if (ChannelsCheck.Holds(raw, path, required.Contains(path, StringComparer.Ordinal), isSender))
                 {

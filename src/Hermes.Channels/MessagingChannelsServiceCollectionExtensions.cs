@@ -40,6 +40,13 @@ public static class MessagingChannelsServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ChannelsOptions>, ChannelsOptionsValidator>());
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton(provider => new CallTimeout(() => provider.GetRequiredService<IOptionsMonitor<ChannelsOptions>>().CurrentValue.Dispatch.Timeout));
+        services.TryAddSingleton<EmailSubmission>();
+        services.TryAddSingleton<IEmailProvider>(provider => new SmtpProvider(
+            provider.GetRequiredService<IOptionsMonitor<ChannelsOptions>>(),
+            provider.GetRequiredService<EmailSubmission>(),
+            provider.GetRequiredService<CallTimeout>(),
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<ChannelsConfiguration>().ThrowIfNotStarted));
         services.TryAddSingleton<PushKeys>();
         PushClient.Register(services);
         services.TryAddSingleton<IPushProvider>(provider =>

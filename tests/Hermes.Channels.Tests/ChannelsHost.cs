@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text.Json;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,22 +18,38 @@ internal static class ChannelsHost
 
     internal const string Subject = "mailto:operations@example.com";
 
-    /// <summary>The keys each channel requires, every channel used, the shipped push provider among them.</summary>
+    internal const string SubmissionHost = "smtp.example.test";
+
+    internal const string User = "notices";
+
+    /// <summary>The submission account's password, made at run time.</summary>
+    internal static readonly string Password = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+
+    /// <summary>The keys each channel requires, every channel used, the shipped email and push providers among them.</summary>
     internal static Dictionary<string, string?> Used()
     {
         return new Dictionary<string, string?>(StringComparer.Ordinal)
         {
             ["Hermes:Email:From:Address"] = FromAddress,
+            ["Hermes:Email:Host"] = SubmissionHost,
             ["Hermes:Sms:Sender"] = Sender,
             ["Hermes:Sms:AllowedPrefixes:0"] = "+20",
             ["Hermes:Push:Subject"] = Subject,
         };
     }
 
-    /// <summary>A secret source holding one valid version of <c>pushVapidKeys</c>.</summary>
+    /// <summary>A secret source holding one valid version of <c>emailSubmission</c> and of <c>pushVapidKeys</c>.</summary>
     internal static SecretSourceFake Secrets()
     {
-        return new SecretSourceFake().WithVersions("pushVapidKeys", (1, PushHarness.Scalar()));
+        return new SecretSourceFake()
+            .WithVersions("emailSubmission", (1, Account(User, Password)))
+            .WithVersions("pushVapidKeys", (1, PushHarness.Scalar()));
+    }
+
+    /// <summary>The secret <c>emailSubmission</c> of <paramref name="user"/> and <paramref name="password"/>.</summary>
+    internal static byte[] Account(string user, string password)
+    {
+        return JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string> { ["userName"] = user, ["password"] = password });
     }
 
     /// <summary>

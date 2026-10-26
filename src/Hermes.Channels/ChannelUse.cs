@@ -9,5 +9,6 @@ namespace Hermes.Channels;
 /// <param name="Email">Whether email is used.</param>
 /// <param name="Sms">Whether SMS is used.</param>
 /// <param name="Push">Whether push is used.</param>
+/// <param name="ShippedEmail">Whether the shipped SMTP provider is used.</param>
 /// <param name="ShippedPush">Whether the shipped push provider is used.</param>
-internal sealed record ChannelUse(bool ProvidersAlone, bool Email, bool Sms, bool Push, bool ShippedPush);
+internal sealed record ChannelUse(bool ProvidersAlone, bool Email, bool Sms, bool Push, bool ShippedEmail, bool ShippedPush);

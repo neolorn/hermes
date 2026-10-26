@@ -18,7 +18,7 @@ namespace Hermes.Channels;
 /// shipped provider where the host registers no provider of its own for it. The keys the use
 /// reads are checked, then the secrets its shipped providers need are read.
 /// </summary>
-internal sealed class ChannelsStartup(ChannelsConfiguration state, PushKeys keys, IServiceProvider services) : IHostedLifecycleService
+internal sealed class ChannelsStartup(ChannelsConfiguration state, EmailSubmission account, PushKeys keys, IServiceProvider services) : IHostedLifecycleService
 {
     public async Task StartingAsync(CancellationToken cancellationToken)
     {
@@ -31,12 +31,14 @@ internal sealed class ChannelsStartup(ChannelsConfiguration state, PushKeys keys
         AsyncServiceScope scope = services.CreateAsyncScope();
         await using (scope.ConfigureAwait(false))
         {
+            bool email = hermes.GetSection("Email").Exists();
             bool push = hermes.GetSection("Push").Exists();
             ChannelUse use = new(
                 ProvidersAlone: true,
-                Email: hermes.GetSection("Email").Exists(),
+                Email: email,
                 Sms: hermes.GetSection("Sms").Exists(),
                 Push: push,
+                ShippedEmail: email && scope.ServiceProvider.GetService<IEmailProvider>() is SmtpProvider,
                 ShippedPush: push && scope.ServiceProvider.GetService<IPushProvider>() is WebPushProvider);
 
             ISmsProvider? sms = use.Sms ? scope.ServiceProvider.GetService<ISmsProvider>() : null;
@@ -46,10 +48,17 @@ internal sealed class ChannelsStartup(ChannelsConfiguration state, PushKeys keys
                 throw StartupFailure.Of(ChannelCodes.ConfigurationInvalid, ("key", key));
             }
 
+            ISecretSource? secrets = use.ShippedEmail || use.ShippedPush
+                ? scope.ServiceProvider.GetService<ISecretSource>() ?? throw StartupFailure.Of(ChannelCodes.DeclarationMissing, ("key", "secretSource"))
+                : null;
+            if (use.ShippedEmail)
+            {
+                account.Hold(await EmailSubmission.ReadAsync(secrets!, cancellationToken).ConfigureAwait(false));
+            }
+
             if (use.ShippedPush)
             {
-                ISecretSource secrets = scope.ServiceProvider.GetService<ISecretSource>() ?? throw StartupFailure.Of(ChannelCodes.DeclarationMissing, ("key", "secretSource"));
-                SortedDictionary<int, byte[]> versions = await PushKeyCheck.ReadAsync(secrets, cancellationToken).ConfigureAwait(false);
+                SortedDictionary<int, byte[]> versions = await PushKeyCheck.ReadAsync(secrets!, cancellationToken).ConfigureAwait(false);
                 keys.Hold(versions);
                 foreach (byte[] value in versions.Values)
                 {

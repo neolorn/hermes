@@ -106,8 +106,8 @@ public sealed class ChannelsReloadTests
     [Fact]
     public async Task MSG_OPS_001_AC2_ReloadedKeyOfAPartNotUsedIsNotRead()
     {
-        IConfigurationRoot root = ChannelsHost.Root(new() { ["Hermes:Email:From:Address"] = ChannelsHost.FromAddress });
-        using IHost host = ChannelsHost.Build(root);
+        IConfigurationRoot root = ChannelsHost.Root(new() { ["Hermes:Email:From:Address"] = ChannelsHost.FromAddress, ["Hermes:Email:Host"] = ChannelsHost.SubmissionHost });
+        using IHost host = ChannelsHost.Build(root, services => services.AddSingleton<Core.ISecretSource>(ChannelsHost.Secrets()));
         await host.StartAsync(TestContext.Current.CancellationToken);
 
         root["Hermes:Push:Rate"] = "0";
@@ -115,6 +115,26 @@ public sealed class ChannelsReloadTests
 
         Assert.Empty(host.Services.GetRequiredService<ChannelsConfiguration>().InvalidKeys);
         Assert.Equal(50, Current(host).Push.Rate);
+    }
+
+    [Fact]
+    public async Task Reload_StartOnlyKey_KeepsTheValueTheStartTookUntilTheNextStart()
+    {
+        (IHost host, IConfigurationRoot root) = await StartedAsync();
+        using (host)
+        {
+            root["Hermes:Email:Host"] = "smtp.example.net";
+            root["Hermes:Email:Port"] = "2525";
+            root["Hermes:Email:Security"] = "Tls";
+            root["Hermes:Email:ShortLivedMaxValidity"] = "3.00:00:00";
+            root.Reload();
+
+            Assert.Equal(ChannelsHost.SubmissionHost, Current(host).Email.Host);
+            Assert.Null(Current(host).Email.Port);
+            Assert.Equal(EmailSecurity.ImplicitTls, Current(host).Email.Security);
+            Assert.Equal(TimeSpan.FromDays(3), Current(host).Email.ShortLivedMaxValidity);
+            Assert.Empty(host.Services.GetRequiredService<ChannelsConfiguration>().InvalidKeys);
+        }
     }
 
     private static async Task<(IHost Host, IConfigurationRoot Root)> StartedAsync()

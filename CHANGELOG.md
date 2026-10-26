@@ -57,3 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AddHermes` registers the shipped providers and checks the keys of each channel a kind
   uses, a kind's `from`, `replyTo` and SMS sender, and the configuration given to the
   call, the start stopping on the first outside its rule
+- The shipped SMTP provider: submission through MailKit to `Email:Host` over implicit TLS
+  or `STARTTLS`, authenticated with `emailSubmission`, the server's certificate validated
+  by the library with each named revocation source read online, one connection per
+  session opened again once it broke, every answer classed and none of its text kept

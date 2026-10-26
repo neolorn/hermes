@@ -17,6 +17,8 @@ internal static class TestHost
 
     internal const string Subject = "mailto:operations@example.com";
 
+    internal const string SubmissionHost = "smtp.example.test";
+
     /// <summary>
     /// The configuration of <paramref name="languages"/>, the first being the default; <c>en</c>
     /// where none is given; with the keys each channel requires where a kind uses it.
@@ -26,6 +28,7 @@ internal static class TestHost
         Dictionary<string, string?> configuration = new(StringComparer.Ordinal)
         {
             ["Hermes:Email:From:Address"] = FromAddress,
+            ["Hermes:Email:Host"] = SubmissionHost,
             ["Hermes:Sms:Sender"] = Sender,
             ["Hermes:Sms:AllowedPrefixes:0"] = "+20",
             ["Hermes:Push:Subject"] = Subject,

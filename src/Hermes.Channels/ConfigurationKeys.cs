@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 
 namespace Hermes.Channels;
 
@@ -9,8 +11,8 @@ namespace Hermes.Channels;
 /// </summary>
 internal static class ConfigurationKeys
 {
-    /// <summary>A whole number from <paramref name="least"/> to <paramref name="most"/>.</summary>
-    internal static ConfigurationKey Whole(string path, bool startOnly, int least, int most, int value)
+    /// <summary>A whole number from <paramref name="least"/> to <paramref name="most"/>; none where its default is none.</summary>
+    internal static ConfigurationKey Whole(string path, bool startOnly, int least, int most, int? value)
     {
         return new(
             path,
@@ -60,6 +62,21 @@ internal static class ConfigurationKeys
     internal static ConfigurationKey Text(string path, Func<string, bool> within)
     {
         return new(path, false, text => text, read => within((string)read), null);
+    }
+
+    /// <summary>A text within <paramref name="within"/>, taking effect at the next start where <paramref name="startOnly"/>; none by default.</summary>
+    internal static ConfigurationKey Text(string path, bool startOnly, Func<string, bool> within)
+    {
+        return new(path, startOnly, text => text, read => within((string)read), null);
+    }
+
+    /// <summary>
+    /// One of <paramref name="values"/>, spelt as <c>08</c> section 4 spells it; any other text
+    /// does not read, so the binder never meets it.
+    /// </summary>
+    internal static ConfigurationKey Choice(string path, bool startOnly, IReadOnlyList<string> values, string value)
+    {
+        return new(path, startOnly, text => values.Contains(text, StringComparer.Ordinal) ? text : null, _ => true, value);
     }
 
     /// <summary>A flag; every flag of <c>08</c> section 4 is start only.</summary>

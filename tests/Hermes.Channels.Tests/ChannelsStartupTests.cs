@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 
 using Hermes.Core;
@@ -96,6 +99,19 @@ public sealed class ChannelsStartupTests
     [Theory]
     [InlineData("Dispatch:Timeout", "00:00:00.999")]
     [InlineData("Dispatch:Timeout", "00:02:01")]
+    [InlineData("Email:Host", "smtp_example.com")]
+    [InlineData("Email:Host", "192.0.2.1")]
+    [InlineData("Email:Host", "")]
+    [InlineData("Email:Port", "0")]
+    [InlineData("Email:Port", "65536")]
+    [InlineData("Email:Port", "submission")]
+    [InlineData("Email:Security", "implicittls")]
+    [InlineData("Email:Security", "Tls")]
+    [InlineData("Email:TrustedAuthority", "authority")]
+    [InlineData("Email:TrustedAuthorityRevocation", "None")]
+    [InlineData("Email:TrustedAuthorityRevocation", "online")]
+    [InlineData("Email:ShortLivedMaxValidity", "23:59:59")]
+    [InlineData("Email:ShortLivedMaxValidity", "10.00:00:01")]
     [InlineData("Email:From:Address", "notices")]
     [InlineData("Email:From:Address", "notices@example.com>")]
     [InlineData("Email:From:Address", "")]
@@ -182,6 +198,12 @@ public sealed class ChannelsStartupTests
     [Theory]
     [InlineData("Dispatch:Timeout", "00:00:01")]
     [InlineData("Dispatch:Timeout", "00:02:00")]
+    [InlineData("Email:Port", "1")]
+    [InlineData("Email:Port", "65535")]
+    [InlineData("Email:Security", "StartTls")]
+    [InlineData("Email:TrustedAuthorityRevocation", "none")]
+    [InlineData("Email:ShortLivedMaxValidity", "1.00:00:00")]
+    [InlineData("Email:ShortLivedMaxValidity", "10.00:00:00")]
     [InlineData("Email:From:Address", "\"order notices\"@[192.0.2.1]")]
     [InlineData("Sms:Sender", "123456789012345")]
     [InlineData("Sms:Sender", "Hermes Note")]
@@ -206,6 +228,7 @@ public sealed class ChannelsStartupTests
 
     [Theory]
     [InlineData("Email", "Email:From:Address")]
+    [InlineData("Email", "Email:Host")]
     [InlineData("Sms", "Sms:Sender")]
     [InlineData("Sms", "Sms:AllowedPrefixes")]
     [InlineData("Push", "Push:Subject")]
@@ -246,13 +269,14 @@ public sealed class ChannelsStartupTests
         Dictionary<string, string?> configuration = new(StringComparer.Ordinal)
         {
             ["Hermes:Email:From:Address"] = ChannelsHost.FromAddress,
+            ["Hermes:Email:Host"] = ChannelsHost.SubmissionHost,
             ["Hermes:Retry:Factor"] = "many",
         };
-        using IHost host = ChannelsHost.Build(ChannelsHost.Root(configuration));
+        using IHost host = ChannelsHost.Build(configuration);
 
         await host.StartAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(new ChannelUse(ProvidersAlone: true, Email: true, Sms: false, Push: false, ShippedPush: false), host.Services.GetRequiredService<ChannelsConfiguration>().Use);
+        Assert.Equal(new ChannelUse(ProvidersAlone: true, Email: true, Sms: false, Push: false, ShippedEmail: true, ShippedPush: false), host.Services.GetRequiredService<ChannelsConfiguration>().Use);
     }
 
     [Fact]
@@ -340,7 +364,7 @@ public sealed class ChannelsStartupTests
     [Fact]
     public async Task StartAsync_ShippedPushWithNoVapidKey_StopsTheStartAsASecretUnavailable()
     {
-        using IHost host = ChannelsHost.Build(ChannelsHost.Used(), services => services.AddSingleton<ISecretSource>(new SecretSourceFake()));
+        using IHost host = ChannelsHost.Build(ChannelsHost.Used(), services => services.AddSingleton<ISecretSource>(new SecretSourceFake().WithVersions("emailSubmission", (1, ChannelsHost.Account(ChannelsHost.User, ChannelsHost.Password)))));
 
         MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
 
@@ -352,7 +376,7 @@ public sealed class ChannelsStartupTests
     [MemberData(nameof(NotScalars))]
     public async Task MSG_PUSH_007_AC3_VersionThatIsNotAValidScalarStopsTheStart(int version, byte[] value)
     {
-        SecretSourceFake secrets = new SecretSourceFake().WithVersions("pushVapidKeys", (1, PushHarness.Scalar()), (version, value));
+        SecretSourceFake secrets = ChannelsHost.Secrets().WithVersions("pushVapidKeys", (1, PushHarness.Scalar()), (version, value));
         using IHost host = ChannelsHost.Build(ChannelsHost.Used(), services => services.AddSingleton<ISecretSource>(secrets));
 
         MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
@@ -405,5 +429,119 @@ public sealed class ChannelsStartupTests
         await host.StartAsync(TestContext.Current.CancellationToken);
 
         Assert.Null(host.Services.GetRequiredService<ChannelsConfiguration>().Use);
+    }
+
+    [Fact]
+    public async Task StartAsync_TrustedAuthorityHoldingOneCertificate_Starts()
+    {
+        using TestAuthority authority = TestAuthority.Create();
+        Dictionary<string, string?> configuration = ChannelsHost.Used();
+        configuration["Hermes:Email:TrustedAuthority"] = authority.Pem;
+        using IHost host = ChannelsHost.Build(configuration);
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(authority.Pem, host.Services.GetRequiredService<IOptions<ChannelsOptions>>().Value.Email.TrustedAuthority);
+    }
+
+    [Fact]
+    public async Task StartAsync_TrustedAuthorityHoldingOtherThanOneCertificate_StopsTheStart()
+    {
+        using TestAuthority authority = TestAuthority.Create();
+        using TestAuthority other = TestAuthority.Create();
+        using ECDsa key = authority.Certificate.GetECDsaPublicKey()!;
+        string[] values = [authority.Pem + other.Pem, authority.Pem + key.ExportSubjectPublicKeyInfoPem(), key.ExportSubjectPublicKeyInfoPem()];
+        foreach (string value in values)
+        {
+            Dictionary<string, string?> configuration = ChannelsHost.Used();
+            configuration["Hermes:Email:TrustedAuthority"] = value;
+            using IHost host = ChannelsHost.Build(configuration);
+
+            MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+            Assert.Equal("messaging.startup.configurationinvalid", failure.Code);
+            Assert.Equal("Email:TrustedAuthority", failure.Details["key"]);
+        }
+    }
+
+    [Fact]
+    public async Task MSG_OPS_008_AC1_EmailSubmissionMissingWhereEmailIsSentStopsTheStartNamingIt()
+    {
+        SecretSourceFake secrets = new SecretSourceFake().WithVersions("pushVapidKeys", (1, PushHarness.Scalar()));
+        using IHost host = ChannelsHost.Build(ChannelsHost.Used(), services => services.AddSingleton<ISecretSource>(secrets));
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("messaging.startup.secretunavailable", failure.Code);
+        Assert.Equal("emailSubmission", failure.Details["key"]);
+    }
+
+    [Theory]
+    [InlineData("notices")]
+    [InlineData("[]")]
+    [InlineData("{}")]
+    [InlineData("{\"userName\":\"notices\"}")]
+    [InlineData("{\"userName\":\"\",\"password\":\"p\"}")]
+    [InlineData("{\"userName\":\"notices\",\"password\":\"\"}")]
+    [InlineData("{\"userName\":7,\"password\":\"p\"}")]
+    [InlineData("{\"userName\":\"notices\",\"password\":\"p\"} {}")]
+    [InlineData("{\"userName\":\"notices\",\"password\":\"p\"")]
+    public async Task StartAsync_EmailSubmissionThatDoesNotReadAsTheAccount_StopsTheStartAsASecretInvalid(string json)
+    {
+        SecretSourceFake secrets = ChannelsHost.Secrets().WithVersions("emailSubmission", (1, Encoding.UTF8.GetBytes(json)));
+        using IHost host = ChannelsHost.Build(ChannelsHost.Used(), services => services.AddSingleton<ISecretSource>(secrets));
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("messaging.startup.secretinvalid", failure.Code);
+        Assert.Equal("emailSubmission", failure.Details["key"]);
+    }
+
+    [Fact]
+    public async Task StartAsync_EmailSubmissionWithMembersBesideTheAccount_Starts()
+    {
+        byte[] account = Encoding.UTF8.GetBytes("{\"server\":{\"name\":[1,2]},\"userName\":\"" + ChannelsHost.User + "\",\"password\":\"" + ChannelsHost.Password + "\"}");
+        SecretSourceFake secrets = ChannelsHost.Secrets().WithVersions("emailSubmission", (1, account));
+        using IHost host = ChannelsHost.Build(ChannelsHost.Used(), services => services.AddSingleton<ISecretSource>(secrets));
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(host.Services.GetRequiredService<ChannelsConfiguration>().Use!.ShippedEmail);
+    }
+
+    [Fact]
+    public async Task StartAsync_ShippedEmailWithNoSecretSource_StopsTheStartAsADeclarationMissing()
+    {
+        Dictionary<string, string?> configuration = new(StringComparer.Ordinal)
+        {
+            ["Hermes:Email:From:Address"] = ChannelsHost.FromAddress,
+            ["Hermes:Email:Host"] = ChannelsHost.SubmissionHost,
+        };
+        using IHost host = ChannelsHost.Build(ChannelsHost.Root(configuration));
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("messaging.startup.declarationmissing", failure.Code);
+        Assert.Equal("secretSource", failure.Details["key"]);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task MSG_CHAN_001_AC1_HostEmailProviderReplacesTheShippedOneWithNoOtherChange(bool registeredBefore)
+    {
+        EmailProviderFake own = new();
+        Dictionary<string, string?> configuration = new(StringComparer.Ordinal)
+        {
+            ["Hermes:Email:From:Address"] = ChannelsHost.FromAddress,
+            ["Hermes:Email:Port"] = "0",
+        };
+        Action<IServiceCollection> register = services => services.AddSingleton<IEmailProvider>(own);
+        using IHost host = ChannelsHost.Build(ChannelsHost.Root(configuration), registeredBefore ? register : null, registeredBefore ? null : register);
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.Same(own, host.Services.GetRequiredService<IEmailProvider>());
+        Assert.False(host.Services.GetRequiredService<ChannelsConfiguration>().Use!.ShippedEmail);
     }
 }

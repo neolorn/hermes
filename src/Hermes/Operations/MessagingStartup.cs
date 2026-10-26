@@ -29,6 +29,7 @@ internal sealed class MessagingStartup(
     Declarations declarations,
     MessagingDatabase database,
     HeldKeys keys,
+    EmailSubmission submission,
     PushKeys pushKeys,
     KeyTable table,
     IHostEnvironment environment,
@@ -80,6 +81,11 @@ internal sealed class MessagingStartup(
             {
                 pushKeys.Hold(vapid.Versions);
             }
+
+            if (use.ShippedEmail)
+            {
+                submission.Hold(await EmailSubmission.ReadAsync(secrets, cancellationToken).ConfigureAwait(false));
+            }
         }
 
         if (await SchemaCheck.MissingAsync(database, cancellationToken).ConfigureAwait(false) is { } migration)
@@ -116,18 +122,20 @@ internal sealed class MessagingStartup(
     }
 
     /// <summary>
-    /// The channels the declared kinds use, and whether the shipped push provider is used: push
-    /// is used, the host registers no push provider of its own, and the application dispatches
-    /// (<c>04</c> MSG-LIB-003).
+    /// The channels the declared kinds use, and whether each shipped provider is used: its
+    /// channel is used, the host registers no provider of its own for it, and the application
+    /// dispatches (<c>04</c> MSG-LIB-003).
     /// </summary>
     internal static ChannelUse Use(Declarations declarations, MessagingOptions options, IServiceProvider scoped)
     {
+        bool email = declarations.Kinds.Any(kind => kind.Email is not null);
         bool push = declarations.Kinds.Any(kind => kind.Push is not null);
         return new ChannelUse(
             ProvidersAlone: false,
-            Email: declarations.Kinds.Any(kind => kind.Email is not null),
+            Email: email,
             Sms: declarations.Kinds.Any(kind => kind.Sms is not null),
             Push: push,
+            ShippedEmail: email && options.Dispatch.Enabled && scoped.GetService<IEmailProvider>() is SmtpProvider,
             ShippedPush: push && options.Dispatch.Enabled && scoped.GetService<IPushProvider>() is WebPushProvider);
     }
 

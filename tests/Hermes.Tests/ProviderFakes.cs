@@ -41,3 +41,27 @@ internal sealed class SmsProviderFake : ISmsProvider
         throw new NotSupportedException("The fake reads no report.");
     }
 }
+
+/// <summary>A host's own email provider, whose sessions accept every message.</summary>
+internal sealed class EmailProviderFake : IEmailProvider
+{
+    private static readonly Session Accepting = new();
+
+    public ValueTask<IEmailSession> OpenAsync(CancellationToken cancellationToken)
+    {
+        return ValueTask.FromResult<IEmailSession>(Accepting);
+    }
+
+    private sealed class Session : IEmailSession
+    {
+        public ValueTask<Attempt> SendAsync(EmailMessage message, CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<Attempt>(new Attempt.Accepted(null));
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
+        }
+    }
+}
