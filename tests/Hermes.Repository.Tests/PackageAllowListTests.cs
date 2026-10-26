@@ -97,11 +97,25 @@ public sealed class PackageAllowListTests
     public void MSG_ENG_009_AC1_DotnetEfAtAVersionOtherThanEntityFrameworkCoresIsFound()
     {
         using RepositoryFixture fixture = new();
-        string props = File.ReadAllText(Path.Combine(fixture.Root, "Directory.Packages.props"));
-        fixture.Write("Directory.Packages.props", props.Replace(
-            "  </ItemGroup>",
-            "    <PackageVersion Include=\"Microsoft.EntityFrameworkCore\" Version=\"10.0.14\" />\n  </ItemGroup>",
-            StringComparison.Ordinal));
+        fixture.Write("Directory.Packages.props", """
+            <Project>
+              <PropertyGroup>
+                <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+              </PropertyGroup>
+              <ItemGroup>
+                <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.14" />
+              </ItemGroup>
+            </Project>
+            """);
+        fixture.Write(".config/dotnet-tools.json", """
+            {
+              "version": 1,
+              "isRoot": true,
+              "tools": {
+                "dotnet-ef": { "version": "10.0.13", "commands": [ "dotnet-ef" ] }
+              }
+            }
+            """);
 
         Assert.Contains(
             "The tool manifest takes dotnet-ef 10.0.13, not the EF Core version 10.0.14.",

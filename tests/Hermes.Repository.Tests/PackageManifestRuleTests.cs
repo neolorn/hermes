@@ -57,6 +57,25 @@ public sealed class PackageManifestRuleTests
         Assert.Equal([violation], PackageRules.ManifestViolations(manifest));
     }
 
+    [Fact]
+    public void ManifestViolations_FrameworkReferenceTheSdkWrites_IsAccepted()
+    {
+        PackageManifest manifest = Parse(Core.Replace("</metadata>", "<frameworkReferences><group targetFramework=\"net10.0\"><frameworkReference name=\"Microsoft.AspNetCore.App\" /></group></frameworkReferences></metadata>", StringComparison.Ordinal));
+
+        Assert.Empty(PackageRules.ManifestViolations(manifest));
+    }
+
+    [Fact]
+    public void ManifestViolations_ToolPackageType_IsAcceptedOnTheToolAlone()
+    {
+        const string type = "<packageTypes><packageType name=\"DotnetTool\" /></packageTypes></metadata>";
+        PackageManifest tool = Parse(Core.Replace("</metadata>", type, StringComparison.Ordinal).Replace("<id>Hermes.Core</id>", "<id>Hermes.Cli</id>", StringComparison.Ordinal).Replace("The public types and contracts every other package shares", "A .NET tool, command hermes, that applies the migrations", StringComparison.Ordinal));
+        PackageManifest other = Parse(Core.Replace("</metadata>", type, StringComparison.Ordinal));
+
+        Assert.Empty(PackageRules.ManifestViolations(tool));
+        Assert.Equal(["Hermes.Core carries the package property packageTypes, which is left unset."], PackageRules.ManifestViolations(other));
+    }
+
     [Theory]
     [InlineData("<authors>neolorn</authors>", "<authors>someone</authors>", "Hermes.Core's authors are someone, not neolorn.")]
     [InlineData("every other package shares", "every package shares", "Hermes.Core's description is not its cell of 00 section 2.2.")]

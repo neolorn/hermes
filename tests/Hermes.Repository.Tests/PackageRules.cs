@@ -45,9 +45,16 @@ internal static class PackageRules
     internal static IReadOnlyList<string> Mocking { get; } =
         ["Moq", "NSubstitute", "FakeItEasy", "RhinoMocks", "Rhino.Mocks", "JustMock", "Telerik.JustMock", "NMock", "NMock3", "Typemock.Isolator", "Microsoft.QualityTools.Testing.Fakes"];
 
-    /// <summary>The elements of a packed package's metadata: its identifier, version, authors, description, repository and dependencies.</summary>
+    /// <summary>
+    /// The elements of a packed package's metadata: its identifier, version, authors, description,
+    /// repository and dependencies, and the framework references the SDK writes where
+    /// <c>04</c> MSG-LIB-001 has a project reference the shared framework.
+    /// </summary>
     private static readonly FrozenSet<string> ManifestElements =
-        FrozenSet.Create(StringComparer.Ordinal, "id", "version", "authors", "description", "repository", "dependencies");
+        FrozenSet.Create(StringComparer.Ordinal, "id", "version", "authors", "description", "repository", "dependencies", "frameworkReferences");
+
+    /// <summary>The element <c>Hermes.Cli</c> alone carries, its package type as a .NET tool.</summary>
+    private const string ToolPackageType = "packageTypes";
 
     /// <summary>
     /// Answers each dependency of a packed package on another of the library's packages that is
@@ -80,7 +87,7 @@ internal static class PackageRules
     internal static IEnumerable<string> ManifestViolations(PackageManifest manifest)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        foreach (string element in manifest.Elements.Where(element => !ManifestElements.Contains(element)))
+        foreach (string element in manifest.Elements.Where(element => !ManifestElements.Contains(element) && !(string.Equals(element, ToolPackageType, StringComparison.Ordinal) && string.Equals(manifest.Id, Packages.Cli, StringComparison.Ordinal))))
         {
             yield return $"{manifest.Id} carries the package property {element}, which is left unset.";
         }

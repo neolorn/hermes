@@ -46,6 +46,7 @@ public sealed class RepositoryLayoutTests
     [Theory]
     [InlineData(Packages.Engine)]
     [InlineData(Packages.Testing)]
+    [InlineData(Packages.Cli)]
     [InlineData(Packages.Janus)]
     public void MSG_ENG_001_AC1_PackageWithoutItsProjectIsFound(string package)
     {
@@ -53,14 +54,6 @@ public sealed class RepositoryLayoutTests
         File.Delete(Path.Combine(fixture.Root, "src", package, package + ".csproj"));
 
         Assert.Contains($"src/{package} is missing, though {package} is a package of 00 section 2.2.", LayoutRules.ProjectViolations(fixture.Root));
-    }
-
-    [Fact]
-    public void MSG_ENG_001_AC1_CommandLinePackageIsNotYetRequired()
-    {
-        using RepositoryFixture fixture = new();
-
-        Assert.DoesNotContain(LayoutRules.ProjectViolations(fixture.Root), violation => violation.Contains(Packages.Cli, StringComparison.Ordinal));
     }
 
     [Theory]

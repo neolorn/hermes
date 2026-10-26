@@ -73,7 +73,7 @@ internal static partial class LayoutRules
             violations.Add($"tests/{Packages.RepositoryTests} is missing.");
         }
 
-        foreach (string package in Packages.Present.Where(package => !sources.Contains(package, StringComparer.Ordinal)))
+        foreach (string package in Packages.All.Where(package => !sources.Contains(package, StringComparer.Ordinal)))
         {
             violations.Add($"src/{package} is missing, though {package} is a package of 00 section 2.2.");
         }

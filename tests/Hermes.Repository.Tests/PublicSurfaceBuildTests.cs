@@ -15,7 +15,13 @@ namespace Hermes.Repository.Tests;
 [Trait("Category", "integration")]
 public sealed class PublicSurfaceBuildTests
 {
-    private static readonly IReadOnlyList<string> Copied = ["Hermes.Core.csproj", "PublicAPI.Shipped.txt", "PublicAPI.Unshipped.txt", "packages.lock.json"];
+    /// <summary>The files of <c>Hermes.Core</c> a probe copies: its project and lock file, whose analyser wiring it tests.</summary>
+    private static readonly IReadOnlyList<string> Copied = ["Hermes.Core.csproj", "packages.lock.json"];
+
+    /// <summary>The public API files a probe starts from, listing nothing, since it copies none of the sources.</summary>
+    private static readonly IReadOnlyList<string> SurfaceFiles = ["PublicAPI.Shipped.txt", "PublicAPI.Unshipped.txt"];
+
+    private const string EmptySurface = "#nullable enable\n";
 
     [Fact]
     public async Task MSG_LIB_002_AC1_AddingAPublicTypeWithoutItsPublicApiFileFailsTheBuild()
@@ -86,6 +92,11 @@ public sealed class PublicSurfaceBuildTests
             folder.Write(Path.Combine("src", Packages.Core, file), await File.ReadAllTextAsync(RepositoryRoot.Combine("src", Packages.Core, file), cancellationToken));
         }
 
+        foreach (string file in SurfaceFiles)
+        {
+            folder.Write(Path.Combine("src", Packages.Core, file), EmptySurface);
+        }
+
         ProcessResult unchanged = await Processes.GateAsync("gate-public-surface.ps1", folder.Path, cancellationToken, "-Repository", folder.Path);
         folder.Write(Path.Combine("src", Packages.Core, "Probe.cs"), """
             namespace Hermes.Core;
@@ -121,6 +132,11 @@ public sealed class PublicSurfaceBuildTests
         foreach (string file in Copied)
         {
             probe.WriteSource(file, File.ReadAllText(RepositoryRoot.Combine("src", Packages.Core, file)));
+        }
+
+        foreach (string file in SurfaceFiles)
+        {
+            probe.WriteSource(file, EmptySurface);
         }
 
         return probe;

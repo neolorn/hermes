@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 
 namespace Hermes.Repository.Tests;
@@ -136,6 +137,35 @@ internal static class AssemblySurface
         }
 
         return grants;
+    }
+
+    /// <summary>The strings the built assembly holds: the IL's literals and the string constants of its fields.</summary>
+    internal static IReadOnlyList<string> Strings(string assembly)
+    {
+        using FileStream stream = File.OpenRead(assembly);
+        using PEReader reader = new(stream);
+        MetadataReader metadata = reader.GetMetadataReader();
+        List<string> strings = [];
+
+        if (metadata.GetHeapSize(HeapIndex.UserString) > 1)
+        {
+            for (UserStringHandle handle = MetadataTokens.UserStringHandle(1); !handle.IsNil; handle = metadata.GetNextHandle(handle))
+            {
+                strings.Add(metadata.GetUserString(handle));
+            }
+        }
+
+        foreach (FieldDefinitionHandle handle in metadata.FieldDefinitions)
+        {
+            ConstantHandle constant = metadata.GetFieldDefinition(handle).GetDefaultValue();
+            if (!constant.IsNil && metadata.GetConstant(constant) is { TypeCode: ConstantTypeCode.String } value)
+            {
+                BlobReader blob = metadata.GetBlobReader(value.Value);
+                strings.Add(blob.ReadUTF16(blob.Length));
+            }
+        }
+
+        return strings;
     }
 
     /// <summary>The names of the assemblies the assembly references.</summary>
