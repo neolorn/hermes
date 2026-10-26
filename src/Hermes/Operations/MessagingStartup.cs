@@ -25,6 +25,7 @@ internal sealed class MessagingStartup(
     IOptionsMonitor<MessagingOptions> options,
     Declarations declarations,
     MessagingDatabase database,
+    HeldKeys keys,
     IServiceProvider services) : IHostedLifecycleService
 {
     public async Task StartingAsync(CancellationToken cancellationToken)
@@ -58,6 +59,7 @@ internal sealed class MessagingStartup(
 
             ISecretSource secrets = scope.ServiceProvider.GetRequiredService<ISecretSource>();
             database.Open(await SecretCheck.ConnectionAsync(secrets, cancellationToken).ConfigureAwait(false));
+            keys.Hold(await SecretCheck.KeysAsync(secrets, configuration.GetSection("Hermes"), KeyNeeds.Needed(declarations, current), cancellationToken).ConfigureAwait(false));
         }
 
         if (await SchemaCheck.MissingAsync(database, cancellationToken).ConfigureAwait(false) is { } migration)

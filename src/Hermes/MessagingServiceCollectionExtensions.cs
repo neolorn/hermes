@@ -47,6 +47,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddLogging();
         services.TryAddSingleton<IAlertSink, LoggingAlertSink>();
         services.AddSingleton<MessagingDatabase>();
+        services.AddSingleton<HeldKeys>();
         services.AddSingleton<IHostedService, MessagingStartup>();
         return services;
     }

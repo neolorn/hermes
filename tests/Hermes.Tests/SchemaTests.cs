@@ -90,7 +90,7 @@ public sealed class SchemaTests(PostgresFixture postgres) : IClassFixture<Postgr
                 declare.Category("security").Essential();
                 declare.Kind("sign.in", "security").Sms();
             },
-            services => services.AddSingleton<ISecretSource>(new SecretSourceFake().With("connection", Encoding.UTF8.GetBytes(connection))));
+            services => services.AddSingleton<ISecretSource>(Secrets.Held(connection)));
     }
 
     private static async Task AssertPastTheSchema(IHost host)
