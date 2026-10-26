@@ -14,7 +14,15 @@ namespace Hermes.Tests;
 /// <summary>One PostgreSQL container for a test class, each test taking a database of its own in it.</summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer container = new PostgreSqlBuilder("postgres:16.15").Build();
+    private readonly PostgreSqlContainer container;
+
+    public PostgresFixture()
+    {
+        container = new PostgreSqlBuilder("postgres:16.15").WithPassword(Password).Build();
+    }
+
+    /// <summary>The database's password, made for this container, so a test can look for it in what the library writes.</summary>
+    internal string Password { get; } = "pw" + Guid.NewGuid().ToString("N");
 
     public async ValueTask InitializeAsync()
     {

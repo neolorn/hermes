@@ -45,6 +45,8 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<IValidateOptions<MessagingOptions>, MessagingOptionsValidator>();
         services.TryAddSingleton(TimeProvider.System);
         services.AddLogging();
+        services.AddMetrics();
+        services.AddSingleton<MessagingMetrics>();
         services.TryAddSingleton<IAlertSink, LoggingAlertSink>();
         services.AddSingleton<MessagingDatabase>();
         services.AddSingleton<HeldKeys>();

@@ -27,3 +27,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Alerts raised through the alert sink when a condition starts to hold and each repeat
   while it holds, cleared once, raised once however many processes see it; the
   `configuration-invalid`, `newer-release` and `content-key-limit` conditions
+- The meter `Hermes` with the instruments `hermes.deliveries`, `hermes.attempts`,
+  `hermes.dispatch.oldest_due_age` and `hermes.provider.duration`
