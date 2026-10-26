@@ -284,24 +284,35 @@ public sealed class ContentProtectionTests(PostgresFixture postgres) : IClassFix
     {
         Dictionary<string, string?> configuration = TestHost.Languages();
         configure?.Invoke(configuration);
-        IHost host = TestHost.Build(
-            configuration,
-            declare =>
-            {
-                declare.Category("security").Essential();
-                declare.Kind("sign.in", "security").Sms();
-            },
-            services =>
-            {
-                services.AddSingleton<ISecretSource>(secrets ?? Secrets.Held(connection));
-                foreach (IContentProtector protector in protectors)
+        LogCapture? logs = new(everyCategory: true);
+        try
+        {
+            IHost host = TestHost.Build(
+                configuration,
+                declare =>
                 {
-                    services.AddSingleton(protector);
-                }
-            });
-        await host.StartAsync(TestContext.Current.CancellationToken);
-        AsyncServiceScope scope = host.Services.CreateAsyncScope();
-        return new Started(host, scope, scope.ServiceProvider.GetRequiredService<ContentProtection>());
+                    declare.Category("security").Essential();
+                    declare.Kind("sign.in", "security").Sms();
+                },
+                services =>
+                {
+                    services.AddSingleton<ISecretSource>(secrets ?? Secrets.Held(connection));
+                    foreach (IContentProtector protector in protectors)
+                    {
+                        services.AddSingleton(protector);
+                    }
+                },
+                logs: logs);
+            await host.StartAsync(TestContext.Current.CancellationToken);
+            AsyncServiceScope scope = host.Services.CreateAsyncScope();
+            Started started = new(host, scope, scope.ServiceProvider.GetRequiredService<ContentProtection>(), logs);
+            logs = null;
+            return started;
+        }
+        finally
+        {
+            logs?.Dispose();
+        }
     }
 
     private async Task<string> MigratedAsync()
@@ -339,7 +350,8 @@ public sealed class ContentProtectionTests(PostgresFixture postgres) : IClassFix
         await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 
-    private sealed class Started(IHost host, AsyncServiceScope scope, ContentProtection protection) : IAsyncDisposable
+    /// <summary>A started host; disposed, it stops and checks that no log line holds the destination or a person the tests use (07 MSG-ENG-012's log gate).</summary>
+    private sealed class Started(IHost host, AsyncServiceScope scope, ContentProtection protection, LogCapture logs) : IAsyncDisposable
     {
         internal ContentProtection Protection => protection;
 
@@ -356,6 +368,9 @@ public sealed class ContentProtectionTests(PostgresFixture postgres) : IClassFix
             await scope.DisposeAsync();
             await host.StopAsync(TestContext.Current.CancellationToken);
             host.Dispose();
+            string[] used = [Encoding.UTF8.GetString(Destination), Person, "person-2"];
+            Assert.All(logs.Entries, entry => Assert.DoesNotContain(used, value => entry.Message.Contains(value, StringComparison.Ordinal)));
+            logs.Dispose();
         }
     }
 }
