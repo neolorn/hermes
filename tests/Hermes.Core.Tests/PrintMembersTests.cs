@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 using Xunit;
@@ -131,5 +132,79 @@ public sealed class PrintMembersTests
         Assert.DoesNotContain("dG9waWMtb2YtdGhlLXNlbmQ", printed, StringComparison.Ordinal);
         Assert.Contains("KeyVersion = 2", printed, StringComparison.Ordinal);
         Assert.Equal(PushPlatform.WebPush, request.Platform);
+    }
+
+    [Fact]
+    public void MSG_LIB_002_SendPrintsNeitherItsRecipientNorItsDestinationsNorItsValuesNorItsKeyOrTopic()
+    {
+        Send send = new()
+        {
+            Kind = "order.placed",
+            Recipient = new Recipient.Person(Secret),
+            Email = Secret,
+            Phone = "+201000000007",
+            Language = "ar",
+            Values = new Dictionary<string, SendValue> { ["orderId"] = new SendValue.PlainText("value-" + Secret) },
+            IdempotencyKey = "key-" + Secret,
+            PushTopic = "topic-" + Secret,
+        };
+
+        string printed = send.ToString();
+
+        Assert.DoesNotContain("person-7f3a", printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("+201000000007", printed, StringComparison.Ordinal);
+        Assert.Contains("order.placed", printed, StringComparison.Ordinal);
+        Assert.Contains("ar", printed, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MSG_LIB_002_EveryCaseOfSendValuePrintsNoValue()
+    {
+        SendValue[] values =
+        [
+            new SendValue.PlainText(Secret),
+            new SendValue.WholeNumber(7_310_442_918),
+            new SendValue.DecimalNumber(7_310_442.918m),
+            new SendValue.Flag(true),
+            new SendValue.Instant(new DateTimeOffset(2026, 10, 27, 9, 41, 0, TimeSpan.Zero)),
+            new SendValue.List([new Dictionary<string, SendValue> { ["name"] = new SendValue.PlainText(Secret) }]),
+        ];
+
+        foreach (SendValue value in values)
+        {
+            string printed = value.ToString();
+
+            Assert.DoesNotContain(Secret, printed, StringComparison.Ordinal);
+            Assert.DoesNotContain("7310442", printed, StringComparison.Ordinal);
+            Assert.DoesNotContain("True", printed, StringComparison.Ordinal);
+            Assert.DoesNotContain("2026", printed, StringComparison.Ordinal);
+            Assert.DoesNotContain("Items", printed, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void Fail_Failure_IsNoSuccessAndCarriesIt()
+    {
+        Failure failure = new() { Code = "messaging.send.unknown", Details = new Dictionary<string, string>() };
+
+        Result result = Result.Fail(failure);
+        Result<int> valued = Result.Fail<int>(failure);
+
+        Assert.False(result.IsSuccess);
+        Assert.Same(failure, result.Failure);
+        Assert.False(valued.IsSuccess);
+        Assert.Same(failure, valued.Failure);
+    }
+
+    [Fact]
+    public void Success_Value_IsASuccessCarryingIt()
+    {
+        Result<string> valued = Result.Success("receipt");
+
+        Assert.True(Result.Success().IsSuccess);
+        Assert.Null(Result.Success().Failure);
+        Assert.True(valued.IsSuccess);
+        Assert.Equal("receipt", valued.Value);
+        Assert.Null(valued.Failure);
     }
 }

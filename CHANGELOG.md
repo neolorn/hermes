@@ -61,3 +61,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or `STARTTLS`, authenticated with `emailSubmission`, the server's certificate validated
   by the library with each named revocation source read online, one connection per
   session opened again once it broke, every answer classed and none of its text kept
+- The send's types: `Send` and its values, `SendReceipt`, `SendRecord` with its
+  deliveries, attempts and calls, `Result` and `Failure`, and the `IMessages` and
+  `ITemplateSource` contracts, none of which prints a destination, a value or a person
