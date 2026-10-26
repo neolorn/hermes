@@ -147,6 +147,6 @@ internal static partial class ConfigurationCheck
 
     // A BCP 47 tag's shape (RFC 5646 section 2.1): a primary language subtag of 2 to 8
     // letters, then subtags of 1 to 8 letters and digits, each after a hyphen.
-    [GeneratedRegex("^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*\z", RegexOptions.CultureInvariant)]
     private static partial Regex LanguageTag();
 }

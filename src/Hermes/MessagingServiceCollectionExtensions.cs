@@ -2,6 +2,7 @@ using System;
 
 using Hermes.Core;
 using Hermes.Operations;
+using Hermes.Sending;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,11 +33,13 @@ public static class MessagingServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(declare);
 
-        DeclarationBuilder declarations = new();
-        declare(declarations);
+        DeclarationBuilder builder = new();
+        declare(builder);
+        Declarations declarations = builder.Declarations();
 
         services.AddOptions();
-        services.AddSingleton(_ => new ConfigurationState(configuration.GetSection("Hermes"), publicBaseAddressRequired: false, TimeZoneInfo.GetSystemTimeZones));
+        services.AddSingleton(declarations);
+        services.AddSingleton(_ => new ConfigurationState(configuration.GetSection("Hermes"), declarations.NeedsPublicBaseAddress, TimeZoneInfo.GetSystemTimeZones));
         services.AddSingleton<IConfigureOptions<MessagingOptions>, BindMessagingOptions>();
         services.AddSingleton<IOptionsChangeTokenSource<MessagingOptions>>(provider => provider.GetRequiredService<ConfigurationState>());
         services.AddSingleton<IValidateOptions<MessagingOptions>, MessagingOptionsValidator>();

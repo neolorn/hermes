@@ -1,5 +1,27 @@
 #nullable enable
+Hermes.Core.Channel
+Hermes.Core.Channel.Email = 0 -> Hermes.Core.Channel
+Hermes.Core.Channel.Push = 2 -> Hermes.Core.Channel
+Hermes.Core.Channel.Sms = 1 -> Hermes.Core.Channel
+Hermes.Core.EmailAddress
+Hermes.Core.EmailAddress.<Clone>$() -> Hermes.Core.EmailAddress!
+Hermes.Core.EmailAddress.Address.get -> string!
+Hermes.Core.EmailAddress.Address.init -> void
+Hermes.Core.EmailAddress.DisplayName.get -> string?
+Hermes.Core.EmailAddress.DisplayName.init -> void
+Hermes.Core.EmailAddress.EmailAddress() -> void
+Hermes.Core.EmailAddress.Equals(Hermes.Core.EmailAddress? other) -> bool
 Hermes.Core.MessagingStartupException
 Hermes.Core.MessagingStartupException.Code.get -> string!
 Hermes.Core.MessagingStartupException.Details.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
 Hermes.Core.MessagingStartupException.MessagingStartupException(string! code, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! details) -> void
+Hermes.Core.PushUrgency
+Hermes.Core.PushUrgency.High = 3 -> Hermes.Core.PushUrgency
+Hermes.Core.PushUrgency.Low = 1 -> Hermes.Core.PushUrgency
+Hermes.Core.PushUrgency.Normal = 2 -> Hermes.Core.PushUrgency
+Hermes.Core.PushUrgency.VeryLow = 0 -> Hermes.Core.PushUrgency
+override Hermes.Core.EmailAddress.Equals(object? obj) -> bool
+override Hermes.Core.EmailAddress.GetHashCode() -> int
+override Hermes.Core.EmailAddress.ToString() -> string!
+static Hermes.Core.EmailAddress.operator !=(Hermes.Core.EmailAddress? left, Hermes.Core.EmailAddress? right) -> bool
+static Hermes.Core.EmailAddress.operator ==(Hermes.Core.EmailAddress? left, Hermes.Core.EmailAddress? right) -> bool
