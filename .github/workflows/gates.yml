@@ -6,7 +6,7 @@ on:
     branches:
       - main
     tags:
-      - 'v*'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 permissions:
   contents: read
@@ -43,8 +43,7 @@ jobs:
           }
           elseif ($env:REF_TYPE -eq 'tag') {
             $head = $env:PUSH_AFTER
-            $base = git describe --tags --abbrev=0 --match 'v*' "$head^" 2>$null
-            if ($LASTEXITCODE -ne 0) { $base = '' }
+            $base = [string](./build/gates/previous-release-tag.ps1 -Head $head)
           }
           else {
             $base = $env:PUSH_BEFORE

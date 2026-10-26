@@ -1,14 +1,17 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    Checks each commit's message and changelog line (07 MSG-ENG-011).
+    Checks each commit's message, changelog line and released files (07 MSG-ENG-011).
 .DESCRIPTION
-    Every commit after Base up to Head, save merge commits, has a Conventional Commits header
-    of an allowed type and scope, a lower-case description with no full stop and a first line
-    of at most 72 characters; a body, if any, of dash fragments of at most 72 characters; and
-    a footer, if any, of "Implements:" and "BREAKING CHANGE:" lines alone. A commit of type
+    Every commit after Base up to Head, save the merge commits the platform writes (committed
+    by GitHub, noreply@github.com), has a Conventional Commits header of an allowed type and
+    scope, a description that begins with a lower-case letter and has no full stop, and a first
+    line of at most 72 characters; a body, if any, of dash fragments of at most 72 characters;
+    and a footer, if any, of "Implements:" and "BREAKING CHANGE:" lines alone. A commit of type
     feat, fix or perf, or marked as breaking, adds its line under the changelog's Unreleased
-    section, under "Added" while no release is tagged.
+    section, under "Added" while no release is tagged. No commit changes or deletes an existing
+    PublicAPI.Shipped.txt or build/gates/release-baseline.json; adding one, or moving one
+    unchanged, is no change.
 .PARAMETER Repository
     The repository to check; by default, this one.
 .PARAMETER Base
@@ -31,6 +34,9 @@ $scopes = 'core|channels|engine|janus|testing|cli|sample'
 $headerPattern = "^(?<type>$types)(\((?<scope>$scopes)\))?(?<breaking>!)?: (?<description>\S(.*\S)?)$"
 $footerPattern = '^(Implements: MSG-[A-Z]+-\d{3}(, MSG-[A-Z]+-\d{3})*|BREAKING CHANGE: \S.*)$'
 $sectionTypes = 'Added|Changed|Deprecated|Removed|Fixed|Security'
+$releaseTagPattern = '^v\d+\.\d+\.\d+$'
+$platformCommitter = 'noreply@github.com'
+$emptyTree = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 
 function Invoke-Git {
     $output = & git -C $Repository @args
@@ -49,9 +55,10 @@ function Get-MessageProblems([string] $message) {
         return
     }
 
+    # A name the description mentions keeps its own spelling: "add the SMTP provider".
     $description = $match.Groups['description'].Value
     if ($header.Length -gt 72) { 'the first line is longer than 72 characters' }
-    if ($description -cmatch '\p{Lu}') { 'the description is not lower case' }
+    if ($description -cnotmatch '^\p{Ll}') { 'the description does not begin with a lower-case letter' }
     if ($description.EndsWith('.')) { 'the description ends with a full stop' }
 
     $breaking = $match.Groups['breaking'].Success
@@ -110,7 +117,7 @@ function Test-ChangelogLine([string] $commit) {
 
     $changelog = @(& git -C $Repository show "${commit}:CHANGELOG.md")
     if ($LASTEXITCODE -ne 0) { return $false }
-    $released = @(& git -C $Repository tag --list 'v*' --merged $commit).Count -gt 0
+    $released = @(Invoke-Git tag --list --merged $commit | Where-Object { $_ -cmatch $releaseTagPattern }).Count -gt 0
 
     foreach ($lineNumber in $added) {
         $section = $null
@@ -127,17 +134,48 @@ function Test-ChangelogLine([string] $commit) {
     return $false
 }
 
+function Test-ReleasedFile([string] $path) {
+    $path -ceq 'build/gates/release-baseline.json' -or ($path -split '/')[-1] -ceq 'PublicAPI.Shipped.txt'
+}
+
+# PublicAPI.Shipped.txt and the release baseline change only in a release commit, whose
+# exemption comes with the release step (plan, phase 8).
+function Get-ReleasedFileProblems([string] $commit, [string] $parent) {
+    $changes = @(Invoke-Git diff --name-status --find-renames=100% $parent $commit)
+    foreach ($change in $changes) {
+        $fields = $change -split "`t"
+        $status = $fields[0]
+        $path = $fields[1]
+        if ($status -like 'R*') {
+            $moved = $fields[2]
+            $kept = $status -eq 'R100' -and ($moved -split '/')[-1] -ceq ($path -split '/')[-1] -and $path -cne 'build/gates/release-baseline.json'
+            if ((Test-ReleasedFile $path) -and -not $kept) { "it deletes $path, which changes only in a release commit" }
+        }
+        elseif ($status -eq 'D' -and (Test-ReleasedFile $path)) { "it deletes $path, which changes only in a release commit" }
+        elseif ($status -in 'M', 'T' -and (Test-ReleasedFile $path)) { "it changes $path, which changes only in a release commit" }
+    }
+}
+
 $range = if ($Base) { "$Base..$Head" } else { $Head }
-$commits = @(Invoke-Git rev-list --no-merges --reverse $range)
+$commits = @(Invoke-Git rev-list --reverse $range)
 $failures = 0
+$checked = 0
 
 foreach ($commit in $commits) {
+    $fields = (Invoke-Git log -1 --format='%P%x09%ce' $commit) -split "`t"
+    $parents = @($fields[0] -split ' ' | Where-Object { $_ })
+    if ($parents.Count -gt 1 -and $fields[1] -ceq $platformCommitter) { continue }
+    $checked++
+
     $message = (Invoke-Git log -1 --format=%B $commit) -join "`n"
     $results = @(Get-MessageProblems $message)
     $problems = @($results | Where-Object { $_ -is [string] })
     if (@($results | Where-Object { $_ -isnot [string] }).Count -gt 0 -and -not (Test-ChangelogLine $commit)) {
         $problems += 'it changes behaviour and adds no line under the changelog''s Unreleased section'
     }
+
+    $parent = if ($parents.Count -gt 0) { $parents[0] } else { $emptyTree }
+    $problems += @(Get-ReleasedFileProblems $commit $parent)
 
     $subject = ($message -split "`n")[0]
     foreach ($problem in $problems) {
@@ -147,7 +185,7 @@ foreach ($commit in $commits) {
 }
 
 if ($failures -gt 0) {
-    throw "$failures problem(s) in the commit messages of $range."
+    throw "$failures problem(s) in the commits of $range."
 }
 
-Write-Host "$($commits.Count) commit(s) of $range follow the commit-message and changelog rule."
+Write-Host "$checked commit(s) of $range follow the commit-message, changelog and released-file rule."
