@@ -31,3 +31,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `hermes.dispatch.oldest_due_age` and `hermes.provider.duration`
 - A category's label longer than 128 characters, counted as Unicode scalar values, or
   holding a lone surrogate, stops the start
+- `Retry:Factor` and `Jobs:StallFactor`, decimal numbers read in the invariant culture
+  and checked when the host starts and on each reload

@@ -16,6 +16,9 @@ internal sealed class JobsOptions
     [Range(100, 100_000)]
     public int BatchSize { get; set; } = 1_000;
 
+    [Range(2d, 100d)]
+    public double StallFactor { get; set; } = 3;
+
     [Range(typeof(TimeSpan), "00:00:32", "1.00:00:00")]
     public TimeSpan ClaimTimeout { get; set; } = TimeSpan.FromMinutes(10);
 }

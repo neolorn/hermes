@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 
 using Hermes.Core;
@@ -42,6 +43,7 @@ public sealed class ConfigurationTests
         Assert.Equal(4, options.Observer.MaxCalls);
         Assert.Equal(TimeSpan.FromMinutes(15), options.Observer.LagThreshold);
         Assert.Equal(TimeSpan.FromSeconds(30), options.Retry.Initial);
+        Assert.Equal(2d, options.Retry.Factor);
         Assert.Equal(TimeSpan.FromHours(1), options.Retry.Max);
         Assert.Equal(0.2, options.Retry.Jitter);
         Assert.Equal(8, options.Retry.MaxAttempts);
@@ -58,6 +60,7 @@ public sealed class ConfigurationTests
         Assert.Equal(new TimeOnly(3, 0), options.Jobs.RetentionAt);
         Assert.Equal(TimeSpan.FromHours(1), options.Jobs.SubscriptionsInterval);
         Assert.Equal(1_000, options.Jobs.BatchSize);
+        Assert.Equal(3d, options.Jobs.StallFactor);
         Assert.Equal(TimeSpan.FromMinutes(10), options.Jobs.ClaimTimeout);
         Assert.Equal(3, options.Database.Retries);
         Assert.Equal(TimeSpan.FromHours(1), options.Alerts.Repeat);
@@ -80,7 +83,9 @@ public sealed class ConfigurationTests
         configuration["Hermes:TimeZone"] = "Africa/Cairo";
         configuration["Hermes:PublicBaseAddress"] = "https://messages.example.invalid/notifications";
         configuration["Hermes:Dispatch:Interval"] = "00:00:30";
+        configuration["Hermes:Retry:Factor"] = "1.5";
         configuration["Hermes:Retry:Jitter"] = "0.5";
+        configuration["Hermes:Jobs:StallFactor"] = "2.5";
         configuration["Hermes:QuietHours:Start"] = "22:30";
         configuration["Hermes:Retention:Suppression:Email"] = "400.00:00:00";
         configuration["Hermes:Secrets:ContentKeys:MaxValues"] = "4294967296";
@@ -94,7 +99,9 @@ public sealed class ConfigurationTests
         Assert.Equal("Africa/Cairo", options.TimeZone);
         Assert.Equal(new Uri("https://messages.example.invalid/notifications"), options.PublicBaseAddress);
         Assert.Equal(TimeSpan.FromSeconds(30), options.Dispatch.Interval);
+        Assert.Equal(1.5, options.Retry.Factor);
         Assert.Equal(0.5, options.Retry.Jitter);
+        Assert.Equal(2.5, options.Jobs.StallFactor);
         Assert.Equal(new TimeOnly(22, 30), options.QuietHours.Start);
         Assert.Equal(TimeSpan.FromDays(400), options.Retention.Suppression.Email);
         Assert.Equal(4_294_967_296L, options.Secrets.ContentKeys.MaxValues);
@@ -138,6 +145,10 @@ public sealed class ConfigurationTests
     [InlineData("Observer:LagThreshold", "1.00:00:01")]
     [InlineData("Retry:Initial", "00:00:00.5")]
     [InlineData("Retry:Initial", "01:00:01")]
+    [InlineData("Retry:Factor", "0.99")]
+    [InlineData("Retry:Factor", "10.01")]
+    [InlineData("Retry:Factor", "twice")]
+    [InlineData("Retry:Factor", "1,5")]
     [InlineData("Retry:Max", "00:00:29")]
     [InlineData("Retry:Max", "1.00:00:01")]
     [InlineData("Retry:Jitter", "-0.1")]
@@ -167,6 +178,9 @@ public sealed class ConfigurationTests
     [InlineData("Jobs:SubscriptionsInterval", "1.00:00:01")]
     [InlineData("Jobs:BatchSize", "99")]
     [InlineData("Jobs:BatchSize", "100001")]
+    [InlineData("Jobs:StallFactor", "1.99")]
+    [InlineData("Jobs:StallFactor", "100.01")]
+    [InlineData("Jobs:StallFactor", "NaN")]
     [InlineData("Jobs:ClaimTimeout", "00:01:59")]
     [InlineData("Jobs:ClaimTimeout", "1.00:00:01")]
     [InlineData("Database:Retries", "-1")]
@@ -216,6 +230,10 @@ public sealed class ConfigurationTests
     [InlineData("Dispatch:MaxHold", "90.00:00:00")]
     [InlineData("Dispatch:ClaimTimeout", "00:01:10")]
     [InlineData("Dispatch:Timeout", "00:00:01")]
+    [InlineData("Retry:Factor", "1")]
+    [InlineData("Retry:Factor", "10")]
+    [InlineData("Jobs:StallFactor", "2")]
+    [InlineData("Jobs:StallFactor", "100")]
     [InlineData("Retry:Jitter", "0")]
     [InlineData("Retry:Jitter", "1")]
     [InlineData("QuietHours:End", "21:00")]
@@ -233,6 +251,28 @@ public sealed class ConfigurationTests
         configuration["Hermes:" + key] = value;
 
         Assert.Null(ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones()));
+    }
+
+    [Fact]
+    public void MSG_OPS_001_AC1_DecimalNumberIsReadInTheInvariantCultureWhateverTheProcessCulture()
+    {
+        Dictionary<string, string?> configuration = TestHost.Languages();
+        configuration["Hermes:Retry:Factor"] = "1.5";
+        configuration["Hermes:Jobs:StallFactor"] = "2.25";
+        CultureInfo culture = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
+        try
+        {
+            using IHost host = TestHost.Build(configuration);
+            MessagingOptions options = host.Services.GetRequiredService<IOptions<MessagingOptions>>().Value;
+
+            Assert.Null(ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones()));
+            Assert.Equal((1.5, 2.25), (options.Retry.Factor, options.Jobs.StallFactor));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = culture;
+        }
     }
 
     [Fact]

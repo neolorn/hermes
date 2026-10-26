@@ -32,8 +32,9 @@ internal static class ConfigurationRules
         Whole("Observer:MaxCalls", startOnly: true, 1, 64, options => options.Observer.MaxCalls),
         Duration("Observer:LagThreshold", startOnly: false, TimeSpan.Zero, TimeSpan.FromDays(1), options => options.Observer.LagThreshold),
         Duration("Retry:Initial", startOnly: false, TimeSpan.FromSeconds(1), TimeSpan.FromHours(1), options => options.Retry.Initial),
+        Decimal("Retry:Factor", 1, 10, options => options.Retry.Factor),
         Duration("Retry:Max", startOnly: false, TimeSpan.Zero, TimeSpan.FromDays(1), options => options.Retry.Max),
-        Fraction("Retry:Jitter", 0, 1, options => options.Retry.Jitter),
+        Decimal("Retry:Jitter", 0, 1, options => options.Retry.Jitter),
         Whole("Retry:MaxAttempts", startOnly: false, 1, 50, options => options.Retry.MaxAttempts),
         Duration("Idempotency:Window", startOnly: false, TimeSpan.FromMinutes(1), TimeSpan.FromDays(30), options => options.Idempotency.Window),
         TimeOfDay("QuietHours:Start", options => options.QuietHours.Start),
@@ -48,6 +49,7 @@ internal static class ConfigurationRules
         TimeOfDay("Jobs:RetentionAt", options => options.Jobs.RetentionAt),
         Duration("Jobs:SubscriptionsInterval", startOnly: false, TimeSpan.FromMinutes(1), TimeSpan.FromDays(1), options => options.Jobs.SubscriptionsInterval),
         Whole("Jobs:BatchSize", startOnly: false, 100, 100_000, options => options.Jobs.BatchSize),
+        Decimal("Jobs:StallFactor", 2, 100, options => options.Jobs.StallFactor),
         Duration("Jobs:ClaimTimeout", startOnly: false, TimeSpan.Zero, TimeSpan.FromDays(1), options => options.Jobs.ClaimTimeout),
         Whole("Database:Retries", startOnly: false, 0, 10, options => options.Database.Retries),
         Duration("Alerts:Repeat", startOnly: false, TimeSpan.FromMinutes(5), TimeSpan.FromDays(1), options => options.Alerts.Repeat),
@@ -104,7 +106,8 @@ internal static class ConfigurationRules
             options => value(options));
     }
 
-    private static ConfigurationKey Fraction(string path, double least, double most, Func<MessagingOptions, double> value)
+    /// <summary>A key whose rule says a decimal number, read in the invariant culture as the binder reads it (<c>08</c> section 4).</summary>
+    private static ConfigurationKey Decimal(string path, double least, double most, Func<MessagingOptions, double> value)
     {
         return new(
             path,
