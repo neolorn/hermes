@@ -4,10 +4,16 @@
     Fetches gitleaks 8.30.1 into tmp/tools/, checked against its published SHA-256.
 .DESCRIPTION
     The step the secret-scanning gate and the test gate both run first (07 MSG-ENG-001).
-    Writes the scanner's path to the output.
+    Each run extracts the scanner from the checked archive again and replaces the one in
+    the folder when the two differ, so no scanner but the archive's runs. Writes the
+    scanner's path to the output.
+.PARAMETER Tools
+    The folder to fetch into; by default, tmp/tools/gitleaks-8.30.1/.
 #>
 [CmdletBinding()]
-param()
+param(
+    [string] $Tools = ''
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -35,9 +41,10 @@ $extension = if ($IsWindows) { 'zip' } else { 'tar.gz' }
 $archiveName = "gitleaks_${version}_$platform.$extension"
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
-$tools = Join-Path $root 'tmp' 'tools' "gitleaks-$version"
+$tools = if ($Tools) { $Tools } else { Join-Path $root 'tmp' 'tools' "gitleaks-$version" }
 $archive = Join-Path $tools $archiveName
-$scanner = Join-Path $tools ($IsWindows ? 'gitleaks.exe' : 'gitleaks')
+$binary = $IsWindows ? 'gitleaks.exe' : 'gitleaks'
+$scanner = Join-Path $tools $binary
 
 New-Item -ItemType Directory -Force -Path $tools | Out-Null
 
@@ -53,14 +60,25 @@ if ($actual -ne $digests[$platform]) {
     throw "$archiveName does not match its published SHA-256."
 }
 
-if (-not (Test-Path $scanner)) {
+$extracted = Join-Path $tools "extract-$([guid]::NewGuid().ToString('N'))"
+New-Item -ItemType Directory -Path $extracted | Out-Null
+try {
     if ($IsWindows) {
-        Expand-Archive -Path $archive -DestinationPath $tools -Force
+        Expand-Archive -Path $archive -DestinationPath $extracted
     }
     else {
-        tar -xzf $archive -C $tools gitleaks
+        tar -xzf $archive -C $extracted gitleaks
         if ($LASTEXITCODE -ne 0) { throw "Extracting $archiveName failed." }
     }
+
+    $fresh = Join-Path $extracted $binary
+    $same = (Test-Path $scanner) -and (Get-FileHash -Algorithm SHA256 -Path $fresh).Hash -eq (Get-FileHash -Algorithm SHA256 -Path $scanner).Hash
+    if (-not $same) {
+        Move-Item -Force -Path $fresh -Destination $scanner
+    }
+}
+finally {
+    Remove-Item -Recurse -Force -LiteralPath $extracted
 }
 
 Write-Output $scanner

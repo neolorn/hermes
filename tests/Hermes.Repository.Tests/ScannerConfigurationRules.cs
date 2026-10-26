@@ -9,8 +9,8 @@ namespace Hermes.Repository.Tests;
 /// <summary>
 /// The secret scanner's configuration (<c>07</c> MSG-ENG-001): gitleaks' default, extended by
 /// entries of one form only, each for a published test vector the tests hold as a literal:
-/// one file and one exact value, both required to match, with the document and section as
-/// its reason.
+/// one file under <c>tests/</c> and one exact value, both required to match, with the document
+/// and section as its reason.
 /// </summary>
 /// <remarks>
 /// The configuration is read as the small part of TOML it may use: a title, the
@@ -116,6 +116,10 @@ internal static partial class ScannerConfigurationRules
         if (path is null)
         {
             yield return "An allow-list entry of gitleaks.toml does not name one file exactly.";
+        }
+        else if (!path.StartsWith("tests/", StringComparison.Ordinal))
+        {
+            yield return $"An allow-list entry of gitleaks.toml names {path}, which is not under tests/.";
         }
         else if (!System.IO.File.Exists(Path.Combine(root, path)))
         {
