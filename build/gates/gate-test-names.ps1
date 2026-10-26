@@ -4,8 +4,9 @@
     Checks that each criterion of build/gates/built-items.txt has a test named after it (07 MSG-ENG-008).
 .DESCRIPTION
     Each line of the file names one criterion, as "MSG-SEND-006 AC2". A criterion has its test
-    where a test project declares a method named ITEM_ACn_Outcome, "MSG_SEND_006_AC2_..." for
-    that line.
+    where a built test project lists a test whose method is named ITEM_ACn_Outcome,
+    "MSG_SEND_006_AC2_..." for that line. A file that names no criterion fails, since the
+    gate would check nothing.
 .PARAMETER Repository
     The repository to check; by default, this one.
 #>
@@ -22,19 +23,16 @@ if (-not (Test-Path $list)) {
     throw 'build/gates/built-items.txt is missing.'
 }
 
-$sources = @(
-    foreach ($folder in (Join-Path $Repository 'tests'), (Join-Path $Repository 'samples')) {
-        if (Test-Path $folder) {
-            Get-ChildItem -Path $folder -Recurse -File -Filter '*.cs' |
-                Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' -and ($_.FullName -match '[\\/]tests[\\/]' -or $_.FullName -match '\.Tests[\\/]') }
-        }
-    }
-)
-$text = ($sources | ForEach-Object { Get-Content -Raw -Path $_.FullName }) -join "`n"
+$lines = @(Get-Content -Path $list)
+if ($lines.Count -eq 0) {
+    throw 'build/gates/built-items.txt names no criterion, so the gate would check nothing.'
+}
+
+$methods = @(& (Join-Path $PSScriptRoot 'list-tests.ps1') -Repository $Repository | ForEach-Object { $_.Method })
 
 $failures = 0
 $number = 0
-foreach ($line in Get-Content -Path $list) {
+foreach ($line in $lines) {
     $number++
     $criterion = [regex]::Match($line, '^(?<item>MSG-[A-Z]+-\d{3}) (?<criterion>AC\d+)$')
     if (-not $criterion.Success) {
@@ -44,15 +42,15 @@ foreach ($line in Get-Content -Path $list) {
     }
 
     $prefix = $criterion.Groups['item'].Value.Replace('-', '_') + '_' + $criterion.Groups['criterion'].Value + '_'
-    $pattern = '\b(void|Task|ValueTask)\s+' + [regex]::Escape($prefix) + '[A-Za-z0-9]+\s*\('
-    if ($text -cnotmatch $pattern) {
+    $pattern = '^' + [regex]::Escape($prefix) + '[A-Za-z0-9]+$'
+    if (@($methods | Where-Object { $_ -cmatch $pattern }).Count -eq 0) {
         Write-Host "$line has no test named $prefix<Outcome>."
         $failures++
     }
 }
 
 if ($failures -gt 0) {
-    throw "$failures criterion line(s) of built-items.txt have no test named after them."
+    throw "$failures line(s) of built-items.txt name no criterion with its test."
 }
 
 Write-Host "Each of the $number criteria of built-items.txt has its test."

@@ -7,58 +7,84 @@ using Xunit;
 namespace Hermes.Repository.Tests;
 
 /// <remarks>
-/// The test names these tests write are split in two literals, so the gate, which reads this
-/// file too, never takes them for tests of this repository.
+/// The probe lists two tests named after criteria; a third name is only in a comment, and a
+/// fourth is a method no test framework runs, so neither counts.
 /// </remarks>
 [Trait("Category", "integration")]
-public sealed class TestNameGateTests
+public sealed class TestNameGateTests(TestProjectRepository repository) : IClassFixture<TestProjectRepository>
 {
-    private const string Test =
-        "namespace Hermes.Tests;\n\npublic sealed class PreferenceTests\n{\n    [Fact]\n    public void MSG_SEND_006_AC2"
-        + "_PreferenceTurnedOffStopsDelivery()\n    {\n    }\n}\n";
+    private const string Tests = """
+        using Xunit;
+
+        namespace Probe.Tests;
+
+        public sealed class PreferenceTests
+        {
+            [Fact]
+            [Trait("Category", "unit")]
+            public void MSG_SEND_006_AC2_PreferenceTurnedOffStopsDelivery()
+            {
+            }
+
+            [Fact]
+            [Trait("Category", "unit")]
+            public void MSG_SEND_007_AC12_TwelfthCriterionHolds()
+            {
+            }
+
+            // MSG_SEND_008_AC1_NamedInAComment
+        }
+
+        public static class Steps
+        {
+            public static void MSG_SEND_009_AC1_NoTest()
+            {
+            }
+        }
+
+        """;
 
     [Fact]
     public async Task MSG_ENG_008_AC2_EveryListedCriterionWithItsTestPasses()
     {
-        using ScratchFolder folder = new();
-        folder.Write("build/gates/built-items.txt", "MSG-SEND-006 AC2\n");
-        folder.Write("tests/Hermes.Tests/PreferenceTests.cs", Test);
-
-        ProcessResult gate = await RunAsync(folder, TestContext.Current.CancellationToken);
+        ProcessResult gate = await RunAsync("MSG-SEND-006 AC2\nMSG-SEND-007 AC12\n", TestContext.Current.CancellationToken);
 
         Assert.True(gate.ExitCode == 0, gate.Output);
+        Assert.Contains("Each of the 2 criteria", gate.Output, StringComparison.Ordinal);
     }
 
     [Theory]
-    [InlineData("MSG-SEND-006 AC1\n")]
-    [InlineData("MSG-SEND-006 AC2\nMSG-SEND-007 AC2\n")]
-    [InlineData("MSG-SEND-006 AC2\nMSG-SEND-006\n")]
-    [InlineData("MSG-SEND-006 AC2\n\n")]
-    public async Task MSG_ENG_008_AC2_ListedCriterionWithoutItsTestFails(string criteria)
+    [InlineData("MSG-SEND-006 AC1\n", "MSG-SEND-006 AC1 has no test named MSG_SEND_006_AC1_<Outcome>")]
+    [InlineData("MSG-SEND-006 AC2\nMSG-SEND-010 AC2\n", "MSG-SEND-010 AC2 has no test named MSG_SEND_010_AC2_<Outcome>")]
+    [InlineData("MSG-SEND-007 AC1\n", "MSG-SEND-007 AC1 has no test named MSG_SEND_007_AC1_<Outcome>")]
+    [InlineData("MSG-SEND-008 AC1\n", "MSG-SEND-008 AC1 has no test named MSG_SEND_008_AC1_<Outcome>")]
+    [InlineData("MSG-SEND-009 AC1\n", "MSG-SEND-009 AC1 has no test named MSG_SEND_009_AC1_<Outcome>")]
+    [InlineData("MSG-SEND-006 AC2\nMSG-SEND-006\n", "built-items.txt line 2, \"MSG-SEND-006\", does not name one criterion")]
+    [InlineData("MSG-SEND-006 AC2\n\n", "built-items.txt line 2, \"\", does not name one criterion")]
+    public async Task MSG_ENG_008_AC2_ListedCriterionWithoutItsTestFails(string criteria, string reason)
     {
-        using ScratchFolder folder = new();
-        folder.Write("build/gates/built-items.txt", criteria);
-        folder.Write("tests/Hermes.Tests/PreferenceTests.cs", Test);
+        ArgumentNullException.ThrowIfNull(criteria);
+        ArgumentNullException.ThrowIfNull(reason);
 
-        ProcessResult gate = await RunAsync(folder, TestContext.Current.CancellationToken);
+        ProcessResult gate = await RunAsync(criteria, TestContext.Current.CancellationToken);
 
         Assert.NotEqual(0, gate.ExitCode);
+        Assert.Contains(reason, gate.Output, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task MSG_ENG_008_AC2_TestOfACriterionWithAHigherNumberDoesNotCount()
+    public async Task TestNameGate_NoCriterionListed_Fails()
     {
-        using ScratchFolder folder = new();
-        folder.Write("build/gates/built-items.txt", "MSG-SEND-006 AC1\n");
-        folder.Write("tests/Hermes.Tests/PreferenceTests.cs", Test.Replace("AC2_", "AC12_", StringComparison.Ordinal));
-
-        ProcessResult gate = await RunAsync(folder, TestContext.Current.CancellationToken);
+        ProcessResult gate = await RunAsync(string.Empty, TestContext.Current.CancellationToken);
 
         Assert.NotEqual(0, gate.ExitCode);
+        Assert.Contains("names no criterion, so the gate would check nothing", gate.Output, StringComparison.Ordinal);
     }
 
-    private static Task<ProcessResult> RunAsync(ScratchFolder folder, CancellationToken cancellationToken)
+    private Task<ProcessResult> RunAsync(string criteria, CancellationToken cancellationToken)
     {
-        return Processes.GateAsync("gate-test-names.ps1", folder.Path, cancellationToken, "-Repository", folder.Path);
+        repository.WriteTests(Tests);
+        repository.Write("build/gates/built-items.txt", criteria);
+        return Processes.GateAsync("gate-test-names.ps1", repository.Root, cancellationToken, "-Repository", repository.Root);
     }
 }

@@ -3,31 +3,60 @@
 .SYNOPSIS
     Runs the unit, integration and contract tests, each kind on its own by its Category trait (07 MSG-ENG-008).
 .DESCRIPTION
-    A run that finds no test of its kind passes: Microsoft.Testing.Platform's exit code 8,
-    for no test run, is accepted.
+    A test of tests/ that carries no Category trait, more than one, or a value other than
+    the three kinds fails the gate before any test runs, since no run, or more than one,
+    would take it. A run that finds no test of its kind passes: Microsoft.Testing.Platform's
+    exit code 8, for no test run, is accepted. A repository with no test project fails, since
+    the gate would run nothing.
+.PARAMETER Repository
+    The repository whose tests to run; by default, this one.
 #>
 [CmdletBinding()]
-param()
+param(
+    [string] $Repository = (Join-Path $PSScriptRoot '..' '..')
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$root = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
+$kinds = 'unit', 'integration', 'contract'
 
 # The integration tests run the scanner this step leaves under tmp/tools/.
 & (Join-Path $PSScriptRoot 'fetch-secret-scanner.ps1') | Out-Null
 
-dotnet build (Join-Path $root 'Hermes.sln') --configuration Release -p:RestoreLockedMode=true -nodeReuse:false
-if ($LASTEXITCODE -ne 0) {
-    throw "The build failed with exit code $LASTEXITCODE."
+$projects = @(
+    if (Test-Path (Join-Path $Repository 'tests')) {
+        Get-ChildItem -Path (Join-Path $Repository 'tests') -Filter '*.csproj' -Recurse -File |
+            Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' } |
+            Sort-Object FullName
+    }
+)
+if ($projects.Count -eq 0) {
+    throw 'tests/ holds no test project, so the gate would run nothing.'
 }
 
-$projects = Get-ChildItem -Path (Join-Path $root 'tests') -Filter '*.csproj' -Recurse -File |
-    Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' } |
-    Sort-Object FullName
-$failures = [System.Collections.Generic.List[string]]::new()
+$tests = @(& (Join-Path $PSScriptRoot 'list-tests.ps1') -Repository $Repository)
 
-foreach ($kind in 'unit', 'integration', 'contract') {
+$unsorted = [System.Collections.Generic.List[string]]::new()
+foreach ($test in $tests | Where-Object { $_.Project -in $projects.BaseName } | Sort-Object Name -Unique) {
+    $categories = @($test.Categories)
+    if ($categories.Count -eq 0) {
+        $unsorted.Add("$($test.Name) carries no Category trait")
+    }
+    elseif ($categories.Count -gt 1) {
+        $unsorted.Add("$($test.Name) carries more than one Category trait: $($categories -join ', ')")
+    }
+    elseif ($categories[0] -cnotin $kinds) {
+        $unsorted.Add("$($test.Name) carries the Category $($categories[0]), which is none of $($kinds -join ', ')")
+    }
+}
+if ($unsorted.Count -gt 0) {
+    $unsorted | ForEach-Object { Write-Host "$_." }
+    throw "$($unsorted.Count) test(s) no run of a kind would take once."
+}
+
+$failures = [System.Collections.Generic.List[string]]::new()
+foreach ($kind in $kinds) {
     foreach ($project in $projects) {
         Write-Host "== $kind tests of $($project.BaseName)"
         dotnet run --project $project.FullName --configuration Release --no-build -- --filter-trait "Category=$kind" --ignore-exit-code 8
