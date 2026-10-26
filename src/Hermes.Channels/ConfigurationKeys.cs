@@ -42,6 +42,26 @@ internal static class ConfigurationKeys
             value);
     }
 
+    /// <summary>
+    /// A key whose rule says a decimal number, zero or more, in a provider's unit, read as the
+    /// binder reads a <see cref="decimal"/>, so its value is never one the binder cannot hold.
+    /// </summary>
+    internal static ConfigurationKey Amount(string path, decimal value)
+    {
+        return new(
+            path,
+            false,
+            text => decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal read) ? read : null,
+            read => (decimal)read >= 0,
+            value);
+    }
+
+    /// <summary>A text within <paramref name="within"/>; none by default.</summary>
+    internal static ConfigurationKey Text(string path, Func<string, bool> within)
+    {
+        return new(path, false, text => text, read => within((string)read), null);
+    }
+
     /// <summary>A flag; every flag of <c>08</c> section 4 is start only.</summary>
     internal static ConfigurationKey Flag(string path, bool value)
     {

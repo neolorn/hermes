@@ -51,3 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   RFC 8292 with the subscription's VAPID key version, each token reused for an hour,
   over the named client `Hermes.Push`, which follows no redirect, carries the library's
   handler alone and logs no address, every answer classed and none of its text kept
+- `AddHermesChannels`, which registers the shipped providers alone and checks the keys
+  of each channel whose section is present when the host starts, and the VAPID keys
+  where the shipped push provider is used, a value outside its rule stopping the start

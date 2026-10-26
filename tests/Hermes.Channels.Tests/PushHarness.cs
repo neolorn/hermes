@@ -96,7 +96,8 @@ internal sealed class PushHarness : IAsyncDisposable
         await Service.DisposeAsync().ConfigureAwait(false);
     }
 
-    private static byte[] Scalar()
+    /// <summary>A P-256 private key made at run time, as its 32-byte scalar.</summary>
+    internal static byte[] Scalar()
     {
         using ECDsa pair = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         return pair.ExportParameters(includePrivateParameters: true).D!;

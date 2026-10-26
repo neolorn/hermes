@@ -30,6 +30,8 @@ internal sealed class WebPushProvider(IHttpClientFactory clients, Func<string> s
             throw new ArgumentException("The request is not for Web Push.", nameof(request));
         }
 
+        // Read first, as it throws where the startup checks have not completed.
+        string vapidSubject = subject();
         if (keys.Find(push.KeyVersion) is not { } key)
         {
             return new Attempt.Transient(AttemptReason.KeyUnavailable, null, null);
@@ -47,7 +49,7 @@ internal sealed class WebPushProvider(IHttpClientFactory clients, Func<string> s
             Topic = push.Topic,
         };
 
-        using VapidAuthentication authentication = new(key.PublicKey, key.PrivateKey) { Subject = subject(), TokenCache = key.Tokens };
+        using VapidAuthentication authentication = new(key.PublicKey, key.PrivateKey) { Subject = vapidSubject, TokenCache = key.Tokens };
         using HttpClient client = clients.CreateClient(PushClient.Name);
         PushServiceClient service = new(client) { AutoRetryAfter = false };
         try
