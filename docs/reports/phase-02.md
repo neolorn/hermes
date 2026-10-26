@@ -99,7 +99,7 @@ The code suppresses no rule, and this phase changes no rule of `.editorconfig`.
 
 ## Commit and gates
 
-The report names commit `7dd94abe5633af1c60fb8126f01628872a39d85e`. Each gate's result there, from the local run of `build/gates/run-gates.ps1 -Base origin/main -Head 7dd94abe5633af1c60fb8126f01628872a39d85e` on a clean working tree:
+The report names commit `46a3c51402a345962170197758930f4c4160b4c7`. Each gate's result there, from the local run of `build/gates/run-gates.ps1 -Base origin/main -Head 46a3c51402a345962170197758930f4c4160b4c7` on a clean working tree:
 
 | Gate | Result |
 |---|---|
@@ -110,11 +110,11 @@ The report names commit `7dd94abe5633af1c60fb8126f01628872a39d85e`. Each gate's 
 | Public surface files up to date (`gate-public-surface`) | Passed |
 | Dependency allow-list (`gate-dependency-allow-list`) | Passed |
 | Project references and grants (`gate-project-references`) | Passed |
-| Secret scanning of the whole history (`gate-secret-scan`) | Passed: 60 commits, no leaks |
-| Commit message format, changelog line and released files (`gate-commit-messages`) | Passed: 11 commits after `main` |
+| Secret scanning of the whole history (`gate-secret-scan`) | Passed: 62 commits, no leaks |
+| Commit message format, changelog line and released files (`gate-commit-messages`) | Passed: 13 commits after `main` |
 | Acceptance-criterion test names (`gate-test-names`) | Passed: 61 criteria |
 | Migrations applied twice to an empty database (`gate-migrations`) | Passed: the first run applied `20261026082731_Foundations`, the second nothing |
 | Log gate | Passed within `gate-tests`: `MSG_CHAN_001_AC5_PushRequestLogsNothingOfItsEndpoint`, `ContentProtectionTests` and `LogTests` find no secret, destination or person in any captured line |
 | Release compatibility, sample host | No script yet (phases 5 and 6) |
 
-The pipeline's run on the commit pushed with this report is given in the message naming the pull request.
+The pipeline's gates run on the last commit pushed before this report, `4284d2f`, failed: run 40394282836, `gate-tests`, one unit test of 869, `SendAsync_WithoutHtml_SendsTheTextAlone`. MimeKit decodes a lone part's last line end as the platform writes one, so the ubuntu-24.04 runner read LF where this machine reads CRLF; that line end is SMTP's framing, not the text given to the provider. `46a3c51` makes the test take either line end, on both platforms; nothing under `src/` changed. The pipeline's run on the commit pushed with this report is given in the message naming the pull request.
