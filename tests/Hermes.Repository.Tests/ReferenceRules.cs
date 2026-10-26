@@ -107,6 +107,12 @@ internal static class ReferenceRules
                 }
             }
 
+            HashSet<string> referenced = [.. project.PackageReferences.Select(ProjectFile.Include)];
+            foreach (string package in project.LockedDirectPackages.Where(package => !referenced.Contains(package)))
+            {
+                violations.Add($"{project.RelativePath} takes the package {package} by a reference outside its project file, which MSG-LIB-001 does not allow it.");
+            }
+
             if (shipped)
             {
                 foreach (string required in new[] { PublicApiAnalyzers, MinVer }.Where(required => !buildOnly.Contains(required, StringComparer.Ordinal)))
@@ -118,7 +124,48 @@ internal static class ReferenceRules
             violations.AddRange(FrameworkViolations(project, byName));
         }
 
+        violations.AddRange(SharedItemViolations(root));
         return violations;
+    }
+
+    /// <summary>
+    /// Answers each item of <c>Directory.Build.props</c> but the CLSCompliant attribute and the
+    /// exact-version target's update, and each item of <c>Directory.Packages.props</c> but a
+    /// <c>PackageVersion</c>, since such an item would reach every project unseen.
+    /// </summary>
+    private static IEnumerable<string> SharedItemViolations(string root)
+    {
+        string buildProps = Path.Combine(root, "Directory.Build.props");
+        if (File.Exists(buildProps))
+        {
+            foreach (XElement item in XDocument.Load(buildProps).Descendants("ItemGroup").Elements())
+            {
+                string name = item.Name.LocalName;
+                XElement? owner = item.Parent!.Parent;
+                bool attribute = owner == item.Document!.Root && string.Equals(name, "AssemblyAttribute", StringComparison.Ordinal)
+                    && string.Equals(item.Attribute("Include")?.Value, "System.CLSCompliantAttribute", StringComparison.Ordinal);
+                bool exactVersion = owner is { Name.LocalName: "Target" } && string.Equals(owner.Attribute("Name")?.Value, "DependOnTheExactVersionPacked", StringComparison.Ordinal)
+                    && string.Equals(name, "_ProjectReferencesWithVersions", StringComparison.Ordinal);
+                if (!attribute && !exactVersion)
+                {
+                    yield return $"Directory.Build.props adds a {name} item {Target(item)}; it adds no item but the CLSCompliant attribute.";
+                }
+            }
+        }
+
+        string packagesProps = Path.Combine(root, "Directory.Packages.props");
+        if (File.Exists(packagesProps))
+        {
+            foreach (XElement item in XDocument.Load(packagesProps).Descendants("ItemGroup").Elements().Where(item => item.Name.LocalName is not "PackageVersion"))
+            {
+                yield return $"Directory.Packages.props adds a {item.Name.LocalName} item {Target(item)}; it adds no item but PackageVersion.";
+            }
+        }
+    }
+
+    private static string Target(XElement item)
+    {
+        return item.Attribute("Include")?.Value ?? item.Attribute("Update")?.Value ?? string.Empty;
     }
 
     /// <summary>

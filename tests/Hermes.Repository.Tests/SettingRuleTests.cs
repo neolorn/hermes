@@ -150,6 +150,60 @@ public sealed class SettingRuleTests
         Assert.Empty(SettingRules.SettingViolations(fixture.Root));
     }
 
+    [Theory]
+    [InlineData("<TargetFramework>net10.0</TargetFramework>", "<TargetFramework>net9.0</TargetFramework>", "TargetFramework to net10.0")]
+    [InlineData("<Nullable>enable</Nullable>", "<Nullable>disable</Nullable>", "Nullable to enable")]
+    [InlineData("<ImplicitUsings>disable</ImplicitUsings>", "<ImplicitUsings>enable</ImplicitUsings>", "ImplicitUsings to disable")]
+    [InlineData("<AnalysisLevel>latest-all</AnalysisLevel>", "<AnalysisLevel>latest</AnalysisLevel>", "AnalysisLevel to latest-all")]
+    [InlineData("<MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>", "", "MSBuildTreatWarningsAsErrors to true")]
+    [InlineData("<NuGetAuditMode>all</NuGetAuditMode>", "<NuGetAuditMode>direct</NuGetAuditMode>", "NuGetAuditMode to all")]
+    [InlineData("<Deterministic>true</Deterministic>", "", "Deterministic to true")]
+    public void MSG_ENG_002_AC1_SharedBuildSettingsOtherThanTheRulesAreFound(string setting, string replacement, string expected)
+    {
+        ArgumentNullException.ThrowIfNull(setting);
+        using RepositoryFixture fixture = new();
+        string props = File.ReadAllText(Path.Combine(fixture.Root, "Directory.Build.props"));
+        Assert.Contains(setting, props, StringComparison.Ordinal);
+        fixture.Write("Directory.Build.props", props.Replace(setting, replacement, StringComparison.Ordinal));
+
+        Assert.Contains($"Directory.Build.props does not set {expected}.", SettingRules.SettingViolations(fixture.Root));
+    }
+
+    [Theory]
+    [InlineData("Directory.Build.targets")]
+    [InlineData("src/Directory.Build.props")]
+    [InlineData("tests/Hermes.Core.Tests/Directory.Packages.props")]
+    [InlineData("Directory.Solution.props")]
+    public void MSG_ENG_002_AC1_SharedBuildFileBesideTheRootsIsFound(string path)
+    {
+        using RepositoryFixture fixture = new();
+        fixture.Write(path, "<Project />\n");
+
+        Assert.Contains($"{path} sets what only the root's Directory.Build.props and Directory.Packages.props set.", SettingRules.SettingViolations(fixture.Root));
+    }
+
+    [Theory]
+    [InlineData("""{ "sdk": { "version": "9.0.300", "rollForward": "latestPatch" } }""", "global.json does not name a .NET 10 SDK.")]
+    [InlineData("""{ "sdk": { "rollForward": "latestPatch" } }""", "global.json does not name a .NET 10 SDK.")]
+    [InlineData("""{ "sdk": { "version": "10.0.402", "rollForward": "latestFeature" } }""", "global.json does not set rollForward to latestPatch.")]
+    [InlineData("""{ "sdk": { "version": "10.0.402" } }""", "global.json does not set rollForward to latestPatch.")]
+    public void MSG_ENG_002_AC1_SdkOtherThanTheRulesIsFound(string global, string expected)
+    {
+        using RepositoryFixture fixture = new();
+        fixture.Write("global.json", global);
+
+        Assert.Contains(expected, SettingRules.SettingViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_ENG_002_AC1_RepositoryWithoutGlobalJsonIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        File.Delete(Path.Combine(fixture.Root, "global.json"));
+
+        Assert.Contains("global.json is missing.", SettingRules.SettingViolations(fixture.Root));
+    }
+
     [Fact]
     public void SettingViolations_ProjectWithoutItsLockfile_IsFound()
     {

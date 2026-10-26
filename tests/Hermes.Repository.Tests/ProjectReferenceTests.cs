@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+
 using Xunit;
 
 namespace Hermes.Repository.Tests;
@@ -71,6 +74,116 @@ public sealed class ProjectReferenceTests
     }
 
     [Fact]
+    public void MSG_LIB_001_AC1_FrameworkOtherThanAspNetCoreIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteProject("src/Hermes.Channels/Hermes.Channels.csproj", """
+              <ItemGroup>
+                <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+                <PackageReference Include="MinVer" PrivateAssets="all" />
+                <FrameworkReference Include="Microsoft.WindowsDesktop.App" />
+                <ProjectReference Include="..\..\src\Hermes.Core\Hermes.Core.csproj" />
+              </ItemGroup>
+            """);
+
+        Assert.Contains(
+            "src/Hermes.Channels/Hermes.Channels.csproj references the framework Microsoft.WindowsDesktop.App, which MSG-LIB-001 does not allow it.",
+            ReferenceRules.ReferenceViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_LIB_001_AC1_ProjectReachingAspNetCoreWithoutTheFrameworkIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        WriteEngine(fixture);
+        fixture.WriteTest("Hermes.Tests", [Packages.Engine]);
+
+        Assert.Contains(
+            "tests/Hermes.Tests/Hermes.Tests.csproj references a project that references Microsoft.AspNetCore.App, without referencing the framework itself.",
+            ReferenceRules.ReferenceViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_LIB_001_AC1_AspNetCoreWithoutNeedIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteProject("tests/Hermes.Core.Tests/Hermes.Core.Tests.csproj", """
+              <ItemGroup>
+                <PackageReference Include="xunit.v3" />
+                <FrameworkReference Include="Microsoft.AspNetCore.App" />
+                <ProjectReference Include="..\..\src\Hermes.Core\Hermes.Core.csproj" />
+              </ItemGroup>
+            """);
+
+        Assert.Contains(
+            "tests/Hermes.Core.Tests/Hermes.Core.Tests.csproj references Microsoft.AspNetCore.App without needing it.",
+            ReferenceRules.ReferenceViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_LIB_001_AC1_PackageReferenceInTheSharedBuildSettingsIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        string props = File.ReadAllText(Path.Combine(fixture.Root, "Directory.Build.props"));
+        fixture.Write("Directory.Build.props", props.Replace("</Project>", "  <ItemGroup><PackageReference Include=\"Fluid.Core\" /></ItemGroup>\n</Project>", StringComparison.Ordinal));
+        fixture.Write("src/Hermes.Core/packages.lock.json", """
+            {
+              "version": 2,
+              "dependencies": {
+                "net10.0": {
+                  "Fluid.Core": { "type": "Direct", "requested": "[2.40.0, )", "resolved": "2.40.0" },
+                  "Microsoft.CodeAnalysis.PublicApiAnalyzers": { "type": "Direct", "requested": "[5.6.0, )", "resolved": "5.6.0" },
+                  "MinVer": { "type": "Direct", "requested": "[8.0.0, )", "resolved": "8.0.0" }
+                }
+              }
+            }
+            """);
+
+        string[] violations = [.. ReferenceRules.ReferenceViolations(fixture.Root)];
+
+        Assert.Contains("Directory.Build.props adds a PackageReference item Fluid.Core; it adds no item but the CLSCompliant attribute.", violations);
+        Assert.Contains("src/Hermes.Core/Hermes.Core.csproj takes the package Fluid.Core by a reference outside its project file, which MSG-LIB-001 does not allow it.", violations);
+        Assert.DoesNotContain(violations, violation => violation.Contains("MinVer", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MSG_LIB_001_AC1_GlobalPackageReferenceIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        string props = File.ReadAllText(Path.Combine(fixture.Root, "Directory.Packages.props"));
+        fixture.Write("Directory.Packages.props", props.Replace("</Project>", "  <ItemGroup><GlobalPackageReference Include=\"Fluid.Core\" Version=\"2.40.0\" /></ItemGroup>\n</Project>", StringComparison.Ordinal));
+
+        Assert.Contains(
+            "Directory.Packages.props adds a GlobalPackageReference item Fluid.Core; it adds no item but PackageVersion.",
+            ReferenceRules.ReferenceViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_LIB_001_AC2_ChannelsReachingTheEngineThroughAProjectIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        WriteEngine(fixture);
+        fixture.WriteSource(Packages.Channels, [Packages.Core, Packages.Engine]);
+
+        Assert.Contains("Hermes.Channels reaches the engine, Hermes.", ReferenceRules.ChannelsViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_LIB_001_AC2_ChannelsReachingAspNetCoreThroughAProjectIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteProject("src/Hermes.Core/Hermes.Core.csproj", """
+              <ItemGroup>
+                <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+                <PackageReference Include="MinVer" PrivateAssets="all" />
+                <FrameworkReference Include="Microsoft.AspNetCore.App" />
+              </ItemGroup>
+            """);
+
+        Assert.Contains("Hermes.Channels reaches ASP.NET Core through Hermes.Core.", ReferenceRules.ChannelsViolations(fixture.Root));
+    }
+
+    [Fact]
     public void MSG_LIB_001_AC2_ChannelsReferencesNeitherEntityFrameworkCoreNorAspNetCoreNorFluid()
     {
         Assert.Empty(ReferenceRules.ChannelsViolations(RepositoryRoot.Path));
@@ -85,6 +198,19 @@ public sealed class ProjectReferenceTests
             """);
 
         Assert.Contains("Hermes.Channels takes the package Fluid.Core.", ReferenceRules.ChannelsViolations(fixture.Root));
+    }
+
+    /// <summary>Writes the engine's project, which references ASP.NET Core's shared framework.</summary>
+    private static void WriteEngine(RepositoryFixture fixture)
+    {
+        fixture.WriteProject("src/Hermes/Hermes.csproj", """
+              <ItemGroup>
+                <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+                <PackageReference Include="MinVer" PrivateAssets="all" />
+                <FrameworkReference Include="Microsoft.AspNetCore.App" />
+                <ProjectReference Include="..\..\src\Hermes.Core\Hermes.Core.csproj" />
+              </ItemGroup>
+            """);
     }
 
     [Theory]

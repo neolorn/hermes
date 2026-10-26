@@ -107,7 +107,9 @@ internal static class PackageRules
         List<string> violations = [];
         foreach (ProjectFile project in ProjectFile.ReadAll(root))
         {
-            foreach (string package in project.PackageReferences.Select(ProjectFile.Include).Where(package => !Allowed.Contains(package, StringComparer.Ordinal)))
+            // A reference made outside the project file reaches its lockfile's direct entries.
+            IEnumerable<string> direct = project.PackageReferences.Select(ProjectFile.Include).Union(project.LockedDirectPackages, StringComparer.Ordinal);
+            foreach (string package in direct.Where(package => !Allowed.Contains(package, StringComparer.Ordinal)))
             {
                 violations.Add($"{project.RelativePath} references {package}, which is not in MSG-ENG-009's table.");
             }

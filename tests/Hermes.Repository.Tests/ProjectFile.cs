@@ -3,6 +3,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Xml.Linq;
 
 namespace Hermes.Repository.Tests;
@@ -47,6 +48,30 @@ internal sealed class ProjectFile
     internal IReadOnlyList<XElement> PackageReferences => [.. Items("PackageReference")];
 
     internal IReadOnlyList<string> FrameworkReferences => [.. Items("FrameworkReference").Select(Include)];
+
+    /// <summary>
+    /// The packages the project's lockfile records as direct, wherever their references were
+    /// made: its own file, a shared build file or the central package file.
+    /// </summary>
+    internal IReadOnlyList<string> LockedDirectPackages
+    {
+        get
+        {
+            string lockFile = System.IO.Path.Combine(Folder, "packages.lock.json");
+            if (!File.Exists(lockFile))
+            {
+                return [];
+            }
+
+            using JsonDocument document = JsonDocument.Parse(File.ReadAllText(lockFile));
+            return [.. document.RootElement.GetProperty("dependencies").EnumerateObject()
+                .SelectMany(framework => framework.Value.EnumerateObject())
+                .Where(package => string.Equals(package.Value.GetProperty("type").GetString(), "Direct", StringComparison.Ordinal))
+                .Select(package => package.Name)
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)];
+        }
+    }
 
     /// <summary>The names of the properties the project file sets.</summary>
     internal IReadOnlyList<string> Properties =>
