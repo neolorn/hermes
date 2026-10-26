@@ -48,9 +48,6 @@ internal sealed class ProjectFile
 
     internal IReadOnlyList<string> FrameworkReferences => [.. Items("FrameworkReference").Select(Include)];
 
-    /// <summary>The assemblies this project's <c>InternalsVisibleTo</c> items name.</summary>
-    internal IReadOnlyList<string> Grants => [.. Items("InternalsVisibleTo").Select(Include)];
-
     /// <summary>The names of the properties the project file sets.</summary>
     internal IReadOnlyList<string> Properties =>
         [.. Document.Root!.Elements("PropertyGroup").Elements().Select(element => element.Name.LocalName)];

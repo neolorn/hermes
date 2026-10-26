@@ -14,13 +14,11 @@ namespace Hermes.Repository.Tests;
 /// </summary>
 internal static class AssemblySurface
 {
-    /// <summary>The built assemblies of the packages, copied beside the test run by its project references.</summary>
+    /// <summary>The built assemblies of the projects <c>src/*/*.csproj</c>, copied beside the test run by its project references.</summary>
     internal static IReadOnlyList<string> ShippedAssemblies()
     {
-        return [.. Directory.EnumerateDirectories(RepositoryRoot.Combine("src"))
-            .Select(Path.GetFileName)
-            .Order(StringComparer.Ordinal)
-            .Select(name => Path.Combine(AppContext.BaseDirectory, name + ".dll"))];
+        return [.. ProjectFile.SourceProjects(RepositoryRoot.Path)
+            .Select(project => Path.Combine(AppContext.BaseDirectory, Path.GetFileNameWithoutExtension(project) + ".dll"))];
     }
 
     internal static IReadOnlyList<PublicType> PublicTypes(string assembly)
@@ -59,37 +57,85 @@ internal static class AssemblySurface
                 Kind(metadata, type),
                 (attributes & TypeAttributes.Sealed) != 0,
                 (attributes & TypeAttributes.Abstract) != 0,
-                methods));
+                methods,
+                [.. type.GetInterfaceImplementations().Select(implementation => names.Interface(metadata.GetInterfaceImplementation(implementation).Interface))]));
         }
 
         return types;
     }
 
-    /// <summary>The members of other types the assembly calls or reads, each as its type's full name and its own name.</summary>
-    internal static IReadOnlyList<(string Type, string Member)> MemberReferences(string assembly)
+    /// <summary>
+    /// The members each method body of the assembly calls, reads, writes or takes a token of,
+    /// read from its IL, each with the method that uses it and whether that method's type is
+    /// generated code: a type marked <c>GeneratedCodeAttribute</c>, or nested in one.
+    /// </summary>
+    internal static IReadOnlyList<MemberUse> MemberUses(string assembly)
     {
         using FileStream stream = File.OpenRead(assembly);
         using PEReader reader = new(stream);
         MetadataReader metadata = reader.GetMetadataReader();
         SignatureNames names = new(metadata);
-        List<(string Type, string Member)> references = [];
+        List<MemberUse> uses = [];
 
-        foreach (MemberReferenceHandle handle in metadata.MemberReferences)
+        foreach (TypeDefinitionHandle typeHandle in metadata.TypeDefinitions)
         {
-            MemberReference reference = metadata.GetMemberReference(handle);
-            string? type = reference.Parent.Kind switch
+            TypeDefinition type = metadata.GetTypeDefinition(typeHandle);
+            string typeName = SignatureNames.Name(metadata, typeHandle);
+            bool generated = IsGenerated(metadata, typeHandle);
+            foreach (MethodDefinitionHandle methodHandle in type.GetMethods())
             {
-                HandleKind.TypeReference or HandleKind.TypeDefinition => SignatureNames.Name(metadata, (EntityHandle)reference.Parent),
-                HandleKind.TypeSpecification => metadata.GetTypeSpecification((TypeSpecificationHandle)reference.Parent).DecodeSignature(names, genericContext: null),
-                _ => null,
-            };
-            if (type is not null)
-            {
-                references.Add((type, metadata.GetString(reference.Name)));
+                MethodDefinition method = metadata.GetMethodDefinition(methodHandle);
+                if (method.RelativeVirtualAddress == 0)
+                {
+                    continue;
+                }
+
+                string methodName = typeName + "." + metadata.GetString(method.Name);
+                BlobReader il = reader.GetMethodBody(method.RelativeVirtualAddress).GetILReader();
+                foreach (EntityHandle token in IntermediateLanguage.MemberTokens(il))
+                {
+                    if (Member(metadata, names, token) is (string memberType, string member))
+                    {
+                        uses.Add(new MemberUse(memberType, member, methodName, generated));
+                    }
+                }
             }
         }
 
-        return references;
+        return uses;
+    }
+
+    /// <summary>The assemblies the built assembly grants its internals to, as its <c>InternalsVisibleToAttribute</c> values name them.</summary>
+    internal static IReadOnlyList<string> Grants(string assembly)
+    {
+        using FileStream stream = File.OpenRead(assembly);
+        using PEReader reader = new(stream);
+        MetadataReader metadata = reader.GetMetadataReader();
+        List<string> grants = [];
+
+        foreach (CustomAttributeHandle handle in metadata.GetAssemblyDefinition().GetCustomAttributes())
+        {
+            CustomAttribute attribute = metadata.GetCustomAttribute(handle);
+            string? type = attribute.Constructor.Kind switch
+            {
+                HandleKind.MemberReference => SignatureNames.Name(metadata, metadata.GetMemberReference((MemberReferenceHandle)attribute.Constructor).Parent),
+                HandleKind.MethodDefinition => SignatureNames.Name(metadata, metadata.GetMethodDefinition((MethodDefinitionHandle)attribute.Constructor).GetDeclaringType()),
+                _ => null,
+            };
+            if (!string.Equals(type, "System.Runtime.CompilerServices.InternalsVisibleToAttribute", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // The value blob: the prolog 0x0001, then the one string argument (ECMA-335 II.23.3).
+            BlobReader value = metadata.GetBlobReader(attribute.Value);
+            if (value.ReadUInt16() == 1 && value.ReadSerializedString() is string grantee)
+            {
+                grants.Add(grantee.Split(',')[0].Trim());
+            }
+        }
+
+        return grants;
     }
 
     /// <summary>The names of the assemblies the assembly references.</summary>
@@ -99,6 +145,56 @@ internal static class AssemblySurface
         using PEReader reader = new(stream);
         MetadataReader metadata = reader.GetMetadataReader();
         return [.. metadata.AssemblyReferences.Select(handle => metadata.GetString(metadata.GetAssemblyReference(handle).Name))];
+    }
+
+    /// <summary>The type and name of the member a token of the IL names, or none when it names no member.</summary>
+    private static (string Type, string Member)? Member(MetadataReader metadata, SignatureNames names, EntityHandle token)
+    {
+        switch (token.Kind)
+        {
+            case HandleKind.MemberReference:
+                MemberReference reference = metadata.GetMemberReference((MemberReferenceHandle)token);
+                string? parent = reference.Parent.Kind switch
+                {
+                    HandleKind.TypeReference or HandleKind.TypeDefinition => SignatureNames.Name(metadata, (EntityHandle)reference.Parent),
+                    HandleKind.TypeSpecification => metadata.GetTypeSpecification((TypeSpecificationHandle)reference.Parent).DecodeSignature(names, genericContext: null),
+                    _ => null,
+                };
+                return parent is null ? null : (parent, metadata.GetString(reference.Name));
+            case HandleKind.MethodDefinition:
+                MethodDefinition method = metadata.GetMethodDefinition((MethodDefinitionHandle)token);
+                return (SignatureNames.Name(metadata, method.GetDeclaringType()), metadata.GetString(method.Name));
+            case HandleKind.FieldDefinition:
+                FieldDefinition field = metadata.GetFieldDefinition((FieldDefinitionHandle)token);
+                return (SignatureNames.Name(metadata, field.GetDeclaringType()), metadata.GetString(field.Name));
+            case HandleKind.MethodSpecification:
+                return Member(metadata, names, metadata.GetMethodSpecification((MethodSpecificationHandle)token).Method);
+            default:
+                return null;
+        }
+    }
+
+    private static bool IsGenerated(MetadataReader metadata, TypeDefinitionHandle handle)
+    {
+        for (TypeDefinitionHandle current = handle; !current.IsNil; current = metadata.GetTypeDefinition(current).GetDeclaringType())
+        {
+            foreach (CustomAttributeHandle attributeHandle in metadata.GetTypeDefinition(current).GetCustomAttributes())
+            {
+                EntityHandle constructor = metadata.GetCustomAttribute(attributeHandle).Constructor;
+                string? attribute = constructor.Kind switch
+                {
+                    HandleKind.MemberReference => SignatureNames.Name(metadata, metadata.GetMemberReference((MemberReferenceHandle)constructor).Parent),
+                    HandleKind.MethodDefinition => SignatureNames.Name(metadata, metadata.GetMethodDefinition((MethodDefinitionHandle)constructor).GetDeclaringType()),
+                    _ => null,
+                };
+                if (string.Equals(attribute, "System.CodeDom.Compiler.GeneratedCodeAttribute", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static bool IsVisible(MetadataReader metadata, TypeDefinition type)
@@ -133,6 +229,14 @@ internal static class AssemblySurface
     /// <summary>Decodes signatures into full type names.</summary>
     private sealed class SignatureNames(MetadataReader metadata) : ISignatureTypeProvider<string, object?>
     {
+        /// <summary>The full name of an interface a type implements, a generic one with its arguments.</summary>
+        internal string Interface(EntityHandle handle)
+        {
+            return handle.Kind == HandleKind.TypeSpecification
+                ? metadata.GetTypeSpecification((TypeSpecificationHandle)handle).DecodeSignature(this, genericContext: null)
+                : Name(metadata, handle);
+        }
+
         internal static string Name(MetadataReader metadata, EntityHandle handle)
         {
             return handle.Kind switch

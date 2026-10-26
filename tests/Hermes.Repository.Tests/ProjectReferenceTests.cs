@@ -87,12 +87,6 @@ public sealed class ProjectReferenceTests
         Assert.Contains("Hermes.Channels takes the package Fluid.Core.", ReferenceRules.ChannelsViolations(fixture.Root));
     }
 
-    [Fact]
-    public void MSG_ENG_001_AC1_GrantsFollowTheRule()
-    {
-        Assert.Empty(ReferenceRules.GrantViolations(RepositoryRoot.Path));
-    }
-
     [Theory]
     [InlineData(Packages.Core, Packages.Engine)]
     [InlineData(Packages.Core, Packages.Testing)]
@@ -100,18 +94,17 @@ public sealed class ProjectReferenceTests
     [InlineData(Packages.Channels, Packages.Cli)]
     public void MSG_ENG_001_AC1_GrantOutsideTheRuleIsFound(string grantor, string grantee)
     {
-        using RepositoryFixture fixture = new();
-        fixture.WriteProject($"src/{grantor}/{grantor}.csproj", $"""
-              <ItemGroup>
-                <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
-                <PackageReference Include="MinVer" PrivateAssets="all" />
-                <InternalsVisibleTo Include="{grantee}" />
-              </ItemGroup>
-            """);
+        string[] violations = [.. ReferenceRules.GrantViolations($"src/{grantor}/{grantor}.csproj", grantor, [grantee])];
 
-        Assert.Contains(
-            $"src/{grantor}/{grantor}.csproj grants its internals to {grantee}, which MSG-ENG-001 does not allow.",
-            ReferenceRules.GrantViolations(fixture.Root));
+        Assert.Equal([$"src/{grantor}/{grantor}.csproj grants its internals to {grantee}, which MSG-ENG-001 does not allow."], violations);
+    }
+
+    [Fact]
+    public void MSG_ENG_001_AC1_GrantOfATestProjectIsFound()
+    {
+        string[] violations = [.. ReferenceRules.GrantViolations("tests/Hermes.Core.Tests/Hermes.Core.Tests.csproj", "Hermes.Core.Tests", [Packages.Core])];
+
+        Assert.Equal(["tests/Hermes.Core.Tests/Hermes.Core.Tests.csproj grants its internals to Hermes.Core, which MSG-ENG-001 does not allow."], violations);
     }
 
     [Theory]
@@ -121,15 +114,6 @@ public sealed class ProjectReferenceTests
     [InlineData(Packages.Channels, Packages.Testing)]
     public void MSG_ENG_001_AC1_GrantWithinTheRuleIsAccepted(string grantor, string grantee)
     {
-        using RepositoryFixture fixture = new();
-        fixture.WriteProject($"src/{grantor}/{grantor}.csproj", $"""
-              <ItemGroup>
-                <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
-                <PackageReference Include="MinVer" PrivateAssets="all" />
-                <InternalsVisibleTo Include="{grantee}" />
-              </ItemGroup>
-            """);
-
-        Assert.Empty(ReferenceRules.GrantViolations(fixture.Root));
+        Assert.Empty(ReferenceRules.GrantViolations($"src/{grantor}/{grantor}.csproj", grantor, [grantee]));
     }
 }

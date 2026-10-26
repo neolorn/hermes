@@ -6,10 +6,11 @@ using System.Linq;
 namespace Hermes.Repository.Tests;
 
 /// <summary>
-/// The reflection <c>07</c> MSG-ENG-004 rules out, read from what a built assembly calls: a
-/// lookup or call of members by name through <c>System.Reflection</c>, <c>Activator</c> or
-/// <c>Type.GetType</c>, and <c>System.Reflection.Metadata</c>, which only the tests read.
-/// Reading an assembly's embedded resources is allowed.
+/// The reflection <c>07</c> MSG-ENG-004 rules out, read from what each method body of a built
+/// assembly uses: a lookup or call of members by name through <c>System.Reflection</c>,
+/// <c>Activator</c>, <c>Type.GetType</c> or <c>Delegate.CreateDelegate</c>, and
+/// <c>System.Reflection.Metadata</c>, which only the tests read. Generated code, which the
+/// criterion allows, is left out, and reading an assembly's embedded resources is allowed.
 /// </summary>
 internal static class ReflectionRules
 {
@@ -26,14 +27,16 @@ internal static class ReflectionRules
     private static readonly FrozenSet<string> WholeTypes =
         FrozenSet.Create(StringComparer.Ordinal, "System.Activator", "System.Reflection.RuntimeReflectionExtensions", "System.Reflection.TypeExtensions");
 
-    internal static IEnumerable<string> Violations(string assembly, IEnumerable<(string Type, string Member)> members, IEnumerable<string> assemblies)
+    private static readonly FrozenSet<(string Type, string Member)> Members = new[] { ("System.Delegate", "CreateDelegate") }.ToFrozenSet();
+
+    internal static IEnumerable<string> Violations(string assembly, IEnumerable<MemberUse> uses, IEnumerable<string> assemblies)
     {
-        foreach ((string type, string member) in members.Distinct())
+        foreach (MemberUse use in uses.Where(use => !use.Generated).Distinct())
         {
-            bool lookup = LookupTypes.Contains(type) && Lookups.Contains(member);
-            if (lookup || WholeTypes.Contains(type))
+            bool lookup = LookupTypes.Contains(use.Type) && Lookups.Contains(use.Member);
+            if (lookup || WholeTypes.Contains(use.Type) || Members.Contains((use.Type, use.Member)))
             {
-                yield return $"{assembly} looks members up by name: {type}.{member}.";
+                yield return $"{assembly} looks members up by name: {use.Type}.{use.Member}, in {use.Method}.";
             }
         }
 

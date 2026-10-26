@@ -21,14 +21,18 @@ internal static partial class SurfaceRules
             .Select(type => $"{type.Name} is a public class neither sealed nor abstract.");
     }
 
-    /// <summary>Answers each public asynchronous method that takes no <c>CancellationToken</c>, save <c>DisposeAsync</c>.</summary>
+    /// <summary>
+    /// Answers each public asynchronous method that takes no <c>CancellationToken</c>, save the
+    /// <c>DisposeAsync</c> of a type that implements <c>IAsyncDisposable</c>.
+    /// </summary>
     internal static IEnumerable<string> TokenViolations(IEnumerable<PublicType> types)
     {
         foreach (PublicType type in types)
         {
             foreach (PublicMethod method in type.Methods.Where(IsAsynchronous))
             {
-                bool disposal = string.Equals(method.Name, "DisposeAsync", StringComparison.Ordinal) && method.ParameterTypes.Count == 0;
+                bool disposal = string.Equals(method.Name, "DisposeAsync", StringComparison.Ordinal) && method.ParameterTypes.Count == 0
+                    && type.Interfaces.Contains("System.IAsyncDisposable", StringComparer.Ordinal);
                 if (!disposal && !method.ParameterTypes.Contains("System.Threading.CancellationToken", StringComparer.Ordinal))
                 {
                     yield return $"{type.Name}.{method.Name} is a public asynchronous method without a CancellationToken.";
@@ -109,11 +113,15 @@ internal static partial class SurfaceRules
         return GenericPattern().Replace(name, match => "`" + (match.Groups["parameters"].Value.Count(c => c == ',') + 1));
     }
 
+    /// <summary>A method that answers exactly <c>Task</c>, <c>Task&lt;T&gt;</c>, <c>ValueTask</c>, <c>ValueTask&lt;T&gt;</c> or <c>IAsyncEnumerable&lt;T&gt;</c>.</summary>
     private static bool IsAsynchronous(PublicMethod method)
     {
-        return method.ReturnType.StartsWith("System.Threading.Tasks.Task", StringComparison.Ordinal)
-            || method.ReturnType.StartsWith("System.Threading.Tasks.ValueTask", StringComparison.Ordinal)
-            || method.ReturnType.StartsWith("System.Collections.Generic.IAsyncEnumerable`1", StringComparison.Ordinal);
+        string type = method.ReturnType;
+        return string.Equals(type, "System.Threading.Tasks.Task", StringComparison.Ordinal)
+            || string.Equals(type, "System.Threading.Tasks.ValueTask", StringComparison.Ordinal)
+            || type.StartsWith("System.Threading.Tasks.Task`1<", StringComparison.Ordinal)
+            || type.StartsWith("System.Threading.Tasks.ValueTask`1<", StringComparison.Ordinal)
+            || type.StartsWith("System.Collections.Generic.IAsyncEnumerable`1<", StringComparison.Ordinal);
     }
 
     [GeneratedRegex(@"^((abstract|static|sealed|virtual|override|readonly|const|new)\s+)+")]

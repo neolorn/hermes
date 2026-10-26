@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace Hermes.Repository.Tests;
@@ -13,7 +12,7 @@ namespace Hermes.Repository.Tests;
 /// What each project may reference (<c>04</c> MSG-LIB-001) and the grants of
 /// <c>InternalsVisibleTo</c> (<c>07</c> MSG-ENG-001).
 /// </summary>
-internal static partial class ReferenceRules
+internal static class ReferenceRules
 {
     internal const string AspNetCore = "Microsoft.AspNetCore.App";
 
@@ -167,36 +166,49 @@ internal static partial class ReferenceRules
         return violations;
     }
 
-    /// <summary>Answers each grant of <c>InternalsVisibleTo</c> in the repository at <paramref name="root"/> outside MSG-ENG-001's rule.</summary>
+    /// <summary>
+    /// Answers each grant of <c>InternalsVisibleTo</c> outside MSG-ENG-001's rule that the built
+    /// assembly of a project of the repository at <paramref name="root"/> carries, whatever form
+    /// declared it: an item, an attribute item or an attribute in a source file.
+    /// </summary>
     internal static IReadOnlyList<string> GrantViolations(string root)
     {
         List<string> violations = [];
         foreach (ProjectFile project in ProjectFile.ReadAll(root))
         {
-            IEnumerable<string> declared = project.Grants.Concat(
-                ProjectFile.Enumerate(project.Folder, "*.cs").SelectMany(file => GrantPattern().Matches(File.ReadAllText(file)).Select(match => match.Groups["name"].Value)));
-            foreach (string grantee in declared.Where(grantee => !IsAllowedGrant(project, grantee)))
+            string assembly = Path.Combine(project.Folder, "bin", "Release", "net10.0", project.Name + ".dll");
+            if (!File.Exists(assembly))
             {
-                violations.Add($"{project.RelativePath} grants its internals to {grantee}, which MSG-ENG-001 does not allow.");
+                violations.Add($"{project.RelativePath} has no built assembly at bin/Release/net10.0/, so its grants cannot be read.");
+                continue;
             }
+
+            violations.AddRange(GrantViolations(project.RelativePath, project.Name, AssemblySurface.Grants(assembly)));
         }
 
         return violations;
     }
 
-    private static bool IsAllowedGrant(ProjectFile project, string grantee)
+    /// <summary>Answers each of <paramref name="grantees"/> the project at <paramref name="relativePath"/> may not grant its internals to.</summary>
+    internal static IEnumerable<string> GrantViolations(string relativePath, string name, IEnumerable<string> grantees)
     {
-        if (!project.RelativePath.StartsWith("src/", StringComparison.Ordinal))
+        return grantees.Where(grantee => !IsAllowedGrant(relativePath, name, grantee))
+            .Select(grantee => $"{relativePath} grants its internals to {grantee}, which MSG-ENG-001 does not allow.");
+    }
+
+    private static bool IsAllowedGrant(string relativePath, string name, string grantee)
+    {
+        if (!relativePath.StartsWith("src/", StringComparison.Ordinal))
         {
             return false;
         }
 
-        if (string.Equals(grantee, Packages.TestProject(project.Name), StringComparison.Ordinal))
+        if (string.Equals(grantee, Packages.TestProject(name), StringComparison.Ordinal))
         {
             return true;
         }
 
-        string[] allowed = project.Name switch
+        string[] allowed = name switch
         {
             Packages.Channels => [Packages.Engine, Packages.JanusChannels, Packages.Testing],
             Packages.Engine => [Packages.Cli, Packages.Testing],
@@ -281,7 +293,4 @@ internal static partial class ReferenceRules
             || package.StartsWith("Fluid", StringComparison.OrdinalIgnoreCase)
             || package.StartsWith("Microsoft.AspNetCore", StringComparison.OrdinalIgnoreCase);
     }
-
-    [GeneratedRegex(@"InternalsVisibleTo\s*\(\s*""(?<name>[^"",]+)")]
-    private static partial Regex GrantPattern();
 }

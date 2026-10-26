@@ -12,4 +12,4 @@ param()
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-& (Join-Path $PSScriptRoot 'run-repository-tests.ps1') -Classes 'Hermes.Repository.Tests.RepositoryLayoutTests', 'Hermes.Repository.Tests.ProjectReferenceTests'
+& (Join-Path $PSScriptRoot 'run-repository-tests.ps1') -Classes 'Hermes.Repository.Tests.RepositoryLayoutTests', 'Hermes.Repository.Tests.ProjectReferenceTests', 'Hermes.Repository.Tests.GrantTests'

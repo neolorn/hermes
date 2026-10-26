@@ -41,7 +41,7 @@ public sealed class AssemblyContractTests
     {
         string path = Path.Combine(AppContext.BaseDirectory, assembly);
 
-        Assert.Empty(ReflectionRules.Violations(assembly, AssemblySurface.MemberReferences(path), AssemblySurface.AssemblyReferences(path)));
+        Assert.Empty(ReflectionRules.Violations(assembly, AssemblySurface.MemberUses(path), AssemblySurface.AssemblyReferences(path)));
     }
 
     [Theory]
@@ -49,6 +49,13 @@ public sealed class AssemblyContractTests
     public void MSG_ENG_007_AC1_NoPublicTypeNameHoldsTheLibrarysName(string assembly)
     {
         Assert.Empty(SurfaceRules.NameViolations(AssemblySurface.PublicTypes(Path.Combine(AppContext.BaseDirectory, assembly))));
+    }
+
+    [Theory]
+    [MemberData(nameof(Assemblies))]
+    public void MSG_LIB_002_AC2_EveryPublicTypeIsOneTheTablesGive(string assembly)
+    {
+        Assert.Empty(PublicTypeTable.Violations(Path.GetFileNameWithoutExtension(assembly), AssemblySurface.PublicTypes(Path.Combine(AppContext.BaseDirectory, assembly))));
     }
 
     [Theory]

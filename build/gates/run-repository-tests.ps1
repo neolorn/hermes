@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    Builds tests/Hermes.Repository.Tests and runs the given classes of it, for the gates those tests are.
+    Builds Hermes.sln and runs the given classes of tests/Hermes.Repository.Tests, for the gates those tests are.
 .PARAMETER Classes
     The full names of the test classes to run.
 #>
@@ -17,9 +17,10 @@ Set-StrictMode -Version Latest
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
 $project = Join-Path $root 'tests' 'Hermes.Repository.Tests' 'Hermes.Repository.Tests.csproj'
 
-dotnet build $project --configuration Release -p:RestoreLockedMode=true -nodeReuse:false
+# Every project is built, since a test reads the built assembly of each (07 MSG-ENG-001).
+dotnet build (Join-Path $root 'Hermes.sln') --configuration Release -p:RestoreLockedMode=true -nodeReuse:false
 if ($LASTEXITCODE -ne 0) {
-    throw "The build of the repository's tests failed with exit code $LASTEXITCODE."
+    throw "The build of Hermes.sln failed with exit code $LASTEXITCODE."
 }
 
 $filters = foreach ($class in $Classes) { '--filter-class'; $class }
