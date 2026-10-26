@@ -75,3 +75,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The send's tables: sends, deliveries, attempts and their calls, idempotency keys, the
   rate counters, notices and the job table, each closed set refused by the database
   outside its values
+- The keyed hash under each held `hashKeys` version, the advisory locks' keys and a
+  send's canonical form, in the layouts two releases share
