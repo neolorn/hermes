@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Hermes.Core;
@@ -392,6 +393,61 @@ public sealed class DeclarationTests
             declare.Category("news");
             declare.Kind("news.weekly", "news").Push();
         });
+    }
+
+    [Fact]
+    public async Task MSG_SEND_002_AC2_LabelOf128ScalarValuesOutsideTheBasicMultilingualPlaneIsAccepted()
+    {
+        string label = string.Concat(Enumerable.Repeat("\U0001F4E8", 128));
+        Assert.Equal(256, label.Length);
+
+        await AssertStartsPastTheDeclarations(
+            declare =>
+            {
+                declare.Category("news").Label("en", label);
+                declare.Kind("news.weekly", "news").Email();
+            },
+            Addressed(TestHost.Languages()));
+    }
+
+    [Fact]
+    public async Task MSG_SEND_002_AC2_LabelOf129ScalarValuesFailsStartup()
+    {
+        MessagingStartupException failure = await StartFailure(
+            declare =>
+            {
+                declare.Category("news").Label("en", string.Concat(Enumerable.Repeat("\U0001F4E8", 129)));
+                declare.Kind("news.weekly", "news").Email();
+            },
+            configuration: Addressed(TestHost.Languages()));
+
+        AssertInvalid(failure, "news", "Label");
+    }
+
+    [Fact]
+    public async Task MSG_SEND_002_AC2_LabelHoldingALoneSurrogateFailsStartup()
+    {
+        MessagingStartupException failure = await StartFailure(
+            declare =>
+            {
+                declare.Category("news").Label("en", "News \uD83D");
+                declare.Kind("news.weekly", "news").Email();
+            },
+            configuration: Addressed(TestHost.Languages()));
+
+        AssertInvalid(failure, "news", "Label");
+    }
+
+    [Fact]
+    public async Task MSG_SEND_002_AC2_LabelLongerThan128WhereNoneIsRequiredFailsStartup()
+    {
+        MessagingStartupException failure = await StartFailure(declare =>
+        {
+            declare.Category("orders").Essential().Label("en", new string('a', 129));
+            declare.Kind("order.placed", "orders").Sms();
+        });
+
+        AssertInvalid(failure, "orders", "Label");
     }
 
     [Fact]

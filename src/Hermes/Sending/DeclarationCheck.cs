@@ -15,6 +15,8 @@ internal static partial class DeclarationCheck
 {
     private const int NameLength = 64;
 
+    private const int LabelLength = 128;
+
     private static readonly TimeSpan LongestTtl = TimeSpan.FromDays(28);
 
     /// <summary>Answers the first declaration outside its rule and the member it fails on, or none.</summary>
@@ -138,6 +140,11 @@ internal static partial class DeclarationCheck
 
         bool labelled = !category.Essential && kinds.Any(kind => kind.Email is not null);
         if (labelled && !languages.All(category.Labels.ContainsKey))
+        {
+            return "Label";
+        }
+
+        if (!category.Labels.Values.All(label => TextLength.AtMost(label, LabelLength)))
         {
             return "Label";
         }

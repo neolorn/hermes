@@ -92,7 +92,7 @@ public sealed class CategoryBuilder
     /// language of <c>Hermes:Languages</c>.
     /// </summary>
     /// <param name="language">A BCP 47 tag of <c>Hermes:Languages</c>, matched whatever its case.</param>
-    /// <param name="text">The label.</param>
+    /// <param name="text">The label, at most 128 characters counted as Unicode scalar values.</param>
     /// <returns>This builder.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="language"/> or <paramref name="text"/> is null.</exception>
     public CategoryBuilder Label(string language, string text)

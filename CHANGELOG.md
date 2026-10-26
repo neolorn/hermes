@@ -29,3 +29,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `configuration-invalid`, `newer-release` and `content-key-limit` conditions
 - The meter `Hermes` with the instruments `hermes.deliveries`, `hermes.attempts`,
   `hermes.dispatch.oldest_due_age` and `hermes.provider.duration`
+- A category's label longer than 128 characters, counted as Unicode scalar values, or
+  holding a lone surrogate, stops the start
