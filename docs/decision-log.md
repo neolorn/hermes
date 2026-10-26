@@ -631,6 +631,10 @@ the model for the support desk. `09` fixes the model.
 
 > **Amended.** M-014: the implementer pushes its own work, after the secret scan, and a
 > phase reaches `main` by its reviewed pull request.
+>
+> **Amended.** M-015: the packages depend on one another at the exact version packed;
+> MSBuild's own warnings fail the build; the scan takes no allow-list but gitleaks'
+> default and its one entry form; a test of no kind fails the gate.
 
 **Date:** 2026-10-21 · **Status:** accepted
 
@@ -783,6 +787,9 @@ history, and a sample host in the gate.
 
 ## M-013 — Data access, hosting abstractions and test packages
 
+> **Amended.** M-015: the test vectors' entry names a file under `tests/`, and the scan
+> takes no other allow-list but gitleaks' default.
+
 **Date:** 2026-10-21 · **Status:** accepted
 
 - **PostgreSQL 16 or later,** the integration tests running on that floor's pinned
@@ -823,6 +830,8 @@ history, and a sample host in the gate.
   and one exact value each, since RFC 8291's receiver key must be held as a literal for
   the encryption to be checked against the standard; every other test secret is made at
   run time, so a credential-shaped string never enters the history otherwise.
+
+---
 
 ## M-014 — The implementer pushes its own work and takes the owner's documents itself
 
@@ -867,6 +876,78 @@ redone when the review changes it).
 
 ---
 
+## M-015 — Phase 0's question and review: exact versions, and the gates' gaps
+
+**Date:** 2026-10-26 · **Status:** accepted
+
+Phase 0 asked one question. Its review before the merge found places where a gate let
+through what its chapter forbids; the ones below needed a rule, and the rest are defects
+of the build against chapters that already state the rule, fixed in the same phase.
+
+- **The packages depend on one another at the exact version packed (`[v]`)** (question 1
+  of phase 0). The packages grant one another their internals (`07` MSG-ENG-001), which
+  the release gate does not guard (`04` MSG-LIB-006), so a host holding two of them at
+  different versions could run one against internals the other's release changed and
+  fail at run time; with an exact range, NuGet reports the mix at the host's restore
+  instead (NU1605 where a direct reference takes a lower version, NU1608 a higher one,
+  NU1107 where two exact ranges meet). `dotnet pack` writes a project reference as that
+  version or later, and the .NET 10 SDK has no setting for an exact one, so
+  `Directory.Build.props` holds one target, run after NuGet's
+  `_GetProjectReferenceVersions`, that sets the `ProjectVersion` of each of NuGet's
+  `_ProjectReferencesWithVersions` items to `[v]` (read in the SDK's
+  `NuGet.Build.Tasks.Pack.targets`, and tried: the packed dependency reads
+  `version="[1.2.3-alpha.0.4]"`). Both names belong to NuGet's pack targets and are not
+  a documented setting, so a test packs the packages and fails on a dependency written
+  another way (`04` MSG-LIB-001 criterion 3), which catches an SDK that changes them.
+  *Rejected:* the minimum version pack writes (a later version of the other package
+  taken unreported); a `.nuspec` file per package (every dependency, the third-party
+  ones too, kept by hand beside the project's references, a second source of truth).
+- **MSBuild's and the SDK's own warnings fail the build.** `TreatWarningsAsErrors` makes
+  the compiler's, the analysers' and NuGet's warnings errors, but a warning MSBuild or
+  the SDK raises stays a warning (a probe build with a `Warning` task passes with it
+  alone and fails with `MSBuildTreatWarningsAsErrors`), so both are set (`07`
+  MSG-ENG-002). Since only the root `.editorconfig` turns rules off, a project file or
+  shared build file that turns a warning off or keeps it a warning (by a property, an
+  item's metadata or an item), and any other `.editorconfig` or a `.globalconfig`, fail
+  the settings test.
+- **The configuration's one entry form is the only allow-list beside gitleaks'
+  default.** gitleaks also skips a line that carries its inline `gitleaks:allow` marker,
+  and the findings a `.gitleaksignore` file lists, which it reads from the working
+  directory and from the scanned repository's root whatever its configuration says
+  (`cmd/root.go` of 8.30.1). The scan therefore runs with `--ignore-gitleaks-allow`,
+  with an ignore path holding no file and with no `--baseline-path`, and fails where a
+  `.gitleaksignore` is tracked or sits at the repository's root, so a credential-shaped
+  string on a marked line, or one a `.gitleaksignore` lists wherever that file is, fails
+  the gate's script (`07` MSG-ENG-001, `10` MSG-THR-004), as M-013's one entry form
+  meant. The entry's file is one of the tests'.
+- **Every test runs.** The tests gate runs each kind by its trait, so a test carrying no
+  `Category` of the three would run in none; such a test of `tests/`, or one carrying
+  more than one, fails the gate (`07` MSG-ENG-008 criterion 3). A test that runs the
+  SDK's build or pack, writing under `tmp/`, is an `integration` test, as one that runs
+  `git` or the secret scanner is.
+- **`PublicAPI.Shipped.txt` and the release baseline change only in a release commit,**
+  which the commit-message gate now checks (`07` MSG-ENG-011 criterion 2); a file that
+  moves unchanged with its project, as at the rename of phase 8, is no change, and the
+  release commit's exemption comes with the release step.
+- **"Lower case"** in a commit's description means it begins with a lower-case letter,
+  and a name it mentions keeps its own spelling, since a description often names a type
+  or a protocol (`07` MSG-ENG-011). The phase's report had settled it as no capital
+  anywhere, which is a second reading, so a question, not a rule it could apply alone.
+- **Where the scan runs.** Before every push, by the implementer, and in the pipeline on
+  every pull request, push to the default branch and release tag, a finding stopping the
+  push it comes before (`10` MSG-THR-004, as `07` MSG-ENG-012 lists). *Rejected:* a
+  pipeline run on every push of every branch (a working branch's pull request is opened
+  with its first push, and runs the gates on each push after it).
+- **The repository's tests reference every shipped project,** since their contract tests
+  read the built assemblies (`07` MSG-ENG-004); `04` MSG-LIB-001's table gains their
+  row.
+- **Checked in review:** the release a package is taken at when added (`07`
+  MSG-ENG-009), since only that day's listing shows it.
+- **The sample host's row of `04` MSG-LIB-001** is built with the sample host, in phase
+  6 (plan).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -885,3 +966,4 @@ redone when the review changes it).
 | How the library is built | M-012 |
 | Data access, hosting abstractions and test packages | M-013 |
 | The implementer pushes its own work and takes the owner's documents itself | M-014 |
+| Phase 0's question and review: exact versions, and the gates' gaps | M-015 |

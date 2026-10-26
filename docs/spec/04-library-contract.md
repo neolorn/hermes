@@ -8,7 +8,7 @@ not to break.
 **MSG-LIB-001** — The library SHALL ship as the packages of `00` section 2.2, and each
 project SHALL reference only what this item allows it.
 
-**Values (M-001, M-003, M-013).**
+**Values (M-001, M-003, M-013, M-015).**
 
 | Project | May reference |
 |---|---|
@@ -19,7 +19,8 @@ project SHALL reference only what this item allows it.
 | `Hermes.Janus` | `Hermes.Core`, `Hermes`, `Hermes.Janus.Channels`, Janus's main package |
 | `Hermes.Testing` | `Hermes.Core`, `Hermes.Channels`, `Hermes` |
 | `Hermes.Cli` (a .NET tool, command `hermes`) | `Hermes` |
-| A test project | Its source project, `Hermes.Testing`, and the test packages of `07` MSG-ENG-009 |
+| Any other test project | Its source project, `Hermes.Testing`, and the test packages of `07` MSG-ENG-009 |
+| `tests/Hermes.Repository.Tests` | Every shipped project, whose built assemblies its contract tests read (`07` MSG-ENG-004), and the test packages of `07` MSG-ENG-009 |
 | The sample host and its test project | The packed packages above, and for its tests the test packages of `07` MSG-ENG-009 |
 
 Every shipped project references `Microsoft.CodeAnalysis.PublicApiAnalyzers` and every
@@ -30,14 +31,20 @@ references the framework itself (`FrameworkReference` `Microsoft.AspNetCore.App`
 assembly the framework serves resolves as a package copy; `Hermes.Core` and
 `Hermes.Channels` never do. No package but the two `Hermes.Janus` packages names Janus
 or any other library of a host. The library's packages depend on one another at exactly
-the same version, since they are released together. `Hermes.Conversations` is release
-2's (`09`).
+the version packed (`[v]`, written as `07` MSG-ENG-011 gives), since they are released
+together and grant one another their internals (`07` MSG-ENG-001), which the release
+gate does not guard (MSG-LIB-006): NuGet then reports a host's mix of versions at its
+restore (NU1605 where a direct reference takes a lower version, NU1608 a higher one,
+NU1107 where two exact ranges meet), where a minimum version would let a higher one
+through unreported, to fail at run time. `Hermes.Conversations` is release 2's (`09`).
 
-*Source: M-001, M-003, M-012, M-013*
+*Source: M-001, M-003, M-012, M-013, M-015*
 
 **Acceptance criteria**
 1. A test reads each project's references and fails on one this table does not allow.
 2. `Hermes.Channels` references neither EF Core, nor ASP.NET Core, nor Fluid.
+3. A test packs the packages from one commit and fails on a dependency of one of them on
+   another of the library's packages that is not the exact version packed (`[v]`).
 
 ---
 
