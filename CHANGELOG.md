@@ -39,3 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   applies anything, grants the reading alone of the migration history and the use of the
   schema's sequences, and checks each grant, answering `messaging.migrate.grantfailed`
   and keeping none where one does not hold
+- The provider contracts `IEmailProvider`, `IEmailSession`, `ISmsProvider` and
+  `IPushProvider`, their messages, and the `Attempt` each call answers, which carries no
+  text a provider answered
