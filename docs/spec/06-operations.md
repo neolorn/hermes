@@ -46,20 +46,34 @@ when the host starts, after its groups are mapped.
 changed only by the library's migrations, applied by the deployment's pipeline before
 the new version starts and never by the application at startup.
 
-**Values (M-012, M-013).** The schema name is fixed, and does not change with the
+**Values (M-012, M-013, M-016).** The schema name is fixed, and does not change with the
 library's name (`00`); the migration history table is `messaging.__migrations_history`,
 so the library's history never meets a host's. The migrations are applied by
 `hermes migrate`, the command of the `Hermes.Cli` tool of the same release, which reads
 one JSON document on its standard input and nothing else:
 `{ "connection": "<connection string>", "applicationRoles": [ "<role>", ... ] }`, the
-roles optional. It applies the pending migrations one at a time through EF Core's
-migrator, each to its own target and so in its own transaction, then grants each role
-`USAGE` on the schema and `SELECT`, `INSERT`, `UPDATE` and `DELETE` on each of its
-tables, so a host whose application runs under another role than the migration's can use
-them. It exits 0 on success; on a failure it exits 1 and writes one JSON line on
-standard error, `{ "code": "<code>", "details": { ... } }`, with a code of `08` section
-1 (`messaging.migrate.inputinvalid`, `messaging.migrate.connectionfailed` or
-`messaging.migrate.failed`), the migrations before the failing one staying applied.
+roles optional. Once connected, and before it applies any migration, it reads which of
+the roles the database has, comparing each name as text with `pg_roles`, so a name
+longer than PostgreSQL's 63-byte limit on identifiers, which a `GRANT` would cut short
+and give to the role named by its first 63 bytes, matches none; a role it lacks answers
+`messaging.migrate.inputinvalid`, `details.member` `applicationRoles`, and nothing is
+applied. It applies the pending migrations one at a time through EF Core's migrator,
+each to its own target and so in its own transaction, then, in one transaction, grants
+each role `USAGE` on the schema, `SELECT`, `INSERT`, `UPDATE` and `DELETE` on each of
+its tables but the migration history, `SELECT` alone on the migration history, which the
+application reads and never writes, and `USAGE` on each of its sequences, revoking
+nothing a role already holds, so a host whose application runs under another role than
+the migration's can use them. In the same transaction it checks that each role holds
+each of those privileges (`has_schema_privilege`, `has_table_privilege`,
+`has_sequence_privilege`), since PostgreSQL warns and grants nothing where the
+migration's role holds a privilege on a table without the right to grant it; a grant
+that fails, or that the check does not find, answers `messaging.migrate.grantfailed`,
+`details.role` the role, and no grant of the run stays. It exits 0 on success; on a
+failure it exits 1 and writes one JSON line on standard error,
+`{ "code": "<code>", "details": { ... } }`, with a code of `08` section 1
+(`messaging.migrate.inputinvalid`, `messaging.migrate.connectionfailed`,
+`messaging.migrate.failed` or `messaging.migrate.grantfailed`), the migrations before
+the failing one staying applied.
 
 The migrations EF Core's tool generates are made `internal sealed` in the commit that
 adds them, so they stay off the public surface (`04` MSG-LIB-002), and that commit then
@@ -73,14 +87,22 @@ its release and stops the start with `messaging.startup.schemamismatch`,
 release, are accepted. A migration that drops or rewrites data is named in the release
 notes.
 
-*Source: M-012, M-013*
+*Source: M-012, M-013, M-016*
 
 **Acceptance criteria**
 1. Starting against a database missing the release's last migration stops the start.
 2. `hermes migrate` twice in a row applies nothing the second time and exits 0 both
    times.
-3. A role named in `applicationRoles` can read and write every table of the schema, and
-   input that does not read exits 1 with `messaging.migrate.inputinvalid`.
+3. A role named in `applicationRoles` can read and write every table of the schema but
+   the migration history, which it can read and not write, and input that does not read
+   exits 1 with `messaging.migrate.inputinvalid`.
+4. A role the database lacks, and a name of 64 bytes whose first 63 are an existing
+   role's name, each exit 1 with `messaging.migrate.inputinvalid` naming
+   `applicationRoles`, and no migration is applied.
+5. Where a table of the schema is owned by another role, which grants the migration's
+   role `SELECT` on it without the right to grant it, the tool exits 1 with
+   `messaging.migrate.grantfailed` naming the role, and the role holds no privilege the
+   run granted.
 
 ---
 

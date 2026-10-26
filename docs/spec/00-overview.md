@@ -75,6 +75,17 @@ Each criterion is objectively checkable and written to be turned into a test. A
 requirement whose criteria cannot be checked without human judgment is under-specified
 and is raised, never guessed at.
 
+### 1.5 Lengths
+
+A length in characters counts Unicode scalar values (code points other than surrogates),
+wherever its passage names no other unit: printable ASCII characters count one each
+(`01` MSG-SEND-009), an SMS text counts in the units of its encoding (`02` MSG-SMS-001),
+and an email address counts in its ASCII form, the form that is sent (`01` MSG-SEND-003;
+`02` MSG-EMAIL-002). A string holding a surrogate that is not part of a pair is not
+text, and fails the check of its length.
+
+*Source: M-016*
+
 ---
 
 ## 2. What this is

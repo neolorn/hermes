@@ -44,9 +44,10 @@ MSG-OPS-002).
 | `messaging.request.mediatype` | 415 | A JSON route's body not sent as `application/json` (`05` MSG-API-001) | |
 | `messaging.request.ratelimited` | 429 | A report source over `Sms:WrongKeyRate` (`05` MSG-API-006) | |
 | `messaging.request.unavailable` | 503 | A key version in use that this process does not hold, a posted push key the key table records for such a version, a content key's use refused on the push subscription route, an unsubscribe token whose format byte is kept for a later release, or a person's locks not had within `Dispatch:Timeout` by the preference route or a push registration, or a push registration's protector call that throws or does not answer within it (`06` MSG-OPS-008; `01` MSG-SEND-010; `02` MSG-PUSH-003, MSG-PUSH-007; `05` MSG-API-003, MSG-API-004, MSG-API-005); answered with `Retry-After` | |
-| `messaging.migrate.inputinvalid` | (tool) | The tool's input does not read (`06` MSG-OPS-002) | `member` |
+| `messaging.migrate.inputinvalid` | (tool) | The tool's input does not read, or names a role the database does not have (`06` MSG-OPS-002) | `member` |
 | `messaging.migrate.connectionfailed` | (tool) | The tool cannot connect (`06` MSG-OPS-002) | |
 | `messaging.migrate.failed` | (tool) | A migration failed (`06` MSG-OPS-002) | `migration` |
+| `messaging.migrate.grantfailed` | (tool) | A role's grants failed, or a role does not hold what was granted, after the migrations applied; no grant of the run stays (`06` MSG-OPS-002) | `role` |
 
 ---
 
@@ -101,7 +102,9 @@ adapter where its shipped provider is used. The keys of the engine, every key bu
 under `Email:`, `Sms:`, `Push:` and `Janus:` and `Dispatch:Timeout`, which the shipped
 providers read wherever they are used, are read and checked only where `AddHermes` is
 registered (`04` MSG-LIB-003). A key holding a list takes its default only where none of
-its items is configured.
+its items is configured. A number in a rule is a whole number unless the rule says a
+decimal number, which is read in the invariant culture, `.` its separator; a length in
+characters is counted as `00` section 1.5 gives.
 
 | Key | Default | Rule |
 |---|---|---|
@@ -109,7 +112,7 @@ its items is configured.
 | `Languages` | none; required where `AddHermes` is registered | One or more BCP 47 tags, each resolving to a predefined culture other than the invariant one (`03` MSG-TPL-003); start only |
 | `DefaultLanguage` | none; required where `AddHermes` is registered | One of `Languages`; start only |
 | `TimeZone` | `UTC` | An IANA time zone identifier; a system offering no time zone but UTC stops the start (`06` MSG-OPS-001) |
-| `Templates:Path` | `templates` | A folder, a relative one taken from the host's content root (`IHostEnvironment.ContentRootPath`); start only |
+| `Templates:Path` | `templates` | A folder, a relative one taken from the host's content root (`IHostEnvironment.ContentRootPath`); a path naming nothing holds no template (`03` MSG-TPL-006), and one naming a file, or a folder the process cannot read, is outside the rule; start only |
 | `Templates:MaxSteps` | `100000` | 1,000 to 10,000,000; start only |
 | `Templates:MaxRecursion` | `20` | 1 to 100; start only |
 | `Messages:Enabled` | `true` | Whether this application records sends; off, `SendAsync` throws and the application needs no `contentKeys` unless another part needs them (`04` MSG-LIB-003; `06` MSG-OPS-008); start only |
@@ -127,9 +130,9 @@ its items is configured.
 | `Observer:MaxCalls` | `4` | The notices of different deliveries the `observer` job delivers at once, 1 to 64 (`01` MSG-SEND-017); start only |
 | `Observer:LagThreshold` | `00:15:00` | Above `Dispatch:Interval`, at most 1 day |
 | `Retry:Initial` | `00:00:30` | 1 second to 1 hour |
-| `Retry:Factor` | `2` | 1 to 10 |
+| `Retry:Factor` | `2` | A decimal number, 1 to 10 |
 | `Retry:Max` | `01:00:00` | At least `Retry:Initial`, at most 1 day |
-| `Retry:Jitter` | `0.2` | 0 to 1, a fraction of the delay |
+| `Retry:Jitter` | `0.2` | A decimal number, 0 to 1, a fraction of the delay |
 | `Retry:MaxAttempts` | `8` | 1 to 50 |
 | `Idempotency:Window` | `1.00:00:00` | 1 minute to 30 days |
 | `QuietHours:Start` | `21:00` | A time of day |
@@ -144,7 +147,7 @@ its items is configured.
 | `Jobs:RetentionAt` | `03:00` | A time of day, in `TimeZone` |
 | `Jobs:SubscriptionsInterval` | `01:00:00` | 1 minute to 1 day |
 | `Jobs:BatchSize` | `1000` | 100 to 100,000 |
-| `Jobs:StallFactor` | `3` | 2 to 100 |
+| `Jobs:StallFactor` | `3` | A decimal number, 2 to 100 |
 | `Jobs:ClaimTimeout` | `00:10:00` | At least `Dispatch:ClaimTimeout`, at most 1 day |
 | `Database:Retries` | `3` | How many times the library runs again one of its own transactions that PostgreSQL aborts for a deadlock (40P01) or a serialization failure (40001), 0 to 10 (`07` MSG-ENG-005) |
 | `Alerts:Repeat` | `01:00:00` | 5 minutes to 1 day |
@@ -177,13 +180,13 @@ its items is configured.
 | `Sms:ReportHold` | `00:10:00` | 1 minute to 1 day |
 | `Sms:ReportHoldMax` | `1000` | Reports held at once across the deployment (`02` MSG-SMS-004), 10 to 1,000,000 |
 | `Sms:BalancePoll` | `00:15:00` | 1 minute to 1 day |
-| `Sms:BalanceFloor` | `0` | Zero or more, in the provider's unit |
+| `Sms:BalanceFloor` | `0` | A decimal number, zero or more, in the provider's unit |
 | `Sms:FloorWarning` | `1.00:00:00` | 1 hour to 30 days |
 | `Sms:DrainWindow` | `01:00:00` | 5 minutes to 1 day |
-| `Sms:DrainFactor` | `3` | 1.5 to 100 |
+| `Sms:DrainFactor` | `3` | A decimal number, 1.5 to 100 |
 | `Sms:DrainBaseline` | `7.00:00:00` | At least twice `Sms:DrainWindow`, at most 90 days |
 | `Sms:DrainMinHistory` | `1.00:00:00` | At least `Sms:DrainWindow`, at most `Sms:DrainBaseline` |
-| `Sms:DrainMinSpend` | `10` | Zero or more, in the provider's unit |
+| `Sms:DrainMinSpend` | `10` | A decimal number, zero or more, in the provider's unit |
 | `Sms:BalanceUnreadableAfter` | `01:00:00` | 5 minutes to 1 day |
 | `Sms:We:BaseAddress` | none; required where the WE adapter is used to send | An absolute `https` address; start only |
 | `Push:Subject` | none; required where the shipped push provider is used | A `mailto:` or `https:` URI |

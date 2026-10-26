@@ -168,9 +168,9 @@ written, so no value can start a header of its own.
 source; the library's own reads them from a folder and from assemblies the host passes,
 and ships the templates of its own pages.
 
-**Values (M-005).** `ITemplateSource.ReadAsync(TemplateKey, CancellationToken)` (`04`
-MSG-LIB-002) answers a part's text, or none. Where a host registers one, it is asked
-first; for a key it answers none, the library's own is asked, in this order:
+**Values (M-005, M-016).** `ITemplateSource.ReadAsync(TemplateKey, CancellationToken)`
+(`04` MSG-LIB-002) answers a part's text, or none. Where a host registers one, it is
+asked first; for a key it answers none, the library's own is asked, in this order:
 1. the file under `Hermes:Templates:Path`: `<kind>/<channel>.<language>.<part>.liquid`,
    or for a page `pages/<page>.<language>.<part>.liquid`;
 2. the embedded resources of each assembly the host passes in `AddHermes`
@@ -179,7 +179,8 @@ first; for a key it answers none, the library's own is asked, in this order:
 3. for a page, the library's shipped template.
 
 Templates are read at startup and kept; a changed template takes effect at the next
-start.
+start. A folder that does not exist holds no template, so a host whose templates all
+come from its source or its assemblies needs none (`08` section 4).
 
 The library's pages, each with one part, `html`:
 
@@ -195,7 +196,7 @@ does not verify (`05` MSG-API-005). A category's label is the host's (`01`
 MSG-SEND-002): the library holds no wording of its own besides the shipped pages, which
 a host replaces by supplying its own.
 
-*Source: M-005*
+*Source: M-005, M-016*
 
 **Acceptance criteria**
 1. A template file under the folder is used for its kind, channel, language and part.

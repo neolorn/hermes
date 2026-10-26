@@ -948,6 +948,61 @@ of the build against chapters that already state the rule, fixed in the same pha
 
 ---
 
+## M-016 — Phase 1's questions: lengths, the template folder, decimal factors, roles
+
+**Date:** 2026-10-26 · **Status:** accepted
+
+Phase 1 asked four questions, each Tier 2. Its review found nothing else that needed a
+rule.
+
+- **A length in characters counts Unicode scalar values** (question 1). A label (`01`
+  MSG-SEND-002), a person reference and a `PushTopic` (MSG-SEND-003) and
+  `Email:From:DisplayName` (`08` section 4) hold at most 128 characters. Counted in
+  UTF-16 code units, a label of Arabic text could hold 128 letters and one of characters
+  outside the Basic Multilingual Plane only 64; counted in grapheme clusters, the count
+  turns on the Unicode version of the runtime's segmentation, so a value one release
+  accepts the next could refuse. Scalar values (code points other than surrogates) are
+  fixed by the text alone, and are what the identity library counts a name in. `00`
+  section 1.5 states the unit once, for every passage that names no other (printable
+  ASCII characters, an SMS text's encoding units, an email address in the ASCII form
+  that is sent); a string holding a surrogate that is not part of a pair is not text,
+  and fails the check of its length. *Rejected:* UTF-16 code units (a limit that differs
+  by script); grapheme clusters (a limit that moves with the runtime).
+- **A template folder that does not exist holds no template** (question 2). Templates
+  come from a host's source, the folder and the assemblies a host passes, in that order
+  (`03` MSG-TPL-006), and each part a declared language requires is checked at startup
+  wherever it comes from (MSG-TPL-004), so a missing folder cannot let a kind go without
+  its template; a host whose templates all come from its source or its assemblies needs
+  no folder. A path naming a file, or a folder the process cannot read, is outside the
+  rule of `Templates:Path` and stops the start (`08` section 4). *Rejected:* the folder
+  required (an empty folder kept only to pass a check).
+- **The factors and the amounts are decimal numbers** (question 3). `Retry:Factor`
+  multiplies a delay and `Jobs:StallFactor` an interval, so 1.5 means as much there as
+  it does for `Sms:DrainFactor`; `Sms:BalanceFloor` and `Sms:DrainMinSpend` are compared
+  with a balance the provider gives as a `decimal` (`04` MSG-LIB-002). `08` section 4
+  now says that a number in a rule is whole unless the rule says a decimal number, read
+  in the invariant culture, and names each decimal one.
+- **`hermes migrate` checks the roles before it applies anything, and the grants after
+  it makes them** (question 4). Once connected, the tool reads which of
+  `applicationRoles` the database has, comparing each name as text, and answers a role
+  it lacks `messaging.migrate.inputinvalid`, `details.member` `applicationRoles`, before
+  any migration applies: the fault is in the input, and is found before the schema
+  changes. The comparison as text also refuses a name longer than PostgreSQL's 63-byte
+  limit on identifiers, which a `GRANT` cuts short, and so would give to the role named
+  by its first 63 bytes. A `GRANT` made by a role that holds a privilege on a table
+  without the right to grant it warns and grants nothing (PostgreSQL's `GRANT`, Notes),
+  so the tool checks in the grants' transaction that each role holds each privilege, and
+  a grant that fails or is not found answers the new code
+  `messaging.migrate.grantfailed`, `details.role` the role, no grant of the run staying.
+  The grants also take only what the application needs: `SELECT` alone on the migration
+  history, which it reads and never writes, and `USAGE` on the schema's sequences, which
+  a table's grant does not cover (`06` MSG-OPS-002 criteria 3 to 5; `08` section 1).
+  *Rejected:* a new code for a role the database lacks, the migrations staying applied
+  (an input fault found only after the schema changed); the database's error let through
+  (the tool would then write no JSON line, against MSG-OPS-002).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -967,3 +1022,4 @@ of the build against chapters that already state the rule, fixed in the same pha
 | Data access, hosting abstractions and test packages | M-013 |
 | The implementer pushes its own work and takes the owner's documents itself | M-014 |
 | Phase 0's question and review: exact versions, and the gates' gaps | M-015 |
+| Phase 1's questions: lengths, the template folder, decimal factors, roles | M-016 |
