@@ -2,3 +2,15 @@ title = "Secret scanning of the whole history"
 
 [extend]
 useDefault = true
+
+[[allowlists]]
+description = "RFC 8291 section 5: the receiver's private key"
+condition = "AND"
+paths = ['''^tests/Hermes\.Channels\.Tests/Vectors\.cs$''']
+regexes = ['''^q1dXpw3UpT5VOmu_cf_v6ih07Aems3njxI-JWgLcM94$''']
+
+[[allowlists]]
+description = "RFC 8291 section 5: the receiver's authentication secret"
+condition = "AND"
+paths = ['''^tests/Hermes\.Channels\.Tests/Vectors\.cs$''']
+regexes = ['''^BTBZMqHH6r4Tts7J_aSIgg$''']

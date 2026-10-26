@@ -47,3 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The rules a channel's values are checked against: an email address as an RFC 5322
   `addr-spec` of at most 254 characters, an SMS sender by 3GPP TS 23.040, the allowed
   number prefixes, and the push hosts a wildcard of at least three labels allows
+- The shipped Web Push provider: RFC 8030 requests encrypted by RFC 8291 and signed by
+  RFC 8292 with the subscription's VAPID key version, each token reused for an hour,
+  over the named client `Hermes.Push`, which follows no redirect, carries the library's
+  handler alone and logs no address, every answer classed and none of its text kept

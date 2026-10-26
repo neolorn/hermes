@@ -8,8 +8,9 @@ namespace Hermes.Repository.Tests;
 /// <summary>
 /// A repository tree under <c>tmp/</c> that keeps every rule: copies of the repository's
 /// project files and lockfiles, its solution, its shared settings, package sources, tool
-/// manifest and scanner configuration, without any source file. A test breaks one rule in it
-/// and checks the rule finds that.
+/// manifest and scanner configuration, and of the test vectors' files that configuration
+/// names, without any other source file. A test breaks one rule in it and checks the rule
+/// finds that.
 /// </summary>
 internal sealed class RepositoryFixture : IDisposable
 {
@@ -24,6 +25,11 @@ internal sealed class RepositoryFixture : IDisposable
     internal RepositoryFixture()
     {
         foreach (string file in SharedFiles)
+        {
+            Write(file, File.ReadAllText(RepositoryRoot.Combine(file)));
+        }
+
+        foreach (string file in ScannerConfigurationRules.NamedFiles(RepositoryRoot.Path).Distinct(StringComparer.Ordinal))
         {
             Write(file, File.ReadAllText(RepositoryRoot.Combine(file)));
         }
