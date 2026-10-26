@@ -250,7 +250,7 @@ public sealed class ConfigurationTests
         Dictionary<string, string?> configuration = TestHost.Languages();
         configuration["Hermes:" + key] = value;
 
-        Assert.Null(ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones()));
+        Assert.Null(ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones(), AppContext.BaseDirectory));
     }
 
     [Fact]
@@ -266,7 +266,7 @@ public sealed class ConfigurationTests
             using IHost host = TestHost.Build(configuration);
             MessagingOptions options = host.Services.GetRequiredService<IOptions<MessagingOptions>>().Value;
 
-            Assert.Null(ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones()));
+            Assert.Null(ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones(), AppContext.BaseDirectory));
             Assert.Equal((1.5, 2.25), (options.Retry.Factor, options.Jobs.StallFactor));
         }
         finally
@@ -282,7 +282,7 @@ public sealed class ConfigurationTests
         Dictionary<string, string?> configuration = TestHost.Languages();
         configuration["Hermes:Secrets:TokenKeys:WriteVersion"] = "the second";
 
-        Assert.Null(ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones()));
+        Assert.Null(ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones(), AppContext.BaseDirectory));
     }
 
     [Theory]
@@ -316,7 +316,7 @@ public sealed class ConfigurationTests
         Dictionary<string, string?> configuration = TestHost.Languages("en-GB", "ar-EG");
         configuration["Hermes:DefaultLanguage"] = "AR-eg";
 
-        Assert.Null(ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones()));
+        Assert.Null(ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones(), AppContext.BaseDirectory));
     }
 
     [Fact]
@@ -325,7 +325,7 @@ public sealed class ConfigurationTests
         Dictionary<string, string?> configuration = TestHost.Languages();
         configuration["Hermes:TimeZone"] = "Egypt Standard Time";
 
-        Assert.Equal("TimeZone", ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones()));
+        Assert.Equal("TimeZone", ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones(), AppContext.BaseDirectory));
     }
 
     [Fact]
@@ -333,6 +333,6 @@ public sealed class ConfigurationTests
     {
         Dictionary<string, string?> configuration = TestHost.Languages();
 
-        Assert.Equal("TimeZone", ConfigurationCheck.InvalidKey(TestHost.Section(configuration), [TimeZoneInfo.Utc]));
+        Assert.Equal("TimeZone", ConfigurationCheck.InvalidKey(TestHost.Section(configuration), [TimeZoneInfo.Utc], AppContext.BaseDirectory));
     }
 }

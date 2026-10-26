@@ -167,7 +167,7 @@ internal sealed class ConfigurationState : IOptionsChangeTokenSource<MessagingOp
     private static Dictionary<string, string> Raw(IConfigurationSection hermes)
     {
         Dictionary<string, string> raw = new(StringComparer.Ordinal);
-        foreach (string path in ConfigurationRules.Keys.Select(key => key.Path).Concat(["PublicBaseAddress", "TimeZone", "DefaultLanguage", .. ConfigurationRules.WriteVersions]))
+        foreach (string path in ConfigurationRules.Keys.Select(key => key.Path).Concat(["PublicBaseAddress", "TimeZone", "Templates:Path", "DefaultLanguage", .. ConfigurationRules.WriteVersions]))
         {
             if (hermes[path] is string text)
             {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -21,11 +22,13 @@ internal static partial class ConfigurationCheck
     /// </summary>
     /// <param name="hermes">The section <c>Hermes</c>.</param>
     /// <param name="zones">The time zones the system offers.</param>
+    /// <param name="contentRoot">The host's content root, which a relative <c>Templates:Path</c> is taken from.</param>
     /// <param name="publicBaseAddressRequired">Whether a declared optional category has a kind with email.</param>
-    internal static string? InvalidKey(IConfiguration hermes, IReadOnlyCollection<TimeZoneInfo> zones, bool publicBaseAddressRequired = false)
+    internal static string? InvalidKey(IConfiguration hermes, IReadOnlyCollection<TimeZoneInfo> zones, string contentRoot, bool publicBaseAddressRequired = false)
     {
         ArgumentNullException.ThrowIfNull(hermes);
         ArgumentNullException.ThrowIfNull(zones);
+        ArgumentNullException.ThrowIfNull(contentRoot);
 
         string? address = hermes["PublicBaseAddress"];
         if (address is null ? publicBaseAddressRequired : !IsPublicBaseAddress(address))
@@ -50,7 +53,53 @@ internal static partial class ConfigurationCheck
             return "TimeZone";
         }
 
+        if (!IsTemplateFolder(hermes["Templates:Path"] ?? TemplatesOptions.DefaultPath, contentRoot))
+        {
+            return "Templates:Path";
+        }
+
         return InvalidKeys(path => hermes[path]).FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Whether <paramref name="text"/>, a relative one taken from <paramref name="contentRoot"/>,
+    /// is within the rule of <c>Templates:Path</c> (<c>08</c> section 4): a folder the process
+    /// can read, or a path naming nothing, which holds no template (<c>03</c> MSG-TPL-006).
+    /// </summary>
+    internal static bool IsTemplateFolder(string text, string contentRoot)
+    {
+        string path;
+        try
+        {
+            path = Path.GetFullPath(text, Path.GetFullPath(contentRoot));
+        }
+        catch (Exception failure) when (failure is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            // A path that does not resolve names no folder, so it is outside the rule.
+            return false;
+        }
+
+        if (File.Exists(path))
+        {
+            return false;
+        }
+
+        if (!Directory.Exists(path))
+        {
+            return true;
+        }
+
+        try
+        {
+            using IEnumerator<string> entries = Directory.EnumerateFileSystemEntries(path).GetEnumerator();
+            _ = entries.MoveNext();
+            return true;
+        }
+        catch (Exception failure) when (failure is UnauthorizedAccessException or IOException)
+        {
+            // A folder whose entries the process cannot list is outside the rule; the caller answers it as such.
+            return false;
+        }
     }
 
     /// <summary>

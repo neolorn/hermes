@@ -33,3 +33,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   holding a lone surrogate, stops the start
 - `Retry:Factor` and `Jobs:StallFactor`, decimal numbers read in the invariant culture
   and checked when the host starts and on each reload
+- `Templates:Path`, taken from the host's content root, a path naming a file or a folder
+  the process cannot read stopping the start, and one naming nothing holding no template

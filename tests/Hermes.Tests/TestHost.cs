@@ -33,16 +33,18 @@ internal static class TestHost
     /// <summary>
     /// A host with <paramref name="configuration"/>, the kinds and categories <paramref name="declare"/>
     /// declares, the services <paramref name="services"/> registers before <c>AddHermes</c> and
-    /// <paramref name="after"/> after it, logging to <paramref name="logs"/> where given.
+    /// <paramref name="after"/> after it, logging to <paramref name="logs"/> where given, its content root
+    /// <paramref name="contentRoot"/> where given.
     /// </summary>
     internal static IHost Build(
         Dictionary<string, string?> configuration,
         Action<DeclarationBuilder>? declare = null,
         Action<IServiceCollection>? services = null,
         Action<IServiceCollection>? after = null,
-        LogCapture? logs = null)
+        LogCapture? logs = null,
+        string? contentRoot = null)
     {
-        HostApplicationBuilder builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings { EnvironmentName = Environments.Development });
+        HostApplicationBuilder builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings { EnvironmentName = Environments.Development, ContentRootPath = contentRoot });
         builder.Configuration.AddInMemoryCollection(configuration);
         builder.Logging.ClearProviders();
         if (logs is not null)

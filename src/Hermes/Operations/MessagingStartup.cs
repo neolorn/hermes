@@ -27,11 +27,12 @@ internal sealed class MessagingStartup(
     MessagingDatabase database,
     HeldKeys keys,
     KeyTable table,
+    IHostEnvironment environment,
     IServiceProvider services) : IHostedLifecycleService
 {
     public async Task StartingAsync(CancellationToken cancellationToken)
     {
-        string? key = ConfigurationCheck.InvalidKey(configuration.GetSection("Hermes"), TimeZoneInfo.GetSystemTimeZones(), declarations.NeedsPublicBaseAddress);
+        string? key = ConfigurationCheck.InvalidKey(configuration.GetSection("Hermes"), TimeZoneInfo.GetSystemTimeZones(), environment.ContentRootPath, declarations.NeedsPublicBaseAddress);
         if (key is not null)
         {
             throw Failure(Codes.ConfigurationInvalid, ("key", key));
