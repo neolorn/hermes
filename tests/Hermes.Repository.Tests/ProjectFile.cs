@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,9 +12,9 @@ namespace Hermes.Repository.Tests;
 /// </summary>
 internal sealed class ProjectFile
 {
-    private static readonly string[] BuildOutputFolders = ["bin", "obj"];
+    private static readonly FrozenSet<string> BuildOutputFolders = FrozenSet.Create(StringComparer.Ordinal, "bin", "obj");
 
-    private static readonly string[] RootOnlyFolders = [".git", "tmp", "artifacts"];
+    private static readonly FrozenSet<string> RootOnlyFolders = FrozenSet.Create(StringComparer.Ordinal, ".git", "tmp", "artifacts");
 
     private ProjectFile(string root, string path)
     {
@@ -83,7 +84,7 @@ internal sealed class ProjectFile
         {
             string name = System.IO.Path.GetFileName(child);
             bool atRoot = string.Equals(folder, root, StringComparison.Ordinal);
-            if (BuildOutputFolders.Contains(name, StringComparer.Ordinal) || (atRoot && RootOnlyFolders.Contains(name, StringComparer.Ordinal)))
+            if (BuildOutputFolders.Contains(name) || (atRoot && RootOnlyFolders.Contains(name)))
             {
                 continue;
             }

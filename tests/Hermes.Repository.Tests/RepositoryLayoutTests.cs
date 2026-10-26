@@ -103,7 +103,7 @@ public sealed class RepositoryLayoutTests
     }
 
     [Fact]
-    public void MSG_ENG_002_AC1_ProjectWithoutItsLockfileIsFound()
+    public void SettingViolations_ProjectWithoutItsLockfile_IsFound()
     {
         using RepositoryFixture fixture = new();
         File.Delete(Path.Combine(fixture.Root, "src", "Hermes.Core", "packages.lock.json"));

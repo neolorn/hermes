@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -12,24 +13,25 @@ namespace Hermes.Repository.Tests;
 /// </summary>
 internal static class ReflectionRules
 {
-    private static readonly string[] LookupTypes = ["System.Type", "System.Reflection.TypeInfo", "System.Reflection.IReflect", "System.Reflection.Assembly", "System.Reflection.Module"];
+    private static readonly FrozenSet<string> LookupTypes =
+        FrozenSet.Create(StringComparer.Ordinal, "System.Type", "System.Reflection.TypeInfo", "System.Reflection.IReflect", "System.Reflection.Assembly", "System.Reflection.Module");
 
-    private static readonly string[] Lookups =
-    [
+    private static readonly FrozenSet<string> Lookups = FrozenSet.Create(
+        StringComparer.Ordinal,
         "GetMethod", "GetMethods", "GetProperty", "GetProperties", "GetField", "GetFields", "GetMember", "GetMembers",
         "GetEvent", "GetEvents", "GetConstructor", "GetConstructors", "GetNestedType", "GetNestedTypes", "GetInterface",
         "GetDefaultMembers", "FindMembers", "InvokeMember", "GetDeclaredMethod", "GetDeclaredMethods", "GetDeclaredProperty",
-        "GetDeclaredField", "GetDeclaredEvent", "GetDeclaredNestedType", "GetType", "CreateInstance",
-    ];
+        "GetDeclaredField", "GetDeclaredEvent", "GetDeclaredNestedType", "GetType", "CreateInstance");
 
-    private static readonly string[] WholeTypes = ["System.Activator", "System.Reflection.RuntimeReflectionExtensions", "System.Reflection.TypeExtensions"];
+    private static readonly FrozenSet<string> WholeTypes =
+        FrozenSet.Create(StringComparer.Ordinal, "System.Activator", "System.Reflection.RuntimeReflectionExtensions", "System.Reflection.TypeExtensions");
 
     internal static IEnumerable<string> Violations(string assembly, IEnumerable<(string Type, string Member)> members, IEnumerable<string> assemblies)
     {
         foreach ((string type, string member) in members.Distinct())
         {
-            bool lookup = LookupTypes.Contains(type, StringComparer.Ordinal) && Lookups.Contains(member, StringComparer.Ordinal);
-            if (lookup || WholeTypes.Contains(type, StringComparer.Ordinal))
+            bool lookup = LookupTypes.Contains(type) && Lookups.Contains(member);
+            if (lookup || WholeTypes.Contains(type))
             {
                 yield return $"{assembly} looks members up by name: {type}.{member}.";
             }

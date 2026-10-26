@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -39,7 +40,7 @@ internal static partial class ReferenceRules
     internal static IReadOnlyList<string> TestPackages { get; } = ["xunit.v3", "Testcontainers.PostgreSql", "Microsoft.AspNetCore.Mvc.Testing"];
 
     /// <summary>The library's own projects each package's project may reference.</summary>
-    private static readonly Dictionary<string, string[]> AllowedProjects = new(StringComparer.Ordinal)
+    private static readonly FrozenDictionary<string, IReadOnlyList<string>> AllowedProjects = new Dictionary<string, IReadOnlyList<string>>
     {
         [Packages.Core] = [],
         [Packages.Channels] = [Packages.Core],
@@ -48,13 +49,13 @@ internal static partial class ReferenceRules
         [Packages.Janus] = [Packages.Core, Packages.Engine, Packages.JanusChannels],
         [Packages.Testing] = [Packages.Core, Packages.Channels, Packages.Engine],
         [Packages.Cli] = [Packages.Engine],
-    };
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>
     /// The packages each package's project may reference at run time. Janus's main package
     /// joins the two <c>Hermes.Janus</c> rows with its source (plan, phase 6).
     /// </summary>
-    private static readonly Dictionary<string, string[]> AllowedPackages = new(StringComparer.Ordinal)
+    private static readonly FrozenDictionary<string, IReadOnlyList<string>> AllowedPackages = new Dictionary<string, IReadOnlyList<string>>
     {
         [Packages.Core] = [],
         [Packages.Channels] = ["MailKit", "Lib.Net.Http.WebPush", .. HostingAbstractions],
@@ -63,7 +64,7 @@ internal static partial class ReferenceRules
         [Packages.Janus] = [],
         [Packages.Testing] = [],
         [Packages.Cli] = [],
-    };
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>Answers each reference of a project of the repository at <paramref name="root"/> that MSG-LIB-001 does not allow.</summary>
     internal static IReadOnlyList<string> ReferenceViolations(string root)
@@ -81,8 +82,8 @@ internal static partial class ReferenceRules
                 continue;
             }
 
-            string[] allowedProjects = shipped ? AllowedProjects.GetValueOrDefault(project.Name, []) : AllowedTestProjects(project.Name);
-            string[] allowedPackages = shipped ? AllowedPackages.GetValueOrDefault(project.Name, []) : [.. TestPackages];
+            IReadOnlyList<string> allowedProjects = shipped ? AllowedProjects.GetValueOrDefault(project.Name, []) : AllowedTestProjects(project.Name);
+            IReadOnlyList<string> allowedPackages = shipped ? AllowedPackages.GetValueOrDefault(project.Name, []) : TestPackages;
 
             foreach (string reference in project.ProjectReferences.Where(reference => !allowedProjects.Contains(reference, StringComparer.Ordinal)))
             {
@@ -204,12 +205,12 @@ internal static partial class ReferenceRules
         return allowed.Contains(grantee, StringComparer.Ordinal);
     }
 
-    private static string[] AllowedTestProjects(string testProject)
+    private static IReadOnlyList<string> AllowedTestProjects(string testProject)
     {
         // The repository's tests read every shipped project's built assembly (07 MSG-ENG-004).
         if (string.Equals(testProject, Packages.RepositoryTests, StringComparison.Ordinal))
         {
-            return [.. Packages.All];
+            return Packages.All;
         }
 
         string source = testProject.EndsWith(".Tests", StringComparison.Ordinal) ? testProject[..^".Tests".Length] : testProject;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -33,19 +34,19 @@ internal static class PackageRules
     ];
 
     /// <summary>The packages pinned at the versions whose sources the chapters were checked against.</summary>
-    internal static IReadOnlyDictionary<string, string> Pinned { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
+    internal static FrozenDictionary<string, string> Pinned { get; } = new Dictionary<string, string>
     {
         ["MailKit"] = "4.18.1",
         ["Fluid.Core"] = "2.40.0",
         ["Lib.Net.Http.WebPush"] = "3.3.1",
-    };
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>Mocking packages, none of which a project may take, directly or not.</summary>
     internal static IReadOnlyList<string> Mocking { get; } =
         ["Moq", "NSubstitute", "FakeItEasy", "RhinoMocks", "Rhino.Mocks", "JustMock", "Telerik.JustMock", "NMock", "NMock3", "Typemock.Isolator", "Microsoft.QualityTools.Testing.Fakes"];
 
     /// <summary>The properties <c>Directory.Build.props</c> sets once and no project overrides (MSG-ENG-002).</summary>
-    internal static IReadOnlyDictionary<string, string> Settings { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
+    internal static FrozenDictionary<string, string> Settings { get; } = new Dictionary<string, string>
     {
         ["Nullable"] = "enable",
         ["ImplicitUsings"] = "disable",
@@ -57,7 +58,7 @@ internal static class PackageRules
         ["EnableConfigurationBindingGenerator"] = "true",
         ["NuGetAudit"] = "true",
         ["NuGetAuditMode"] = "all",
-    };
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>Answers each package or tool of the repository at <paramref name="root"/> outside MSG-ENG-009.</summary>
     internal static IReadOnlyList<string> AllowListViolations(string root)

@@ -12,7 +12,7 @@ namespace Hermes.Repository.Tests;
 /// </summary>
 internal static partial class StatementRules
 {
-    private static readonly string[] StatementFiles = ["*.cs", "*.sql"];
+    private static readonly IReadOnlyList<string> StatementFiles = ["*.cs", "*.sql"];
 
     /// <summary>
     /// Answers each hand-written statement under <c>src/</c> of the repository at

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,7 +15,7 @@ namespace Hermes.Repository.Tests;
 [Trait("Category", "integration")]
 public sealed class PublicSurfaceBuildTests
 {
-    private static readonly string[] Copied = ["Hermes.Core.csproj", "PublicAPI.Shipped.txt", "PublicAPI.Unshipped.txt", "packages.lock.json"];
+    private static readonly IReadOnlyList<string> Copied = ["Hermes.Core.csproj", "PublicAPI.Shipped.txt", "PublicAPI.Unshipped.txt", "packages.lock.json"];
 
     [Fact]
     public async Task MSG_LIB_002_AC1_AddingAPublicTypeWithoutItsPublicApiFileFailsTheBuild()

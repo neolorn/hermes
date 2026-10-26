@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 
 namespace Hermes.Repository.Tests;
@@ -28,11 +30,11 @@ internal static class Packages
     internal static IReadOnlyList<string> All { get; } = [Core, Channels, Engine, JanusChannels, Janus, Testing, Cli];
 
     /// <summary>The folders a project may hold, by project (<c>07</c> MSG-ENG-001); every other project is flat.</summary>
-    internal static IReadOnlyDictionary<string, IReadOnlyList<string>> Folders { get; } = new Dictionary<string, IReadOnlyList<string>>
+    internal static FrozenDictionary<string, IReadOnlyList<string>> Folders { get; } = new Dictionary<string, IReadOnlyList<string>>
     {
         [Engine] = ["Sending", "Content", "Endpoints", "Operations", "Migrations"],
         [Channels] = ["Email", "Sms", "Push"],
-    };
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 
     internal static string TestProject(string package)
     {

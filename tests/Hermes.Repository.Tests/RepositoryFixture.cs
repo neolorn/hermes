@@ -13,7 +13,7 @@ namespace Hermes.Repository.Tests;
 /// </summary>
 internal sealed class RepositoryFixture : IDisposable
 {
-    private static readonly string[] SharedFiles =
+    private static readonly IReadOnlyList<string> SharedFiles =
         ["Directory.Build.props", "Directory.Packages.props", "global.json", ".config/dotnet-tools.json", "build/gates/gitleaks.toml"];
 
     private readonly ScratchFolder _folder = new();
@@ -34,7 +34,7 @@ internal sealed class RepositoryFixture : IDisposable
         }
 
         WriteTest(Packages.RepositoryTests, sources);
-        WriteSolution([.. sources.Select(name => $"src/{name}/{name}.csproj"), .. sources.Append("Hermes.Repository").Select(name => $"tests/{name}.Tests/{name}.Tests.csproj")]);
+        WriteSolution([.. sources.Select(name => $"src/{name}/{name}.csproj"), .. sources.Select(Packages.TestProject).Append(Packages.RepositoryTests).Select(name => $"tests/{name}/{name}.csproj")]);
     }
 
     internal string Root => _folder.Path;
