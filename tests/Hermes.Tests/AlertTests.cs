@@ -118,7 +118,7 @@ public sealed class AlertTests(PostgresFixture postgres) : IClassFixture<Postgre
     }
 
     [Fact]
-    public async Task Timer_ReloadedValueOutsideItsRule_RaisesConfigurationInvalidUntilItIsPutRight()
+    public async Task MSG_OPS_001_AC2_AReloadedValueOutsideItsRuleRaisesTheAlertUntilItIsPutRight()
     {
         string connection = await MigratedAsync();
         ManualClock clock = new(Midnight);
