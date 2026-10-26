@@ -142,6 +142,30 @@ public sealed class AlertTests(PostgresFixture postgres) : IClassFixture<Postgre
     }
 
     [Fact]
+    public async Task MSG_OPS_001_AC2_AReloadedChannelValueOutsideItsRuleRaisesTheAlertUntilItIsPutRight()
+    {
+        string connection = await MigratedAsync();
+        ManualClock clock = new(Midnight);
+        AlertSinkFake sink = new();
+        using IHost host = Host(connection, clock, sink);
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        IConfigurationRoot configuration = (IConfigurationRoot)host.Services.GetRequiredService<IConfiguration>();
+
+        configuration["Hermes:Sms:Rate"] = "0";
+        configuration.Reload();
+        clock.Advance(TimeSpan.FromSeconds(5));
+        AlertSinkFake.AlertCall raised = await WaitForAsync(sink, 1);
+        configuration["Hermes:Sms:Rate"] = "8";
+        configuration.Reload();
+        clock.Advance(TimeSpan.FromSeconds(5));
+        AlertSinkFake.AlertCall cleared = await WaitForAsync(sink, 2);
+        await host.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal((true, "configuration-invalid", "Sms:Rate", "Sms:Rate"), (raised.Raised, raised.Condition, raised.Scope, raised.Details!["key"]));
+        Assert.Equal((false, "configuration-invalid", "Sms:Rate"), (cleared.Raised, cleared.Condition, cleared.Scope));
+    }
+
+    [Fact]
     public async Task MSG_OPS_008_AC9_AMigrationThisReleaseDoesNotKnowRaisesNewerReleaseWithinTheInterval()
     {
         string connection = await MigratedAsync();

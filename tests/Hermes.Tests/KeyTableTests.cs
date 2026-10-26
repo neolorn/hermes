@@ -66,6 +66,24 @@ public sealed class KeyTableTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task MSG_OPS_008_AC2_APasswordChangedInEmailSubmissionDoesNotStopTheStart()
+    {
+        string connection = await MigratedAsync();
+        using (IHost first = Host(Secrets.Held(connection), new ManualClock(Start), Newsletter))
+        {
+            await first.StartAsync(TestContext.Current.CancellationToken);
+            await first.StopAsync(TestContext.Current.CancellationToken);
+        }
+
+        using IHost changed = Host(Secrets.Held(connection).With("emailSubmission", Secrets.Account(Secrets.Password + "0")), new ManualClock(Start), Newsletter);
+
+        await changed.StartAsync(TestContext.Current.CancellationToken);
+        await changed.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain(await RowsAsync(connection), row => row.Key.Item1 == "emailSubmission");
+    }
+
+    [Fact]
     public async Task Start_WriteVersions_SetTheirFirstAndLastMadeInstantsAndClearTheirRetiredMark()
     {
         string connection = await MigratedAsync();

@@ -39,3 +39,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   applies anything, grants the reading alone of the migration history and the use of the
   schema's sequences, and checks each grant, answering `messaging.migrate.grantfailed`
   and keeping none where one does not hold
+- The provider contracts `IEmailProvider`, `IEmailSession`, `ISmsProvider` and
+  `IPushProvider`, their messages, and the `Attempt` each call answers, which carries no
+  text a provider answered
+- `SmsText.Measure`, which answers an SMS text's encoding and its segments as the network
+  counts them, never splitting an escape pair or a surrogate pair
+- The rules a channel's values are checked against: an email address as an RFC 5322
+  `addr-spec` of at most 254 characters, an SMS sender by 3GPP TS 23.040, the allowed
+  number prefixes, and the push hosts a wildcard of at least three labels allows
+- The shipped Web Push provider: RFC 8030 requests encrypted by RFC 8291 and signed by
+  RFC 8292 with the subscription's VAPID key version, each token reused for an hour,
+  over the named client `Hermes.Push`, which follows no redirect, carries the library's
+  handler alone and logs no address, every answer classed and none of its text kept
+- `AddHermesChannels`, which registers the shipped providers alone and checks the keys
+  of each channel whose section is present when the host starts, and the VAPID keys
+  where the shipped push provider is used, a value outside its rule stopping the start
+- `AddHermes` registers the shipped providers and checks the keys of each channel a kind
+  uses, a kind's `from`, `replyTo` and SMS sender, and the configuration given to the
+  call, the start stopping on the first outside its rule
+- The shipped SMTP provider: submission through MailKit to `Email:Host` over implicit TLS
+  or `STARTTLS`, authenticated with `emailSubmission`, the server's certificate validated
+  by the library with each named revocation source read online, one connection per
+  session opened again once it broke, every answer classed and none of its text kept

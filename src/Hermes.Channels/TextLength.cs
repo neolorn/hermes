@@ -2,7 +2,7 @@ using System;
 using System.Buffers;
 using System.Text;
 
-namespace Hermes.Sending;
+namespace Hermes.Channels;
 
 /// <summary>
 /// A length in characters as <c>00</c> section 1.5 counts it: Unicode scalar values, so a

@@ -1,5 +1,6 @@
 using System;
 
+using Hermes.Channels;
 using Hermes.Core;
 using Hermes.Operations;
 using Hermes.Sending;
@@ -16,11 +17,12 @@ namespace Hermes;
 public static class MessagingServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers the engine, binding the configuration section <c>Hermes</c>, with the kinds and
-    /// categories <paramref name="declare"/> declares. Every startup check runs when the host
-    /// starts, before any hosted service's <c>StartAsync</c>, and a failure stops the start with
-    /// a <see cref="MessagingStartupException"/> carrying its code. A host replaces a seam by
-    /// registering its own before or after the call.
+    /// Registers the engine and the shipped providers, binding the configuration section
+    /// <c>Hermes</c>, with the kinds and categories <paramref name="declare"/> declares. Every
+    /// startup check runs when the host starts, before any hosted service's <c>StartAsync</c>,
+    /// and a failure stops the start with a <see cref="MessagingStartupException"/> carrying its
+    /// code. A host replaces a seam or a shipped provider by registering its own before or
+    /// after the call.
     /// </summary>
     /// <param name="services">The host's services.</param>
     /// <param name="configuration">The host's configuration, whose section <c>Hermes</c> is the library's.</param>
@@ -56,6 +58,11 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<ContentKeyReservations>();
         services.AddSingleton<LibraryProtector>();
         services.AddScoped<ContentProtection>();
+        services.TryAddSingleton<ChannelsUnderEngine>();
+        services.AddHermesChannels(configuration);
+
+        // The engine reads Dispatch:Timeout among its own keys, so its value is the one the providers use.
+        services.Replace(ServiceDescriptor.Singleton(provider => new CallTimeout(() => provider.GetRequiredService<IOptionsMonitor<MessagingOptions>>().CurrentValue.Dispatch.Timeout)));
         services.AddSingleton<IHostedService, MessagingStartup>();
         services.AddSingleton<IHostedService, KeyTableTimer>();
         return services;

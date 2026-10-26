@@ -36,7 +36,7 @@ internal static class PackageRules
     /// <summary>The packages pinned at the versions whose sources the chapters were checked against.</summary>
     internal static FrozenDictionary<string, string> Pinned { get; } = new Dictionary<string, string>
     {
-        ["MailKit"] = "4.18.1",
+        ["MailKit"] = "4.18.2",
         ["Fluid.Core"] = "2.40.0",
         ["Lib.Net.Http.WebPush"] = "3.3.1",
     }.ToFrozenDictionary(StringComparer.Ordinal);

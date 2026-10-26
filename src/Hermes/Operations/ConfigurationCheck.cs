@@ -5,6 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
+using Hermes.Channels;
+
 using Microsoft.Extensions.Configuration;
 
 namespace Hermes.Operations;
@@ -127,9 +129,8 @@ internal static partial class ConfigurationCheck
     /// <summary>Each key's value, read from its raw text, or its default where it is absent.</summary>
     internal static Func<string, object> Values(Func<string, string?> raw)
     {
-        MessagingOptions defaults = new();
         Dictionary<string, ConfigurationKey> keys = ConfigurationRules.Keys.ToDictionary(key => key.Path, StringComparer.Ordinal);
-        return path => (raw(path) is string text ? keys[path].Read(text) : keys[path].Default(defaults))!;
+        return path => (raw(path) is string text ? keys[path].Read(text) : keys[path].Default)!;
     }
 
     /// <summary>Whether <paramref name="text"/> is an absolute <c>https</c> address.</summary>

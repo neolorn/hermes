@@ -330,15 +330,17 @@ the projects `04` MSG-LIB-001 allows.
 | Versioning | `MinVer` (build-only) | Apache 2.0 |
 | Tests | `xunit.v3`, `Testcontainers.PostgreSql`, `Microsoft.AspNetCore.Mvc.Testing` | Apache 2.0, MIT, MIT |
 
-MailKit 4.18.1, Fluid.Core 2.40.0 and Lib.Net.Http.WebPush 3.3.1 are pinned at those
-versions, whose listings were checked on 2026-10-21 and against whose sources the
-chapters' claims about them were checked, so moving one, for a security update too
+MailKit 4.18.2, Fluid.Core 2.40.0 and Lib.Net.Http.WebPush 3.3.1 are pinned at those
+versions, whose listings were checked on 2026-10-21 (MailKit's on 2026-10-26) and
+against whose sources the chapters' claims about them were checked (MailKit's against
+4.18.1, whose code 4.18.2 keeps, M-017), so moving one, for a security update too
 (MSG-ENG-010), is a decision-log entry; every other package is taken at its latest
 stable release when added, the Microsoft packages at the release that matches the SDK's
 .NET 10 runtime, and its listing checked then (all checked in review). The reasons and
-the rejected alternatives are M-002 and M-013. Adding a package is a decision-log entry.
+the rejected alternatives are M-002, M-013 and M-017. Adding a package is a decision-log
+entry.
 
-*Source: M-002, M-012, M-013, M-015*
+*Source: M-002, M-012, M-013, M-015, M-017*
 
 **Acceptance criteria**
 1. The set of direct package references is within this table, and the tool manifest

@@ -1,6 +1,6 @@
 using System;
 
-namespace Hermes.Operations;
+namespace Hermes.Channels;
 
 /// <summary>
 /// A key of <c>08</c> section 4 holding one value: how its raw text reads, its own rule, and
@@ -11,4 +11,4 @@ namespace Hermes.Operations;
 /// <param name="Read">The value a raw text reads as, as the binder reads it; none where it does not read.</param>
 /// <param name="Within">Whether a value that reads is within the key's own rule.</param>
 /// <param name="Default">The key's value where it is absent.</param>
-internal sealed record ConfigurationKey(string Path, bool StartOnly, Func<string, object?> Read, Func<object, bool> Within, Func<MessagingOptions, object?> Default);
+internal sealed record ConfigurationKey(string Path, bool StartOnly, Func<string, object?> Read, Func<object, bool> Within, object? Default);

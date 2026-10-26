@@ -78,6 +78,19 @@ internal static partial class ScannerConfigurationRules
         return violations;
     }
 
+    /// <summary>The files the allow-list entries of the configuration at <paramref name="root"/> name exactly.</summary>
+    internal static IEnumerable<string> NamedFiles(string root)
+    {
+        foreach (string raw in System.IO.File.ReadLines(File(root)))
+        {
+            Match key = KeyPattern().Match(raw.Trim());
+            if (key.Success && string.Equals(key.Groups["key"].Value, "paths", StringComparison.Ordinal) && Exact(key.Groups["value"].Value.Trim()) is { } path)
+            {
+                yield return path;
+            }
+        }
+    }
+
     private static IEnumerable<string> TopViolations(Dictionary<string, string> keys)
     {
         return keys.Keys.Where(key => !string.Equals(key, "title", StringComparison.Ordinal))

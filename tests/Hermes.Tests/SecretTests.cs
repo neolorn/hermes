@@ -145,6 +145,47 @@ public sealed class SecretTests
         Assert.DoesNotContain("pushVapidKeys", secrets.Read);
     }
 
+    [Fact]
+    public async Task MSG_OPS_008_AC1_EmailSubmissionMissingWhereEmailIsDispatchedStopsTheStartNamingIt()
+    {
+        MessagingStartupException failure = await StartFailure(Secrets.Held().Without("emailSubmission"), Addressed(TestHost.Languages()), Newsletter);
+
+        AssertFailure(failure, "messaging.startup.secretunavailable", "emailSubmission");
+    }
+
+    [Fact]
+    public async Task Start_EmailSubmissionThatDoesNotReadAsTheAccount_StopsTheStartAsInvalid()
+    {
+        MessagingStartupException failure = await StartFailure(Secrets.Held().With("emailSubmission", Encoding.UTF8.GetBytes("{\"userName\":\"notices\"}")), Addressed(TestHost.Languages()), Newsletter);
+
+        AssertFailure(failure, "messaging.startup.secretinvalid", "emailSubmission");
+    }
+
+    [Fact]
+    public async Task Start_EmailWhereTheApplicationDoesNotDispatch_ReadsNeitherEmailHostNorEmailSubmission()
+    {
+        SecretSourceFake secrets = Secrets.Held().Without("emailSubmission");
+        Dictionary<string, string?> configuration = Addressed(Configuration(("Dispatch:Enabled", "false")));
+        configuration.Remove("Hermes:Email:Host");
+
+        await AssertPastTheSecrets(secrets, configuration, Newsletter);
+
+        Assert.DoesNotContain("emailSubmission", secrets.Read);
+    }
+
+    [Fact]
+    public async Task Start_HostEmailProvider_ReadsNeitherEmailHostNorEmailSubmission()
+    {
+        SecretSourceFake secrets = Secrets.Held().Without("emailSubmission");
+        Dictionary<string, string?> configuration = Addressed(TestHost.Languages());
+        configuration["Hermes:Email:Host"] = "smtp_example";
+        using IHost host = TestHost.Build(configuration, Newsletter, services => services.AddSingleton<ISecretSource>(secrets).AddSingleton<IEmailProvider, EmailProviderFake>());
+        Exception? failure = await Record.ExceptionAsync(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.False(failure is MessagingStartupException { Code: "messaging.startup.configurationinvalid" or "messaging.startup.secretunavailable" }, $"The start stopped at the email provider's keys: {failure?.Message}");
+        Assert.DoesNotContain("emailSubmission", secrets.Read);
+    }
+
     [Theory]
     [InlineData("contentKeys", 31)]
     [InlineData("contentKeys", 33)]

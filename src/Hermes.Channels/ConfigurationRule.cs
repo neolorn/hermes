@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Hermes.Operations;
+namespace Hermes.Channels;
 
 /// <summary>
 /// A rule of <c>08</c> section 4 that bounds one key by others, such as

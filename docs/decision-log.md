@@ -1003,6 +1003,28 @@ rule.
 
 ---
 
+## M-017 — Phase 2's question: MailKit 4.18.2
+
+**Date:** 2026-10-26 · **Status:** accepted
+
+Phase 2 asked one question, Tier 2.
+
+- **MailKit moves to 4.18.2** (question 1). MailKit 4.18.1 brings MimeKit 4.18.1, which
+  resolves System.Security.Cryptography.Pkcs 10.0.0, and the restore's audit reports two
+  advisories against it (GHSA-846f-f764-76mx, GHSA-2fmv-rv2c-59x7), fixed in 10.0.13, so
+  the build fails as `07` MSG-ENG-010 means it to. MailKit 4.18.2 (2026-10-23) depends
+  on MimeKit 4.18.2 and System.Formats.Asn1 10.0.13 or later, and MimeKit 4.18.2
+  (2026-10-21) on System.Security.Cryptography.Pkcs 10.0.13 or later; their release
+  notes on nuget.org give that bump as each release's only change, so the chapters'
+  claims, checked against 4.18.1's sources, still hold, and the SMTP provider's tests,
+  built against 4.18.2, check them again (`07` MSG-ENG-009). *Rejected:* Pkcs 10.0.13
+  pinned centrally (it mends this repository's restore alone: a host restoring
+  `Hermes.Channels` at MailKit 4.18.1 still resolves 10.0.0 unless the package carries
+  Pkcs as a dependency of its own, a package outside MSG-ENG-009's table and a second
+  fix beside the one its authors made).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1023,3 +1045,4 @@ rule.
 | The implementer pushes its own work and takes the owner's documents itself | M-014 |
 | Phase 0's question and review: exact versions, and the gates' gaps | M-015 |
 | Phase 1's questions: lengths, the template folder, decimal factors, roles | M-016 |
+| Phase 2's question: MailKit 4.18.2 | M-017 |
