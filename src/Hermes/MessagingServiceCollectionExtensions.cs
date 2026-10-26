@@ -46,6 +46,7 @@ public static class MessagingServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddLogging();
         services.TryAddSingleton<IAlertSink, LoggingAlertSink>();
+        services.AddSingleton<MessagingDatabase>();
         services.AddSingleton<IHostedService, MessagingStartup>();
         return services;
     }

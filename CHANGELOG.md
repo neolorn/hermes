@@ -15,3 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starts, the first outside its rule stopping the start
 - The secret, consent, observer, protector and alert seams a host supplies, the start
   stopping where a required one is missing or two host protectors share an `Id`
+- `hermes migrate`, the `Hermes.Cli` tool that applies the release's migrations to the
+  schema `messaging` and grants the application's roles the use of its tables
+- A start against a database lacking one of the release's migrations stops, naming it

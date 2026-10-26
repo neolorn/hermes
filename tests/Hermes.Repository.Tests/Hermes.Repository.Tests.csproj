@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\src\Hermes.Janus.Channels\Hermes.Janus.Channels.csproj" />
     <ProjectReference Include="..\..\src\Hermes.Janus\Hermes.Janus.csproj" />
     <ProjectReference Include="..\..\src\Hermes.Testing\Hermes.Testing.csproj" />
+    <ProjectReference Include="..\..\src\Hermes.Cli\Hermes.Cli.csproj" />
   </ItemGroup>
 
 </Project>

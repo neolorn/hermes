@@ -17,13 +17,14 @@ namespace Hermes.Operations;
 /// Runs the engine's startup checks in <see cref="StartingAsync"/>, which the host calls on
 /// every lifecycle service before any hosted service's <c>StartAsync</c>, so they complete
 /// before a host's own hosted service starts or a request is served (<c>04</c> MSG-LIB-003):
-/// the configuration, the declarations, then the seams.
+/// the configuration, the declarations, the seams, the secrets, then the schema.
 /// </summary>
 internal sealed class MessagingStartup(
     IConfiguration configuration,
     ConfigurationState state,
     IOptionsMonitor<MessagingOptions> options,
     Declarations declarations,
+    MessagingDatabase database,
     IServiceProvider services) : IHostedLifecycleService
 {
     public async Task StartingAsync(CancellationToken cancellationToken)
@@ -54,6 +55,14 @@ internal sealed class MessagingStartup(
             {
                 throw Failure(Codes.DeclarationInvalid, ("declaration", protector), ("field", "Id"));
             }
+
+            ISecretSource secrets = scope.ServiceProvider.GetRequiredService<ISecretSource>();
+            database.Open(await SecretCheck.ConnectionAsync(secrets, cancellationToken).ConfigureAwait(false));
+        }
+
+        if (await SchemaCheck.MissingAsync(database, cancellationToken).ConfigureAwait(false) is { } migration)
+        {
+            throw Failure(Codes.SchemaMismatch, ("migration", migration));
         }
     }
 
@@ -82,7 +91,7 @@ internal sealed class MessagingStartup(
         return Task.CompletedTask;
     }
 
-    private static MessagingStartupException Failure(string code, params (string Name, string Value)[] details)
+    internal static MessagingStartupException Failure(string code, params (string Name, string Value)[] details)
     {
         Dictionary<string, string> named = new(StringComparer.Ordinal);
         foreach ((string name, string value) in details)
