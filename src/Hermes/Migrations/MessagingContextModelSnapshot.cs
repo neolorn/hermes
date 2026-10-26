@@ -11,7 +11,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Hermes.Migrations
 {
     [DbContext(typeof(MessagingContext))]
-    internal sealed partial class MessagingContextModelSnapshot : ModelSnapshot
+    partial class MessagingContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
@@ -51,6 +51,49 @@ namespace Hermes.Migrations
                     b.ToTable("alerts", "messaging", t =>
                         {
                             t.HasCheckConstraint("ck_alerts_condition", "condition IN ('email-submission-failing', 'sms-balance', 'sms-balance-unreadable', 'sms-report-rejected', 'push-auth-failing', 'dispatch-lag', 'job-stalled', 'newer-release', 'configuration-invalid', 'content-key-limit', 'key-unavailable', 'content-rejected', 'observer-failing')");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Operations.JobRow", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset?>("ClaimExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claim_expires_at");
+
+                    b.Property<DateTimeOffset?>("ClaimedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claimed_at");
+
+                    b.Property<Guid?>("ClaimedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("claimed_by");
+
+                    b.Property<DateTimeOffset?>("FirstStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_started_at");
+
+                    b.Property<DateTimeOffset?>("LastCompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_completed_at");
+
+                    b.Property<DateTimeOffset?>("LastRenewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_renewed_at");
+
+                    b.Property<DateTimeOffset?>("LastStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_started_at");
+
+                    b.HasKey("Name")
+                        .HasName("pk_jobs");
+
+                    b.ToTable("jobs", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_jobs_name", "name IN ('observer', 'balance', 'retention', 'subscriptions', 'watch')");
                         });
                 });
 
@@ -115,6 +158,461 @@ namespace Hermes.Migrations
                         {
                             t.HasCheckConstraint("ck_token_lifetime_id", "id = 1");
                         });
+                });
+
+            modelBuilder.Entity("Hermes.Sending.AttemptRow", b =>
+                {
+                    b.Property<Guid>("DeliveryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delivery_id");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<string>("Class")
+                        .HasColumnType("text")
+                        .HasColumnName("class");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Reference")
+                        .HasColumnType("text")
+                        .HasColumnName("reference");
+
+                    b.HasKey("DeliveryId", "Number")
+                        .HasName("pk_attempts");
+
+                    b.ToTable("attempts", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_attempts_class", "class IS NULL OR class IN ('accepted', 'transient', 'permanent', 'gone')");
+
+                            t.HasCheckConstraint("ck_attempts_number", "number >= 1");
+
+                            t.HasCheckConstraint("ck_attempts_reason", "reason IS NULL OR reason IN ('timeout', 'connectionfailed', 'tlsfailed', 'authfailed', 'senderrefused', 'recipientrefused', 'messagerefused', 'badrequest', 'ratelimited', 'temporary', 'permanent', 'gone', 'providerfault', 'keyunavailable', 'consentunavailable', 'reportedfailed', 'claimlost', 'serverrefused', 'destinationnotallowed', 'valuerejected')");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Sending.CallRow", b =>
+                {
+                    b.Property<Guid>("DeliveryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delivery_id");
+
+                    b.Property<int>("Attempt")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<string>("Class")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("class");
+
+                    b.Property<string>("PushService")
+                        .HasColumnType("text")
+                        .HasColumnName("push_service");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<int?>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid?>("SubscriptionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("subscription_id");
+
+                    b.HasKey("DeliveryId", "Attempt", "Number")
+                        .HasName("pk_calls");
+
+                    b.ToTable("calls", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_calls_class", "class IN ('accepted', 'transient', 'permanent', 'gone')");
+
+                            t.HasCheckConstraint("ck_calls_number", "number >= 1");
+
+                            t.HasCheckConstraint("ck_calls_push_service", "push_service IS NULL OR push_service IN ('fcm', 'mozilla', 'apple', 'windows', 'other')");
+
+                            t.HasCheckConstraint("ck_calls_reason", "reason IS NULL OR reason IN ('timeout', 'connectionfailed', 'tlsfailed', 'authfailed', 'senderrefused', 'recipientrefused', 'messagerefused', 'badrequest', 'ratelimited', 'temporary', 'permanent', 'gone', 'providerfault', 'keyunavailable', 'consentunavailable', 'reportedfailed', 'claimlost', 'serverrefused', 'destinationnotallowed', 'valuerejected')");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Sending.DeliveryRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<byte[]>("Badge")
+                        .HasColumnType("bytea")
+                        .HasColumnName("badge");
+
+                    b.Property<DateTimeOffset>("BecameDueAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("became_due_at");
+
+                    b.Property<byte[]>("Body")
+                        .HasColumnType("bytea")
+                        .HasColumnName("body");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTimeOffset?>("ClaimExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claim_expires_at");
+
+                    b.Property<DateTimeOffset?>("ClaimedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claimed_at");
+
+                    b.Property<Guid?>("ClaimedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("claimed_by");
+
+                    b.Property<int?>("ContentKeyVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("content_key_version");
+
+                    b.Property<byte[]>("Destination")
+                        .HasColumnType("bytea")
+                        .HasColumnName("destination");
+
+                    b.Property<DateTimeOffset>("DueAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("due_at");
+
+                    b.Property<DateTimeOffset?>("FirstHeldAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_held_at");
+
+                    b.Property<byte[]>("Html")
+                        .HasColumnType("bytea")
+                        .HasColumnName("html");
+
+                    b.Property<byte[]>("Icon")
+                        .HasColumnType("bytea")
+                        .HasColumnName("icon");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("language");
+
+                    b.Property<DateTimeOffset>("LastMovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_moved_at");
+
+                    b.Property<int>("NextSequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("next_sequence");
+
+                    b.Property<string>("Person")
+                        .HasColumnType("text")
+                        .HasColumnName("person");
+
+                    b.Property<string>("ProviderReference")
+                        .HasColumnType("text")
+                        .HasColumnName("provider_reference");
+
+                    b.Property<string>("PushTopic")
+                        .HasColumnType("text")
+                        .HasColumnName("push_topic");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at");
+
+                    b.Property<Guid>("SendId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("send_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<byte[]>("Subject")
+                        .HasColumnType("bytea")
+                        .HasColumnName("subject");
+
+                    b.Property<byte[]>("Tag")
+                        .HasColumnType("bytea")
+                        .HasColumnName("tag");
+
+                    b.Property<byte[]>("Text")
+                        .HasColumnType("bytea")
+                        .HasColumnName("text");
+
+                    b.Property<string>("TimeZone")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("time_zone");
+
+                    b.Property<byte[]>("Title")
+                        .HasColumnType("bytea")
+                        .HasColumnName("title");
+
+                    b.Property<byte[]>("Unsubscribe")
+                        .HasColumnType("bytea")
+                        .HasColumnName("unsubscribe");
+
+                    b.Property<byte[]>("Url")
+                        .HasColumnType("bytea")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id")
+                        .HasName("pk_deliveries");
+
+                    b.HasIndex("ContentKeyVersion")
+                        .HasDatabaseName("ix_deliveries_content_key_version");
+
+                    b.HasIndex("Person")
+                        .HasDatabaseName("ix_deliveries_person");
+
+                    b.HasIndex("SendId")
+                        .HasDatabaseName("ix_deliveries_send_id");
+
+                    b.HasIndex("Channel", "Status", "DueAt")
+                        .HasDatabaseName("ix_deliveries_due");
+
+                    b.ToTable("deliveries", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_deliveries_attempts", "attempts >= 0");
+
+                            t.HasCheckConstraint("ck_deliveries_channel", "channel IN ('email', 'sms', 'push')");
+
+                            t.HasCheckConstraint("ck_deliveries_next_sequence", "next_sequence >= 1");
+
+                            t.HasCheckConstraint("ck_deliveries_reason", "reason IS NULL OR reason IN ('timeout', 'connectionfailed', 'tlsfailed', 'authfailed', 'senderrefused', 'recipientrefused', 'messagerefused', 'badrequest', 'ratelimited', 'temporary', 'permanent', 'gone', 'providerfault', 'keyunavailable', 'consentunavailable', 'reportedfailed', 'claimlost', 'serverrefused', 'destinationnotallowed', 'valuerejected')");
+
+                            t.HasCheckConstraint("ck_deliveries_status", "status IN ('waiting', 'inflight', 'sent', 'delivered', 'failed', 'cancelled', 'expired', 'suppressed', 'optedout', 'noconsent', 'limited', 'balancefloor', 'nosubscription')");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Sending.IdempotencyRow", b =>
+                {
+                    b.Property<string>("Kind")
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<bool>("Anonymous")
+                        .HasColumnType("boolean")
+                        .HasColumnName("anonymous");
+
+                    b.Property<byte[]>("Scope")
+                        .HasColumnType("bytea")
+                        .HasColumnName("scope");
+
+                    b.Property<string>("Key")
+                        .HasColumnType("text")
+                        .HasColumnName("key");
+
+                    b.Property<byte[]>("Digest")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("digest");
+
+                    b.Property<int>("HashVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("hash_version");
+
+                    b.Property<DateTimeOffset>("LapsesAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lapses_at");
+
+                    b.Property<string>("Receipt")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("receipt");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at");
+
+                    b.Property<Guid>("SendId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("send_id");
+
+                    b.HasKey("Kind", "Anonymous", "Scope", "Key")
+                        .HasName("pk_idempotency");
+
+                    b.HasIndex("LapsesAt")
+                        .HasDatabaseName("ix_idempotency_lapses_at");
+
+                    b.ToTable("idempotency", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_idempotency_hash_version", "hash_version >= 1");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Sending.NoticeRow", b =>
+                {
+                    b.Property<Guid>("DeliveryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delivery_id");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<DateTimeOffset?>("ClaimExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claim_expires_at");
+
+                    b.Property<Guid?>("ClaimedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("claimed_by");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("DeliveryId", "Sequence")
+                        .HasName("pk_notices");
+
+                    b.HasIndex("At")
+                        .HasDatabaseName("ix_notices_at");
+
+                    b.ToTable("notices", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_notices_reason", "reason IS NULL OR reason IN ('timeout', 'connectionfailed', 'tlsfailed', 'authfailed', 'senderrefused', 'recipientrefused', 'messagerefused', 'badrequest', 'ratelimited', 'temporary', 'permanent', 'gone', 'providerfault', 'keyunavailable', 'consentunavailable', 'reportedfailed', 'claimlost', 'serverrefused', 'destinationnotallowed', 'valuerejected')");
+
+                            t.HasCheckConstraint("ck_notices_sequence", "sequence >= 1");
+
+                            t.HasCheckConstraint("ck_notices_status", "status IN ('waiting', 'inflight', 'sent', 'delivered', 'failed', 'cancelled', 'expired', 'suppressed', 'optedout', 'noconsent', 'limited', 'balancefloor', 'nosubscription')");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Sending.RateCounter", b =>
+                {
+                    b.Property<string>("Channel")
+                        .HasColumnType("text")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTimeOffset>("Second")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("second");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer")
+                        .HasColumnName("count");
+
+                    b.HasKey("Channel", "Second")
+                        .HasName("pk_rate_counters");
+
+                    b.ToTable("rate_counters", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_rate_counters_channel", "channel IN ('email', 'sms', 'push')");
+
+                            t.HasCheckConstraint("ck_rate_counters_count", "count >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Sending.SendRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_sends");
+
+                    b.ToTable("sends", "messaging");
+                });
+
+            modelBuilder.Entity("Hermes.Sending.AttemptRow", b =>
+                {
+                    b.HasOne("Hermes.Sending.DeliveryRow", null)
+                        .WithMany()
+                        .HasForeignKey("DeliveryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_attempts_deliveries");
+                });
+
+            modelBuilder.Entity("Hermes.Sending.CallRow", b =>
+                {
+                    b.HasOne("Hermes.Sending.AttemptRow", null)
+                        .WithMany()
+                        .HasForeignKey("DeliveryId", "Attempt")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_calls_attempts");
+                });
+
+            modelBuilder.Entity("Hermes.Sending.DeliveryRow", b =>
+                {
+                    b.HasOne("Hermes.Sending.SendRow", null)
+                        .WithMany()
+                        .HasForeignKey("SendId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_deliveries_sends");
+                });
+
+            modelBuilder.Entity("Hermes.Sending.NoticeRow", b =>
+                {
+                    b.HasOne("Hermes.Sending.DeliveryRow", null)
+                        .WithMany()
+                        .HasForeignKey("DeliveryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notices_deliveries");
                 });
 #pragma warning restore 612, 618
         }

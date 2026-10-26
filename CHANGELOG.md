@@ -72,3 +72,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `declare.Templates`, a part missing, not parsing or outside the allowed tags, filters,
   arguments, ranges and nesting stopping the start and naming it; the unsubscribe pages
   shipped in `en` and `ar`
+- The send's tables: sends, deliveries, attempts and their calls, idempotency keys, the
+  rate counters, notices and the job table, each closed set refused by the database
+  outside its values
