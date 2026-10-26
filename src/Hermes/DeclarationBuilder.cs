@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 using Hermes.Sending;
 
@@ -17,6 +18,7 @@ public sealed class DeclarationBuilder
     private readonly List<KindBuilder> kinds = [];
     private readonly List<CategoryBuilder> categories = [];
     private readonly List<string> retired = [];
+    private readonly List<Assembly> assemblies = [];
 
     internal DeclarationBuilder()
     {
@@ -70,9 +72,26 @@ public sealed class DeclarationBuilder
         return category;
     }
 
+    /// <summary>
+    /// Passes an assembly whose embedded resources hold templates, each found by a logical name
+    /// equal to its file's path under <c>Hermes:Templates:Path</c>
+    /// (<c>order.placed/email.ar.subject.liquid</c>; for a page,
+    /// <c>pages/unsubscribe.ar.html.liquid</c>). A part the host's template source does not answer
+    /// is read from that folder, then from these assemblies in the order they are passed.
+    /// </summary>
+    /// <param name="assembly">The assembly.</param>
+    /// <returns>This builder.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="assembly"/> is null.</exception>
+    public DeclarationBuilder Templates(Assembly assembly)
+    {
+        ArgumentNullException.ThrowIfNull(assembly);
+        assemblies.Add(assembly);
+        return this;
+    }
+
     /// <summary>What has been declared so far, in the order it was declared.</summary>
     internal Declarations Declarations()
     {
-        return new([.. kinds.Select(kind => kind.Declaration())], [.. categories.Select(category => category.Declaration())], [.. retired]);
+        return new([.. kinds.Select(kind => kind.Declaration())], [.. categories.Select(category => category.Declaration())], [.. retired], [.. assemblies]);
     }
 }

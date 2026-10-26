@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Hermes.Channels;
+using Hermes.Content;
 using Hermes.Core;
 using Hermes.Sending;
 
@@ -32,6 +34,8 @@ internal sealed class MessagingStartup(
     EmailSubmission submission,
     PushKeys pushKeys,
     KeyTable table,
+    TemplateParser parser,
+    Templates templates,
     IHostEnvironment environment,
     IServiceProvider services) : IHostedLifecycleService
 {
@@ -63,6 +67,16 @@ internal sealed class MessagingStartup(
             {
                 throw Failure(Codes.DeclarationInvalid, ("declaration", declaration), ("field", field));
             }
+
+            Dictionary<TemplateKey, TemplatePart> loaded = [];
+            string folder = Path.GetFullPath(current.Templates.Path, Path.GetFullPath(environment.ContentRootPath));
+            TemplateSources sources = new(scope.ServiceProvider.GetService<ITemplateSource>(), folder, declarations.Assemblies);
+            if (await TemplateCheck.LoadAsync(declarations, current.Languages, current.Templates.MaxSteps, current.Templates.MaxRecursion, sources, parser, loaded, cancellationToken).ConfigureAwait(false) is var (template, part))
+            {
+                throw Failure(Codes.DeclarationInvalid, ("declaration", template), ("field", part));
+            }
+
+            templates.Hold(loaded);
 
             if (SeamCheck.Missing(services.GetRequiredService<IServiceProviderIsService>(), declarations, current) is { } seam)
             {

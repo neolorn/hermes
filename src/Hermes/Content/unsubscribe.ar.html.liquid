@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="{{ language }}" dir="{{ direction }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>إلغاء الاشتراك</title>
+<style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;line-height:1.5}button{font:inherit;padding:.5rem 1rem}</style>
+</head>
+<body>
+<h1>إلغاء الاشتراك</h1>
+<p>هل تريد التوقف عن تلقي رسائل {{ category }} على هذا العنوان؟</p>
+<form method="post" action="{{ action }}">
+<input type="hidden" name="page" value="unsubscribe">
+<button type="submit">إلغاء الاشتراك</button>
+</form>
+</body>
+</html>

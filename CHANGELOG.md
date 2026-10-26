@@ -67,3 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Templates rendered strictly and within their bounds: the allowed tags and filters, the
   library's `format_date` and `format_number`, HTML parts encoded, a render past its steps,
   over its channel's limit or unable to compute refused with its code
+- Every kind's templates and the library's pages read when the host starts, from the
+  host's template source, the template folder and the assemblies passed to
+  `declare.Templates`, a part missing, not parsing or outside the allowed tags, filters,
+  arguments, ranges and nesting stopping the start and naming it; the unsubscribe pages
+  shipped in `en` and `ar`

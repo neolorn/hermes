@@ -22,6 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The library's own pages, found as a host assembly's resource is, by their path under the template folder (03 MSG-TPL-006). -->
+    <EmbeddedResource Include="Content\*.liquid" LogicalName="pages/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Hermes.Core\Hermes.Core.csproj" />
     <ProjectReference Include="..\Hermes.Channels\Hermes.Channels.csproj" />
   </ItemGroup>
