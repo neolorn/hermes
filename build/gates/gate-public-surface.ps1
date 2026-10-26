@@ -4,18 +4,31 @@
     Checks that each package's public API files are up to date with its public surface (04 MSG-LIB-002).
 .DESCRIPTION
     Each project under src/ holds PublicAPI.Shipped.txt and PublicAPI.Unshipped.txt, and its
-    build reports none of the public API analysers' diagnostics.
+    build reports none of the public API analysers' diagnostics. A repository with no project
+    under src/ fails, since the gate would check nothing.
+.PARAMETER Repository
+    The repository to check; by default, this one.
 #>
 [CmdletBinding()]
-param()
+param(
+    [string] $Repository = (Join-Path $PSScriptRoot '..' '..')
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$root = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
+$projects = @(
+    if (Test-Path (Join-Path $Repository 'src')) {
+        Get-ChildItem -Path (Join-Path $Repository 'src') -Directory | Sort-Object Name
+    }
+)
+if ($projects.Count -eq 0) {
+    throw 'src/ holds no project, so the gate would check nothing.'
+}
+
 $failures = [System.Collections.Generic.List[string]]::new()
 
-foreach ($project in Get-ChildItem -Path (Join-Path $root 'src') -Directory | Sort-Object Name) {
+foreach ($project in $projects) {
     foreach ($file in 'PublicAPI.Shipped.txt', 'PublicAPI.Unshipped.txt') {
         $path = Join-Path $project.FullName $file
         if (-not (Test-Path $path)) {

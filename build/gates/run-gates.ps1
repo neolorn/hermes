@@ -4,12 +4,15 @@
     Runs every gate script present under build/gates/ and reports each one's result (07 MSG-ENG-012).
 .DESCRIPTION
     The pipeline's gates job runs this script, and so does the implementer, on the commit a
-    phase report names. Each gate runs in its own PowerShell process; every gate runs even
-    when one before it fails, and the script fails when any of them did.
+    phase report names. The gates check the working tree, so the script refuses to run unless
+    HEAD is Head and the working tree is HEAD's, with no tracked change and no untracked file
+    outside the excluded paths. Each gate runs in its own PowerShell process; every gate runs
+    even when one before it fails, and the script fails when any of them did, or when it finds
+    no gate script to run.
 .PARAMETER Base
     The commit after which the commit-message gate checks; none checks the whole history.
 .PARAMETER Head
-    The last commit the commit-message gate checks.
+    The commit the gates check: the last commit the commit-message gate checks, and HEAD.
 #>
 [CmdletBinding()]
 param(
@@ -20,9 +23,32 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
+
+$current = & git -C $root rev-parse --verify --quiet 'HEAD^{commit}'
+$expected = & git -C $root rev-parse --verify --quiet "$Head^{commit}"
+if ($LASTEXITCODE -ne 0 -or -not $expected) {
+    throw "-Head $Head names no commit."
+}
+if ($current -ne $expected) {
+    throw "HEAD is $current, not -Head $Head ($expected), so the gates would not check -Head."
+}
+
+$changes = @(& git -C $root status --porcelain --untracked-files=all)
+if ($LASTEXITCODE -ne 0) { throw 'git status failed.' }
+if ($changes.Count -gt 0) {
+    $changes | ForEach-Object { Write-Host $_ }
+    throw "The working tree differs from HEAD in $($changes.Count) path(s), so the gates would not check -Head alone."
+}
+
+$gates = @(Get-ChildItem -Path $PSScriptRoot -Filter 'gate-*.ps1' -File | Sort-Object Name)
+if ($gates.Count -eq 0) {
+    throw 'build/gates/ holds no gate script, so nothing would be checked.'
+}
+
 $results = [System.Collections.Generic.List[pscustomobject]]::new()
 
-foreach ($gate in Get-ChildItem -Path $PSScriptRoot -Filter 'gate-*.ps1' -File | Sort-Object Name) {
+foreach ($gate in $gates) {
     $arguments = @()
     if ($gate.Name -eq 'gate-commit-messages.ps1') {
         $arguments = @('-Base', $Base, '-Head', $Head)

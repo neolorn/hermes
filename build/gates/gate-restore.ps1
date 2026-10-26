@@ -5,16 +5,23 @@
 .DESCRIPTION
     A restore that would change a lockfile fails, and so does a package, transitive ones
     included, with a published advisory, since the audit's warnings are errors.
+.PARAMETER Repository
+    The repository whose Hermes.sln to restore; by default, this one.
 #>
 [CmdletBinding()]
-param()
+param(
+    [string] $Repository = (Join-Path $PSScriptRoot '..' '..')
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$root = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
+$solution = Join-Path $Repository 'Hermes.sln'
+if (-not (Test-Path $solution)) {
+    throw 'Hermes.sln is missing.'
+}
 
-dotnet restore (Join-Path $root 'Hermes.sln') --locked-mode --force
+dotnet restore $solution --locked-mode --force
 if ($LASTEXITCODE -ne 0) {
     throw "The locked restore or its audit failed with exit code $LASTEXITCODE."
 }

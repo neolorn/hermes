@@ -15,10 +15,13 @@ jobs:
   gates:
     runs-on: ubuntu-24.04
     steps:
-      - name: Check out the whole history
+      # The gates check the commit they are given, a pull request's head and not the merge
+      # the platform would make, and run-gates.ps1 refuses any other working tree.
+      - name: Check out the whole history at the commit the gates check
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up the SDK of global.json
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0

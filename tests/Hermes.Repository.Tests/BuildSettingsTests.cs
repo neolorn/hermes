@@ -76,16 +76,20 @@ public sealed class BuildSettingsTests
                 <PackageReference Include="MinVer" PrivateAssets="all" />
               </ItemGroup>
             """);
+        ProcessResult solution = await Processes.DotnetAsync(folder.Path, cancellationToken, "new", "sln", "--name", "Hermes", "--format", "sln", "--output", folder.Path);
+        Assert.True(solution.ExitCode == 0, solution.Output);
+        ProcessResult added = await Processes.DotnetAsync(folder.Path, cancellationToken, "sln", Path.Combine(folder.Path, "Hermes.sln"), "add", probe.File);
+        Assert.True(added.ExitCode == 0, added.Output);
 
         ProcessResult locked = await probe.RestoreAsync(cancellationToken);
-        ProcessResult same = await probe.RestoreAsync(cancellationToken, "--locked-mode", "--force");
+        ProcessResult same = await Processes.GateAsync("gate-restore.ps1", folder.Path, cancellationToken, "-Repository", folder.Path);
         probe.WriteProject("""
               <ItemGroup>
                 <PackageReference Include="MinVer" PrivateAssets="all" />
                 <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
               </ItemGroup>
             """);
-        ProcessResult differs = await probe.RestoreAsync(cancellationToken, "--locked-mode", "--force");
+        ProcessResult differs = await Processes.GateAsync("gate-restore.ps1", folder.Path, cancellationToken, "-Repository", folder.Path);
 
         Assert.True(locked.ExitCode == 0, locked.Output);
         Assert.True(File.Exists(Path.Combine(probe.Folder, "packages.lock.json")), "The restore wrote no lockfile.");
@@ -102,7 +106,8 @@ public sealed class BuildSettingsTests
         ProbeProject probe = new(folder, "Probe");
 
         // Newtonsoft.Json 12.0.3 carries the published advisory GHSA-5crp-9r3c-p9vr (high).
-        // The probe sets its own version, since the package is in no table of the repository.
+        // The probe sets its own version, since the package is in no table of the repository,
+        // and restores into a folder of its own, so the machine's package folder never holds it.
         probe.WriteProject("""
               <PropertyGroup>
                 <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
@@ -112,7 +117,7 @@ public sealed class BuildSettingsTests
               </ItemGroup>
             """);
 
-        ProcessResult restore = await probe.RestoreAsync(cancellationToken);
+        ProcessResult restore = await probe.RestoreAsync(cancellationToken, "--packages", Path.Combine(folder.Path, "packages"));
 
         Assert.NotEqual(0, restore.ExitCode);
         Assert.Contains("error NU1903", restore.Output, StringComparison.Ordinal);
