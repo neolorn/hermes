@@ -17,7 +17,7 @@ public sealed class ReferenceTests
     [Fact]
     public void MSG_ENG_007_AC1_EveryConfigurationKeyTheEngineBindsIsOneSection4Lists()
     {
-        IEnumerable<string> bound = ConfigurationRules.Keys.Select(key => key.Path)
+        IEnumerable<string> bound = ConfigurationRules.Paths
             .Concat(ConfigurationRules.WriteVersions)
             .Concat(["PublicBaseAddress", "Languages", "DefaultLanguage", "TimeZone"]);
 

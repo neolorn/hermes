@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
+using Hermes.Channels;
 using Hermes.Core;
 
 namespace Hermes.Sending;

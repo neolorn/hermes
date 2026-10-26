@@ -1,8 +1,6 @@
-using Hermes.Sending;
-
 using Xunit;
 
-namespace Hermes.Tests;
+namespace Hermes.Channels.Tests;
 
 [Trait("Category", "unit")]
 public sealed class TextLengthTests

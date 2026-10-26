@@ -13,4 +13,9 @@
     <ProjectReference Include="..\Hermes.Core\Hermes.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hermes" />
+    <InternalsVisibleTo Include="Hermes.Channels.Tests" />
+  </ItemGroup>
+
 </Project>
