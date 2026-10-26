@@ -57,7 +57,7 @@ public sealed class PackageAllowListTests
             </Project>
             """);
 
-        Assert.Contains("Directory.Packages.props takes MailKit 4.0.0, not the pinned 4.18.1.", PackageRules.AllowListViolations(fixture.Root));
+        Assert.Contains("Directory.Packages.props takes MailKit 4.0.0, not the pinned 4.18.2.", PackageRules.AllowListViolations(fixture.Root));
     }
 
     [Fact]

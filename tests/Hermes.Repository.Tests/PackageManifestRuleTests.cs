@@ -97,7 +97,7 @@ public sealed class PackageManifestRuleTests
                 <dependencies>
                   <group targetFramework="net10.0">
                     <dependency id="Hermes.Core" version="{coreVersion}" exclude="Build,Analyzers" />
-                    <dependency id="MailKit" version="4.18.1" exclude="Build,Analyzers" />
+                    <dependency id="MailKit" version="4.18.2" exclude="Build,Analyzers" />
                   </group>
                 </dependencies>
               </metadata>
