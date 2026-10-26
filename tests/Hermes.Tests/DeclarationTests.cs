@@ -38,6 +38,22 @@ public sealed class DeclarationTests
     }
 
     [Fact]
+    public async Task MSG_ENG_003_AC1_AStartupCodeIsThrownOnlyAsTheStartupExceptionWhileTheHostStarts()
+    {
+        IHost? host = null;
+        Exception? registering = Record.Exception(() => host = TestHost.Build(TestHost.Languages(), declare =>
+        {
+            declare.Category("orders").Essential();
+            declare.Kind("Order.Placed", "orders").Email();
+        }));
+
+        Assert.Null(registering);
+        using IHost built = host!;
+        MessagingStartupException starting = Assert.IsType<MessagingStartupException>(await Record.ExceptionAsync(() => built.StartAsync(TestContext.Current.CancellationToken)));
+        Assert.Equal("messaging.startup.declarationinvalid", starting.Code);
+    }
+
+    [Fact]
     public async Task MSG_SEND_001_AC2_KindNameOfTheRuleWithEachSeparatorIsAccepted()
     {
         await AssertStartsPastTheDeclarations(declare =>

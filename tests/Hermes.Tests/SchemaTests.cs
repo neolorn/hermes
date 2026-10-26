@@ -40,6 +40,28 @@ public sealed class SchemaTests(PostgresFixture postgres) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task MSG_OVR_002_AC2_EveryTableTheLibraryUsesLivesInItsOwnSchema()
+    {
+        string connection = await postgres.NewDatabaseAsync();
+        Assert.Null(await SchemaMigration.ApplyAsync(connection, [], TestContext.Current.CancellationToken));
+        await using MessagingContext context = MessagingContext.Create(connection);
+        List<string> schemas = [];
+        await using (NpgsqlConnection database = new(connection))
+        {
+            await database.OpenAsync(TestContext.Current.CancellationToken);
+            await using NpgsqlCommand command = new("SELECT DISTINCT table_schema FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')", database);
+            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+            while (await reader.ReadAsync(TestContext.Current.CancellationToken))
+            {
+                schemas.Add(reader.GetString(0));
+            }
+        }
+
+        Assert.All(context.Model.GetEntityTypes(), entity => Assert.Equal("messaging", entity.GetSchema()));
+        Assert.Equal(["messaging"], schemas);
+    }
+
+    [Fact]
     public async Task Start_DatabaseHoldingEveryMigration_PassesTheSchemaCheck()
     {
         string connection = await postgres.NewDatabaseAsync();
