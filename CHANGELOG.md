@@ -44,3 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   text a provider answered
 - `SmsText.Measure`, which answers an SMS text's encoding and its segments as the network
   counts them, never splitting an escape pair or a surrogate pair
+- The rules a channel's values are checked against: an email address as an RFC 5322
+  `addr-spec` of at most 254 characters, an SMS sender by 3GPP TS 23.040, the allowed
+  number prefixes, and the push hosts a wildcard of at least three labels allows
