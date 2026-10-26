@@ -13,40 +13,42 @@ per package of `04` MSG-LIB-001 under `src/` and one test project per source pro
 under `tests/`, and a sample host with its test project in a solution of its own under
 `samples/`, built only from the packed packages.
 
-**Values (M-012, M-013).** A source project is `src/<Package>`; its test project
+**Values (M-012, M-013, M-015).** A source project is `src/<Package>`; its test project
 `tests/<Package>.Tests`; the tests over the whole repository (its projects' references
-and grants, its layout, the secret scan, `04` MSG-LIB-001, `10` MSG-THR-004) live in
-`tests/Hermes.Repository.Tests`, the one test project with no source project. Each
-project's namespace root is its name; a file's namespace matches its folder; one public
-top-level type per file, a type's cases declared in its file. Projects are flat but for
-these folders: in `Hermes`, `Sending` (`01`), `Content` (`03`), `Endpoints` (`05`),
-`Operations` (`06`) and `Migrations`, into which the migrations are generated; in
-`Hermes.Channels`, `Email`, `Sms` and `Push` (`02`); every other project, the test
-projects and the sample host's included, keeps its files at its root (which file goes in
-which folder is checked in review). A shipped project's types are internal unless `04`
-MSG-LIB-002 makes them public, and its public types sit at its root, so each is in its
-package's namespace; a test project's test classes are public, since xUnit.net runs no
-other. `InternalsVisibleTo` is granted only from a source project to its own test
-project; from `Hermes.Channels` to `Hermes`, `Hermes.Janus.Channels` and
-`Hermes.Testing`, since the rules they need (the address and sender rules, the allowed
-hosts and prefixes; the segment count is public, `SmsText` of `Hermes.Core`) live in
-`Hermes.Channels`; and from `Hermes` to `Hermes.Cli`, which applies the migrations
-`Hermes` holds (`06` MSG-OPS-002), and to `Hermes.Testing`, which removes, or keeps from
-being registered, the engine's hosted dispatcher and `observer` job by their types and
-applies the migrations for a test (`04` MSG-LIB-008). The packages are released together
-(`04` MSG-LIB-001). The sample host has an invented domain naming no real product or
-company (checked in review), declares a few kinds in an essential and an optional
-category, sends through the in-memory providers of `Hermes.Testing`, maps every endpoint
-group, and runs in the gate (MSG-ENG-012) from packages packed from the same commit into
-`artifacts/packages/`, which `.gitignore` lists, at a version the gate passes it; it
-alone has no lockfile and no locked restore, since its packages change with every
-commit. The sample host and its test project are outside `Hermes.sln`, in
-`samples/Samples.sln`, and `samples/nuget.config` adds `artifacts/packages/` to the
-package sources for them alone, so no other restore needs the folder. Both
-`nuget.config` files carry `packageSourceMapping`: the library's own package identifiers
-from `artifacts/packages/` only (in `samples/nuget.config`), Janus's from its feed only
-(added with Janus's source in phase 6 of the plan), and every other identifier from
-nuget.org only, so no package is taken from a source it was not mapped to.
+and grants, its layout and shared settings, the secret scan, the contract tests over the
+packages' built assemblies (MSG-ENG-004, MSG-ENG-007's type names, `04` MSG-LIB-002),
+`04` MSG-LIB-001, `10` MSG-THR-004) live in `tests/Hermes.Repository.Tests`, the one
+test project with no source project. Each project's namespace root is its name; a file's
+namespace matches its folder; one public top-level type per file, a type's cases
+declared in its file. Projects are flat but for these folders: in `Hermes`, `Sending`
+(`01`), `Content` (`03`), `Endpoints` (`05`), `Operations` (`06`) and `Migrations`, into
+which the migrations are generated; in `Hermes.Channels`, `Email`, `Sms` and `Push`
+(`02`); every other project, the test projects and the sample host's included, keeps its
+files at its root (which file goes in which folder is checked in review). A shipped
+project's types are internal unless `04` MSG-LIB-002 makes them public, and its public
+types sit at its root, so each is in its package's namespace; a test project's test
+classes are public, since xUnit.net runs no other. `InternalsVisibleTo` is granted only
+from a source project to its own test project; from `Hermes.Channels` to `Hermes`,
+`Hermes.Janus.Channels` and `Hermes.Testing`, since the rules they need (the address and
+sender rules, the allowed hosts and prefixes; the segment count is public, `SmsText` of
+`Hermes.Core`) live in `Hermes.Channels`; and from `Hermes` to `Hermes.Cli`, which
+applies the migrations `Hermes` holds (`06` MSG-OPS-002), and to `Hermes.Testing`, which
+removes, or keeps from being registered, the engine's hosted dispatcher and `observer`
+job by their types and applies the migrations for a test (`04` MSG-LIB-008). The
+packages are released together (`04` MSG-LIB-001). The sample host has an invented
+domain naming no real product or company (checked in review), declares a few kinds in an
+essential and an optional category, sends through the in-memory providers of
+`Hermes.Testing`, maps every endpoint group, and runs in the gate (MSG-ENG-012) from
+packages packed from the same commit into `artifacts/packages/`, which `.gitignore`
+lists, at a version the gate passes it; it alone has no lockfile and no locked restore,
+since its packages change with every commit. The sample host and its test project are
+outside `Hermes.sln`, in `samples/Samples.sln`, and `samples/nuget.config` adds
+`artifacts/packages/` to the package sources for them alone, so no other restore needs
+the folder. Both `nuget.config` files carry `packageSourceMapping`: the library's own
+package identifiers from `artifacts/packages/` only (in `samples/nuget.config`), Janus's
+from its feed only (added with Janus's source in phase 6 of the plan), and every other
+identifier from nuget.org only, so no package is taken from a source it was not mapped
+to.
 
 The repository's other files: at its root the solution (`Hermes.sln`),
 `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `.editorconfig`,
@@ -65,15 +67,21 @@ the fetch script itself holds (checked in review), and left under `tmp/tools/` b
 step of `build/gates/` that the secret-scanning and the test gates both run first. Its
 configuration extends gitleaks' default and adds entries of one form only, for a
 published test vector the tests must hold as a literal (RFC 8291 section 5's receiver
-private key and authentication secret): one file and one exact value, both required to
-match, with the document and section as its reason; every other secret a test needs (the
-SMTP test authority's keys, a fixed secret of `Hermes.Testing`) is made at run time. The
-gates' scripts are PowerShell 7 scripts, and the pipeline runs on GitHub's
-`ubuntu-24.04` runner using no action but `actions/checkout` and `actions/setup-dotnet`
-(the SDK of `global.json`), each at its latest release when the workflow is written and
-pinned by that release's full commit SHA (all checked in review).
+private key and authentication secret): one file under `tests/` and one exact value,
+both required to match, with the document and section as its reason; every other secret
+a test needs (the SMTP test authority's keys, a fixed secret of `Hermes.Testing`) is
+made at run time. No allow-list but gitleaks' default and this one form reaches the
+scan: it runs with `--ignore-gitleaks-allow`, so a line's inline `gitleaks:allow` marker
+silences nothing, with `--gitleaks-ignore-path` naming a folder that holds no file, and
+with no `--baseline-path`; and it fails where a `.gitleaksignore` (a list of findings
+gitleaks would otherwise skip) is tracked or sits at the scanned repository's root,
+where gitleaks reads one whatever its flags say. The gates' scripts are PowerShell 7
+scripts, and the pipeline runs on GitHub's `ubuntu-24.04` runner using no action but
+`actions/checkout` and `actions/setup-dotnet` (the SDK of `global.json`), each at its
+latest release when the workflow is written and pinned by that release's full commit SHA
+(all checked in review).
 
-*Source: M-012, M-013*
+*Source: M-012, M-013, M-015*
 
 **Acceptance criteria**
 1. A test fails on a project outside this layout, a grant outside this rule, or an entry
@@ -86,8 +94,10 @@ pinned by that release's full commit SHA (all checked in review).
 **MSG-ENG-002** — Every project SHALL target .NET 10 with the settings of one committed
 `Directory.Build.props`, and the SDK SHALL be fixed in `global.json`.
 
-**Values (M-012).** `Nullable` enable, `ImplicitUsings` disable, `TreatWarningsAsErrors`
-true, `AnalysisLevel` latest-all, `EnforceCodeStyleInBuild` true, `Deterministic` true,
+**Values (M-012, M-015).** `Nullable` enable, `ImplicitUsings` disable,
+`TreatWarningsAsErrors` true, `MSBuildTreatWarningsAsErrors` true (MSBuild's and the
+SDK's own warnings, which `TreatWarningsAsErrors` leaves warnings), `AnalysisLevel`
+latest-all, `EnforceCodeStyleInBuild` true, `Deterministic` true,
 `GenerateDocumentationFile` true, `EnableConfigurationBindingGenerator` true,
 `NuGetAudit` true with `NuGetAuditMode` all; none overridden by a project. `global.json`
 names a .NET 10 SDK with `rollForward` `latestPatch`. Package versions live in
@@ -115,11 +125,23 @@ which is the output of `dotnet new editorconfig` for the SDK of `global.json`,
 unchanged, with the turn-offs above added (checked in review), and checked by
 `dotnet format --verify-no-changes`.
 
-*Source: M-012*
+*Source: M-012, M-015*
 
 **Acceptance criteria**
-1. No project file sets a target framework, a listed property or a package version.
-2. A warning fails the build; a locked restore that differs from the lockfile fails.
+1. No project file sets a target framework, a listed property or a package version, and
+   `Directory.Packages.props` sets no property but `ManagePackageVersionsCentrally`; no
+   project file, `Directory.Build.props` or `Directory.Packages.props` turns a warning
+   off or keeps it from failing the build, by setting, whatever its value, a property
+   among `NoWarn`, `WarningsNotAsErrors`, `WarningLevel`, `MSBuildWarningsAsMessages`,
+   `MSBuildWarningsNotAsErrors`, `RunAnalyzers`, `RunAnalyzersDuringBuild`,
+   `EnableNETAnalyzers`, `CodeAnalysisRuleSet`, `NuGetAuditLevel`, `AnalysisMode`, and
+   the `AnalysisLevel` or `AnalysisMode` of one category of rules, by an item's metadata
+   (`NoWarn` on a reference) or by an item (`NuGetAuditSuppress`, an analyser
+   configuration file); and no `.editorconfig` or `.globalconfig` but the root
+   `.editorconfig` is tracked or sits in the working tree outside `tmp/` and the
+   projects' `bin/` and `obj/`.
+2. A warning fails the build, the compiler's, an analyser's, NuGet's, MSBuild's or the
+   SDK's alike; a locked restore that differs from the lockfile fails.
 
 ---
 
@@ -259,17 +281,19 @@ it.
 Microsoft.Testing.Platform and hand-written fakes, and name the acceptance criterion
 they prove.
 
-**Values (M-012, M-013).** Each test carries the trait `Category` with one of `unit`
-(nothing external), `integration` (something outside the process: real PostgreSQL in a
-container through Testcontainers, the image `postgres:16.15` (the floor, `06`
-MSG-OPS-007), one container per test class that needs one, or `git` and the secret
-scanner) and `contract` (the public surface, the endpoints and the reference tables);
-the sample host's tests are a fourth kind in their own project. The tests of
-`tests/Hermes.Repository.Tests` that run `git` and the secret scanner (`10` MSG-THR-004)
-are `integration`, running the scanner the gates' fetch step leaves under `tmp/tools/`.
-The pipeline runs each kind on its own, by that trait; a run that finds no test of its
-kind passes (Microsoft.Testing.Platform's exit code 8 for no test is accepted), so a
-phase with none of a kind yet is not failed for it. An acceptance-criterion test is
+**Values (M-012, M-013, M-015).** Each test carries the trait `Category` with one of
+`unit` (nothing external), `integration` (something outside the process: real PostgreSQL
+in a container through Testcontainers, the image `postgres:16.15` (the floor, `06`
+MSG-OPS-007), one container per test class that needs one; `git` and the secret scanner;
+or the SDK's build and pack, writing under `tmp/`) and `contract` (the public surface,
+the endpoints and the reference tables); the sample host's tests are a fourth kind in
+their own project. The tests of `tests/Hermes.Repository.Tests` that run `git` and the
+secret scanner (`10` MSG-THR-004) are `integration`, running the scanner the gates'
+fetch step leaves under `tmp/tools/`. The pipeline runs each kind on its own, by that
+trait; a run that finds no test of its kind passes (Microsoft.Testing.Platform's exit
+code 8 for no test is accepted), so a phase with none of a kind yet is not failed for
+it, and a test of `tests/` that carries none of the three kinds, or more than one, fails
+the gate, since no run, or more than one, would take it. An acceptance-criterion test is
 named `ITEM_ACn_Outcome` (`MSG_SEND_006_AC2_PreferenceTurnedOffStopsDelivery`); every
 other test `Method_Scenario_Outcome`. No mocking package. Providers are tested against
 servers that speak their protocol: a scripted SMTP listener in the test process,
@@ -279,11 +303,13 @@ listener in the test process for the SMS and push providers, reached by replacin
 named clients' primary handlers (`02` MSG-CHAN-001). Every criterion a test can decide
 has one; the rest are named in the phase report with how they were checked.
 
-*Source: M-012, M-013*
+*Source: M-012, M-013, M-015*
 
 **Acceptance criteria**
 1. No mocking package is referenced.
 2. Every testable criterion of a built item has a test carrying its identifier.
+3. A test of `tests/` that carries no `Category` trait, more than one, or a value other
+   than the three, fails the tests gate.
 
 ---
 
@@ -308,11 +334,11 @@ MailKit 4.18.1, Fluid.Core 2.40.0 and Lib.Net.Http.WebPush 3.3.1 are pinned at t
 versions, whose listings were checked on 2026-10-21 and against whose sources the
 chapters' claims about them were checked, so moving one, for a security update too
 (MSG-ENG-010), is a decision-log entry; every other package is taken at its latest
-stable release when added, and its listing checked then, the Microsoft packages at the
-release that matches the SDK's .NET 10 runtime. The reasons and the rejected
-alternatives are M-002 and M-013. Adding a package is a decision-log entry.
+stable release when added, the Microsoft packages at the release that matches the SDK's
+.NET 10 runtime, and its listing checked then (all checked in review). The reasons and
+the rejected alternatives are M-002 and M-013. Adding a package is a decision-log entry.
 
-*Source: M-002, M-012, M-013*
+*Source: M-002, M-012, M-013, M-015*
 
 **Acceptance criteria**
 1. The set of direct package references is within this table, and the tool manifest
@@ -342,13 +368,14 @@ pushes to the empty default branch before setting its protection), commit messag
 follow Conventional Commits 1.0.0, a `CHANGELOG.md` SHALL follow Keep a Changelog 1.1.0,
 and MinVer SHALL derive the version from the tag.
 
-**Values (M-012).**
+**Values (M-012, M-015).**
 - **Commit message:** a type of `feat`, `fix`, `refactor`, `perf`, `test`, `docs`,
   `build`, `ci`, `chore`; an optional scope naming the package's area (`core`,
   `channels`, `engine`, `janus`, `testing`, `cli`, `sample`); a description in the
-  imperative (checked in review), lower case, with no full stop, the first line at most
-  72 characters; a body only where the diff cannot explain itself (checked in review),
-  as dash fragments of at most 72 characters, each a reason or a non-obvious
+  imperative (checked in review), beginning with a lower-case letter (a name it mentions
+  keeps its own spelling: `add the SMTP provider`), with no full stop, the first line at
+  most 72 characters; a body only where the diff cannot explain itself (checked in
+  review), as dash fragments of at most 72 characters, each a reason or a non-obvious
   consequence; a footer carrying the items the commit implements
   (`Implements: MSG-SEND-006`) and nothing else; `!` or `BREAKING CHANGE:` for a break
   of `04` MSG-LIB-006.
@@ -358,7 +385,8 @@ and MinVer SHALL derive the version from the tag.
 - **History:** no force push to the default branch, and no merge of a red check. A
   commit that is not pushed and that no other branch has merged MAY be amended or
   rebased to meet a gate; history that is pushed or merged is never rewritten.
-  `PublicAPI.Shipped.txt` changes only in a release commit.
+  `PublicAPI.Shipped.txt` changes only in a release commit, as
+  `build/gates/release-baseline.json` does (`04` MSG-LIB-006).
 - **Releases:** a release is a tag `v<major>.<minor>.<patch>` on the default branch,
   made by the implementer on the merged release commit when the owner's message says to
   release; the pipeline packs the packages from the tag and publishes them to the feed
@@ -367,13 +395,24 @@ and MinVer SHALL derive the version from the tag.
   authors the name the owner's first message of phase 0 gives, and the repository's
   address, and `Hermes.Cli` also `PackAsTool` and `ToolCommandName` (`hermes`); phase 0
   sets them, in `Directory.Build.props` and the project files, and phase 1
-  `Hermes.Cli`'s two with its project, and every other package property is left unset.
+  `Hermes.Cli`'s two with its project, and every other package property is left unset. A
+  package's dependency on another of the library's packages is the exact version packed
+  (`[v]`, `04` MSG-LIB-001): `dotnet pack` writes a project reference as that version or
+  later, and the .NET 10 SDK has no setting for an exact one, so `Directory.Build.props`
+  holds one target, run after NuGet's `_GetProjectReferenceVersions`, that sets the
+  `ProjectVersion` of each of NuGet's `_ProjectReferencesWithVersions` items to `[v]`;
+  both are names inside NuGet's pack targets, not a documented setting, so `04`
+  MSG-LIB-001's criterion 3 is what catches an SDK that changes them.
 
-*Source: M-012, M-014*
+*Source: M-012, M-014, M-015*
 
 **Acceptance criteria**
 1. A commit message outside the rule, and a behaviour-changing commit without a
    changelog line, fail a check.
+2. A commit that changes the content of an existing `PublicAPI.Shipped.txt` or
+   `build/gates/release-baseline.json`, or deletes one, fails a check, save the release
+   commit, whose exemption comes with the release step (plan, phase 8); a file that
+   moves unchanged with its project (the rename of phase 8) is neither.
 
 ---
 
@@ -394,26 +433,27 @@ integration tests' run checks.
 | Migrations applied twice in a row to an empty database, the second applying nothing | `06` MSG-OPS-002 |
 | No destination, content or person reference in any log line of the integration tests: each integration test captures its log lines with an in-memory logger provider and asserts at its end that none holds a destination, a content value or a person reference the test used; it is checked by the integration tests' run and has no script of its own | `06` MSG-OPS-005 |
 | Secret scanning of the whole history (gitleaks) | `10` MSG-THR-004 |
-| Commit message format and changelog line | MSG-ENG-011 |
+| Commit message format, changelog line, and `PublicAPI.Shipped.txt` and the release baseline unchanged outside a release commit | MSG-ENG-011 |
 | Acceptance-criterion test names present for each criterion of `build/gates/built-items.txt` | MSG-ENG-008 |
 | The sample host builds from the packed packages, its code passes `dotnet format --verify-no-changes` on `samples/Samples.sln`, and its tests pass | MSG-ENG-001, MSG-ENG-002 |
 
 The gates live as scripts under `build/gates/`, which the pipeline runs in one job,
-`gates`, on every pull request, every push to the default branch, which it checks over
-the commits the push brings, save the merge commits the platform writes, and every
-release tag, checked over the commits since the previous release tag (the whole history
-for the first), save the merge commits the platform writes, the publish of MSG-ENG-011
-waiting for it; it is the one status check branch protection requires; a gate whose part
-is built in a later phase (the migrations gate, plan phase 1; the release compatibility
-gate, phase 5; the sample host's, phase 6) has its script added by that phase, and the
-job runs every script present; the implementer runs all of them on the commit its phase
-report names, before it pushes the phase's work (the first `docs:` commit, pushed before
-the gates exist, is checked by the secret scan alone), and reports each one's result for
-that commit; the report's own commit, on top of it, runs the secret scan and the
-commit-message gate again and is the commit the implementer pushes and names in its pull
-request (plan, section 5).
+`gates` (the one status check branch protection requires), on every pull request, every
+push to the default branch and every release tag, the publish of MSG-ENG-011 waiting for
+the last; the commit-message gate checks the commits a pull request or a push brings,
+and for a release tag the commits since the previous release tag (the whole history for
+the first), save the merge commits the platform writes, while the secret scan reads the
+whole history each time (`10` MSG-THR-004); a gate whose part is built in a later phase
+(the migrations gate, plan phase 1; the release compatibility gate, phase 5; the sample
+host's, phase 6) has its script added by that phase, and the job runs every script
+present; the implementer runs all of them on the commit its phase report names, before
+it pushes the phase's work (the first `docs:` commit, pushed before the gates exist, is
+checked by the secret scan alone), and reports each one's result for that commit; the
+report's own commit, on top of it, runs the secret scan and the commit-message gate
+again and is the commit the implementer pushes and names in its pull request (plan,
+section 5).
 
-*Source: M-012, M-014*
+*Source: M-012, M-014, M-015*
 
 **Acceptance criteria**
 1. Each gate runs on pull request, and any failing blocks the merge.

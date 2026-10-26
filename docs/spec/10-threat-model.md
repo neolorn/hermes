@@ -83,14 +83,20 @@ push, only to subscriptions that are the person's when it is dispatched.
 
 ---
 
-**MSG-THR-004** — The repository's whole history SHALL be scanned for secrets on every
-push after the first (which comes before the pipeline exists, `07` MSG-ENG-011, and is
-scanned by the implementer before it is pushed) and every pull request, and a finding
-SHALL block the merge.
+**MSG-THR-004** — The repository's whole history SHALL be scanned for secrets before
+every push, by the implementer (the first push, which comes before the pipeline exists,
+`07` MSG-ENG-011, included), and by the pipeline on every pull request, every push to
+the default branch and every release tag (`07` MSG-ENG-012), and a finding SHALL stop
+the push it comes before and block the merge; no finding is silenced but by gitleaks'
+default configuration and the scanner configuration's one entry form (`07` MSG-ENG-001).
 
-*Source: M-012, M-014*
+*Source: M-012, M-014, M-015*
 
 **Acceptance criteria**
 1. A commit carrying a credential-shaped string fails the scan; the test builds that
    string at run time, in a repository it makes under `tmp/`, so no such string is ever
    written in the repository's own history.
+2. The secret-scanning gate's script fails on the same string on a line that carries
+   gitleaks' inline allow marker; where a `.gitleaksignore` is tracked or sits at the
+   scanned repository's root, whatever it lists; and on a finding a `.gitleaksignore` in
+   the script's working directory lists.
