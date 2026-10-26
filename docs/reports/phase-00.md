@@ -85,6 +85,7 @@ The probes that `AssemblyContractProbeTests` builds under `tmp/`, assemblies mad
 | `global.json` names SDK 10.0.402; `.config/dotnet-tools.json` takes `dotnet-ef` 10.0.13 | The machine's SDK was 10.0.401 (runtime 10.0.12); .NET 10.0.13 is a security release of 2026-10-13 | `07` MSG-ENG-009, MSG-ENG-010 | The SDK is the latest .NET 10 security release, and `dotnet-ef` is at the EF Core release matching that SDK's runtime. |
 | The library's own project references in `src/` | MSG-LIB-001's table gives what each project may reference | `00` section 2.2; `04` MSG-LIB-001 | Each package's project references the library projects its row names, as section 2.2 gives the packages' dependencies. |
 | `MSG_ENG_004_AC2_NoMemberIsLookedUpByName` | A lookup by name can be told only by the type it calls, which the source text does not give | `07` MSG-ENG-004 criterion 2 | The test reads, from the IL of each method body of each built assembly, the members the body references, leaves out the methods of a type marked `GeneratedCodeAttribute` or nested in one, and flags `Delegate.CreateDelegate` by name. |
+| The refusals of `run-gates.ps1`, `gate-test-names.ps1`, `gate-tests.ps1`, `gate-public-surface.ps1` and `fetch-secret-scanner.ps1` | Each gave its reason only in its thrown error, which PowerShell wraps at the console's width: 120 columns locally, 80 on the runner. Two tests that read the reason passed locally and failed in the pipeline's run 40271135668 | `07` MSG-ENG-012 criterion 2 | A gate writes its reason on a line of its own, so the gate gives the same result locally and in the pipeline. |
 
 ## Open questions
 
@@ -93,7 +94,7 @@ The probes that `AssemblyContractProbeTests` builds under `tmp/`, assemblies mad
 
 ## Commit and gates
 
-The report names commit `231a5c925b677eaed738b13c4b2f4666577df583`. Each gate's result there, from the local run of `build/gates/run-gates.ps1 -Base origin/main -Head 231a5c925b677eaed738b13c4b2f4666577df583` on a clean working tree:
+The report names commit `74a5278195dd897f2b183d322a0729a4ddaf1a48`. Each gate's result there, from the local run of `build/gates/run-gates.ps1 -Base origin/main -Head 74a5278195dd897f2b183d322a0729a4ddaf1a48` on a clean working tree:
 
 | Gate | Result |
 |---|---|
@@ -104,10 +105,10 @@ The report names commit `231a5c925b677eaed738b13c4b2f4666577df583`. Each gate's 
 | Public surface files up to date (`gate-public-surface`) | Passed |
 | Dependency allow-list (`gate-dependency-allow-list`) | Passed |
 | Project references and grants (`gate-project-references`) | Passed |
-| Secret scanning of the whole history (`gate-secret-scan`) | Passed: 24 commits, no leaks |
-| Commit message format, changelog line and released files (`gate-commit-messages`) | Passed: 23 commits after `main` |
+| Secret scanning of the whole history (`gate-secret-scan`) | Passed: 26 commits, no leaks |
+| Commit message format, changelog line and released files (`gate-commit-messages`) | Passed: 25 commits after `main` |
 | Acceptance-criterion test names (`gate-test-names`) | Passed: 22 criteria |
 | Migrations, release compatibility, sample host | No script yet (phases 1, 5 and 6) |
 | Log gate | No integration test of this phase logs |
 
-The pipeline's `gates` run on the last commit pushed, `5396fe866091a65e6442332bb410727bed70538f`: run 39683705731 (https://github.com/neolorn/hermes/actions/runs/39683705731), passed. The run on the commit pushed with this report is given in the message naming the pull request.
+The pipeline's `gates` runs on the commits pushed: on `5396fe866091a65e6442332bb410727bed70538f`, run 39683705731 (https://github.com/neolorn/hermes/actions/runs/39683705731), passed; on `d2c4d896f34b7db199891ae969750ffa55e399c3`, the last commit pushed, run 40271135668 (https://github.com/neolorn/hermes/actions/runs/40271135668), failed: `gate-tests` failed on `RunGates_HeadOtherThanTheCheckedOutCommit_Refuses` and `TestNameGate_NoCriterionListed_Fails`, every other gate passed. Resolved by rule gives the cause and the fix, `74a5278`. The run on the commit pushed with this report is given in the message naming the pull request.
