@@ -66,6 +66,20 @@ internal sealed class ProjectFile
         return [.. Enumerate(root, "*.csproj").Order(StringComparer.Ordinal).Select(path => new ProjectFile(root, path))];
     }
 
+    /// <summary>The project files of the repository's packages, <c>src/*/*.csproj</c>, by name.</summary>
+    internal static IReadOnlyList<string> SourceProjects(string root)
+    {
+        string source = System.IO.Path.Combine(root, "src");
+        if (!Directory.Exists(source))
+        {
+            return [];
+        }
+
+        return [.. Directory.EnumerateDirectories(source)
+            .SelectMany(folder => Directory.EnumerateFiles(folder, "*.csproj"))
+            .OrderBy(System.IO.Path.GetFileNameWithoutExtension, StringComparer.Ordinal)];
+    }
+
     /// <summary>
     /// Lists the files of the repository at <paramref name="root"/> that match
     /// <paramref name="pattern"/>, leaving out build output, <c>tmp/</c> and Git's own folder.

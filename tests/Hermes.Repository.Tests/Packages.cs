@@ -24,6 +24,12 @@ internal static class Packages
 
     internal const string Cli = "Hermes.Cli";
 
+    /// <summary>The packages' authors, the name the owner's first message of phase 0 gives (<c>07</c> MSG-ENG-011).</summary>
+    internal const string Authors = "neolorn";
+
+    /// <summary>The repository's address, which every package carries (<c>07</c> MSG-ENG-011).</summary>
+    internal const string RepositoryUrl = "https://github.com/neolorn/hermes";
+
     /// <summary>The test project over the whole repository, the one with no source project.</summary>
     internal const string RepositoryTests = "Hermes.Repository.Tests";
 

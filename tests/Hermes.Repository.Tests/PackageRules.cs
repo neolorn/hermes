@@ -45,6 +45,62 @@ internal static class PackageRules
     internal static IReadOnlyList<string> Mocking { get; } =
         ["Moq", "NSubstitute", "FakeItEasy", "RhinoMocks", "Rhino.Mocks", "JustMock", "Telerik.JustMock", "NMock", "NMock3", "Typemock.Isolator", "Microsoft.QualityTools.Testing.Fakes"];
 
+    /// <summary>The elements of a packed package's metadata: its identifier, version, authors, description, repository and dependencies.</summary>
+    private static readonly FrozenSet<string> ManifestElements =
+        FrozenSet.Create(StringComparer.Ordinal, "id", "version", "authors", "description", "repository", "dependencies");
+
+    /// <summary>
+    /// Answers each dependency of a packed package on another of the library's packages that is
+    /// not the exact version packed, <c>[v]</c> (<c>04</c> MSG-LIB-001 criterion 3).
+    /// </summary>
+    internal static IEnumerable<string> DependencyViolations(IReadOnlyList<PackageManifest> manifests)
+    {
+        Dictionary<string, string> packed = manifests.ToDictionary(manifest => manifest.Id, manifest => manifest.Version, StringComparer.Ordinal);
+        foreach (PackageManifest manifest in manifests)
+        {
+            foreach (PackageDependency dependency in manifest.Dependencies.Where(dependency => packed.ContainsKey(dependency.Id) || Packages.All.Contains(dependency.Id, StringComparer.Ordinal)))
+            {
+                if (!packed.TryGetValue(dependency.Id, out string? version))
+                {
+                    yield return $"{manifest.Id} depends on {dependency.Id}, which was not packed with it.";
+                }
+                else if (!string.Equals(dependency.Version, $"[{version}]", StringComparison.Ordinal))
+                {
+                    yield return $"{manifest.Id} depends on {dependency.Id} at {dependency.Version}, not the exact version packed, [{version}].";
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Answers each property of a packed package outside <c>07</c> MSG-ENG-011: its description
+    /// is its cell of <c>00</c> section 2.2, its authors and repository are the owner's, and it
+    /// carries no other package property.
+    /// </summary>
+    internal static IEnumerable<string> ManifestViolations(PackageManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        foreach (string element in manifest.Elements.Where(element => !ManifestElements.Contains(element)))
+        {
+            yield return $"{manifest.Id} carries the package property {element}, which is left unset.";
+        }
+
+        if (!string.Equals(manifest.Authors, Packages.Authors, StringComparison.Ordinal))
+        {
+            yield return $"{manifest.Id}'s authors are {manifest.Authors}, not {Packages.Authors}.";
+        }
+
+        if (!PackageTable.Descriptions.TryGetValue(manifest.Id, out string? description) || !string.Equals(manifest.Description, description, StringComparison.Ordinal))
+        {
+            yield return $"{manifest.Id}'s description is not its cell of 00 section 2.2.";
+        }
+
+        if (!string.Equals(manifest.RepositoryUrl, Packages.RepositoryUrl, StringComparison.Ordinal))
+        {
+            yield return $"{manifest.Id}'s repository is {manifest.RepositoryUrl}, not {Packages.RepositoryUrl}.";
+        }
+    }
+
     /// <summary>Answers each package or tool of the repository at <paramref name="root"/> outside MSG-ENG-009.</summary>
     internal static IReadOnlyList<string> AllowListViolations(string root)
     {
