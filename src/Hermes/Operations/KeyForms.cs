@@ -1,4 +1,5 @@
 using System;
+using System.Security.Cryptography;
 
 namespace Hermes.Operations;
 
@@ -23,6 +24,23 @@ internal static class KeyForms
             KeyNeeds.PushVapidKeys => IsP256Scalar(value),
             _ => throw new ArgumentOutOfRangeException(nameof(key), key, "Not one of the five keys."),
         };
+    }
+
+    /// <summary>
+    /// The check value of a version of <paramref name="key"/>, which the key table records: the
+    /// first 16 bytes of HMAC-SHA-256 under the version of <c>messaging-key-check</c>, and for
+    /// <c>pushVapidKeys</c> the whole 65-byte public key.
+    /// </summary>
+    internal static byte[] CheckValue(string key, byte[] value)
+    {
+        if (string.Equals(key, KeyNeeds.PushVapidKeys, StringComparison.Ordinal))
+        {
+            using ECDsa pair = ECDsa.Create(new ECParameters { Curve = ECCurve.NamedCurves.nistP256, D = value });
+            ECPoint point = pair.ExportParameters(includePrivateParameters: false).Q;
+            return [0x04, .. point.X!, .. point.Y!];
+        }
+
+        return HMACSHA256.HashData(value, "messaging-key-check"u8)[..16];
     }
 
     /// <summary>Whether <paramref name="value"/> is 32 bytes, big-endian, from 1 to the order of P-256 less one.</summary>

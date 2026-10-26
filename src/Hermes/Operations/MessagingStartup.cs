@@ -17,7 +17,7 @@ namespace Hermes.Operations;
 /// Runs the engine's startup checks in <see cref="StartingAsync"/>, which the host calls on
 /// every lifecycle service before any hosted service's <c>StartAsync</c>, so they complete
 /// before a host's own hosted service starts or a request is served (<c>04</c> MSG-LIB-003):
-/// the configuration, the declarations, the seams, the secrets, then the schema.
+/// the configuration, the declarations, the seams, the secrets, the schema, then the key table.
 /// </summary>
 internal sealed class MessagingStartup(
     IConfiguration configuration,
@@ -26,6 +26,7 @@ internal sealed class MessagingStartup(
     Declarations declarations,
     MessagingDatabase database,
     HeldKeys keys,
+    KeyTable table,
     IServiceProvider services) : IHostedLifecycleService
 {
     public async Task StartingAsync(CancellationToken cancellationToken)
@@ -66,6 +67,8 @@ internal sealed class MessagingStartup(
         {
             throw Failure(Codes.SchemaMismatch, ("migration", migration));
         }
+
+        await table.StartAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
