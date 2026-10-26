@@ -49,6 +49,9 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<MessagingDatabase>();
         services.AddSingleton<HeldKeys>();
         services.AddSingleton<KeyTable>();
+        services.AddSingleton<ContentKeyReservations>();
+        services.AddSingleton<LibraryProtector>();
+        services.AddScoped<ContentProtection>();
         services.AddSingleton<IHostedService, MessagingStartup>();
         services.AddSingleton<IHostedService, KeyTableTimer>();
         return services;

@@ -22,3 +22,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   missing, outside its form or without its write version stopping the start
 - The key table, which records each key version's check value and when it was last used
   to write, a version whose bytes changed or that is in use but not held stopping the start
+- The library's own content protector and the envelope every stored value is kept in, a
+  value opening only in its row and for its person, by the protector its envelope names
