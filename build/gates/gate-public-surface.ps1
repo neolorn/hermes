@@ -23,7 +23,8 @@ $projects = @(
     }
 )
 if ($projects.Count -eq 0) {
-    throw 'src/ holds no project, so the gate would check nothing.'
+    Write-Host 'src/ holds no project, so the gate would check nothing.'
+    throw 'The gate checked nothing.'
 }
 
 $failures = [System.Collections.Generic.List[string]]::new()

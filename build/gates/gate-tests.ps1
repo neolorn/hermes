@@ -32,7 +32,8 @@ $projects = @(
     }
 )
 if ($projects.Count -eq 0) {
-    throw 'tests/ holds no test project, so the gate would run nothing.'
+    Write-Host 'tests/ holds no test project, so the gate would run nothing.'
+    throw 'The gate ran nothing.'
 }
 
 $tests = @(& (Join-Path $PSScriptRoot 'list-tests.ps1') -Repository $Repository)

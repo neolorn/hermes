@@ -28,22 +28,26 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..' '..')).Path
 $current = & git -C $root rev-parse --verify --quiet 'HEAD^{commit}'
 $expected = & git -C $root rev-parse --verify --quiet "$Head^{commit}"
 if ($LASTEXITCODE -ne 0 -or -not $expected) {
-    throw "-Head $Head names no commit."
+    Write-Host "-Head $Head names no commit."
+    throw 'The gates did not run.'
 }
 if ($current -ne $expected) {
-    throw "HEAD is $current, not -Head $Head ($expected), so the gates would not check -Head."
+    Write-Host "HEAD is $current, not -Head $Head ($expected), so the gates would not check -Head."
+    throw 'The gates did not run.'
 }
 
 $changes = @(& git -C $root status --porcelain --untracked-files=all)
 if ($LASTEXITCODE -ne 0) { throw 'git status failed.' }
 if ($changes.Count -gt 0) {
     $changes | ForEach-Object { Write-Host $_ }
-    throw "The working tree differs from HEAD in $($changes.Count) path(s), so the gates would not check -Head alone."
+    Write-Host "The working tree differs from HEAD in $($changes.Count) path(s), so the gates would not check -Head alone."
+    throw 'The gates did not run.'
 }
 
 $gates = @(Get-ChildItem -Path $PSScriptRoot -Filter 'gate-*.ps1' -File | Sort-Object Name)
 if ($gates.Count -eq 0) {
-    throw 'build/gates/ holds no gate script, so nothing would be checked.'
+    Write-Host 'build/gates/ holds no gate script, so nothing would be checked.'
+    throw 'The gates did not run.'
 }
 
 $results = [System.Collections.Generic.List[pscustomobject]]::new()

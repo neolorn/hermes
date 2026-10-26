@@ -57,7 +57,8 @@ $actual = (Get-FileHash -Algorithm SHA256 -Path $archive).Hash.ToLowerInvariant(
 if ($actual -ne $digests[$platform]) {
     Remove-Item -Force $archive
     if (Test-Path $scanner) { Remove-Item -Force $scanner }
-    throw "$archiveName does not match its published SHA-256."
+    Write-Host "$archiveName does not match its published SHA-256."
+    throw 'The secret scanner was not fetched.'
 }
 
 $extracted = Join-Path $tools "extract-$([guid]::NewGuid().ToString('N'))"

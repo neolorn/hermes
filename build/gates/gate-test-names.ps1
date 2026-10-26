@@ -25,7 +25,8 @@ if (-not (Test-Path $list)) {
 
 $lines = @(Get-Content -Path $list)
 if ($lines.Count -eq 0) {
-    throw 'build/gates/built-items.txt names no criterion, so the gate would check nothing.'
+    Write-Host 'build/gates/built-items.txt names no criterion, so the gate would check nothing.'
+    throw 'The gate checked nothing.'
 }
 
 $methods = @(& (Join-Path $PSScriptRoot 'list-tests.ps1') -Repository $Repository | ForEach-Object { $_.Method })
