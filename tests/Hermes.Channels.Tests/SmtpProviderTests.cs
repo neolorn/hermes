@@ -409,8 +409,8 @@ public sealed class SmtpProviderTests
         Assert.True(text.IsPlain);
         Assert.Equal("utf-8", text.ContentType.Charset, ignoreCase: true);
 
-        // SMTP ends the data with a line end, which a part alone keeps.
-        Assert.Equal("Ihre Bestellung 1042 ist unterwegs. Grüße\r\n", text.Text);
+        // SMTP ends the data with a line end, which a part alone keeps; MimeKit decodes it as the platform writes one.
+        Assert.Matches("^Ihre Bestellung 1042 ist unterwegs\\. Grüße\\r?\\n$", text.Text);
     }
 
     private static async Task<List<Attempt>> SendAllAsync(IHost host, int count)
