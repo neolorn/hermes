@@ -11,10 +11,25 @@ namespace Hermes.Tests;
 /// <summary>A host that registers the library with the configuration and declarations a test gives.</summary>
 internal static class TestHost
 {
-    /// <summary>The configuration of <paramref name="languages"/>, the first being the default; <c>en</c> where none is given.</summary>
+    internal const string FromAddress = "notices@example.com";
+
+    internal const string Sender = "Hermes";
+
+    internal const string Subject = "mailto:operations@example.com";
+
+    /// <summary>
+    /// The configuration of <paramref name="languages"/>, the first being the default; <c>en</c>
+    /// where none is given; with the keys each channel requires where a kind uses it.
+    /// </summary>
     internal static Dictionary<string, string?> Languages(params string[] languages)
     {
-        Dictionary<string, string?> configuration = new(StringComparer.Ordinal);
+        Dictionary<string, string?> configuration = new(StringComparer.Ordinal)
+        {
+            ["Hermes:Email:From:Address"] = FromAddress,
+            ["Hermes:Sms:Sender"] = Sender,
+            ["Hermes:Sms:AllowedPrefixes:0"] = "+20",
+            ["Hermes:Push:Subject"] = Subject,
+        };
         string[] tags = languages.Length == 0 ? ["en"] : languages;
         for (int index = 0; index < tags.Length; index++)
         {

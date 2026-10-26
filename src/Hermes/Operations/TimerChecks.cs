@@ -6,6 +6,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Hermes.Channels;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -18,7 +20,7 @@ namespace Hermes.Operations;
 /// (<c>newer-release</c>), and its <c>contentKeys</c> write version used for more than
 /// <c>Hermes:Secrets:ContentKeys:MaxValues</c> values (<c>content-key-limit</c>).
 /// </summary>
-internal sealed class TimerChecks(ConfigurationState state, Alerts alerts, MessagingDatabase database, HeldKeys keys, IOptionsMonitor<MessagingOptions> options)
+internal sealed class TimerChecks(ConfigurationState state, ChannelsConfiguration channels, Alerts alerts, MessagingDatabase database, HeldKeys keys, IOptionsMonitor<MessagingOptions> options)
 {
     private const string ConfigurationInvalid = "configuration-invalid";
 
@@ -39,7 +41,7 @@ internal sealed class TimerChecks(ConfigurationState state, Alerts alerts, Messa
 
     private async Task ConfigurationAsync(CancellationToken cancellationToken)
     {
-        ImmutableArray<string> now = state.InvalidKeys;
+        ImmutableArray<string> now = [.. state.InvalidKeys, .. channels.InvalidKeys];
         foreach (string key in now)
         {
             await alerts.HoldingAsync(ConfigurationInvalid, key, Details(("key", key)), cancellationToken).ConfigureAwait(false);

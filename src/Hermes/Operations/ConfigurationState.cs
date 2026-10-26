@@ -39,6 +39,9 @@ internal sealed class ConfigurationState : IOptionsChangeTokenSource<MessagingOp
         Effective = Build(inForce);
     }
 
+    /// <summary>The section <c>Hermes</c> of the configuration given to <c>AddHermes</c>.</summary>
+    internal IConfigurationSection Section => hermes;
+
     /// <summary>The values in force, under the section's own key names, which the options are bound from.</summary>
     internal IConfiguration Effective { get; private set; }
 

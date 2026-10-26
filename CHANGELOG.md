@@ -54,3 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AddHermesChannels`, which registers the shipped providers alone and checks the keys
   of each channel whose section is present when the host starts, and the VAPID keys
   where the shipped push provider is used, a value outside its rule stopping the start
+- `AddHermes` registers the shipped providers and checks the keys of each channel a kind
+  uses, a kind's `from`, `replyTo` and SMS sender, and the configuration given to the
+  call, the start stopping on the first outside its rule

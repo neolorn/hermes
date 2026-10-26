@@ -24,10 +24,12 @@ internal static partial class DeclarationCheck
     /// <param name="declarations">What the host declared.</param>
     /// <param name="languages">The languages of <c>Hermes:Languages</c>.</param>
     /// <param name="places">The value of <c>Hermes:Retention:Places</c>.</param>
-    internal static (string Declaration, string Field)? Invalid(Declarations declarations, IReadOnlyList<string> languages, TimeSpan places)
+    /// <param name="isSender">The registered SMS provider's rule for a sender, which narrows the base rule (<c>02</c> MSG-SMS-002).</param>
+    internal static (string Declaration, string Field)? Invalid(Declarations declarations, IReadOnlyList<string> languages, TimeSpan places, Func<string, bool> isSender)
     {
         ArgumentNullException.ThrowIfNull(declarations);
         ArgumentNullException.ThrowIfNull(languages);
+        ArgumentNullException.ThrowIfNull(isSender);
 
         HashSet<string> categories = new(StringComparer.Ordinal);
         foreach (CategoryDeclaration category in declarations.Categories)
@@ -47,7 +49,7 @@ internal static partial class DeclarationCheck
                 return (kind.Name, "name");
             }
 
-            string? field = InvalidMember(kind, categories);
+            string? field = InvalidMember(kind, categories, isSender);
             if (field is not null)
             {
                 return (kind.Name, field);
@@ -82,7 +84,7 @@ internal static partial class DeclarationCheck
         return name.Length <= NameLength && Name().IsMatch(name);
     }
 
-    private static string? InvalidMember(KindDeclaration kind, HashSet<string> categories)
+    private static string? InvalidMember(KindDeclaration kind, HashSet<string> categories, Func<string, bool> isSender)
     {
         if (!categories.Contains(kind.Category))
         {
@@ -99,9 +101,24 @@ internal static partial class DeclarationCheck
             return "ExpiresAfter";
         }
 
+        if (kind.Email is { From: { } from } && !IsAddress(from))
+        {
+            return "from";
+        }
+
+        if (kind.Email is { ReplyTo: { } replyTo } && !IsAddress(replyTo))
+        {
+            return "replyTo";
+        }
+
         if (kind.Sms is { MaxSegments: < 1 or > 10 })
         {
             return "maxSegments";
+        }
+
+        if (kind.Sms is { Sender: { } sender } && !(SenderRule.IsSender(sender) && isSender(sender)))
+        {
+            return "sender";
         }
 
         if (kind.Push is { Ttl: { } ttl } && (ttl < TimeSpan.FromSeconds(1) || ttl > LongestTtl))
@@ -110,6 +127,16 @@ internal static partial class DeclarationCheck
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="address"/> is an address (<c>02</c> MSG-EMAIL-002) with, where it
+    /// has one, a display name of 1 to 128 characters, the rule of <c>Email:From:DisplayName</c>.
+    /// </summary>
+    private static bool IsAddress(EmailAddress address)
+    {
+        return address.Address is { } text && AddressRule.IsAddress(text)
+            && (address.DisplayName is null || TextLength.ScalarValues(address.DisplayName) is >= 1 and <= LabelLength);
     }
 
     private static string? InvalidMember(CategoryDeclaration category, IReadOnlyList<KindDeclaration> kinds, IReadOnlyList<string> languages, TimeSpan places)
