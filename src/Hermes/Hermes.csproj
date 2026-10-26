@@ -5,6 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
     <PackageReference Include="MinVer" PrivateAssets="all" />
   </ItemGroup>
@@ -12,6 +16,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Hermes.Core\Hermes.Core.csproj" />
     <ProjectReference Include="..\Hermes.Channels\Hermes.Channels.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hermes.Tests" />
   </ItemGroup>
 
 </Project>

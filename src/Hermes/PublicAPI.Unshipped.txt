@@ -1,1 +1,4 @@
 #nullable enable
+Hermes.DeclarationBuilder
+Hermes.MessagingServiceCollectionExtensions
+static Hermes.MessagingServiceCollectionExtensions.AddHermes(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration, System.Action<Hermes.DeclarationBuilder!>! declare) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

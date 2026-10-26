@@ -1,1 +1,5 @@
 #nullable enable
+Hermes.Core.MessagingStartupException
+Hermes.Core.MessagingStartupException.Code.get -> string!
+Hermes.Core.MessagingStartupException.Details.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Hermes.Core.MessagingStartupException.MessagingStartupException(string! code, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! details) -> void
