@@ -44,6 +44,28 @@ public sealed class BuildSettingsTests
     }
 
     [Fact]
+    public async Task MSG_ENG_002_AC2_AnMSBuildWarningFailsTheBuild()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        ProbeProject probe = new(folder, "Probe");
+        probe.WriteSource("Numbers.cs", Clean);
+        probe.WriteProject(string.Empty);
+
+        ProcessResult clean = await probe.BuildAsync(cancellationToken);
+        probe.WriteProject("""
+              <Target Name="Warn" BeforeTargets="Build">
+                <Warning Code="PROBE001" Text="A warning MSBuild raises." />
+              </Target>
+            """);
+        ProcessResult warned = await probe.BuildAsync(cancellationToken);
+
+        Assert.True(clean.ExitCode == 0, clean.Output);
+        Assert.NotEqual(0, warned.ExitCode);
+        Assert.Contains("error PROBE001: A warning MSBuild raises.", warned.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task MSG_ENG_002_AC2_ALockedRestoreThatDiffersFromTheLockfileFails()
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;

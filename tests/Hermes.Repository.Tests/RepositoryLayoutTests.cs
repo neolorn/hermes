@@ -84,41 +84,13 @@ public sealed class RepositoryLayoutTests
     }
 
     [Fact]
-    public void MSG_ENG_002_AC1_NoProjectSetsATargetFrameworkAListedPropertyOrAPackageVersion()
-    {
-        Assert.Empty(PackageRules.SettingViolations(RepositoryRoot.Path));
-    }
-
-    [Theory]
-    [InlineData("<PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>", "sets TargetFramework")]
-    [InlineData("<PropertyGroup><Nullable>disable</Nullable></PropertyGroup>", "sets Nullable")]
-    [InlineData("<PropertyGroup><TreatWarningsAsErrors>false</TreatWarningsAsErrors></PropertyGroup>", "sets TreatWarningsAsErrors")]
-    [InlineData("<ItemGroup><PackageReference Include=\"xunit.v3\" VersionOverride=\"3.0.0\" /></ItemGroup>", "sets the version of xunit.v3")]
-    public void MSG_ENG_002_AC1_ProjectSettingWhatOnlyTheSharedFilesSetIsFound(string body, string violation)
-    {
-        using RepositoryFixture fixture = new();
-        fixture.WriteProject("tests/Hermes.Core.Tests/Hermes.Core.Tests.csproj", body);
-
-        Assert.Contains(PackageRules.SettingViolations(fixture.Root), found => found.Contains(violation, StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void SettingViolations_ProjectWithoutItsLockfile_IsFound()
-    {
-        using RepositoryFixture fixture = new();
-        File.Delete(Path.Combine(fixture.Root, "src", "Hermes.Core", "packages.lock.json"));
-
-        Assert.Contains("src/Hermes.Core/Hermes.Core.csproj has no packages.lock.json.", PackageRules.SettingViolations(fixture.Root));
-    }
-
-    [Fact]
     public void RepositoryFixture_AsMade_KeepsEveryRule()
     {
         using RepositoryFixture fixture = new();
 
         Assert.Empty(LayoutRules.ProjectViolations(fixture.Root));
         Assert.Empty(LayoutRules.FolderViolations(fixture.Root));
-        Assert.Empty(PackageRules.SettingViolations(fixture.Root));
+        Assert.Empty(SettingRules.SettingViolations(fixture.Root));
         Assert.Empty(PackageRules.AllowListViolations(fixture.Root));
         Assert.Empty(PackageRules.MockingViolations(fixture.Root));
         Assert.Empty(ReferenceRules.ReferenceViolations(fixture.Root));

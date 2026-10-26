@@ -16,6 +16,8 @@ internal sealed class ProjectFile
 
     private static readonly FrozenSet<string> RootOnlyFolders = FrozenSet.Create(StringComparer.Ordinal, ".git", "tmp", "artifacts");
 
+    private static readonly FrozenSet<string> WorkingTreeExclusions = FrozenSet.Create(StringComparer.Ordinal, ".git", "tmp");
+
     private ProjectFile(string root, string path)
     {
         Path = path;
@@ -70,10 +72,19 @@ internal sealed class ProjectFile
     /// </summary>
     internal static IEnumerable<string> Enumerate(string root, string pattern)
     {
-        return Walk(root, root, pattern);
+        return Walk(root, root, pattern, RootOnlyFolders);
     }
 
-    private static IEnumerable<string> Walk(string root, string folder, string pattern)
+    /// <summary>
+    /// Lists the files of the working tree at <paramref name="root"/> that match
+    /// <paramref name="pattern"/>, leaving out only build output, <c>tmp/</c> and Git's own folder.
+    /// </summary>
+    internal static IEnumerable<string> EnumerateWorkingTree(string root, string pattern)
+    {
+        return Walk(root, root, pattern, WorkingTreeExclusions);
+    }
+
+    private static IEnumerable<string> Walk(string root, string folder, string pattern, FrozenSet<string> rootExclusions)
     {
         foreach (string file in Directory.EnumerateFiles(folder, pattern))
         {
@@ -84,12 +95,12 @@ internal sealed class ProjectFile
         {
             string name = System.IO.Path.GetFileName(child);
             bool atRoot = string.Equals(folder, root, StringComparison.Ordinal);
-            if (BuildOutputFolders.Contains(name) || (atRoot && RootOnlyFolders.Contains(name)))
+            if (BuildOutputFolders.Contains(name) || (atRoot && rootExclusions.Contains(name)))
             {
                 continue;
             }
 
-            foreach (string file in Walk(root, child, pattern))
+            foreach (string file in Walk(root, child, pattern, rootExclusions))
             {
                 yield return file;
             }

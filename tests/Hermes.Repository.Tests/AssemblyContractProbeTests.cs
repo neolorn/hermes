@@ -154,7 +154,7 @@ public sealed class AssemblyContractProbeTests
             """);
 
         // A probe built to break rules is built with its warnings left as warnings.
-        ProcessResult build = await probe.BuildAsync(cancellationToken, "-p:TreatWarningsAsErrors=false");
+        ProcessResult build = await probe.BuildAsync(cancellationToken, "-p:TreatWarningsAsErrors=false", "-p:MSBuildTreatWarningsAsErrors=false");
         Assert.True(build.ExitCode == 0, build.Output);
         return probe;
     }
