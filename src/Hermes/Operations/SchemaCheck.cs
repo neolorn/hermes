@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -18,6 +19,17 @@ internal static class SchemaCheck
         {
             HashSet<string> applied = [.. await context.Database.GetAppliedMigrationsAsync(cancellationToken).ConfigureAwait(false)];
             return SchemaMigration.Ids.FirstOrDefault(migration => !applied.Contains(migration));
+        }
+    }
+
+    /// <summary>The first migration in the database's history that the release does not know, a newer release's, or none (<c>06</c> MSG-OPS-008).</summary>
+    internal static async Task<string?> UnknownAsync(MessagingDatabase database, CancellationToken cancellationToken)
+    {
+        MessagingContext context = database.Context();
+        await using (context.ConfigureAwait(false))
+        {
+            IEnumerable<string> applied = await context.Database.GetAppliedMigrationsAsync(cancellationToken).ConfigureAwait(false);
+            return applied.Except(SchemaMigration.Ids, StringComparer.Ordinal).Order(StringComparer.Ordinal).FirstOrDefault();
         }
     }
 }

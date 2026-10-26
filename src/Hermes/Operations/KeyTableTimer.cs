@@ -14,23 +14,47 @@ namespace Hermes.Operations;
 /// jobs: it writes the write versions' last-made instant and the token lifetime every
 /// <c>Hermes:Dispatch:Interval</c> and when the process stops (<c>06</c> MSG-OPS-008).
 /// </summary>
-internal sealed partial class KeyTableTimer(KeyTable table, IOptionsMonitor<MessagingOptions> options, TimeProvider clock, ILogger<KeyTableTimer> logger) : BackgroundService
+internal sealed partial class KeyTableTimer(KeyTable table, TimerChecks checks, IOptionsMonitor<MessagingOptions> options, TimeProvider clock, ILogger<KeyTableTimer> logger) : BackgroundService
 {
+    private PeriodicTimer? timer;
+
+    /// <summary>Starts the timer before the loop, which the host runs apart, so the first tick falls one interval after the start.</summary>
+    public override Task StartAsync(CancellationToken cancellationToken)
+    {
+        timer = new PeriodicTimer(options.CurrentValue.Dispatch.Interval, clock);
+        return base.StartAsync(cancellationToken);
+    }
+
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
         await base.StopAsync(cancellationToken).ConfigureAwait(false);
         await WriteAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    public override void Dispose()
+    {
+        timer?.Dispose();
+        base.Dispose();
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using PeriodicTimer timer = new(options.CurrentValue.Dispatch.Interval, clock);
+        PeriodicTimer timer = this.timer!;
         while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
         {
             TimeSpan interval = options.CurrentValue.Dispatch.Interval;
             if (timer.Period != interval)
             {
                 timer.Period = interval;
+            }
+
+            try
+            {
+                await checks.RunAsync(stoppingToken).ConfigureAwait(false);
+            }
+            catch (DbException failure)
+            {
+                ChecksFailed(failure);
             }
 
             await WriteAsync(stoppingToken).ConfigureAwait(false);
@@ -51,4 +75,7 @@ internal sealed partial class KeyTableTimer(KeyTable table, IOptionsMonitor<Mess
 
     [LoggerMessage(EventId = 10, EventName = "KeyTableWriteFailed", Level = LogLevel.Warning, Message = "The key table's last-made instants were not written; the next interval writes them.")]
     private partial void WriteFailed(Exception failure);
+
+    [LoggerMessage(EventId = 11, EventName = "TimerChecksFailed", Level = LogLevel.Warning, Message = "The timer's alert conditions were not judged; the next interval judges them.")]
+    private partial void ChecksFailed(Exception failure);
 }

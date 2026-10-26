@@ -24,3 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to write, a version whose bytes changed or that is in use but not held stopping the start
 - The library's own content protector and the envelope every stored value is kept in, a
   value opening only in its row and for its person, by the protector its envelope names
+- Alerts raised through the alert sink when a condition starts to hold and each repeat
+  while it holds, cleared once, raised once however many processes see it; the
+  `configuration-invalid`, `newer-release` and `content-key-limit` conditions
