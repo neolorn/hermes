@@ -35,3 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and checked when the host starts and on each reload
 - `Templates:Path`, taken from the host's content root, a path naming a file or a folder
   the process cannot read stopping the start, and one naming nothing holding no template
+- `hermes migrate` checks that the database has each role of `applicationRoles` before it
+  applies anything, grants the reading alone of the migration history and the use of the
+  schema's sequences, and checks each grant, answering `messaging.migrate.grantfailed`
+  and keeping none where one does not hold

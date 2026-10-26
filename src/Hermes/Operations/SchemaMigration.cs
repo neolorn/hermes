@@ -23,23 +23,77 @@ internal static class SchemaMigration
 
     internal const string Failed = "messaging.migrate.failed";
 
-    /// <summary>The release's migrations, in the order they apply.</summary>
-    internal static IReadOnlyList<string> Ids { get; } = ReadIds();
+    internal const string GrantFailed = "messaging.migrate.grantfailed";
 
-    /// <summary>Grants the role the transaction names the use of the schema and its tables, the server quoting the name.</summary>
+    /// <summary>
+    /// The first of the roles the database does not have, each name compared as text, so a
+    /// name past PostgreSQL's 63 bytes matches no role rather than the one named by its first 63.
+    /// </summary>
+    private const string MissingRole = """
+        SELECT wanted.name
+        FROM unnest(@roles) WITH ORDINALITY AS wanted(name, place)
+        WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE pg_roles.rolname::text = wanted.name)
+        ORDER BY wanted.place
+        LIMIT 1
+        """;
+
+    /// <summary>
+    /// Grants the role the transaction names the use of the schema, of each table but the
+    /// migration history, the reading of the history and the use of each sequence, revoking
+    /// nothing; the server quotes each name.
+    /// </summary>
     private const string Grant = """
         DO $$
+        DECLARE
+            grantee text := current_setting('messaging.grant_role');
+            item record;
         BEGIN
-            EXECUTE format('GRANT USAGE ON SCHEMA messaging TO %I', current_setting('messaging.grant_role'));
-            EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA messaging TO %I', current_setting('messaging.grant_role'));
+            EXECUTE format('GRANT USAGE ON SCHEMA messaging TO %I', grantee);
+            FOR item IN
+                SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'messaging' AND c.relkind IN ('r', 'p')
+            LOOP
+                IF item.relname = '__migrations_history' THEN
+                    EXECUTE format('GRANT SELECT ON messaging.%I TO %I', item.relname, grantee);
+                ELSE
+                    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON messaging.%I TO %I', item.relname, grantee);
+                END IF;
+            END LOOP;
+            EXECUTE format('GRANT USAGE ON ALL SEQUENCES IN SCHEMA messaging TO %I', grantee);
         END
         $$
         """;
 
     /// <summary>
-    /// Applies the pending migrations one at a time, each in its own transaction, then grants
-    /// each of <paramref name="roles"/> the use of the schema and its tables; answers none on
-    /// success, or the failure, the migrations before a failing one staying applied.
+    /// Whether the role holds each privilege <see cref="Grant"/> gives, as PostgreSQL warns and
+    /// grants nothing where the migration's role holds a privilege without the right to grant it.
+    /// </summary>
+    private const string Holds = """
+        SELECT EXISTS (
+            SELECT 1 FROM pg_roles r
+            WHERE r.rolname::text = @role
+              AND has_schema_privilege(r.oid, 'messaging', 'USAGE')
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM pg_class c
+                  JOIN pg_namespace n ON n.oid = c.relnamespace
+                  CROSS JOIN LATERAL unnest(CASE WHEN c.relname = '__migrations_history' THEN ARRAY['SELECT'] ELSE ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE'] END) AS wanted(privilege)
+                  WHERE n.nspname = 'messaging' AND c.relkind IN ('r', 'p') AND NOT has_table_privilege(r.oid, c.oid, wanted.privilege))
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM pg_class c
+                  JOIN pg_namespace n ON n.oid = c.relnamespace
+                  WHERE n.nspname = 'messaging' AND c.relkind = 'S' AND NOT has_sequence_privilege(r.oid, c.oid, 'USAGE')))
+        """;
+
+    /// <summary>The release's migrations, in the order they apply.</summary>
+    internal static IReadOnlyList<string> Ids { get; } = ReadIds();
+
+    /// <summary>
+    /// Checks that the database has each of <paramref name="roles"/>, applies the pending
+    /// migrations one at a time, each in its own transaction, then grants each role the use of
+    /// the schema in one transaction; answers none on success, or the failure, the migrations
+    /// before a failing one staying applied and no grant of a failed run staying.
     /// </summary>
     internal static async Task<MigrationFailure?> ApplyAsync(string connection, IReadOnlyList<string> roles, CancellationToken cancellationToken)
     {
@@ -49,7 +103,7 @@ internal static class SchemaMigration
         }
         catch (ArgumentException)
         {
-            return new MigrationFailure(InputInvalid, new Dictionary<string, string>(StringComparer.Ordinal) { ["member"] = "connection" });
+            return Failure(InputInvalid, "member", "connection");
         }
 
         MessagingContext context = MessagingContext.Create(connection);
@@ -61,11 +115,28 @@ internal static class SchemaMigration
             }
             catch (Exception failure) when (failure is DbException or SocketException or TimeoutException or InvalidOperationException or ArgumentException)
             {
-                return new MigrationFailure(ConnectionFailed, new Dictionary<string, string>(StringComparer.Ordinal));
+                return Failure(ConnectionFailed);
+            }
+
+            NpgsqlConnection database = (NpgsqlConnection)context.Database.GetDbConnection();
+            IReadOnlyList<string> pending;
+            try
+            {
+                if (roles.Count > 0 && await MissingRoleAsync(database, roles, cancellationToken).ConfigureAwait(false) is not null)
+                {
+                    return Failure(InputInvalid, "member", "applicationRoles");
+                }
+
+                pending = [.. await context.Database.GetPendingMigrationsAsync(cancellationToken).ConfigureAwait(false)];
+            }
+            catch (DbException)
+            {
+                // Reading the roles and the history is part of reaching the database, before any migration.
+                return Failure(ConnectionFailed);
             }
 
             IMigrator migrator = context.GetService<IMigrator>();
-            foreach (string migration in await context.Database.GetPendingMigrationsAsync(cancellationToken).ConfigureAwait(false))
+            foreach (string migration in pending)
             {
                 try
                 {
@@ -73,42 +144,90 @@ internal static class SchemaMigration
                 }
                 catch (DbException)
                 {
-                    return new MigrationFailure(Failed, new Dictionary<string, string>(StringComparer.Ordinal) { ["migration"] = migration });
+                    return Failure(Failed, "migration", migration);
                 }
             }
 
-            if (roles.Count > 0)
+            return roles.Count > 0 ? await GrantAsync(database, roles, cancellationToken).ConfigureAwait(false) : null;
+        }
+    }
+
+    private static async Task<string?> MissingRoleAsync(NpgsqlConnection connection, IReadOnlyList<string> roles, CancellationToken cancellationToken)
+    {
+        NpgsqlCommand command = new(MissingRole, connection);
+        await using (command.ConfigureAwait(false))
+        {
+            command.Parameters.AddWithValue("roles", roles.ToArray());
+            return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
+        }
+    }
+
+    /// <summary>
+    /// Grants each role in one transaction and checks it holds each privilege; answers none, or
+    /// the role whose grant failed or is not found, the transaction then rolling back. A failure
+    /// opening or committing the transaction names the first role, as no role's grants stay.
+    /// </summary>
+    private static async Task<MigrationFailure?> GrantAsync(NpgsqlConnection connection, IReadOnlyList<string> roles, CancellationToken cancellationToken)
+    {
+        string current = roles[0];
+        try
+        {
+            NpgsqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+            await using (transaction.ConfigureAwait(false))
             {
-                await GrantAsync((NpgsqlConnection)context.Database.GetDbConnection(), roles, cancellationToken).ConfigureAwait(false);
+                foreach (string role in roles)
+                {
+                    current = role;
+                    if (!await GrantRoleAsync(connection, transaction, role, cancellationToken).ConfigureAwait(false))
+                    {
+                        return Failure(GrantFailed, "role", role);
+                    }
+                }
+
+                current = roles[0];
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             }
+        }
+        catch (DbException)
+        {
+            return Failure(GrantFailed, "role", current);
         }
 
         return null;
     }
 
-    private static async Task GrantAsync(NpgsqlConnection connection, IReadOnlyList<string> roles, CancellationToken cancellationToken)
+    private static async Task<bool> GrantRoleAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string role, CancellationToken cancellationToken)
     {
-        NpgsqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-        await using (transaction.ConfigureAwait(false))
+        NpgsqlCommand name = new("SELECT set_config('messaging.grant_role', @role, true)", connection, transaction);
+        await using (name.ConfigureAwait(false))
         {
-            foreach (string role in roles)
-            {
-                NpgsqlCommand name = new("SELECT set_config('messaging.grant_role', @role, true)", connection, transaction);
-                await using (name.ConfigureAwait(false))
-                {
-                    name.Parameters.AddWithValue("role", role);
-                    await name.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                }
-
-                NpgsqlCommand grant = new(Grant, connection, transaction);
-                await using (grant.ConfigureAwait(false))
-                {
-                    await grant.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                }
-            }
-
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            name.Parameters.AddWithValue("role", role);
+            await name.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
+
+        NpgsqlCommand grant = new(Grant, connection, transaction);
+        await using (grant.ConfigureAwait(false))
+        {
+            await grant.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        NpgsqlCommand holds = new(Holds, connection, transaction);
+        await using (holds.ConfigureAwait(false))
+        {
+            holds.Parameters.AddWithValue("role", role);
+            return await holds.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is true;
+        }
+    }
+
+    private static MigrationFailure Failure(string code, string? detail = null, string? value = null)
+    {
+        Dictionary<string, string> details = new(StringComparer.Ordinal);
+        if (detail is not null && value is not null)
+        {
+            details[detail] = value;
+        }
+
+        return new MigrationFailure(code, details);
     }
 
     private static string[] ReadIds()

@@ -31,7 +31,13 @@ public sealed class PostgresFixture : IAsyncLifetime
     {
         string name = "test_" + Guid.NewGuid().ToString("N");
         await RunAsync($"CREATE DATABASE {name};");
-        return (name, new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = name }.ConnectionString);
+        return (name, Connection(name));
+    }
+
+    /// <summary>The superuser's connection string to <paramref name="database"/>.</summary>
+    internal string Connection(string database)
+    {
+        return new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { Database = database }.ConnectionString;
     }
 
     /// <summary>Runs <paramref name="script"/> through the container's <c>psql</c> as its superuser, in <paramref name="database"/> where given.</summary>
