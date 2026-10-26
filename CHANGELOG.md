@@ -42,3 +42,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The provider contracts `IEmailProvider`, `IEmailSession`, `ISmsProvider` and
   `IPushProvider`, their messages, and the `Attempt` each call answers, which carries no
   text a provider answered
+- `SmsText.Measure`, which answers an SMS text's encoding and its segments as the network
+  counts them, never splitting an escape pair or a surrogate pair

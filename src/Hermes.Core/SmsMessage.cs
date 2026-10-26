@@ -22,10 +22,10 @@ public sealed record SmsMessage
     /// <summary>The attempt's delivery reference: 128 random bits, base64url, which a report may echo.</summary>
     public required string DeliveryReference { get; init; }
 
-    /// <summary>The text's encoding (<c>02</c> MSG-SMS-001).</summary>
+    /// <summary>The text's encoding, as <see cref="SmsText.Measure(string)"/> answers it.</summary>
     public required SmsEncoding Encoding { get; init; }
 
-    /// <summary>The segments the text takes, counted as the network counts them (<c>02</c> MSG-SMS-001).</summary>
+    /// <summary>The segments the text takes, as <see cref="SmsText.Measure(string)"/> answers them.</summary>
     public required int Segments { get; init; }
 
     /// <summary>The address the provider's report of this message goes to, or none.</summary>

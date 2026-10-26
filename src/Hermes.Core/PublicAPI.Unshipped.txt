@@ -263,6 +263,14 @@ Hermes.Core.SendId.Value.init -> void
 Hermes.Core.SmsEncoding
 Hermes.Core.SmsEncoding.Gsm7 = 0 -> Hermes.Core.SmsEncoding
 Hermes.Core.SmsEncoding.Ucs2 = 1 -> Hermes.Core.SmsEncoding
+Hermes.Core.SmsMeasure
+Hermes.Core.SmsMeasure.<Clone>$() -> Hermes.Core.SmsMeasure!
+Hermes.Core.SmsMeasure.Encoding.get -> Hermes.Core.SmsEncoding
+Hermes.Core.SmsMeasure.Encoding.init -> void
+Hermes.Core.SmsMeasure.Equals(Hermes.Core.SmsMeasure? other) -> bool
+Hermes.Core.SmsMeasure.Segments.get -> int
+Hermes.Core.SmsMeasure.Segments.init -> void
+Hermes.Core.SmsMeasure.SmsMeasure() -> void
 Hermes.Core.SmsMessage
 Hermes.Core.SmsMessage.<Clone>$() -> Hermes.Core.SmsMessage!
 Hermes.Core.SmsMessage.DeliveryReference.get -> string!
@@ -325,6 +333,7 @@ Hermes.Core.SmsReportResponse.Equals(Hermes.Core.SmsReportResponse? other) -> bo
 Hermes.Core.SmsReportResponse.SmsReportResponse() -> void
 Hermes.Core.SmsReportResponse.Status.get -> int
 Hermes.Core.SmsReportResponse.Status.init -> void
+Hermes.Core.SmsText
 Hermes.Core.UnprotectResult
 Hermes.Core.UnprotectResult.Erased
 Hermes.Core.UnprotectResult.Erased.Equals(Hermes.Core.UnprotectResult.Erased? other) -> bool
@@ -415,6 +424,9 @@ override Hermes.Core.SecretVersions.Equals(object? obj) -> bool
 override Hermes.Core.SecretVersions.GetHashCode() -> int
 override Hermes.Core.SecretVersions.ToString() -> string!
 override Hermes.Core.SendId.GetHashCode() -> int
+override Hermes.Core.SmsMeasure.Equals(object? obj) -> bool
+override Hermes.Core.SmsMeasure.GetHashCode() -> int
+override Hermes.Core.SmsMeasure.ToString() -> string!
 override Hermes.Core.SmsMessage.Equals(object? obj) -> bool
 override Hermes.Core.SmsMessage.GetHashCode() -> int
 override Hermes.Core.SmsMessage.ToString() -> string!
@@ -504,6 +516,8 @@ static Hermes.Core.SecretVersions.operator !=(Hermes.Core.SecretVersions? left, 
 static Hermes.Core.SecretVersions.operator ==(Hermes.Core.SecretVersions? left, Hermes.Core.SecretVersions? right) -> bool
 static Hermes.Core.SendId.operator !=(Hermes.Core.SendId left, Hermes.Core.SendId right) -> bool
 static Hermes.Core.SendId.operator ==(Hermes.Core.SendId left, Hermes.Core.SendId right) -> bool
+static Hermes.Core.SmsMeasure.operator !=(Hermes.Core.SmsMeasure? left, Hermes.Core.SmsMeasure? right) -> bool
+static Hermes.Core.SmsMeasure.operator ==(Hermes.Core.SmsMeasure? left, Hermes.Core.SmsMeasure? right) -> bool
 static Hermes.Core.SmsMessage.operator !=(Hermes.Core.SmsMessage? left, Hermes.Core.SmsMessage? right) -> bool
 static Hermes.Core.SmsMessage.operator ==(Hermes.Core.SmsMessage? left, Hermes.Core.SmsMessage? right) -> bool
 static Hermes.Core.SmsReportReading.operator !=(Hermes.Core.SmsReportReading? left, Hermes.Core.SmsReportReading? right) -> bool
@@ -512,6 +526,7 @@ static Hermes.Core.SmsReportRequest.operator !=(Hermes.Core.SmsReportRequest? le
 static Hermes.Core.SmsReportRequest.operator ==(Hermes.Core.SmsReportRequest? left, Hermes.Core.SmsReportRequest? right) -> bool
 static Hermes.Core.SmsReportResponse.operator !=(Hermes.Core.SmsReportResponse? left, Hermes.Core.SmsReportResponse? right) -> bool
 static Hermes.Core.SmsReportResponse.operator ==(Hermes.Core.SmsReportResponse? left, Hermes.Core.SmsReportResponse? right) -> bool
+static Hermes.Core.SmsText.Measure(string! text) -> Hermes.Core.SmsMeasure!
 static Hermes.Core.UnprotectResult.Erased.operator !=(Hermes.Core.UnprotectResult.Erased? left, Hermes.Core.UnprotectResult.Erased? right) -> bool
 static Hermes.Core.UnprotectResult.Erased.operator ==(Hermes.Core.UnprotectResult.Erased? left, Hermes.Core.UnprotectResult.Erased? right) -> bool
 static Hermes.Core.UnprotectResult.KeyUnavailable.operator !=(Hermes.Core.UnprotectResult.KeyUnavailable? left, Hermes.Core.UnprotectResult.KeyUnavailable? right) -> bool
