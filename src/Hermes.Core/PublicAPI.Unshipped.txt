@@ -858,3 +858,39 @@ virtual Hermes.Core.UnprotectResult.PrintMembers(System.Text.StringBuilder! buil
 ~override Hermes.Core.DeliveryId.ToString() -> string
 ~override Hermes.Core.SendId.Equals(object obj) -> bool
 ~override Hermes.Core.SendId.ToString() -> string
+Hermes.Core.ISuppressions
+Hermes.Core.ISuppressions.AddAsync(Hermes.Core.Channel channel, string! destination, string! category, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.ISuppressions.RemoveAsync(Hermes.Core.Channel channel, string! destination, string! category, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.CategoryPreferences
+Hermes.Core.CategoryPreferences.<Clone>$() -> Hermes.Core.CategoryPreferences!
+Hermes.Core.CategoryPreferences.Category.get -> string!
+Hermes.Core.CategoryPreferences.Category.init -> void
+Hermes.Core.CategoryPreferences.CategoryPreferences() -> void
+Hermes.Core.CategoryPreferences.Channels.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.ChannelPreference!>!
+Hermes.Core.CategoryPreferences.Channels.init -> void
+Hermes.Core.CategoryPreferences.Equals(Hermes.Core.CategoryPreferences? other) -> bool
+Hermes.Core.CategoryPreferences.Essential.get -> bool
+Hermes.Core.CategoryPreferences.Essential.init -> void
+Hermes.Core.ChannelPreference
+Hermes.Core.ChannelPreference.<Clone>$() -> Hermes.Core.ChannelPreference!
+Hermes.Core.ChannelPreference.Channel.get -> Hermes.Core.Channel
+Hermes.Core.ChannelPreference.Channel.init -> void
+Hermes.Core.ChannelPreference.ChannelPreference() -> void
+Hermes.Core.ChannelPreference.Equals(Hermes.Core.ChannelPreference? other) -> bool
+Hermes.Core.ChannelPreference.On.get -> bool
+Hermes.Core.ChannelPreference.On.init -> void
+Hermes.Core.IPreferences
+Hermes.Core.IPreferences.ReadAsync(string! person, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Hermes.Core.CategoryPreferences!>!>
+Hermes.Core.IPreferences.SetAsync(string! person, string! category, Hermes.Core.Channel channel, bool isOn, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+override Hermes.Core.CategoryPreferences.Equals(object? obj) -> bool
+override Hermes.Core.CategoryPreferences.GetHashCode() -> int
+override Hermes.Core.CategoryPreferences.ToString() -> string!
+override Hermes.Core.ChannelPreference.Equals(object? obj) -> bool
+override Hermes.Core.ChannelPreference.GetHashCode() -> int
+override Hermes.Core.ChannelPreference.ToString() -> string!
+static Hermes.Core.CategoryPreferences.operator !=(Hermes.Core.CategoryPreferences? left, Hermes.Core.CategoryPreferences? right) -> bool
+static Hermes.Core.CategoryPreferences.operator ==(Hermes.Core.CategoryPreferences? left, Hermes.Core.CategoryPreferences? right) -> bool
+static Hermes.Core.ChannelPreference.operator !=(Hermes.Core.ChannelPreference? left, Hermes.Core.ChannelPreference? right) -> bool
+static Hermes.Core.ChannelPreference.operator ==(Hermes.Core.ChannelPreference? left, Hermes.Core.ChannelPreference? right) -> bool
+Hermes.Core.IRecipientIdentity
+Hermes.Core.IRecipientIdentity.CurrentAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<string?>

@@ -37,6 +37,7 @@ internal sealed partial class Messages(
     SendRenderer renderer,
     ContentProtection protection,
     KeyedHashes hashes,
+    UnsubscribeTokens tokens,
     MessagingDatabase database,
     HostSchemas schemas,
     Alerts alerts,
@@ -107,13 +108,14 @@ internal sealed partial class Messages(
         string language = SendLanguage.Resolve(send.Language, current.Languages, current.DefaultLanguage!);
         string zone = SendLanguage.Zone(send.TimeZone, current.TimeZone);
         renderer.CheckPassed(kind, chosen!, language, send.Values);
-        SendRender render = await renderer.RenderAsync(kind, chosen!, language, zone, send.Values).ConfigureAwait(false);
+        string? unsubscribe = chosen!.Contains(Channel.Email) && IsOptional(kind) ? Unsubscribe(kind, language, email!, send.NotBefore, current) : null;
+        SendRender render = await renderer.RenderAsync(kind, chosen!, language, zone, send.Values, unsubscribe).ConfigureAwait(false);
         if (render.Refusal is { } refusal)
         {
             return Result.Fail<SendReceipt>(Failed(refusal, ("channel", Spellings.Of(render.Channel!.Value))));
         }
 
-        Prepared prepared = new(send, kind, person, email, phone, language, zone, render.Channels);
+        Prepared prepared = new(send, kind, person, email, phone, language, zone, render.Channels, unsubscribe);
         Result<SendReceipt> result;
         if (host is null)
         {
@@ -176,6 +178,11 @@ internal sealed partial class Messages(
                     {
                         Notices.Add(context, delivery.Id, delivery.Sequence, Spellings.Of(DeliveryStatus.Cancelled), null, now);
                     }
+                }
+
+                if (cancelled.Count > 0)
+                {
+                    await Places.ReleaseAsync(context, [.. cancelled.Select(delivery => delivery.Id)], token).ConfigureAwait(false);
                 }
 
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
@@ -309,6 +316,11 @@ internal sealed partial class Messages(
                 values.Add(("destination", destination));
             }
 
+            if (rendered.Channel == Channel.Email && prepared.Unsubscribe is { } address)
+            {
+                values.Add(("unsubscribe", address));
+            }
+
             foreach ((string field, string text) in values)
             {
                 ContentProtecting made = await protection.ProtectAsync(prepared.Person, Encoding.UTF8.GetBytes(text), ContentContext.Of(ContentContext.Deliveries, id, field), cancellationToken).ConfigureAwait(false);
@@ -364,6 +376,26 @@ internal sealed partial class Messages(
         }
 
         return Result.Success(receipt);
+    }
+
+    private bool IsOptional(KindDeclaration kind)
+    {
+        return declarations.Categories.Any(category => string.Equals(category.Name, kind.Category, StringComparison.Ordinal) && !category.Essential);
+    }
+
+    /// <summary>
+    /// The one-click unsubscribe address of an optional category's email (<c>02</c> MSG-EMAIL-006):
+    /// <c>Hermes:PublicBaseAddress</c>, <c>/unsubscribe/</c> and a token dated from the later of now and
+    /// the send's <c>NotBefore</c>, made under the write versions.
+    /// </summary>
+    private string Unsubscribe(KindDeclaration kind, string language, string email, DateTimeOffset? notBefore, MessagingOptions current)
+    {
+        DateTimeOffset now = clock.GetUtcNow();
+        DateTimeOffset from = notBefore is { } later && later > now ? later : now;
+        int version = hashes.WriteVersion;
+        byte[] hash = hashes.Under(version, KeyedHashes.Email, Encoding.UTF8.GetBytes(Destinations.EmailHashed(email)));
+        string token = tokens.Make(version, kind.Category, language, from, hash);
+        return current.PublicBaseAddress!.AbsoluteUri.TrimEnd('/') + "/unsubscribe/" + token;
     }
 
     private KindDeclaration Kind(Send send)
@@ -512,6 +544,9 @@ internal sealed partial class Messages(
             case "destination":
                 delivery.Destination = stored;
                 break;
+            case "unsubscribe":
+                delivery.Unsubscribe = stored;
+                break;
             case TemplateParts.Subject:
                 delivery.Subject = stored;
                 break;
@@ -545,7 +580,7 @@ internal sealed partial class Messages(
     }
 
     /// <summary>The <c>contentKeys</c> version a value of the library's protector was made under, none for another protector's.</summary>
-    private static int? LibraryVersion(byte[] stored)
+    internal static int? LibraryVersion(byte[] stored)
     {
         ContentEnvelope.Envelope envelope = ContentEnvelope.Read(stored);
         return string.Equals(envelope.Id, LibraryProtector.LibraryId, StringComparison.Ordinal) ? BinaryPrimitives.ReadInt32BigEndian(envelope.Output.Span) : null;
@@ -570,7 +605,7 @@ internal sealed partial class Messages(
     [LoggerMessage(Level = LogLevel.Debug, Message = "Send {Send} of kind {Kind} recorded with {Deliveries} deliveries.")]
     private static partial void Recorded(ILogger logger, Guid send, string kind, int deliveries);
 
-    private sealed record Prepared(Send Send, KindDeclaration Kind, string? Person, string? Email, string? Phone, string Language, string Zone, IReadOnlyList<RenderedChannel> Channels);
+    private sealed record Prepared(Send Send, KindDeclaration Kind, string? Person, string? Email, string? Phone, string Language, string Zone, IReadOnlyList<RenderedChannel> Channels, string? Unsubscribe);
 
     private sealed record Cancelled(Guid Id, string Channel, int Sequence);
 }

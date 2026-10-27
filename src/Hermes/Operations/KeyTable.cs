@@ -35,6 +35,13 @@ internal sealed class KeyTable(MessagingDatabase database, HeldKeys keys, IOptio
         WHERE (key, version) IN (SELECT * FROM unnest(@keys, @versions))
         """;
 
+    /// <summary>Writes the current instant as one version's last-made instant where the one recorded is older, clearing its retired mark.</summary>
+    private const string MarkVersionMade = """
+        UPDATE messaging.key_versions
+        SET last_made_at = GREATEST(last_made_at, @now), retired = false
+        WHERE key = @key AND version = @version
+        """;
+
     /// <summary>Writes this process's token lifetime where it is longer than the one recorded.</summary>
     private const string RecordTokenLifetime = """
         INSERT INTO messaging.token_lifetime (id, longest) VALUES (1, @lifetime)
@@ -99,6 +106,33 @@ internal sealed class KeyTable(MessagingDatabase database, HeldKeys keys, IOptio
     internal Task WriteMadeAsync(CancellationToken cancellationToken)
     {
         return LibraryTransactions.RunAsync(database, options.CurrentValue, WriteMadeAsync, cancellationToken);
+    }
+
+    /// <summary>
+    /// Writes, in its own transaction, the current instant as the last-made instant of
+    /// <paramref name="key"/>'s <paramref name="version"/> where the one recorded is older,
+    /// clearing its retired mark (<c>05</c> MSG-API-005).
+    /// </summary>
+    internal Task MarkMadeAsync(string key, int version, CancellationToken cancellationToken)
+    {
+        return LibraryTransactions.RunAsync(
+            database,
+            options.CurrentValue,
+            (context, token) => context.Database.ExecuteSqlRawAsync(
+                MarkVersionMade,
+                [new NpgsqlParameter("now", clock.GetUtcNow()), new NpgsqlParameter("key", key), new NpgsqlParameter("version", version)],
+                token),
+            cancellationToken);
+    }
+
+    /// <summary>Whether values have been made under <paramref name="key"/>'s <paramref name="version"/> and it is not retired, read now.</summary>
+    internal Task<bool> InUseAsync(string key, int version, CancellationToken cancellationToken)
+    {
+        return LibraryTransactions.RunAsync(
+            database,
+            options.CurrentValue,
+            (context, token) => context.KeyVersions.AsNoTracking().AnyAsync(row => row.Key == key && row.Version == version && row.FirstMadeAt != null && !row.Retired, token),
+            cancellationToken);
     }
 
     private async Task<int> WriteMadeAsync(MessagingContext context, CancellationToken cancellationToken)

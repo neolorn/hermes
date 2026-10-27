@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Hermes.Channels;
 using Hermes.Content;
 using Hermes.Core;
+using Hermes.Endpoints;
 using Hermes.Operations;
 
 using Microsoft.EntityFrameworkCore;
@@ -64,6 +65,9 @@ internal sealed partial class DispatchPass : IDisposable
     private Task handingBack = Task.CompletedTask;
 
     private bool heldForKey;
+
+    /// <summary>The last balance recorded, read once a pass at the first optional SMS it checks; none until a first balance is recorded.</summary>
+    private Task<decimal?>? balance;
 
     private IEmailSession? session;
 
@@ -281,9 +285,32 @@ internal sealed partial class DispatchPass : IDisposable
             return;
         }
 
+        CategoryDeclaration? category = passes.Category(row.Category);
+        if (category is { Essential: false } && !await OptionalChecksAsync(delivery, kind, category, values, services).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        if (category is not null && !await LimitsAsync(delivery, kind, category, values).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        if (channel == Channel.Push)
+        {
+            await PushAsync(delivery, kind, values, services).ConfigureAwait(false);
+            return;
+        }
+
         if (channel == Channel.Sms && !SenderRule.Allows(passes.Channels.CurrentValue.Sms.AllowedPrefixes, values["destination"]!))
         {
             await EndAtCheckAsync(delivery, AttemptReason.DestinationNotAllowed).ConfigureAwait(false);
+            return;
+        }
+
+        if (channel == Channel.Sms && category is { Essential: false } && await (balance ??= LastBalanceAsync()).ConfigureAwait(false) < passes.Channels.CurrentValue.Sms.BalanceFloor)
+        {
+            await EndAsync(delivery, "balancefloor", reason: null, giveBack: true).ConfigureAwait(false);
             return;
         }
 
@@ -301,6 +328,406 @@ internal sealed partial class DispatchPass : IDisposable
         if (await CallAsync(delivery, kind, values, reference, services).ConfigureAwait(false) is { } answer)
         {
             await RecordAsync(delivery, kind, number, answer).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Runs the checks an optional category's delivery meets and an essential one's does not,
+    /// each against the state at that moment: 3, the suppression of an email or SMS destination;
+    /// 4, the person's preference for the category on the channel; 5, the quiet hours in the
+    /// send's time zone where they apply; and, past the rate of 6, 7, the recipient's consent.
+    /// Answers whether the delivery goes on; a check that ends or holds it gives its place in the
+    /// rate back.
+    /// </summary>
+    private async Task<bool> OptionalChecksAsync(ClaimedDelivery delivery, KindDeclaration kind, CategoryDeclaration category, Dictionary<string, string?> values, IServiceProvider services)
+    {
+        if (channel is Channel.Email or Channel.Sms && Suppressions.Value(channel, values["destination"]) is { } destination)
+        {
+            if (!await ExtendAsync(delivery).ConfigureAwait(false))
+            {
+                return false;
+            }
+
+            (bool read, (bool suppressed, int? missing)) = await ReadAsync((context, token) => Suppressions.LookUpAsync(context, passes.Hashes, channel, category.Name, destination, token)).ConfigureAwait(false);
+            if (!read)
+            {
+                return false;
+            }
+
+            if (missing is not null)
+            {
+                await HoldAsync(delivery, kind, KeyNeeds.HashKeys).ConfigureAwait(false);
+                return false;
+            }
+
+            if (suppressed)
+            {
+                await EndAsync(delivery, "suppressed", reason: null, giveBack: true).ConfigureAwait(false);
+                return false;
+            }
+        }
+
+        if (delivery.Row.Person is { } person)
+        {
+            if (!await ExtendAsync(delivery).ConfigureAwait(false))
+            {
+                return false;
+            }
+
+            (bool read, bool off) = await ReadAsync((context, token) => Preferences.IsOffAsync(context, person, category.Name, channel, token)).ConfigureAwait(false);
+            if (!read)
+            {
+                return false;
+            }
+
+            if (off)
+            {
+                await EndAsync(delivery, "optedout", reason: null, giveBack: true).ConfigureAwait(false);
+                return false;
+            }
+        }
+
+        if (category.QuietHours ?? category.ConsentPurpose is not null)
+        {
+            TimeZoneInfo zone = TimeZoneInfo.FindSystemTimeZoneById(delivery.Row.TimeZone);
+            if (QuietHours.End(current.QuietHours, zone, Clock.GetUtcNow()) is { } end)
+            {
+                TimeSpan delay = current.QuietHours.Spread * (RandomNumberGenerator.GetInt32(int.MaxValue) / (double)int.MaxValue);
+                await QuietAsync(delivery, end + delay).ConfigureAwait(false);
+                return false;
+            }
+        }
+
+        if (category.ConsentPurpose is { } purpose)
+        {
+            if (!await ExtendAsync(delivery).ConfigureAwait(false))
+            {
+                return false;
+            }
+
+            ConsentAnswer? answer = await ConsentAsync(delivery, purpose, values, services).ConfigureAwait(false);
+            if (answer is null)
+            {
+                return false;
+            }
+
+            if (answer == ConsentAnswer.NotGiven)
+            {
+                await EndAsync(delivery, "noconsent", reason: null, giveBack: false).ConfigureAwait(false);
+                return false;
+            }
+
+            if (answer != ConsentAnswer.Given)
+            {
+                await TransientAtCheckAsync(delivery, kind, AttemptReason.ConsentUnavailable).ConfigureAwait(false);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Check 8 (<c>01</c> MSG-SEND-014): in one transaction whose locks together wait no longer
+    /// than the dispatch timeout, takes the locks of the category's limits on the channel, then
+    /// the delivery's row, counts each window's places and takes one place for each limit where
+    /// every count is under its limit, or ends the delivery <c>limited</c>. A delivery that holds
+    /// places already keeps them; a lock that times out holds it for <c>Dispatch:Interval</c>.
+    /// Answers whether the delivery goes on.
+    /// </summary>
+    private async Task<bool> LimitsAsync(ClaimedDelivery delivery, KindDeclaration kind, CategoryDeclaration category, Dictionary<string, string?> values)
+    {
+        List<LimitDeclaration> limits = [.. category.Limits.Where(limit => limit.Channel == channel).OrderBy(limit => limit.Window)];
+        List<LimitDeclaration> caps = [.. category.DeploymentLimits.Where(limit => limit.Channel == channel).OrderBy(limit => limit.Window)];
+        if (limits.Count == 0 && caps.Count == 0)
+        {
+            return true;
+        }
+
+        if (!await ExtendAsync(delivery).ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        DeliveryRow row = delivery.Row;
+        byte[]? value = channel == Channel.Push
+            ? (row.Person is { } person ? Encoding.UTF8.GetBytes(person) : null)
+            : Suppressions.Value(channel, values["destination"]);
+        string domain = channel == Channel.Push ? KeyedHashes.Person : Suppressions.Domain(channel);
+        IReadOnlyList<(int Version, byte[] Hash)> every = value is null ? [] : passes.Hashes.Every(domain, value);
+        List<LimitDeclaration> hashed = value is null ? [] : limits;
+        long started = Stopwatch.GetTimestamp();
+        LimitOutcome outcome;
+        try
+        {
+            outcome = await LibraryTransactions.RunAsync(
+                passes.Database,
+                current,
+                (context, token) => TakePlacesAsync(context, row, category.Name, hashed, caps, domain, value, every, started, token),
+                finish.Token).ConfigureAwait(false);
+        }
+        catch (Exception failure) when (DispatchPasses.IsLockTimeout(failure))
+        {
+            outcome = LimitOutcome.NoTime;
+        }
+        catch (OperationCanceledException) when (finish.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        switch (outcome)
+        {
+            case LimitOutcome.Taken:
+                return true;
+            case LimitOutcome.Limited:
+                Ended(row, "limited", reason: null);
+                return false;
+            case LimitOutcome.KeyMissing:
+                await HoldAsync(delivery, kind, KeyNeeds.HashKeys).ConfigureAwait(false);
+                return false;
+            case LimitOutcome.NoTime:
+                await LockHoldAsync(delivery).ConfigureAwait(false);
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>The transaction of check 8, its locks taken in the order of <c>01</c> MSG-SEND-014.</summary>
+    private async Task<LimitOutcome> TakePlacesAsync(
+        MessagingContext context,
+        DeliveryRow row,
+        string category,
+        List<LimitDeclaration> limits,
+        List<LimitDeclaration> caps,
+        string domain,
+        byte[]? value,
+        IReadOnlyList<(int Version, byte[] Hash)> every,
+        long started,
+        CancellationToken token)
+    {
+        if (await context.Places.AnyAsync(place => place.DeliveryId == row.Id, token).ConfigureAwait(false))
+        {
+            return LimitOutcome.Taken;
+        }
+
+        List<long> keys = [.. limits.SelectMany(limit => every.Select(hash => Places.Key(spelling, category, Places.Seconds(limit.Window), hash.Hash)))];
+        keys.AddRange(caps.Select(limit => Places.Key(spelling, category, Places.Seconds(limit.Window), hash: null)));
+        foreach (long key in keys)
+        {
+            if (!await NextLockAsync(context, started, token).ConfigureAwait(false))
+            {
+                return LimitOutcome.NoTime;
+            }
+
+            await AdvisoryLocks.TakeAsync(context, [key], shared: false, token).ConfigureAwait(false);
+        }
+
+        if (!await NextLockAsync(context, started, token).ConfigureAwait(false))
+        {
+            return LimitOutcome.NoTime;
+        }
+
+        DeliveryRow? locked = await DeliveryClaims.LockAsync(context, row.Id, token).ConfigureAwait(false);
+        DateTimeOffset now = Clock.GetUtcNow();
+        if (locked is null || !DeliveryClaims.IsHeld(locked, holder, now))
+        {
+            return LimitOutcome.Lost;
+        }
+
+        if (limits.Count > 0 && await KeysInUse.MissingAsync(context, KeyNeeds.HashKeys, [.. passes.Hashes.Versions], token).ConfigureAwait(false) is not null)
+        {
+            return LimitOutcome.KeyMissing;
+        }
+
+        List<byte[]> hashes = [.. every.Select(hash => hash.Hash)];
+        bool full = false;
+        foreach (LimitDeclaration limit in limits)
+        {
+            full |= await Places.CountAsync(context, spelling, category, limit.Window, hashes, now, token).ConfigureAwait(false) >= limit.Count;
+        }
+
+        foreach (LimitDeclaration limit in caps)
+        {
+            full |= await Places.CountAsync(context, spelling, category, limit.Window, hashes: null, now, token).ConfigureAwait(false) >= limit.Count;
+        }
+
+        if (full)
+        {
+            End(context, locked, "limited", reason: null, now);
+        }
+        else
+        {
+            DateTimeOffset lapses = now + current.Retention.Places;
+            int version = passes.Hashes.WriteVersion;
+            foreach (LimitDeclaration limit in limits)
+            {
+                context.Places.Add(new PlaceRow
+                {
+                    DeliveryId = row.Id,
+                    Kind = PlaceRow.Limit,
+                    Channel = spelling,
+                    Category = category,
+                    WindowSeconds = Places.Seconds(limit.Window),
+                    Hash = passes.Hashes.Under(version, domain, value!),
+                    HashVersion = version,
+                    TakenAt = now,
+                    LapsesAt = lapses,
+                });
+            }
+
+            foreach (LimitDeclaration limit in caps)
+            {
+                context.Places.Add(new PlaceRow
+                {
+                    DeliveryId = row.Id,
+                    Kind = PlaceRow.Deployment,
+                    Channel = spelling,
+                    Category = category,
+                    WindowSeconds = Places.Seconds(limit.Window),
+                    TakenAt = now,
+                    LapsesAt = lapses,
+                });
+            }
+        }
+
+        await context.SaveChangesAsync(token).ConfigureAwait(false);
+        return full ? LimitOutcome.Limited : LimitOutcome.Taken;
+    }
+
+    /// <summary>Sets the <c>lock_timeout</c> of the next lock of check 8 to what is left of the dispatch timeout since <paramref name="started"/>, or of a stop's; false where nothing is left.</summary>
+    private async Task<bool> NextLockAsync(MessagingContext context, long started, CancellationToken token)
+    {
+        TimeSpan left = current.Dispatch.Timeout - Stopwatch.GetElapsedTime(started);
+        if (LockTimeout() is not { } stop || left <= TimeSpan.Zero)
+        {
+            return false;
+        }
+
+        await DeliveryClaims.LockTimeoutAsync(context, left < stop ? left : stop, token).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>Holds the delivery whose limit locks were not had in time: back to <c>waiting</c>, due after <c>Dispatch:Interval</c>, no attempt counted.</summary>
+    private async Task LockHoldAsync(ClaimedDelivery delivery)
+    {
+        (bool held, DateTimeOffset due) = await UnderClaimAsync(delivery, (_, row, now) =>
+        {
+            row.Status = "waiting";
+            row.DueAt = now + current.Dispatch.Interval;
+            DeliveryClaims.Release(row);
+            return Task.FromResult(row.DueAt);
+        }).ConfigureAwait(false);
+        if (held)
+        {
+            LimitLockHeld(Logger, delivery.Row.Id, spelling, due);
+        }
+    }
+
+    /// <summary>Holds the delivery for quiet hours: back to <c>waiting</c>, due at <paramref name="due"/>, no attempt counted, its place in the rate given back.</summary>
+    private async Task QuietAsync(ClaimedDelivery delivery, DateTimeOffset due)
+    {
+        (bool held, _) = await UnderClaimAsync(delivery, async (context, row, now) =>
+        {
+            row.Status = "waiting";
+            row.DueAt = due;
+            row.BecameDueAt = due;
+            DeliveryClaims.Release(row);
+            await DeliveryClaims.CountAsync(context, spelling, second, -1, finish.Token).ConfigureAwait(false);
+            return true;
+        }).ConfigureAwait(false);
+        if (held)
+        {
+            QuietHeld(Logger, delivery.Row.Id, spelling, due);
+        }
+    }
+
+    /// <summary>
+    /// Asks the host's consent source, bounded by the dispatch timeout and a stop's deadline;
+    /// a source that throws or does not answer in time answers <see cref="ConsentAnswer.Unavailable"/>,
+    /// and a stop answers none.
+    /// </summary>
+    private async Task<ConsentAnswer?> ConsentAsync(ClaimedDelivery delivery, string purpose, Dictionary<string, string?> values, IServiceProvider services)
+    {
+        DeliveryRow row = delivery.Row;
+        ConsentQuery query = new()
+        {
+            Recipient = row.Person is { } person ? new Recipient.Person(person) : new Recipient.Anonymous(),
+            Destination = channel == Channel.Push ? null : values["destination"],
+            Purpose = purpose,
+            Channel = channel,
+        };
+        try
+        {
+            IConsentSource source = services.GetRequiredService<IConsentSource>();
+            using CancellationTokenSource bound = new(current.Dispatch.Timeout, Clock);
+            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(bound.Token, finish.Token);
+            return await source.ConsentsAsync(query, linked.Token).AsTask().WaitAsync(current.Dispatch.Timeout, Clock, finish.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (finish.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (Exception failure) when (!finish.IsCancellationRequested)
+        {
+            SeamFailed(Logger, "consent source", failure.GetType().Name, row.Id);
+            return ConsentAnswer.Unavailable;
+        }
+    }
+
+    /// <summary>Counts an attempt answered transient at a check, with no call, and retries or ends the delivery as a transient answer does.</summary>
+    private async Task TransientAtCheckAsync(ClaimedDelivery delivery, KindDeclaration kind, AttemptReason reason)
+    {
+        (bool held, (string Status, DateTimeOffset Due) moved) = await UnderClaimAsync(delivery, (context, row, now) =>
+        {
+            row.Attempts++;
+            row.FirstHeldAt = null;
+            context.Attempts.Add(new AttemptRow { DeliveryId = row.Id, Number = row.Attempts, At = now, Class = Spellings.Of(AttemptClass.Transient), Reason = Spellings.Of(reason) });
+            Retry(context, row, kind, row.Attempts, reason, retryAfter: null, now);
+            return Task.FromResult((row.Status, row.DueAt));
+        }).ConfigureAwait(false);
+        if (!held)
+        {
+            return;
+        }
+
+        CountAttempt(AttemptClass.Transient, reason);
+        if (Finals.Contains(moved.Status))
+        {
+            Ended(delivery.Row, moved.Status, moved.Status == "failed" ? reason : null);
+        }
+        else
+        {
+            string answered = Spellings.Of(AttemptClass.Transient);
+            string why = Spellings.Of(reason);
+            Retried(Logger, delivery.Row.Id, spelling, answered, why, moved.Due);
+        }
+    }
+
+    /// <summary>Reads in a transaction of its own, under the pass's lock timeout; answers false where a stop left no time or a lock timed out.</summary>
+    private async Task<(bool Read, T Value)> ReadAsync<T>(Func<MessagingContext, CancellationToken, Task<T>> read)
+    {
+        if (LockTimeout() is not { } timeout)
+        {
+            return (false, default!);
+        }
+
+        try
+        {
+            T value = await LibraryTransactions.RunAsync(
+                passes.Database,
+                current,
+                async (context, token) =>
+                {
+                    await DeliveryClaims.LockTimeoutAsync(context, timeout, token).ConfigureAwait(false);
+                    return await read(context, token).ConfigureAwait(false);
+                },
+                finish.Token).ConfigureAwait(false);
+            return (true, value);
+        }
+        catch (Exception failure) when (DispatchPasses.IsLockTimeout(failure) || (failure is OperationCanceledException && finish.IsCancellationRequested))
+        {
+            return (false, default!);
         }
     }
 
@@ -373,6 +800,18 @@ internal sealed partial class DispatchPass : IDisposable
         if (channel == Channel.Email)
         {
             yield return ("subject", row.Subject);
+            yield return ("unsubscribe", row.Unsubscribe);
+        }
+
+        if (channel == Channel.Push)
+        {
+            yield return (TemplateParts.Title, row.Title);
+            yield return (TemplateParts.Body, row.Body);
+            yield return (TemplateParts.Url, row.Url);
+            yield return (TemplateParts.Tag, row.Tag);
+            yield return (TemplateParts.Icon, row.Icon);
+            yield return (TemplateParts.Badge, row.Badge);
+            yield break;
         }
 
         yield return ("text", row.Text);
@@ -416,19 +855,29 @@ internal sealed partial class DispatchPass : IDisposable
     private async Task<Lost> LostAsync(ClaimedDelivery delivery)
     {
         KindDeclaration? kind = passes.Kind(delivery.Row.Kind);
-        (bool held, Lost lost) = await UnderClaimAsync(delivery, async (context, row, now) =>
-        {
-            AttemptRow? attempt = await context.Attempts.FindAsync([row.Id, row.Attempts], finish.Token).ConfigureAwait(false);
-            if (attempt is null || attempt.Class is not null)
+        string ended = "failed";
+        (bool held, Lost lost) = await UnderClaimAsync(
+            delivery,
+            async (context, row, now) =>
             {
-                return Lost.NotLost;
-            }
+                AttemptRow? attempt = await context.Attempts.FindAsync([row.Id, row.Attempts], finish.Token).ConfigureAwait(false);
+                if (attempt is null || attempt.Class is not null)
+                {
+                    return Lost.NotLost;
+                }
 
-            attempt.Class = Spellings.Of(AttemptClass.Transient);
-            attempt.Reason = Spellings.Of(AttemptReason.ClaimLost);
-            Retry(context, row, kind, row.Attempts, AttemptReason.ClaimLost, retryAfter: null, now);
-            return Finals.Contains(row.Status) ? Lost.Ended : Lost.Retried;
-        }).ConfigureAwait(false);
+                attempt.Class = Spellings.Of(AttemptClass.Transient);
+                attempt.Reason = Spellings.Of(AttemptReason.ClaimLost);
+                Retry(context, row, kind, row.Attempts, AttemptReason.ClaimLost, retryAfter: null, now);
+                if (channel == Channel.Sms)
+                {
+                    await ReportOutcomes.ApplyKeptAsync(context, row, now, current.Observer.Enabled, finish.Token).ConfigureAwait(false);
+                }
+
+                ended = row.Status;
+                return Finals.Contains(row.Status) ? Lost.Ended : Lost.Retried;
+            },
+            kept: false).ConfigureAwait(false);
         if (!held)
         {
             return Lost.Skipped;
@@ -442,7 +891,7 @@ internal sealed partial class DispatchPass : IDisposable
 
         if (lost == Lost.Ended)
         {
-            Ended(delivery.Row, "failed", AttemptReason.ClaimLost);
+            Ended(delivery.Row, ended, ended == "failed" ? AttemptReason.ClaimLost : null);
         }
 
         return lost;
@@ -515,6 +964,399 @@ internal sealed partial class DispatchPass : IDisposable
         }
 
         return held;
+    }
+
+    /// <summary>
+    /// Check 9 for push and the attempt (<c>02</c> MSG-PUSH-003, MSG-PUSH-005): the person's live
+    /// subscriptions opened, the ones the attempt goes to chosen from the delivery's calls, then
+    /// one call to each under its own timeout and claim renewal, each answer recorded as it
+    /// comes, and the delivery ended or retried from them all.
+    /// </summary>
+    private async Task PushAsync(ClaimedDelivery delivery, KindDeclaration kind, Dictionary<string, string?> values, IServiceProvider services)
+    {
+        DeliveryRow row = delivery.Row;
+        if (await SubscriptionsAsync(delivery, kind, services).ConfigureAwait(false) is not { } opened)
+        {
+            return;
+        }
+
+        (List<PushCall> calls, bool lost) = await PushCallsAsync(row.Id, row.Attempts).ConfigureAwait(false);
+        (IReadOnlyList<Guid> targets, string? ends, AttemptReason? why) = PushOutcomes.Targets(calls, row.Attempts, [.. opened.Select(subscription => subscription.Id)], lost);
+        if (ends is not null)
+        {
+            await EndAsync(delivery, ends, why, giveBack: true).ConfigureAwait(false);
+            return;
+        }
+
+        if (!BeginRenewal(delivery))
+        {
+            return;
+        }
+
+        if (await RenewAsync(delivery, Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(16))).ConfigureAwait(false) is not { } number)
+        {
+            return;
+        }
+
+        Dictionary<string, string> parts = values.Where(part => part.Value is not null && part.Key != "destination").ToDictionary(part => part.Key, part => part.Value!, StringComparer.Ordinal);
+        byte[] payload = PushPayload.Of(parts, row.Language, SendLanguage.Direction(row.Language));
+        TimeSpan ttl = PushTtl(kind, row, Clock.GetUtcNow());
+        PushUrgency urgency = kind.Push?.Urgency ?? PushUrgency.Normal;
+        IPushProvider provider = services.GetServices<IPushProvider>().Last(candidate => candidate.Platform == PushPlatform.WebPush);
+        List<Attempt?> answers = [];
+        int made = 0;
+        foreach (OpenedSubscription target in opened.Where(subscription => targets.Contains(subscription.Id)))
+        {
+            if (made > 0 && stoppedAt is not null)
+            {
+                // A stopped pass lets the call in progress finish and makes no other: one accepted
+                // ends the delivery as it would have, and otherwise the attempt is lost.
+                if (answers.Any(answer => answer is Attempt.Accepted))
+                {
+                    break;
+                }
+
+                await LostAsync(delivery).ConfigureAwait(false);
+                return;
+            }
+
+            (bool held, (bool Still, DateTimeOffset At) renewed) = await UnderClaimAsync(delivery, async (context, claimed, now) =>
+            {
+                claimed.ClaimedAt = now;
+                claimed.ClaimExpiresAt = now + current.Dispatch.ClaimTimeout;
+                bool still = await context.Subscriptions.AnyAsync(subscription => subscription.Id == target.Id && subscription.Person == row.Person, finish.Token).ConfigureAwait(false);
+                return (still, now);
+            }).ConfigureAwait(false);
+            if (!held)
+            {
+                return;
+            }
+
+            delivery.ClaimedAt = renewed.At;
+            if (!renewed.Still || !SubscriptionRule.Allows(target.Endpoint, passes.Channels.CurrentValue.Push.Hosts))
+            {
+                answers.Add(null);
+                continue;
+            }
+
+            (string p256dh, string auth) = SubscriptionRule.Split(target.Keys);
+            PushRequest request = new PushRequest.WebPush(target.Endpoint, p256dh, auth, target.VapidVersion, payload, ttl, urgency, row.PushTopic);
+            if (await CallPushAsync(provider, request).ConfigureAwait(false) is not { } answer)
+            {
+                return;
+            }
+
+            made++;
+            if (!await RecordCallAsync(delivery, number, made, target, answer).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            answers.Add(answer);
+            if (Status(answer) is 400 or 401 or 403)
+            {
+                await AlertAsync(() => CountAuthFailureAsync(target.Service)).ConfigureAwait(false);
+            }
+        }
+
+        await RecordPushAsync(delivery, kind, number, PushOutcomes.Of(answers)).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The person's subscriptions not past their expiry, each opened, whose host is allowed;
+    /// none where the delivery is held for a key, since one cannot open yet or records a VAPID
+    /// version this process does not hold, or the claim is lost. One answering <c>Erased</c> is
+    /// removed, and one that does not open under its binding is removed and raises
+    /// <c>content-rejected</c>, neither being called.
+    /// </summary>
+    private async Task<List<OpenedSubscription>?> SubscriptionsAsync(ClaimedDelivery delivery, KindDeclaration kind, IServiceProvider services)
+    {
+        DeliveryRow row = delivery.Row;
+        if (row.Person is not { } person)
+        {
+            return [];
+        }
+
+        DateTimeOffset now = Clock.GetUtcNow();
+        List<SubscriptionRow> rows;
+        MessagingContext context = passes.Database.Context();
+        await using (context.ConfigureAwait(false))
+        {
+            rows = await context.Subscriptions.AsNoTracking()
+                .Where(subscription => subscription.Person == person && (subscription.ExpiresAt == null || subscription.ExpiresAt > now))
+                .OrderBy(subscription => subscription.MadeAt)
+                .ThenBy(subscription => subscription.Id)
+                .ToListAsync(finish.Token).ConfigureAwait(false);
+        }
+
+        ContentProtection protection = services.GetRequiredService<ContentProtection>();
+        HeldKey? vapid = passes.Keys.Find(KeyNeeds.PushVapidKeys);
+        List<OpenedSubscription> opened = [];
+        foreach (SubscriptionRow subscription in rows)
+        {
+            if (!await ExtendAsync(delivery).ConfigureAwait(false))
+            {
+                return null;
+            }
+
+            if (vapid is null || !vapid.Versions.ContainsKey(subscription.VapidVersion))
+            {
+                await HoldAsync(delivery, kind, KeyNeeds.PushVapidKeys).ConfigureAwait(false);
+                return null;
+            }
+
+            if (await OpenStoredAsync(protection, person, subscription.Endpoint, ContentContext.Of(ContentContext.Subscriptions, subscription.Id, "endpoint"), row.Id).ConfigureAwait(false) is not { } endpoint)
+            {
+                return null;
+            }
+
+            ContentOpening keys = endpoint.Status == ContentOpeningStatus.Opened
+                ? await OpenStoredAsync(protection, person, subscription.Keys, ContentContext.Of(ContentContext.Subscriptions, subscription.Id, "keys"), row.Id).ConfigureAwait(false) ?? ContentOpening.Held(null)
+                : endpoint;
+            ContentOpening worst = endpoint.Status == ContentOpeningStatus.Opened ? keys : endpoint;
+            switch (worst.Status)
+            {
+                case ContentOpeningStatus.Opened:
+                    string address = Encoding.UTF8.GetString(endpoint.Plaintext.Span);
+                    if (SubscriptionRule.Allows(address, passes.Channels.CurrentValue.Push.Hosts))
+                    {
+                        opened.Add(new OpenedSubscription(subscription.Id, address, keys.Plaintext.ToArray(), subscription.VapidVersion, subscription.Service));
+                    }
+
+                    break;
+                case ContentOpeningStatus.Erased:
+                    await RemoveSubscriptionAsync(subscription.Id).ConfigureAwait(false);
+                    break;
+                case ContentOpeningStatus.Rejected:
+                    await RemoveSubscriptionAsync(subscription.Id).ConfigureAwait(false);
+                    await AlertAsync(() => passes.Alerts.HoldsUntilAsync("content-rejected", ContentContext.Subscriptions, new Dictionary<string, string> { ["table"] = ContentContext.Subscriptions }, CancellationToken.None)).ConfigureAwait(false);
+                    break;
+                default:
+                    await HoldAsync(delivery, kind, worst.Key).ConfigureAwait(false);
+                    return null;
+            }
+        }
+
+        return opened;
+    }
+
+    /// <summary>Opens one stored value bounded by the dispatch timeout, a protector that throws or does not answer reading as held for its <c>Id</c>; none where the pass is finishing.</summary>
+    private async Task<ContentOpening?> OpenStoredAsync(ContentProtection protection, string? person, byte[] stored, string context, Guid delivery)
+    {
+        try
+        {
+            using CancellationTokenSource bound = new(current.Dispatch.Timeout, Clock);
+            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(bound.Token, finish.Token);
+            return await protection.OpenAsync(person, stored, context, linked.Token).AsTask().WaitAsync(current.Dispatch.Timeout, Clock, finish.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (finish.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (Exception failure) when (!finish.IsCancellationRequested)
+        {
+            SeamFailed(Logger, "content protector", failure.GetType().Name, delivery);
+            return ContentOpening.Held(ContentEnvelope.Read(stored).Id);
+        }
+    }
+
+    private async Task RemoveSubscriptionAsync(Guid subscription)
+    {
+        MessagingContext context = passes.Database.Context();
+        await using (context.ConfigureAwait(false))
+        {
+            await context.Subscriptions.Where(row => row.Id == subscription).ExecuteDeleteAsync(finish.Token).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>The delivery's recorded push calls, in the order made.</summary>
+    /// <summary>The delivery's recorded calls, and whether its attempt <paramref name="last"/> was recorded <c>claimlost</c>.</summary>
+    private async Task<(List<PushCall> Calls, bool Lost)> PushCallsAsync(Guid delivery, int last)
+    {
+        string lost = Spellings.Of(AttemptReason.ClaimLost);
+        MessagingContext context = passes.Database.Context();
+        await using (context.ConfigureAwait(false))
+        {
+            var rows = await context.Calls.AsNoTracking()
+                .Where(call => call.DeliveryId == delivery)
+                .OrderBy(call => call.Attempt)
+                .ThenBy(call => call.Number)
+                .Select(call => new { call.Attempt, call.SubscriptionId, call.Class, call.Reason })
+                .ToListAsync(finish.Token).ConfigureAwait(false);
+            bool wasLost = await context.Attempts.AsNoTracking()
+                .AnyAsync(attempt => attempt.DeliveryId == delivery && attempt.Number == last && attempt.Reason == lost, finish.Token).ConfigureAwait(false);
+            return ([.. rows.Select(call => new PushCall(call.Attempt, call.SubscriptionId, Spellings.Class(call.Class)!.Value, call.Reason is null ? null : Spellings.Reason(call.Reason)))], wasLost);
+        }
+    }
+
+    /// <summary>A request's <c>TTL</c>: the lesser of the kind's <c>ttl</c>, a day by default, and the time left before the kind's expiry, and at least a second (<c>02</c> MSG-PUSH-002).</summary>
+    private static TimeSpan PushTtl(KindDeclaration kind, DeliveryRow row, DateTimeOffset now)
+    {
+        TimeSpan ttl = kind.Push?.Ttl ?? TimeSpan.FromDays(1);
+        if (Expiry(kind, row) is { } expiry && expiry - now < ttl)
+        {
+            ttl = expiry - now;
+        }
+
+        return ttl < TimeSpan.FromSeconds(1) ? TimeSpan.FromSeconds(1) : ttl;
+    }
+
+    private async Task<Attempt?> CallPushAsync(IPushProvider provider, PushRequest request)
+    {
+        long started = Stopwatch.GetTimestamp();
+        Attempt answer;
+        using CancellationTokenSource bound = new(current.Dispatch.Timeout, Clock);
+        using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(bound.Token, finish.Token);
+        try
+        {
+            answer = await provider.SendAsync(request, linked.Token).AsTask().WaitAsync(current.Dispatch.Timeout, Clock, finish.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (finish.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (Exception failure) when (failure is TimeoutException || (failure is OperationCanceledException && bound.IsCancellationRequested))
+        {
+            answer = new Attempt.Transient(AttemptReason.Timeout, null, null);
+        }
+        catch (Exception failure) when (!finish.IsCancellationRequested)
+        {
+            ProviderFaulted(Logger, spelling, failure.GetType().Name, Guid.Empty);
+            answer = new Attempt.Transient(AttemptReason.ProviderFault, null, null);
+        }
+
+        passes.Metrics.ProviderDuration.Record(
+            Stopwatch.GetElapsedTime(started).TotalSeconds,
+            new KeyValuePair<string, object?>("channel", spelling),
+            new KeyValuePair<string, object?>("class", Spellings.Of(Class(answer))));
+        return answer;
+    }
+
+    /// <summary>Records one call's answer under the claim: a gone subscription removed, an accepting one's last acceptance written; false where the claim is lost.</summary>
+    private async Task<bool> RecordCallAsync(ClaimedDelivery delivery, int attempt, int number, OpenedSubscription target, Attempt answer)
+    {
+        AttemptClass answerClass = Class(answer);
+        AttemptReason? reason = Reason(answer);
+        (bool held, _) = await UnderClaimAsync(delivery, async (context, row, now) =>
+        {
+            context.Calls.Add(new CallRow
+            {
+                DeliveryId = row.Id,
+                Attempt = attempt,
+                Number = number,
+                Class = Spellings.Of(answerClass),
+                Reason = reason is null ? null : Spellings.Of(reason.Value),
+                Status = Status(answer),
+                SubscriptionId = target.Id,
+                PushService = target.Service,
+                At = now,
+            });
+            await context.SaveChangesAsync(finish.Token).ConfigureAwait(false);
+            if (answerClass == AttemptClass.Gone)
+            {
+                await context.Subscriptions.Where(subscription => subscription.Id == target.Id).ExecuteDeleteAsync(finish.Token).ConfigureAwait(false);
+            }
+            else if (answerClass == AttemptClass.Accepted)
+            {
+                await context.Subscriptions.Where(subscription => subscription.Id == target.Id)
+                    .ExecuteUpdateAsync(set => set.SetProperty(subscription => subscription.LastAcceptedAt, now), finish.Token).ConfigureAwait(false);
+            }
+
+            return true;
+        }).ConfigureAwait(false);
+        return held;
+    }
+
+    /// <summary>Records the attempt's class over its subscriptions and ends or retries the delivery: <c>sent</c>, waiting, <c>nosubscription</c> or <c>failed</c>.</summary>
+    private async Task RecordPushAsync(ClaimedDelivery delivery, KindDeclaration kind, int number, (AttemptClass Class, AttemptReason? Reason, TimeSpan? RetryAfter) outcome)
+    {
+        (bool held, (string Status, DateTimeOffset Due) moved) = await UnderClaimAsync(delivery, async (context, row, now) =>
+        {
+            AttemptRow? attempt = await context.Attempts.FindAsync([row.Id, number], finish.Token).ConfigureAwait(false);
+            attempt!.Class = Spellings.Of(outcome.Class);
+            attempt.Reason = outcome.Reason is null ? null : Spellings.Of(outcome.Reason.Value);
+            switch (outcome.Class)
+            {
+                case AttemptClass.Accepted:
+                    End(context, row, "sent", reason: null, now);
+                    break;
+                case AttemptClass.Transient:
+                    Retry(context, row, kind, number, outcome.Reason!.Value, outcome.RetryAfter, now);
+                    break;
+                case AttemptClass.Gone:
+                    End(context, row, "nosubscription", reason: null, now);
+                    break;
+                default:
+                    End(context, row, "failed", outcome.Reason, now);
+                    break;
+            }
+
+            return (row.Status, row.DueAt);
+        }).ConfigureAwait(false);
+        if (!held)
+        {
+            return;
+        }
+
+        CountAttempt(outcome.Class, outcome.Reason);
+        if (Finals.Contains(moved.Status))
+        {
+            Ended(delivery.Row, moved.Status, moved.Status == "failed" ? outcome.Reason : null);
+        }
+        else
+        {
+            string answered = Spellings.Of(outcome.Class);
+            string why = outcome.Reason is null ? "none" : Spellings.Of(outcome.Reason.Value);
+            Retried(Logger, delivery.Row.Id, spelling, answered, why, moved.Due);
+        }
+    }
+
+    /// <summary>Counts a 400, 401 or 403 of <paramref name="service"/>, raising <c>push-auth-failing</c> for it past <c>Hermes:Push:AuthFailThreshold</c> within <c>Hermes:Push:AuthFailWindow</c>.</summary>
+    private async Task CountAuthFailureAsync(string service)
+    {
+        PushChannelOptions push = passes.Channels.CurrentValue.Push;
+        int count = await PushAuthFailures.CountAsync(passes.Database, current, service, Clock.GetUtcNow(), push.AuthFailWindow, CancellationToken.None).ConfigureAwait(false);
+        if (count > push.AuthFailThreshold)
+        {
+            await passes.Alerts.HoldingAsync("push-auth-failing", service, PushAuthFailures.Details(service, count), CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    private static int? Status(Attempt answer)
+    {
+        return answer switch
+        {
+            Attempt.Transient transient => transient.Status,
+            Attempt.Permanent permanent => permanent.Status,
+            Attempt.Gone gone => gone.Status,
+            _ => null,
+        };
+    }
+
+    private static AttemptReason? Reason(Attempt answer)
+    {
+        return answer switch
+        {
+            Attempt.Transient transient => transient.Reason,
+            Attempt.Permanent permanent => permanent.Reason,
+            Attempt.Gone gone => gone.Reason,
+            _ => null,
+        };
+    }
+
+    /// <summary>The last balance the balance job recorded (<c>02</c> MSG-SMS-006), or none.</summary>
+    private async Task<decimal?> LastBalanceAsync()
+    {
+        MessagingContext context = passes.Database.Context();
+        await using (context.ConfigureAwait(false))
+        {
+            return await context.BalanceReadings.AsNoTracking()
+                .Where(row => row.Units != null)
+                .OrderByDescending(row => row.ReadAt)
+                .Select(row => row.Units)
+                .FirstOrDefaultAsync(finish.Token)
+                .ConfigureAwait(false);
+        }
     }
 
     /// <summary>Ends the delivery <c>failed</c> at the channel's own check, an attempt answered there with no call.</summary>
@@ -599,6 +1441,7 @@ internal sealed partial class DispatchPass : IDisposable
             Subject = values["subject"]!,
             Text = values["text"]!,
             Html = values["html"],
+            Unsubscribe = values.GetValueOrDefault("unsubscribe") is { } unsubscribe ? new Uri(unsubscribe, UriKind.Absolute) : null,
             MessageId = string.Create(CultureInfo.InvariantCulture, $"{row.Id:D}@{from.Address[(from.Address.LastIndexOf('@') + 1)..]}"),
             Language = row.Language,
         };
@@ -609,14 +1452,18 @@ internal sealed partial class DispatchPass : IDisposable
     {
         string text = values["text"]!;
         SmsMeasure measure = SmsText.Measure(text);
+        SmsChannelOptions sms = passes.Channels.CurrentValue.Sms;
         SmsMessage message = new()
         {
             ToNumber = values["destination"]!,
-            Sender = kind.Sms?.Sender ?? passes.Channels.CurrentValue.Sms.Sender!,
+            Sender = kind.Sms?.Sender ?? sms.Sender!,
             Text = text,
             DeliveryReference = reference,
             Encoding = measure.Encoding,
             Segments = measure.Segments,
+            ReportAddress = sms.ReportBaseAddress is { } baseAddress && passes.Keys.Find(KeyNeeds.SmsReportKey) is { } key
+                ? SmsReportEndpoints.Address(baseAddress, key)
+                : null,
         };
         return await services.GetRequiredService<ISmsProvider>().SendAsync(message, cancellationToken).ConfigureAwait(false);
     }
@@ -662,8 +1509,20 @@ internal sealed partial class DispatchPass : IDisposable
                     break;
             }
 
+            if (channel == Channel.Sms)
+            {
+                if (providerReference is not null)
+                {
+                    await ReportOutcomes.ApplyHeldAsync(context, row, providerReference, now, current.Observer.Enabled, finish.Token).ConfigureAwait(false);
+                }
+
+                await ReportOutcomes.ApplyKeptAsync(context, row, now, current.Observer.Enabled, finish.Token).ConfigureAwait(false);
+            }
+
             return (row.Status, row.DueAt);
-        }).ConfigureAwait(false);
+        },
+        channel == Channel.Sms ? providerReference : null,
+        kept: false).ConfigureAwait(false);
         if (!held)
         {
             return;
@@ -672,7 +1531,7 @@ internal sealed partial class DispatchPass : IDisposable
         CountAttempt(answerClass, reason);
         if (Finals.Contains(moved.Status))
         {
-            Ended(delivery.Row, moved.Status, moved.Status == "failed" ? reason : null);
+            Ended(delivery.Row, moved.Status, moved.Status != "failed" ? null : answerClass == AttemptClass.Accepted ? AttemptReason.ReportedFailed : reason);
         }
         else
         {
@@ -724,36 +1583,40 @@ internal sealed partial class DispatchPass : IDisposable
     /// <summary>Moves the row to the final <paramref name="status"/>, writing its notice where this application observes.</summary>
     private void End(MessagingContext context, DeliveryRow row, string status, AttemptReason? reason, DateTimeOffset now)
     {
-        row.Status = status;
-        row.Reason = reason is null ? null : Spellings.Of(reason.Value);
-        row.LastMovedAt = now;
-        DeliveryClaims.Release(row);
-        if (current.Observer.Enabled)
-        {
-            Notices.Add(context, row.Id, row.NextSequence, status, row.Reason, now);
-            row.NextSequence++;
-        }
+        DeliveryEnding.End(context, row, status, reason is null ? null : Spellings.Of(reason.Value), now, current.Observer.Enabled);
     }
 
     /// <summary>
     /// Runs <paramref name="change"/> on the delivery's row, locked, in one transaction under the
     /// pass's lock timeout, where the row is still under the pass's claim; answers whether it was.
+    /// The lock of <paramref name="reference"/>, a provider reference the update records, is
+    /// taken before the row's, as a delivery report takes them (<c>02</c> MSG-SMS-004). Where
+    /// <paramref name="kept"/>, an SMS delivery with a kept <c>delivered</c> ends
+    /// <c>delivered</c> instead of the change, counting no attempt, since its message arrived,
+    /// and the claim is answered as no longer the pass's.
     /// </summary>
-    private async Task<(bool Held, T Value)> UnderClaimAsync<T>(ClaimedDelivery delivery, Func<MessagingContext, DeliveryRow, DateTimeOffset, Task<T>> change)
+    private async Task<(bool Held, T Value)> UnderClaimAsync<T>(ClaimedDelivery delivery, Func<MessagingContext, DeliveryRow, DateTimeOffset, Task<T>> change, string? reference = null, bool kept = true)
     {
         if (LockTimeout() is not { } timeout)
         {
             return (false, default!);
         }
 
+        bool reported = false;
         try
         {
-            return await LibraryTransactions.RunAsync(
+            (bool Held, T Value) done = await LibraryTransactions.RunAsync(
                 passes.Database,
                 current,
                 async (context, token) =>
                 {
+                    reported = false;
                     await DeliveryClaims.LockTimeoutAsync(context, timeout, token).ConfigureAwait(false);
+                    if (reference is not null)
+                    {
+                        await AdvisoryLocks.TakeAsync(context, [AdvisoryLocks.Report(reference)], shared: false, token).ConfigureAwait(false);
+                    }
+
                     DeliveryRow? row = await DeliveryClaims.LockAsync(context, delivery.Row.Id, token).ConfigureAwait(false);
                     DateTimeOffset now = Clock.GetUtcNow();
                     if (row is null || !DeliveryClaims.IsHeld(row, holder, now))
@@ -761,11 +1624,30 @@ internal sealed partial class DispatchPass : IDisposable
                         return (false, default(T)!);
                     }
 
+                    if (kept && channel == Channel.Sms && await ReportOutcomes.DeliveredKeptAsync(context, row.Id, token).ConfigureAwait(false))
+                    {
+                        End(context, row, ReportOutcomes.Delivered, reason: null, now);
+                        await context.SaveChangesAsync(token).ConfigureAwait(false);
+                        reported = true;
+                        return (false, default(T)!);
+                    }
+
                     T value = await change(context, row, now).ConfigureAwait(false);
                     await context.SaveChangesAsync(token).ConfigureAwait(false);
+                    if (Finals.Contains(row.Status) && row.Status is not ("sent" or "delivered"))
+                    {
+                        await Places.ReleaseAsync(context, [row.Id], token).ConfigureAwait(false);
+                    }
+
                     return (true, value);
                 },
                 finish.Token).ConfigureAwait(false);
+            if (reported)
+            {
+                Ended(delivery.Row, ReportOutcomes.Delivered, reason: null);
+            }
+
+            return done;
         }
         catch (Exception failure) when (DispatchPasses.IsLockTimeout(failure))
         {
@@ -859,6 +1741,21 @@ internal sealed partial class DispatchPass : IDisposable
 
     [LoggerMessage(EventId = 40, EventName = "PassHandBackFailed", Level = LogLevel.Warning, Message = "A pass of {Channel} could not hand its deliveries back ({Exception}); they wait for their claims to expire.")]
     private static partial void HandBackFailed(ILogger logger, string channel, string exception);
+
+    [LoggerMessage(EventId = 45, EventName = "DeliveryQuiet", Level = LogLevel.Information, Message = "Delivery {Delivery} on {Channel} is held for quiet hours until {Due}.")]
+    private static partial void QuietHeld(ILogger logger, Guid delivery, string channel, DateTimeOffset due);
+
+    [LoggerMessage(EventId = 46, EventName = "DeliveryLimitLockTimedOut", Level = LogLevel.Warning, Message = "The limit locks of delivery {Delivery} on {Channel} were not had in time; it is next due at {Due}.")]
+    private static partial void LimitLockHeld(ILogger logger, Guid delivery, string channel, DateTimeOffset due);
+
+    private enum LimitOutcome
+    {
+        Taken,
+        Limited,
+        KeyMissing,
+        NoTime,
+        Lost,
+    }
 
     private enum Lost
     {

@@ -105,3 +105,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test's passes dispatch and each delivers the pending notices
 - Each call to the alert sink is bounded by `Dispatch:Timeout`; a sink that does not
   answer in time is logged and the alert stays recorded, so a pass or job never waits on it
+- `ISuppressions`, which suppresses an email address or phone number for an optional
+  category, keeping only its keyed hash, and withdraws a suppression under every
+  `hashKeys` version; a dispatched delivery of the category to a suppressed destination
+  ends `suppressed`, and one whose lookup needs a version this process lacks is held
+- `IPreferences`, which reads a person's preferences for every declared category and
+  sets whether they receive an optional category on a channel its kinds use, under the
+  person's locks taken shared within `Dispatch:Timeout`; a delivery of a category the
+  person turned off on its channel ends `optedout` when it is checked
+- Each email of an optional category carries a one-click unsubscribe address,
+  `PublicBaseAddress`, `/unsubscribe/` and a token signed under `tokenKeys` and dated
+  from the later of the send and its `NotBefore`, in its `List-Unsubscribe` and
+  `List-Unsubscribe-Post` headers and as the template value `unsubscribe`; the address
+  is stored protected with the delivery, and an essential category's email carries none
+- Quiet hours: a delivery of a category they apply to, checked between
+  `QuietHours:Start` and `QuietHours:End` in the send's time zone, waits until they end
+  plus a random part of `QuietHours:Spread`, counting no attempt and giving its place in
+  the rate back
+- Consent: a delivery of a category that requires it asks the host's consent source at
+  dispatch, within `Dispatch:Timeout`, ending `noconsent` where it is not given and
+  retrying where the source cannot answer, then ending `failed` with
+  `consentunavailable`
+- Category limits: at dispatch a delivery takes one place under each of its category's
+  `Limit`s and `DeploymentLimit`s on its channel, under their advisory locks within
+  `Dispatch:Timeout`, or ends `limited` where a window is full; a delivery that ends
+  unsent gives its places back, and one on which a provider call is recorded gives back
+  only its per-destination places
+- The preferences group, `MapHermesPreferences(prefix)`: `GET /preferences` and
+  `PUT /preferences/{category}/{channel}` for the person the host's `IRecipientIdentity`
+  answers, 401 where it answers none; JSON bodies read and written through the library's
+  own serializer context, only as `application/json` and at most 16 KiB; a person's locks
+  not had within `Dispatch:Timeout` answered 503 with `Retry-After`
+- The unsubscribe group, `MapHermesUnsubscribe(prefix)`: RFC 8058's one-click
+  `POST /unsubscribe/{token}` suppresses the address the token names by hash for its
+  category, and `GET` shows the `unsubscribe` page in the token's language, which asks
+  before it does; the group allows anonymous requests, takes no forgery protection, sets
+  no cookie, never redirects and answers every page with `no-store`, `no-referrer`,
+  `nosniff` and a closed content security policy; a token naming a key version in use
+  but not held is answered 503 and raises `key-unavailable`
+- The report group, `MapHermesSmsReports(prefix)`: `GET` and `POST /sms/report/{key}`
+  take the SMS provider's delivery reports, the key compared in constant time with every
+  held `smsReportKey` version and wrong keys limited per source address; a report can
+  only move an SMS delivery to `delivered` or `failed`, is kept on an `inflight` one until
+  its answer is recorded, is held where no delivery holds its provider reference yet, and
+  is counted as rejected where it names nothing, raising `sms-report-rejected` past the
+  threshold; a failure report releases the delivery's per-destination places only
+- With `Hermes:Sms:ReportBaseAddress` set, each SMS carries its report address: that
+  address, `/sms/report/` and the `smsReportKey` write version's key, which the start then
+  needs where SMS is dispatched; a report whose key matches records when its version last
+  matched in the key table
+- The `balance` job: where the application dispatches and SMS is used, whatever
+  `Hermes:Jobs:Enabled` says, it reads the SMS balance every `Hermes:Sms:BalancePoll` and
+  records each reading, raising `sms-balance` for a drain over `Hermes:Sms:DrainFactor` of
+  the baseline or a balance that would reach `Hermes:Sms:BalanceFloor` within
+  `Hermes:Sms:FloorWarning`, and `sms-balance-unreadable` once reads have failed for
+  `Hermes:Sms:BalanceUnreadableAfter`; below the floor an optional category's SMS ends
+  `balancefloor`, and a provider that reports no balance has no floor
+- The push subscription group, `MapHermesPushSubscriptions(prefix)`: `GET /push/key`
+  answers the VAPID public key of the write version to anyone; `POST` and
+  `DELETE /push/subscriptions` register and remove the signed-in person's subscription,
+  refusing an endpoint outside `Hermes:Push:AllowedHosts` (https, port 443, no user
+  information) with `422 messaging.push.endpointnotallowed` and a key no held version has
+  with `422 messaging.push.keyunknown`; the endpoint and keys are stored protected, and
+  past `Hermes:Push:MaxSubscriptions` the least recently used subscription is removed
+- Push delivery: each attempt goes to the person's live subscriptions, signed with the
+  VAPID version each was registered under, with a TTL no longer than the time left to the
+  delivery's expiry; `404` and `410` remove the subscription, one acceptance ends the
+  delivery `sent`, and `401` and `403` from one push service over
+  `Hermes:Push:AuthFailThreshold` within an hour raise `push-auth-failing`
+- The `subscriptions` job removes subscriptions past their expiration time every
+  `Hermes:Jobs:SubscriptionsInterval`
+- The `watch` job: where `Hermes:Jobs:Enabled` is on, every `Hermes:Dispatch:Interval` it
+  raises and clears `dispatch-lag` per channel, recording `hermes.dispatch.oldest_due_age`,
+  `job-stalled` for each job a process has started, `observer-failing`,
+  `sms-report-rejected` and `push-auth-failing` by their counts; it clears
+  `newer-release`, `key-unavailable`, `content-key-limit` and `content-rejected` once the
+  instant a process wrote has passed, and drops the SMS reports held past
+  `Hermes:Sms:ReportHold`, which are never applied once lapsed
+- `push-auth-failing` carries the push service in its details
+- A push pass stopped during a delivery's call makes none of its other calls: an
+  acceptance among those made ends it `sent`, and otherwise its attempt is recorded
+  `claimlost` and the next goes to every live subscription not refused

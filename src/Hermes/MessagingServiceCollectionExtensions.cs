@@ -4,6 +4,7 @@ using System.Linq;
 using Hermes.Channels;
 using Hermes.Content;
 using Hermes.Core;
+using Hermes.Endpoints;
 using Hermes.Operations;
 using Hermes.Sending;
 
@@ -64,14 +65,22 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<TemplateRenderer>();
         services.AddSingleton<Templates>();
         services.AddSingleton<SendRenderer>();
+        services.AddSingleton<PageRenderer>();
         services.AddSingleton<KeyedHashes>();
+        services.AddSingleton<UnsubscribeTokens>();
         services.AddSingleton<HostSchemas>();
         services.AddSingleton<Notices>();
         services.AddSingleton<MessagingReady>();
+        services.AddSingleton<EndpointGroups>();
         services.AddScoped<IMessages, Messages>();
+        services.AddScoped<ISuppressions, Suppressions>();
+        services.AddScoped<IPreferences, Preferences>();
         services.AddSingleton<DispatchPasses>();
         services.AddSingleton<IDispatcher, Dispatcher>();
         services.AddSingleton<NoticeDelivery>();
+        services.AddSingleton<SmsReports>();
+        services.AddSingleton<WrongKeyLimiter>();
+        services.AddSingleton<PushSubscriptions>();
         services.TryAddSingleton<ChannelsUnderEngine>();
         services.AddHermesChannels(configuration);
 
@@ -83,6 +92,9 @@ public static class MessagingServiceCollectionExtensions
         {
             services.AddSingleton<IHostedService, HostedDispatcher>();
             services.AddSingleton<IHostedService, ObserverJob>();
+            services.AddSingleton<IHostedService, BalanceJob>();
+            services.AddSingleton<IHostedService, SubscriptionsJob>();
+            services.AddSingleton<IHostedService, WatchJob>();
         }
 
         // Dispatch:Enabled is read only at the start, so the configuration given here is the one the application runs under.

@@ -40,6 +40,15 @@ internal static class AdvisoryLocks
         return Of(bytes);
     }
 
+    /// <summary>A delivery report's reference's lock: <c>sms-report</c>, a zero byte and the reference, unkeyed, since a reference is no personal data (<c>02</c> MSG-SMS-004).</summary>
+    internal static long Report(string reference)
+    {
+        return Of(Encoding.UTF8.GetBytes($"sms-report\0{reference}"));
+    }
+
+    /// <summary>The lock under which held reports are counted and inserted (<c>02</c> MSG-SMS-004).</summary>
+    internal static long ReportHold { get; } = Of("sms-report-hold"u8);
+
     /// <summary>The person's locks: the keyed hash of the reference, domain <c>person</c>, under every held version, in ascending order of version.</summary>
     internal static IReadOnlyList<long> Person(KeyedHashes hashes, string person)
     {

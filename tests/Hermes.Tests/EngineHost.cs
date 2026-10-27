@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,6 +9,8 @@ using Hermes.Core;
 using Hermes.Operations;
 using Hermes.Sending;
 
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -44,6 +47,12 @@ internal sealed class EngineHost : IAsyncDisposable
     internal ManualClock Clock { get; }
 
     internal IServiceProvider Services => Host.Services;
+
+    /// <summary>A client of the test server, where the host maps endpoints.</summary>
+    internal HttpClient Client()
+    {
+        return Host.GetTestClient();
+    }
 
     /// <summary>An essential kind on every channel.</summary>
     internal static void Essential(DeclarationBuilder declare)
@@ -93,7 +102,8 @@ internal sealed class EngineHost : IAsyncDisposable
         Action<IServiceCollection>? services = null,
         SecretSourceFake? secrets = null,
         ManualClock? clock = null,
-        LogCapture? logs = null)
+        LogCapture? logs = null,
+        Action<WebApplication>? map = null)
     {
         ManualClock time = clock ?? new ManualClock(Start);
         Dictionary<string, string?> configuration = Configuration();
@@ -109,7 +119,8 @@ internal sealed class EngineHost : IAsyncDisposable
                 services?.Invoke(collection);
             },
             logs: logs,
-            hostTemplates: false);
+            hostTemplates: false,
+            map: map);
         try
         {
             await host.StartAsync(TestContext.Current.CancellationToken);

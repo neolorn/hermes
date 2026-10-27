@@ -280,7 +280,7 @@ public sealed class WebPushProviderTests
     }
 
     [Fact]
-    public void Register_UnderAHostsDefaults_FollowsNoRedirectAndCarriesTheLibrarysHandlerAlone()
+    public void MSG_PUSH_004_AC3_UnderAHostsDefaultsAPushRequestFollowsNoRedirectAndCarriesTheLibrarysHandlerAlone()
     {
         ServiceCollection services = new();
         services.ConfigureHttpClientDefaults(client => client

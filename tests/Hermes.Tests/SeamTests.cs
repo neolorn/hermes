@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 
 using Hermes.Core;
+using Hermes.Operations;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -27,7 +28,7 @@ public sealed class SeamTests
     }
 
     [Fact]
-    public async Task MSG_LIB_005_AC1_ConsentSourceMissingWhereACategoryRequiresConsentStopsTheStartNamingIt()
+    public async Task MSG_SEND_011_AC3_ADeploymentWithAConsentCategoryAndNoConsentSourceDoesNotStartNamingIt()
     {
         using IHost host = TestHost.Build(
             TestHost.Languages(),
@@ -63,6 +64,77 @@ public sealed class SeamTests
 
         Assert.Equal("messaging.startup.declarationmissing", failure.Code);
         Assert.Equal("deliveryObserver", failure.Details["key"]);
+    }
+
+    [Fact]
+    public async Task MSG_LIB_005_AC1_RecipientIdentityMissingWhereThePreferencesGroupIsMappedStopsTheStartNamingIt()
+    {
+        using IHost host = TestHost.Build(
+            TestHost.Languages(),
+            Essential,
+            services => services.AddSingleton<ISecretSource>(new SecretSourceFake()),
+            map: application => application.MapHermesPreferences(Endpoints.Prefix));
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("messaging.startup.declarationmissing", failure.Code);
+        Assert.Equal("recipientIdentity", failure.Details["key"]);
+    }
+
+    [Fact]
+    public async Task MSG_LIB_005_AC1_RecipientIdentityMissingWhereThePushGroupIsMappedStopsTheStartNamingIt()
+    {
+        using IHost host = TestHost.Build(
+            TestHost.Languages(),
+            Essential,
+            services => services.AddSingleton<ISecretSource>(new SecretSourceFake()),
+            map: application => application.MapHermesPushSubscriptions(Endpoints.Prefix));
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("messaging.startup.declarationmissing", failure.Code);
+        Assert.Equal("recipientIdentity", failure.Details["key"]);
+    }
+
+    [Fact]
+    public async Task MSG_LIB_005_AC1_RecipientIdentityRegisteredWhereThePreferencesGroupIsMappedIsFound()
+    {
+        using IHost host = TestHost.Build(
+            TestHost.Languages(),
+            Essential,
+            services =>
+            {
+                services.AddSingleton<ISecretSource>(new SecretSourceFake());
+                Endpoints.Identity(services);
+            },
+            map: application => application.MapHermesPreferences(Endpoints.Prefix));
+
+        await StartStage.AssertPastTheSeams(host);
+    }
+
+    [Fact]
+    public async Task MSG_LIB_005_AC1_RecipientIdentityIsNotRequiredWhereOnlyTheUnsubscribeGroupIsMapped()
+    {
+        using IHost host = TestHost.Build(
+            TestHost.Languages(),
+            Essential,
+            services => services.AddSingleton<ISecretSource>(new SecretSourceFake()),
+            map: application => application.MapHermesUnsubscribe(Endpoints.Prefix));
+
+        await StartStage.AssertPastTheSeams(host);
+    }
+
+    [Fact]
+    public void Map_AfterTheHostStarted_Throws()
+    {
+        Assert.Throws<InvalidOperationException>(() => TestHost.Build(
+            TestHost.Languages(),
+            Essential,
+            map: application =>
+            {
+                application.Services.GetRequiredService<MessagingReady>().Mark();
+                application.MapHermesPreferences(Endpoints.Prefix);
+            }));
     }
 
     [Fact]

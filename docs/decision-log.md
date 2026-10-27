@@ -1025,6 +1025,29 @@ Phase 2 asked one question, Tier 2.
 
 ---
 
+## M-018 — The full gate runs in the pipeline, not on the implementer's machine
+
+**Date:** 2026-10-27 · **Status:** accepted
+
+Every phase ran the full gate twice: once on the implementer's machine before the
+report, and again in the pipeline on the push, which runs every script of `07`
+MSG-ENG-012 and blocks the merge (the `gates` check is required). The local run is
+dropped. The fast checks stay on every commit, narrowed to the unit tests of the
+projects a commit changes; before every push the implementer runs every unit test, the
+commit-message gate and the full-history secret scan, the two gates whose failure after
+a push could only be mended by rewriting what was pushed. The pipeline's `gates` run on
+the last commit pushed is the gate of record: after every push the implementer waits for
+it in the same run, fixes a failure in new commits and pushes again, and a test a
+failing run names may be run locally to find its cause. The pipeline's runner is the
+Linux the deployment runs on, and twice on 2026-10-26 it failed a test the local run had
+passed. MSG-ENG-012's rule that each gate is a script the implementer can run locally
+with the same result stands. *Rejected:* keeping the local full gate (a second run of
+the same scripts, on another platform, in every phase); moving the commit-message gate
+and the secret scan to the pipeline as well (a failure after a push could only be mended
+by rewriting a pushed commit).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1046,3 +1069,4 @@ Phase 2 asked one question, Tier 2.
 | Phase 0's question and review: exact versions, and the gates' gaps | M-015 |
 | Phase 1's questions: lengths, the template folder, decimal factors, roles | M-016 |
 | Phase 2's question: MailKit 4.18.2 | M-017 |
+| The full gate runs in the pipeline, not on the implementer's machine | M-018 |

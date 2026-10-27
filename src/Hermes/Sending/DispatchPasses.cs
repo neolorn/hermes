@@ -30,12 +30,16 @@ internal sealed partial class DispatchPasses
 
     private readonly Dictionary<string, KindDeclaration> kinds = new(StringComparer.Ordinal);
 
+    private readonly Dictionary<string, CategoryDeclaration> categories = new(StringComparer.Ordinal);
+
     public DispatchPasses(
         MessagingDatabase database,
         Declarations declarations,
         IOptionsMonitor<MessagingOptions> options,
         IOptionsMonitor<ChannelsOptions> channels,
         IServiceScopeFactory scopes,
+        KeyedHashes hashes,
+        HeldKeys keys,
         Alerts alerts,
         Notices notices,
         MessagingMetrics metrics,
@@ -47,6 +51,8 @@ internal sealed partial class DispatchPasses
         Options = options;
         Channels = channels;
         Scopes = scopes;
+        Hashes = hashes;
+        Keys = keys;
         Alerts = alerts;
         Notices = notices;
         Metrics = metrics;
@@ -60,10 +66,15 @@ internal sealed partial class DispatchPasses
             // A kind declared twice stops the start (MSG-SEND-001); this is built before that check runs.
             kinds.TryAdd(kind.Name, kind);
         }
+
+        foreach (CategoryDeclaration category in declarations.Categories)
+        {
+            categories.TryAdd(category.Name, category);
+        }
     }
 
     /// <summary>The channels a pass runs on.</summary>
-    internal static IReadOnlyList<Channel> Dispatched { get; } = [Channel.Email, Channel.Sms];
+    internal static IReadOnlyList<Channel> Dispatched { get; } = [Channel.Email, Channel.Sms, Channel.Push];
 
     internal MessagingDatabase Database { get; }
 
@@ -72,6 +83,10 @@ internal sealed partial class DispatchPasses
     internal IOptionsMonitor<ChannelsOptions> Channels { get; }
 
     internal IServiceScopeFactory Scopes { get; }
+
+    internal KeyedHashes Hashes { get; }
+
+    internal HeldKeys Keys { get; }
 
     internal Alerts Alerts { get; }
 
@@ -108,6 +123,12 @@ internal sealed partial class DispatchPasses
         return kinds.GetValueOrDefault(name);
     }
 
+    /// <summary>The category <paramref name="name"/> as this application declares it, or none.</summary>
+    internal CategoryDeclaration? Category(string name)
+    {
+        return categories.GetValueOrDefault(name);
+    }
+
     /// <summary>
     /// Claims, for <paramref name="holder"/>, the channel's due deliveries up to the lesser of the
     /// batch and what the second's counter leaves of its rate, essential kinds first, adding them
@@ -117,7 +138,7 @@ internal sealed partial class DispatchPasses
     {
         string spelling = Spellings.Of(channel);
         ChannelsOptions channelOptions = Channels.CurrentValue;
-        int rate = channel == Channel.Email ? channelOptions.Email.Rate : channelOptions.Sms.Rate;
+        int rate = channel switch { Channel.Email => channelOptions.Email.Rate, Channel.Sms => channelOptions.Sms.Rate, _ => channelOptions.Push.Rate };
         try
         {
             return await LibraryTransactions.RunAsync(

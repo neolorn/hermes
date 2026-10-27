@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Hermes.Channels;
 using Hermes.Content;
 using Hermes.Core;
+using Hermes.Endpoints;
 using Hermes.Sending;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +39,7 @@ internal sealed class MessagingStartup(
     Templates templates,
     MessagingReady ready,
     IHostEnvironment environment,
+    EndpointGroups groups,
     IServiceProvider services) : IHostedLifecycleService
 {
     public async Task StartingAsync(CancellationToken cancellationToken)
@@ -79,7 +81,7 @@ internal sealed class MessagingStartup(
 
             templates.Hold(loaded);
 
-            if (SeamCheck.Missing(services.GetRequiredService<IServiceProviderIsService>(), declarations, current) is { } seam)
+            if (SeamCheck.Missing(services.GetRequiredService<IServiceProviderIsService>(), declarations, current, groups) is { } seam)
             {
                 throw Failure(Codes.DeclarationMissing, ("key", seam));
             }
@@ -96,7 +98,7 @@ internal sealed class MessagingStartup(
                 database.Listen(await SecretCheck.ListenConnectionAsync(secrets, cancellationToken).ConfigureAwait(false));
             }
 
-            keys.Hold(await SecretCheck.KeysAsync(secrets, state.Section, KeyNeeds.Needed(declarations, current), cancellationToken).ConfigureAwait(false));
+            keys.Hold(await SecretCheck.KeysAsync(secrets, state.Section, KeyNeeds.Needed(declarations, current, groups, services.GetRequiredService<IOptionsMonitor<ChannelsOptions>>().CurrentValue.Sms.ReportBaseAddress is not null), cancellationToken).ConfigureAwait(false));
             if (use.ShippedPush && keys.Find(KeyNeeds.PushVapidKeys) is { } vapid)
             {
                 pushKeys.Hold(vapid.Versions);

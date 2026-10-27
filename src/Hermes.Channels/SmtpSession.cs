@@ -193,6 +193,13 @@ internal sealed class SmtpSession(IOptionsMonitor<ChannelsOptions> options, Emai
         mime.MessageId = message.MessageId;
         mime.Date = time.GetUtcNow();
         mime.Headers.Add("Auto-Submitted", "auto-generated");
+        if (message.Unsubscribe is { } unsubscribe)
+        {
+            // RFC 8058: the address in angle brackets, and the one-click POST it takes.
+            mime.Headers.Add("List-Unsubscribe", "<" + unsubscribe.AbsoluteUri + ">");
+            mime.Headers.Add("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+        }
+
         TextPart text = Part(TextFormat.Plain, message.Text);
         mime.Body = message.Html is { } html ? new MultipartAlternative { text, Part(TextFormat.Html, html) } : text;
         return mime;

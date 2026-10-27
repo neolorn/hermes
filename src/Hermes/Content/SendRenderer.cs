@@ -43,8 +43,8 @@ internal sealed class SendRenderer(Templates templates, TemplateRenderer rendere
         }
     }
 
-    /// <summary>Renders each of <paramref name="chosen"/>, or answers the first refusal's code and channel.</summary>
-    internal async ValueTask<SendRender> RenderAsync(KindDeclaration kind, IReadOnlyList<Channel> chosen, string language, string zone, IReadOnlyDictionary<string, SendValue> values)
+    /// <summary>Renders each of <paramref name="chosen"/>, or answers the first refusal's code and channel. An optional category's email reads <paramref name="unsubscribe"/> as <c>unsubscribe</c>.</summary>
+    internal async ValueTask<SendRender> RenderAsync(KindDeclaration kind, IReadOnlyList<Channel> chosen, string language, string zone, IReadOnlyDictionary<string, SendValue> values, string? unsubscribe = null)
     {
         CultureInfo culture = SendLanguage.Culture(language);
         string direction = SendLanguage.Direction(language);
@@ -54,6 +54,11 @@ internal sealed class SendRenderer(Templates templates, TemplateRenderer rendere
             [TemplateNames.Language] = new StringValue(language),
             [TemplateNames.Direction] = new StringValue(direction),
         };
+        if (unsubscribe is not null)
+        {
+            converted[TemplateNames.Unsubscribe] = new StringValue(unsubscribe);
+        }
+
         HashSet<string> unconverted = new(StringComparer.OrdinalIgnoreCase);
         foreach ((string name, SendValue value) in values)
         {

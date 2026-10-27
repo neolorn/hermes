@@ -13,9 +13,11 @@ default and status, and `05-api-contract` for every route and wire shape.
 ## 2. Working rules
 
 - Each phase is built with tests first, one logical change per commit, the fast checks
-  on every commit and the full gate (`07` MSG-ENG-012) once at the phase's end, then a
-  report in the shape of section 5. A phase begins only when the one before it has a
-  clean report and its pull request is merged into `main` after the owner's review.
+  on every commit, the commit-message gate and the secret scan before each push, and the
+  full gate (`07` MSG-ENG-012) in the pipeline on every push, its run on the last commit
+  pushed being the gate of record (M-018), then a report in the shape of section 5. A
+  phase begins only when the one before it has a clean report and its pull request is
+  merged into `main` after the owner's review.
 - A phase builds the part of each item it names; where an item is split across phases,
   the table says which part each builds. A criterion that needs an item of a later phase
   is proven in that phase, and the report of the earlier one names it as waiting there.
@@ -77,8 +79,9 @@ the acceptance criteria `09` leaves to that release.
 - **Resolved by rule**;
 - **Open questions**: every question the phase asked, answered or not, with the items it
   parked and the entry that answered it;
-- the commit the report names, and each gate's result on it from the local run (`07`
-  MSG-ENG-012).
+- the commit the report names, the fast checks and the checks before the push, green,
+  the gate of record being the pipeline's `gates` run on the report's own commit, whose
+  identifier and result the run's last message gives (`07` MSG-ENG-012, M-018).
 
 The report is committed alone, in a `docs:` commit on top of the commit it names
 (written again, in a new `docs:` commit, each time the phase's work goes on after a

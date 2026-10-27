@@ -23,7 +23,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_003_AC1_SendAsyncReturnsBeforeAnyProviderIsCalled()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
 
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email, Channel.Sms]))).Value!;
 
@@ -38,7 +38,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_007_AC3_AnAcceptedAnswerEndsTheDeliverySentWithItsProviderReference()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         engine.Sms.Answer = _ => new Attempt.Accepted("provider-42");
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
         engine.Host.Clock.Advance(TimeSpan.FromSeconds(1));
@@ -61,7 +61,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [InlineData("transient", "waiting", "temporary")]
     public async Task MSG_SEND_007_AC3_EachAnswerClassLeadsToItsStatusAndTheAttemptKeepsItsClassReasonAndStatus(string answer, string status, string reason)
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         engine.Sms.Answer = _ => answer == "permanent"
             ? new Attempt.Permanent(AttemptReason.RecipientRefused, 400)
             : new Attempt.Transient(AttemptReason.Temporary, 503, null);
@@ -83,7 +83,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_016_AC1_ADeliveryAnsweredTransientThreeTimesThenAcceptedEndsSentAfterFourAttemptsAtGrowingIntervals()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         int calls = 0;
         engine.Sms.Answer = _ => ++calls <= 3 ? new Attempt.Transient(AttemptReason.Timeout, null, null) : new Attempt.Accepted(null);
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
@@ -112,7 +112,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_016_AC2_ADeliveryAnsweredTransientOnEveryAttemptEndsFailedAfterTheLast()
     {
-        await using Engine engine = await StartAsync(configure: configuration => configuration["Hermes:Retry:MaxAttempts"] = "3");
+        await using DispatchEngine engine = await StartAsync(configure: configuration => configuration["Hermes:Retry:MaxAttempts"] = "3");
         engine.Sms.Answer = _ => new Attempt.Transient(AttemptReason.ConnectionFailed, null, null);
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
 
@@ -134,7 +134,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [InlineData(10, 30)]
     public async Task MSG_SEND_016_AC3_ARetryAfterDelaysTheNextAttemptAtLeastThatLongAndAtMostRetryMax(int retryAfter, int expected)
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         engine.Sms.Answer = _ => new Attempt.Transient(AttemptReason.RateLimited, 429, TimeSpan.FromSeconds(retryAfter));
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
 
@@ -146,7 +146,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_007_AC4_WithTheClockMovedPastADeliverysDueInstantTheNextPassTakesItAndNotBefore()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { NotBefore = EngineHost.Start.AddMinutes(10) });
 
         engine.Host.Clock.Advance(TimeSpan.FromMinutes(10) - TimeSpan.FromTicks(10));
@@ -163,8 +163,8 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     {
         string connection = await EngineHost.DatabaseAsync(postgres);
         ManualClock clock = new(EngineHost.Start);
-        await using Engine one = await StartAsync(connection: connection, clock: clock);
-        await using Engine two = await StartAsync(connection: connection, clock: clock);
+        await using DispatchEngine one = await StartAsync(connection: connection, clock: clock);
+        await using DispatchEngine two = await StartAsync(connection: connection, clock: clock);
         for (int index = 0; index < 30; index++)
         {
             await one.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person($"person-{index}")));
@@ -192,8 +192,8 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
             configuration["Hermes:Dispatch:Interval"] = "00:05:00";
             configuration["Hermes:Dispatch:LagThreshold"] = "00:10:00";
         };
-        await using Engine first = await StartAsync(configure: configure, connection: connection, clock: clock);
-        await using Engine second = await StartAsync(configure: configure, connection: connection, clock: clock);
+        await using DispatchEngine first = await StartAsync(configure: configure, connection: connection, clock: clock);
+        await using DispatchEngine second = await StartAsync(configure: configure, connection: connection, clock: clock);
         List<SendReceipt> receipts = [];
         for (int index = 0; index < 5; index++)
         {
@@ -228,7 +228,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_007_AC6_APassStoppedDuringTheSecondCallOfTenReturnsTheOtherEightAtOnceThenRecordsTheSecondsAnswer()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         for (int index = 0; index < 10; index++)
         {
             await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person($"person-{index}")));
@@ -264,7 +264,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     public async Task MSG_SEND_007_AC6_APassStoppedWhileTheProtectorAnswersAtCheck1ReturnsThatDeliveryToo()
     {
         ContentProtectorFake vault = new("vault");
-        await using Engine engine = await StartAsync(services: services => services.AddSingleton<IContentProtector>(vault));
+        await using DispatchEngine engine = await StartAsync(services: services => services.AddSingleton<IContentProtector>(vault));
         await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]));
         TaskCompletionSource opening = new(TaskCreationOptions.RunContinuationsAsynchronously);
         TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -289,7 +289,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_007_AC6_ARunPassAsyncWhoseTokenIsAlreadyCancelledThrowsAndClaimsNothing()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]));
         using CancellationTokenSource stop = new();
         await stop.CancelAsync();
@@ -302,7 +302,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_007_AC7_ADeliveryTakenFromAStoppedHolderWithAnUnansweredAttemptRecordsItClaimlost()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
         Guid id = receipt.Deliveries[0].Delivery.Value;
         await LoseAsync(engine.Host, id);
@@ -321,7 +321,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_007_AC7_AClaimlostAttemptThatUsesUpTheAttemptsEndsTheDeliveryFailed()
     {
-        await using Engine engine = await StartAsync(configure: configuration => configuration["Hermes:Retry:MaxAttempts"] = "1");
+        await using DispatchEngine engine = await StartAsync(configure: configuration => configuration["Hermes:Retry:MaxAttempts"] = "1");
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
         await LoseAsync(engine.Host, receipt.Deliveries[0].Delivery.Value);
 
@@ -334,7 +334,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task Pass_ThatHasRunForTheInterval_HandsBackTheDeliveriesItHasNotReached()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         for (int index = 0; index < 4; index++)
         {
             await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person($"person-{index}")));
@@ -363,7 +363,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
             UPDATE messaging.deliveries SET reason = 'carrierlost' WHERE id = @reason;
             UPDATE messaging.deliveries SET kind = 'sign.out' WHERE id = @kind;
             """;
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         List<Guid> rows = [];
         for (int index = 0; index < 3; index++)
         {
@@ -390,12 +390,12 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
         string connection = await EngineHost.DatabaseAsync(postgres);
         ManualClock clock = new(EngineHost.Start);
         SendReceipt receipt;
-        await using (Engine before = await StartAsync(connection: connection, clock: clock))
+        await using (DispatchEngine before = await StartAsync(connection: connection, clock: clock))
         {
             receipt = (await before.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
         }
 
-        await using Engine after = await StartAsync(connection: connection, clock: clock, declare: declare =>
+        await using DispatchEngine after = await StartAsync(connection: connection, clock: clock, declare: declare =>
         {
             declare.Category(EngineHost.Category).Essential();
             declare.Kind("sign.up", EngineHost.Category).Sms();
@@ -413,7 +413,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     public async Task MSG_SEND_018_AC3_AValueCopiedIntoAnotherDeliverysRowEndsItFailedWithValuerejectedAndRaisesTheAlert()
     {
         AlertSinkFake alerts = new();
-        await using Engine engine = await StartAsync(services: services => services.AddSingleton<IAlertSink>(alerts));
+        await using DispatchEngine engine = await StartAsync(services: services => services.AddSingleton<IAlertSink>(alerts));
         SendReceipt one = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
         SendReceipt two = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], code: "999999"))).Value!;
         await engine.Host.RunAsync(connection =>
@@ -439,8 +439,8 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
         string connection = await EngineHost.DatabaseAsync(postgres);
         ManualClock clock = new(EngineHost.Start);
         AlertSinkFake alerts = new();
-        await using Engine holding = await StartAsync(connection: connection, clock: clock, services: services => services.AddSingleton<IContentProtector>(new ContentProtectorFake("vault")));
-        await using Engine lacking = await StartAsync(connection: connection, clock: clock, services: services => services.AddSingleton<IAlertSink>(alerts));
+        await using DispatchEngine holding = await StartAsync(connection: connection, clock: clock, services: services => services.AddSingleton<IContentProtector>(new ContentProtectorFake("vault")));
+        await using DispatchEngine lacking = await StartAsync(connection: connection, clock: clock, services: services => services.AddSingleton<IAlertSink>(alerts));
         SendReceipt receipt = (await holding.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
         Guid id = receipt.Deliveries[0].Delivery.Value;
 
@@ -472,8 +472,8 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     {
         string connection = await EngineHost.DatabaseAsync(postgres);
         ManualClock clock = new(EngineHost.Start);
-        await using Engine holding = await StartAsync(connection: connection, clock: clock, services: services => services.AddSingleton<IContentProtector>(new ContentProtectorFake("vault")));
-        await using Engine lacking = await StartAsync(connection: connection, clock: clock, configure: configuration => configuration["Hermes:Dispatch:MaxHold"] = "01:00:00");
+        await using DispatchEngine holding = await StartAsync(connection: connection, clock: clock, services: services => services.AddSingleton<IContentProtector>(new ContentProtectorFake("vault")));
+        await using DispatchEngine lacking = await StartAsync(connection: connection, clock: clock, configure: configuration => configuration["Hermes:Dispatch:MaxHold"] = "01:00:00");
         SendReceipt now = (await holding.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
         SendReceipt later = (await holding.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { NotBefore = EngineHost.Start.AddHours(2) })).Value!;
 
@@ -494,7 +494,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_015_AC1_ADeliveryWhoseFirstCheckComesAfterItsExpiryEndsExpiredAndOneWhoseRetryWouldFallAfterItToo()
     {
-        await using Engine engine = await StartAsync(declare: declare =>
+        await using DispatchEngine engine = await StartAsync(declare: declare =>
         {
             declare.Category(EngineHost.Category).Essential();
             declare.Kind(EngineHost.Kind, EngineHost.Category).Sms().ExpiresAfter(TimeSpan.FromMinutes(10));
@@ -517,7 +517,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     public async Task MSG_SEND_007_AC10_APassClaimsNoMoreThanTheRateLeavesInItsSecondAndOpensNoOtherValues()
     {
         ContentProtectorFake vault = new("vault");
-        await using Engine engine = await StartAsync(
+        await using DispatchEngine engine = await StartAsync(
             configure: configuration => configuration["Hermes:Sms:Rate"] = "5",
             services: services => services.AddSingleton<IContentProtector>(vault));
         for (int index = 0; index < 8; index++)
@@ -537,9 +537,40 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task MSG_SEND_007_AC9_ASecondProcessDoesNotTakeOverAnEmailDeliveryDuringItsSeventyFiveSecondsOfChecksAndItIsSentOnce()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        ManualClock clock = new(EngineHost.Start);
+        ContentProtectorFake slow = new("vault");
+        ContentProtectorFake other = new("vault");
+        static void Configure(Dictionary<string, string?> configuration)
+        {
+            UnsubscribeLinkTests.Configure(configuration);
+            configuration["Hermes:Dispatch:ClaimTimeout"] = "00:01:10";
+        }
+
+        await using DispatchEngine first = await DispatchEngine.StartAsync(postgres, Configure, UnsubscribeLinkTests.Declare, UnsubscribeLinkTests.Templates, services => services.AddSingleton<IContentProtector>(slow), connection, clock);
+        await using DispatchEngine second = await DispatchEngine.StartAsync(postgres, Configure, UnsubscribeLinkTests.Declare, UnsubscribeLinkTests.Templates, services => services.AddSingleton<IContentProtector>(other), connection, clock);
+        await first.Host.SendAsync(UnsubscribeLinkTests.LetterTo("reader@example.com"));
+        int taken = 0;
+        slow.BeforeOpen = async () =>
+        {
+            clock.Advance(TimeSpan.FromSeconds(15));
+            taken += await second.Host.DispatchAsync();
+        };
+
+        int claimed = await first.Host.DispatchAsync();
+
+        Assert.Equal((1, 0), (claimed, taken));
+        Assert.Equal((5, 0), (slow.Opens, other.Opens));
+        Assert.Single(first.Email.Received);
+        Assert.Empty(second.Email.Received);
+    }
+
+    [Fact]
     public async Task MSG_SEND_007_AC11_AnEssentialDeliveryRecordedAfterOptionalOnesIsClaimedBeforeThem()
     {
-        await using Engine engine = await StartAsync(
+        await using DispatchEngine engine = await StartAsync(
             configure: configuration => configuration["Hermes:Dispatch:BatchSize"] = "1",
             declare: declare =>
             {
@@ -562,9 +593,36 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task MSG_SEND_007_AC11_WithEveryEmailCallTakingTheTimeoutAndAThousandOptionalEmailsDueADueSmsIsSentAndAnEssentialEmailIsClaimedFirst()
+    {
+        await using DispatchEngine engine = await StartAsync(
+            configure: UnsubscribeLinkTests.Configure,
+            declare: UnsubscribeLinkTests.Declare,
+            templates: UnsubscribeLinkTests.Templates);
+        engine.Email.Before = (_, _) =>
+        {
+            engine.Host.Clock.Advance(TimeSpan.FromSeconds(20));
+            return Task.CompletedTask;
+        };
+        for (int index = 0; index < 1_000; index++)
+        {
+            await engine.Host.SendAsync(UnsubscribeLinkTests.LetterTo($"reader-{index}@example.com"));
+        }
+
+        engine.Host.Clock.Advance(TimeSpan.FromSeconds(1));
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]));
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person("person-2")));
+
+        await engine.Host.DispatchAsync();
+
+        Assert.Single(engine.Sms.Received);
+        Assert.Equal("someone@example.com", engine.Email.Received[0].ToAddress);
+    }
+
+    [Fact]
     public async Task MSG_TPL_005_AC2_ASubjectValueCarryingALineFeedAndBccArrivesAsOneSubjectLine()
     {
-        await using Engine engine = await StartAsync(templates: key => key is { Channel: Channel.Email, Part: "subject" } ? "Code {{ code }}" : EngineHost.Templates(key));
+        await using DispatchEngine engine = await StartAsync(templates: key => key is { Channel: Channel.Email, Part: "subject" } ? "Code {{ code }}" : EngineHost.Templates(key));
         await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email], code: "1\nBcc: x@example.com\r\u007F"));
 
         await engine.Host.DispatchAsync();
@@ -577,7 +635,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     {
         EmailAddress from = new() { Address = "orders@example.net", DisplayName = "Orders\r\nBcc: x@example.com" };
         EmailAddress replyTo = new() { Address = "help@example.net", DisplayName = "Help\tdesk" };
-        await using Engine engine = await StartAsync(declare: declare =>
+        await using DispatchEngine engine = await StartAsync(declare: declare =>
         {
             declare.Category(EngineHost.Category).Essential();
             declare.Kind(EngineHost.Kind, EngineHost.Category).Email(from, replyTo);
@@ -596,7 +654,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     {
         EmailAddress from = new() { Address = "orders@example.net", DisplayName = "Orders" };
         EmailAddress replyTo = new() { Address = "help@example.net" };
-        await using Engine engine = await StartAsync(
+        await using DispatchEngine engine = await StartAsync(
             declare: declare =>
             {
                 declare.Category(EngineHost.Category).Essential();
@@ -620,7 +678,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task Pass_AnEmailOfAKindWithoutItsOwnSender_GoesFromTheDeployments()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]));
 
         await engine.Host.DispatchAsync();
@@ -633,7 +691,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task Pass_AnSms_CarriesItsNumberSenderTextReferenceAndMeasure()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], language: "ar"))).Value!;
 
         await engine.Host.DispatchAsync();
@@ -652,7 +710,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     public async Task MSG_CHAN_001_AC2_AProviderThatThrowsOrDoesNotAnswerLeavesItsDeliveryWaitingAndLogsOnlyTheExceptionsType(string fault)
     {
         using LogCapture logs = new();
-        await using Engine engine = await StartAsync(logs: logs);
+        await using DispatchEngine engine = await StartAsync(logs: logs);
         engine.Sms.Before = fault == "throws"
             ? (_, _) => throw new InvalidOperationException("+201000000001 was refused")
             : async (_, token) =>
@@ -678,7 +736,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     public async Task MSG_OPS_005_AC1_TheLogsOfASendsLifeHoldNoDestinationContentOrPersonReference()
     {
         using LogCapture logs = new(everyCategory: true);
-        await using Engine engine = await StartAsync(logs: logs);
+        await using DispatchEngine engine = await StartAsync(logs: logs);
         int calls = 0;
         engine.Sms.Answer = _ => ++calls == 1 ? new Attempt.Transient(AttemptReason.Temporary, 503, null) : new Attempt.Accepted("ref-1");
         engine.Email.Answer = _ => new Attempt.Permanent(AttemptReason.RecipientRefused, 550);
@@ -701,7 +759,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_OPS_004_AC1_WithDispatchingOffRunPassAsyncThrowsAndTheApplicationStillRecordsSends()
     {
-        await using Engine engine = await StartAsync(configure: configuration => configuration["Hermes:Dispatch:Enabled"] = "false");
+        await using DispatchEngine engine = await StartAsync(configure: configuration => configuration["Hermes:Dispatch:Enabled"] = "false");
 
         Assert.True((await engine.Host.SendAsync(SendTests.Code())).IsSuccess);
         await Assert.ThrowsAsync<InvalidOperationException>(() => engine.Host.DispatchAsync());
@@ -711,7 +769,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task Pass_AFinalStatusWithTheObserverOn_WritesItsNoticeUnderTheNextSequence()
     {
-        await using Engine engine = await StartAsync(
+        await using DispatchEngine engine = await StartAsync(
             configure: configuration => configuration["Hermes:Observer:Enabled"] = "true",
             services: services => services.AddSingleton<IDeliveryObserver>(new DeliveryObserverFake()));
         engine.Sms.Answer = _ => new Attempt.Transient(AttemptReason.Temporary, null, null);
@@ -734,8 +792,8 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
         ContentProtectorFake slow = new("vault");
         Action<Dictionary<string, string?>> configure = configuration => configuration["Hermes:Dispatch:ClaimTimeout"] = "00:01:10";
         Func<TemplateKey, string?> templates = key => key is { Channel: Channel.Email, Part: "html" } ? "<p>{{ code }}</p>" : EngineHost.Templates(key);
-        await using Engine first = await StartAsync(configure: configure, templates: templates, connection: connection, clock: clock, services: services => services.AddSingleton<IContentProtector>(slow));
-        await using Engine second = await StartAsync(configure: configure, templates: templates, connection: connection, clock: clock, services: services => services.AddSingleton<IContentProtector>(new ContentProtectorFake("vault")));
+        await using DispatchEngine first = await StartAsync(configure: configure, templates: templates, connection: connection, clock: clock, services: services => services.AddSingleton<IContentProtector>(slow));
+        await using DispatchEngine second = await StartAsync(configure: configure, templates: templates, connection: connection, clock: clock, services: services => services.AddSingleton<IContentProtector>(new ContentProtectorFake("vault")));
         await first.Host.SendAsync(SendTests.Code(channels: [Channel.Email]));
         int takenOver = 0;
         slow.BeforeOpen = async () =>
@@ -754,7 +812,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_EMAIL_003_AC1_AnEmailOfAKindWithAnHtmlTemplateCarriesBothPartsAndOneWithoutTheTextAlone()
     {
-        await using Engine engine = await StartAsync(
+        await using DispatchEngine engine = await StartAsync(
             declare: declare =>
             {
                 EngineHost.Essential(declare);
@@ -774,7 +832,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_EMAIL_003_AC3_NoEmailCarriesAnythingTheLibraryAddsToTellWhetherItWasOpened()
     {
-        await using Engine engine = await StartAsync(templates: key => key is { Channel: Channel.Email, Part: "html" } ? "<html><body><p>{{ code }}</p></body></html>" : EngineHost.Templates(key));
+        await using DispatchEngine engine = await StartAsync(templates: key => key is { Channel: Channel.Email, Part: "html" } ? "<html><body><p>{{ code }}</p></body></html>" : EngineHost.Templates(key));
         await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]));
 
         await engine.Host.DispatchAsync();
@@ -786,7 +844,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_EMAIL_004_AC1_A550ToRcptToEndsTheDeliveryFailedWithRecipientrefused()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         engine.Email.Answer = _ => new Attempt.Permanent(AttemptReason.RecipientRefused, 550);
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]))).Value!;
 
@@ -803,7 +861,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     public async Task MSG_EMAIL_004_AC2_A535AndAServerOfferingNoAuthenticationLeaveTheDeliveryWaitingAndRaiseTheAlert(AttemptReason reason, int? status)
     {
         AlertSinkFake alerts = new();
-        await using Engine engine = await StartAsync(services: services => services.AddSingleton<IAlertSink>(alerts));
+        await using DispatchEngine engine = await StartAsync(services: services => services.AddSingleton<IAlertSink>(alerts));
         engine.Email.Answer = _ => new Attempt.Transient(reason, status, null);
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]))).Value!;
 
@@ -818,7 +876,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     public async Task MSG_EMAIL_001_AC1_ASubmissionToAServerNotTrustedSendsNothingAndRaisesTheAlertUntilOneIsAccepted()
     {
         AlertSinkFake alerts = new();
-        await using Engine engine = await StartAsync(services: services => services.AddSingleton<IAlertSink>(alerts));
+        await using DispatchEngine engine = await StartAsync(services: services => services.AddSingleton<IAlertSink>(alerts));
         engine.Email.Answer = _ => new Attempt.Transient(AttemptReason.TlsFailed, null, null);
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]))).Value!;
 
@@ -838,7 +896,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_EMAIL_007_AC1_AnEmailAcceptedByTheServerEndsSentAndNothingMovesItFurther()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]))).Value!;
 
         await engine.Host.DispatchAsync();
@@ -855,7 +913,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SMS_002_AC1_AKindsOwnSenderNameIsUsedForItsSms()
     {
-        await using Engine engine = await StartAsync(declare: declare =>
+        await using DispatchEngine engine = await StartAsync(declare: declare =>
         {
             EngineHost.Essential(declare);
             declare.Kind("sign.up", EngineHost.Category).Sms(sender: "Orders");
@@ -872,7 +930,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SMS_002_AC3_APrefixRemovedWhileADeliveryToItWaitsEndsItFailedWithDestinationnotallowedWithoutARestart()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
         IConfigurationRoot configuration = (IConfigurationRoot)engine.Host.Services.GetRequiredService<IConfiguration>();
 
@@ -893,7 +951,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     {
         const string Answered = "550 5.1.1 mailbox someone@example.com unknown";
         using LogCapture logs = new();
-        await using Engine engine = await StartAsync(logs: logs);
+        await using DispatchEngine engine = await StartAsync(logs: logs);
         engine.Email.Before = (_, _) => throw new InvalidOperationException(Answered);
         engine.Sms.Answer = _ => new Attempt.Accepted("provider reference");
         await engine.Host.SendAsync(SendTests.Code());
@@ -907,7 +965,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_017_AC1_NoDeliveryIsAttemptedAfterAFinalStatusAndNoneStaysInflightPastItsClaimsTimeout()
     {
-        await using Engine engine = await StartAsync();
+        await using DispatchEngine engine = await StartAsync();
         int calls = 0;
         engine.Sms.Answer = _ => Interlocked.Increment(ref calls) == 2 ? new Attempt.Permanent(AttemptReason.BadRequest, 400) : new Attempt.Accepted(null);
         SendReceipt[] receipts = new SendReceipt[3];
@@ -956,7 +1014,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     {
         string connection = await EngineHost.DatabaseAsync(postgres);
         ManualClock clock = new(EngineHost.Start);
-        await using (Engine before = await StartAsync(
+        await using (DispatchEngine before = await StartAsync(
             connection: connection,
             clock: clock,
             declare: declare =>
@@ -975,7 +1033,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
         }
 
         DeliveryObserverFake observer = new();
-        await using Engine after = await StartAsync(
+        await using DispatchEngine after = await StartAsync(
             connection: connection,
             clock: clock,
             configure: configuration => configuration["Hermes:Observer:Enabled"] = "true",
@@ -998,7 +1056,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
         Assert.Empty(after.Sms.Received);
     }
 
-    private Task<Engine> StartAsync(
+    private Task<DispatchEngine> StartAsync(
         Action<Dictionary<string, string?>>? configure = null,
         Action<DeclarationBuilder>? declare = null,
         Func<TemplateKey, string?>? templates = null,
@@ -1007,7 +1065,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
         ManualClock? clock = null,
         LogCapture? logs = null)
     {
-        return Engine.StartAsync(postgres, configure, declare, templates, services, connection, clock, logs);
+        return DispatchEngine.StartAsync(postgres, configure, declare, templates, services, connection, clock, logs);
     }
 
     private static async Task UntilAsync(Func<Task<bool>> condition)
@@ -1088,7 +1146,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     /// <summary>Makes the delivery as a holder that stopped after counting its attempt leaves it: inflight, its claim expired, its attempt unanswered.</summary>
-    private static async Task LoseAsync(EngineHost host, Guid delivery)
+    internal static async Task LoseAsync(EngineHost host, Guid delivery)
     {
         const string Lose = """
             UPDATE messaging.deliveries SET status = 'inflight', attempts = 1, claimed_by = @holder, claimed_at = @at, claim_expires_at = @at WHERE id = @id;
@@ -1102,55 +1160,5 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
             command.Parameters.AddWithValue("id", delivery);
             return command;
         });
-    }
-
-    /// <summary>A started host that dispatches when a test runs a pass, through recording providers.</summary>
-    private sealed class Engine : IAsyncDisposable
-    {
-        private EngineHost? host;
-
-        internal EngineHost Host => host!;
-
-        internal RecordingEmailProvider Email { get; } = new();
-
-        internal RecordingSmsProvider Sms { get; } = new();
-
-        internal static async Task<Engine> StartAsync(
-            PostgresFixture postgres,
-            Action<Dictionary<string, string?>>? configure,
-            Action<DeclarationBuilder>? declare,
-            Func<TemplateKey, string?>? templates,
-            Action<IServiceCollection>? services,
-            string? connection,
-            ManualClock? clock,
-            LogCapture? logs)
-        {
-            Engine engine = new();
-            RecordingEmailProvider email = engine.Email;
-            RecordingSmsProvider sms = engine.Sms;
-            engine.host = await EngineHost.StartAsync(
-                connection ?? await EngineHost.DatabaseAsync(postgres),
-                declare,
-                templates,
-                configuration =>
-                {
-                    EngineHost.Dispatching(configuration);
-                    configure?.Invoke(configuration);
-                },
-                collection =>
-                {
-                    collection.AddSingleton<IEmailProvider>(email);
-                    collection.AddSingleton<ISmsProvider>(sms);
-                    services?.Invoke(collection);
-                },
-                clock: clock,
-                logs: logs);
-            return engine;
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            return host?.DisposeAsync() ?? ValueTask.CompletedTask;
-        }
     }
 }

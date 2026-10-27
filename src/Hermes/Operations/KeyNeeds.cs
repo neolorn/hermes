@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
+using Hermes.Endpoints;
 using Hermes.Sending;
 
 namespace Hermes.Operations;
@@ -20,26 +21,33 @@ internal static class KeyNeeds
 
     /// <summary>
     /// The keys needed, in the order of <c>08</c> section 7: <c>hashKeys</c> by the engine;
-    /// <c>contentKeys</c> where the application records sends, dispatches or runs the jobs;
-    /// <c>tokenKeys</c> where it records sends and an optional category has an email kind;
-    /// <c>pushVapidKeys</c> where push is dispatched. The endpoint groups and the SMS
-    /// report address need them too, with the items that build them.
+    /// <c>contentKeys</c> where the application records sends, dispatches, runs the jobs or maps
+    /// the push subscription group;
+    /// <c>tokenKeys</c> where it records sends and an optional category has an email kind, or
+    /// maps the unsubscribe group; <c>smsReportKey</c> where SMS is dispatched with a report
+    /// address (<paramref name="reportAddress"/>) or the report group is mapped;
+    /// <c>pushVapidKeys</c> where push is dispatched or the push subscription group is mapped.
     /// </summary>
-    internal static IReadOnlyList<string> Needed(Declarations declarations, MessagingOptions options)
+    internal static IReadOnlyList<string> Needed(Declarations declarations, MessagingOptions options, EndpointGroups groups, bool reportAddress)
     {
         List<string> needed = [];
-        if (options.Messages.Enabled || options.Dispatch.Enabled || options.Jobs.Enabled)
+        if (options.Messages.Enabled || options.Dispatch.Enabled || options.Jobs.Enabled || groups.PushSubscriptions)
         {
             needed.Add(ContentKeys);
         }
 
         needed.Add(HashKeys);
-        if (options.Messages.Enabled && declarations.NeedsPublicBaseAddress)
+        if ((options.Messages.Enabled && declarations.NeedsPublicBaseAddress) || groups.Unsubscribe)
         {
             needed.Add(TokenKeys);
         }
 
-        if (options.Dispatch.Enabled && declarations.Kinds.Any(kind => kind.Push is not null))
+        if (groups.SmsReports || (reportAddress && options.Dispatch.Enabled && declarations.Kinds.Any(kind => kind.Sms is not null)))
+        {
+            needed.Add(SmsReportKey);
+        }
+
+        if ((options.Dispatch.Enabled && declarations.Kinds.Any(kind => kind.Push is not null)) || groups.PushSubscriptions)
         {
             needed.Add(PushVapidKeys);
         }

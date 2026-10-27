@@ -47,6 +47,13 @@ internal sealed partial class Alerts(MessagingDatabase database, IOptionsMonitor
         RETURNING 1 AS "Value"
         """;
 
+    /// <summary>Clears a scope whose recorded instant is still the one read, so a write landing after the read is not lost.</summary>
+    private const string ClearLapsed = """
+        UPDATE messaging.alerts SET holding = false
+        WHERE condition = @condition AND scope = @scope AND holding AND holds_until = @read AND holds_until <= @now
+        RETURNING 1 AS "Value"
+        """;
+
     private readonly Lock gate = new();
 
     /// <summary>When this process last wrote each condition's instant, by condition and scope.</summary>
@@ -93,6 +100,53 @@ internal sealed partial class Alerts(MessagingDatabase database, IOptionsMonitor
         {
             await TellAsync(condition, scope, details: null, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>The scopes in which <paramref name="condition"/> is recorded holding, none written as null.</summary>
+    internal async Task<IReadOnlyList<string?>> HoldingScopesAsync(string condition, CancellationToken cancellationToken)
+    {
+        List<string> scopes = await LibraryTransactions.RunAsync(
+            database,
+            options.CurrentValue,
+            (context, token) => context.Alerts.Where(alert => alert.Condition == condition && alert.Holding).Select(alert => alert.Scope).ToListAsync(token),
+            cancellationToken).ConfigureAwait(false);
+        return [.. scopes.Select(Unscoped)];
+    }
+
+    /// <summary>
+    /// Clears, once each, the scopes of <paramref name="condition"/> whose recorded instant has
+    /// passed (<c>08</c> section 5), each by an update conditional on the instant read.
+    /// </summary>
+    internal async Task ClearLapsedAsync(string condition, CancellationToken cancellationToken)
+    {
+        DateTimeOffset now = clock.GetUtcNow();
+        var lapsed = await LibraryTransactions.RunAsync(
+            database,
+            options.CurrentValue,
+            (context, token) => context.Alerts
+                .Where(alert => alert.Condition == condition && alert.Holding && alert.HoldsUntil != null && alert.HoldsUntil <= now)
+                .Select(alert => new { alert.Scope, alert.HoldsUntil })
+                .ToListAsync(token),
+            cancellationToken).ConfigureAwait(false);
+        foreach (var alert in lapsed)
+        {
+            List<int> cleared = await LibraryTransactions.RunAsync(
+                database,
+                options.CurrentValue,
+                (context, token) => context.Database.SqlQueryRaw<int>(
+                    ClearLapsed,
+                    [.. Named(condition, alert.Scope), new NpgsqlParameter("read", alert.HoldsUntil!.Value), new NpgsqlParameter("now", now)]).ToListAsync(token),
+                cancellationToken).ConfigureAwait(false);
+            if (cleared.Count > 0)
+            {
+                await TellAsync(condition, Unscoped(alert.Scope), details: null, cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static string? Unscoped(string scope)
+    {
+        return scope.Length == 0 ? null : scope;
     }
 
     private async Task RaiseAsync(string condition, string? scope, IReadOnlyDictionary<string, string> details, DateTimeOffset? until, CancellationToken cancellationToken)
