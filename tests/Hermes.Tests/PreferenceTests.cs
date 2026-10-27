@@ -37,6 +37,23 @@ public sealed class PreferenceTests(PostgresFixture postgres) : IClassFixture<Po
     }
 
     [Fact]
+    public async Task MSG_SEND_010_AC1_ACategoryTurnedOffOnSmsStopsThePersonsSmsDeliveriesOfThatCategoryAndNoneOfItsEmailDeliveries()
+    {
+        await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, configure: UnsubscribeLinkTests.Configure, declare: UnsubscribeLinkTests.Declare, templates: UnsubscribeLinkTests.Templates);
+        Assert.True((await SetAsync(engine.Host, Person, UnsubscribeLinkTests.News, Channel.Sms, isOn: false)).IsSuccess);
+        Send letter = SendTests.Code(channels: [Channel.Email, Channel.Sms]) with { Kind = UnsubscribeLinkTests.Letter };
+
+        SendReceipt receipt = (await engine.Host.SendAsync(letter)).Value!;
+        await engine.Host.DispatchAsync();
+
+        SendRecord record = await engine.Host.ReadAsync(receipt.Send);
+        Assert.Equal(DeliveryStatus.Sent, Assert.Single(record.Deliveries, delivery => delivery.Channel == Channel.Email).Status);
+        Assert.Equal(DeliveryStatus.OptedOut, Assert.Single(record.Deliveries, delivery => delivery.Channel == Channel.Sms).Status);
+        Assert.Single(engine.Email.Received);
+        Assert.Empty(engine.Sms.Received);
+    }
+
+    [Fact]
     public async Task Set_ACategoryTurnedBackOn_LetsTheNextDeliveryGoOut()
     {
         await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, declare: SuppressionTests.Declare);
