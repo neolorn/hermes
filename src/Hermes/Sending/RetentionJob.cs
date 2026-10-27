@@ -30,6 +30,7 @@ internal sealed partial class RetentionJob(
     Declarations declarations,
     IOptionsMonitor<MessagingOptions> options,
     IOptionsMonitor<ChannelsOptions> channels,
+    RetentionKeys versions,
     TimeProvider clock,
     ILogger<RetentionJob> logger) : BackgroundService
 {
@@ -195,13 +196,20 @@ internal sealed partial class RetentionJob(
             || !await run.DeleteAsync(DeleteReadings, used.Sms.DrainBaseline).ConfigureAwait(false)
             || !await run.DeleteAsync(DeleteRejectedReports, used.Sms.ReportRejectWindow).ConfigureAwait(false)
             || !await run.DeleteAsync(DeleteAuthFailures, used.Push.AuthFailWindow).ConfigureAwait(false)
-            || !await run.DeleteAsync(DeleteRateCounters, TimeSpan.FromSeconds(1)).ConfigureAwait(false))
+            || !await run.DeleteAsync(DeleteRateCounters, TimeSpan.FromSeconds(1)).ConfigureAwait(false)
+            || !await versions.ProtectAgainAsync(RenewAsync, cancellationToken).ConfigureAwait(false)
+            || !await versions.RetireAsync(RenewAsync, cancellationToken).ConfigureAwait(false))
         {
             return false;
         }
 
         await JobClaims.ReleaseAsync(database, Name, holder, clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
         return true;
+
+        Task<bool> RenewAsync()
+        {
+            return JobClaims.RenewAsync(database, Name, holder, options.CurrentValue.Jobs.ClaimTimeout, clock.GetUtcNow(), cancellationToken);
+        }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

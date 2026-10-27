@@ -197,3 +197,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   after `Hermes:Retention:Record`, lapsed idempotency rows and limit places, suppressions
   past their lifetime, idle subscriptions, old notices and counters, and the deliveries
   this release or application does not know, in batches that skip rows held elsewhere
+- The `retention` job protects again, in batches, every value under a `contentKeys`
+  version below the write version, and marks retired each `contentKeys`, `hashKeys`,
+  `tokenKeys` and `pushVapidKeys` version nothing needs whose values were last made at
+  least `Hermes:Secrets:RetireAfter` before; a token's versions stay until the longest
+  recorded token lifetime and `RetireAfter` have passed since its last email went out;
+  it does neither while the database holds a migration the release does not know

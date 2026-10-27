@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -32,6 +33,10 @@ internal sealed partial class DispatchPasses
 
     private readonly Dictionary<string, CategoryDeclaration> categories = new(StringComparer.Ordinal);
 
+    private readonly KeyTable table;
+
+    private readonly ConcurrentDictionary<(string Key, int Version), DateTimeOffset> marked = new();
+
     public DispatchPasses(
         MessagingDatabase database,
         Declarations declarations,
@@ -40,6 +45,7 @@ internal sealed partial class DispatchPasses
         IServiceScopeFactory scopes,
         KeyedHashes hashes,
         HeldKeys keys,
+        KeyTable table,
         Alerts alerts,
         Notices notices,
         MessagingMetrics metrics,
@@ -53,6 +59,7 @@ internal sealed partial class DispatchPasses
         Scopes = scopes;
         Hashes = hashes;
         Keys = keys;
+        this.table = table;
         Alerts = alerts;
         Notices = notices;
         Metrics = metrics;
@@ -117,6 +124,23 @@ internal sealed partial class DispatchPasses
         return await pass.RunAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Writes, as an email whose unsubscribe address is <paramref name="address"/> goes out, the
+    /// current instant as the last-made instant of the <c>tokenKeys</c> and <c>hashKeys</c>
+    /// versions its token names, at most once a <c>Hermes:Dispatch:Interval</c> a version, so
+    /// the retention job counts a token's lifetime from its last email (<c>06</c> MSG-OPS-008).
+    /// </summary>
+    internal async Task TokenSentAsync(string address, CancellationToken cancellationToken)
+    {
+        if (UnsubscribeTokens.Versions(address) is not { } versions)
+        {
+            return;
+        }
+
+        await MarkSentAsync(KeyNeeds.TokenKeys, versions.TokenVersion, cancellationToken).ConfigureAwait(false);
+        await MarkSentAsync(KeyNeeds.HashKeys, versions.HashVersion, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>The kind <paramref name="name"/> as this application declares it, or none for a retired one.</summary>
     internal KindDeclaration? Kind(string name)
     {
@@ -176,6 +200,18 @@ internal sealed partial class DispatchPasses
             ClaimLockTimedOut(Logger, spelling);
             return ([], default, 0);
         }
+    }
+
+    private async Task MarkSentAsync(string key, int version, CancellationToken cancellationToken)
+    {
+        DateTimeOffset now = Clock.GetUtcNow();
+        if (marked.TryGetValue((key, version), out DateTimeOffset at) && now - at < Options.CurrentValue.Dispatch.Interval)
+        {
+            return;
+        }
+
+        await table.MarkMadeAsync(key, version, cancellationToken).ConfigureAwait(false);
+        marked[(key, version)] = now;
     }
 
     /// <summary>Whether <paramref name="failure"/> is PostgreSQL's <c>lock_timeout</c> (55P03), however EF Core wraps it.</summary>

@@ -650,7 +650,7 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
     }
 
     /// <summary>How many sessions of the test's database wait for a lock of <paramref name="type"/>.</summary>
-    private static async Task<long> WaitingAsync(EngineHost host, string type)
+    internal static async Task<long> WaitingAsync(EngineHost host, string type)
     {
         await using NpgsqlConnection database = new(host.Connection);
         await database.OpenAsync(TestContext.Current.CancellationToken);
@@ -659,7 +659,7 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
         return (long)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
     }
 
-    private static async Task UntilAsync(Func<Task<bool>> condition)
+    internal static async Task UntilAsync(Func<Task<bool>> condition)
     {
         for (int tries = 0; tries < 400; tries++)
         {

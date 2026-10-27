@@ -29,7 +29,8 @@ internal sealed class DispatchEngine : IAsyncDisposable
         string? connection = null,
         ManualClock? clock = null,
         LogCapture? logs = null,
-        Action<WebApplication>? map = null)
+        Action<WebApplication>? map = null,
+        SecretSourceFake? secrets = null)
     {
         DispatchEngine engine = new();
         RecordingEmailProvider email = engine.Email;
@@ -49,6 +50,7 @@ internal sealed class DispatchEngine : IAsyncDisposable
                 collection.AddSingleton<ISmsProvider>(sms);
                 services?.Invoke(collection);
             },
+            secrets: secrets,
             clock: clock,
             logs: logs,
             map: map);
