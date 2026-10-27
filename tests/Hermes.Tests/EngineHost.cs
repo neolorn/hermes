@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
@@ -33,11 +35,21 @@ internal sealed class EngineHost : IAsyncDisposable
 
     internal static readonly DateTimeOffset Start = new(2026, 10, 27, 9, 0, 0, TimeSpan.Zero);
 
-    private EngineHost(IHost host, string connection, ManualClock clock)
+    /// <summary>The shortest value the log check looks for, so a short code cannot match a count or a time by chance.</summary>
+    private const int ShortestChecked = 4;
+
+    private readonly LogCapture logs;
+
+    private readonly ConcurrentDictionary<string, byte> used = new(StringComparer.Ordinal);
+
+    private int stopped;
+
+    private EngineHost(IHost host, string connection, ManualClock clock, LogCapture logs)
     {
         Host = host;
         Connection = connection;
         Clock = clock;
+        this.logs = logs;
     }
 
     internal IHost Host { get; }
@@ -106,6 +118,7 @@ internal sealed class EngineHost : IAsyncDisposable
         Action<WebApplication>? map = null)
     {
         ManualClock time = clock ?? new ManualClock(Start);
+        LogCapture capture = logs ?? new LogCapture();
         Dictionary<string, string?> configuration = Configuration();
         configure?.Invoke(configuration);
         IHost host = TestHost.Build(
@@ -118,7 +131,7 @@ internal sealed class EngineHost : IAsyncDisposable
                 collection.AddSingleton<ITemplateSource>(new TemplateSourceFake(templates ?? Templates));
                 services?.Invoke(collection);
             },
-            logs: logs,
+            logs: capture,
             hostTemplates: false,
             map: map);
         try
@@ -131,11 +144,14 @@ internal sealed class EngineHost : IAsyncDisposable
             throw;
         }
 
-        return new EngineHost(host, connection, time);
+        return new EngineHost(host, connection, time, capture);
     }
 
     internal async Task<Result<SendReceipt>> SendAsync(Send send)
     {
+        ArgumentNullException.ThrowIfNull(send);
+        Uses(send.Email, send.Phone, (send.Recipient as Recipient.Person)?.Reference);
+        Uses([.. send.Values.Values.OfType<SendValue.PlainText>().Select(value => value.Value)]);
         AsyncServiceScope scope = Services.CreateAsyncScope();
         await using (scope)
         {
@@ -239,8 +255,25 @@ internal sealed class EngineHost : IAsyncDisposable
         }
     }
 
+    /// <summary>Adds destinations, content or person references the test used, which no library log line may hold (<c>06</c> MSG-OPS-005).</summary>
+    internal void Uses(params string?[] values)
+    {
+        foreach (string? value in values)
+        {
+            if (value is { Length: >= ShortestChecked })
+            {
+                used.TryAdd(value, 0);
+            }
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref stopped, 1) == 1)
+        {
+            return;
+        }
+
         try
         {
             await Host.StopAsync(TestContext.Current.CancellationToken);
@@ -249,5 +282,10 @@ internal sealed class EngineHost : IAsyncDisposable
         {
             Host.Dispose();
         }
+
+        List<string> logged = [.. logs.Entries
+            .Where(entry => entry.Category.StartsWith("Hermes.", StringComparison.Ordinal))
+            .SelectMany(entry => used.Keys.Where(value => entry.Message.Contains(value, StringComparison.Ordinal)).Select(value => $"{entry.Category}: '{value}' in \"{entry.Message}\""))];
+        Assert.True(logged.Count == 0, "A library log line holds a destination, content or person reference the test used: " + string.Join("; ", logged));
     }
 }
