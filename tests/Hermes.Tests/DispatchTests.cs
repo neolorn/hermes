@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using Hermes.Core;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using Npgsql;
@@ -501,28 +502,6 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
-    public async Task MSG_SMS_002_ANumberNoLongerWithinTheAllowedPrefixesWhenItIsCheckedEndsFailedWithDestinationnotallowed()
-    {
-        string connection = await EngineHost.DatabaseAsync(postgres);
-        ManualClock clock = new(EngineHost.Start);
-        SendReceipt receipt;
-        await using (Engine before = await StartAsync(connection: connection, clock: clock))
-        {
-            receipt = (await before.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
-        }
-
-        await using Engine after = await StartAsync(connection: connection, clock: clock, configure: configuration => configuration["Hermes:Sms:AllowedPrefixes:0"] = "+30");
-
-        await after.Host.DispatchAsync();
-
-        DeliveryRecord delivery = (await after.Host.ReadAsync(receipt.Send)).Deliveries[0];
-        Assert.Equal((DeliveryStatus.Failed, AttemptReason.DestinationNotAllowed), (delivery.Status, delivery.Reason!.Value));
-        AttemptRecord attempt = Assert.Single(delivery.Attempts);
-        Assert.Empty(attempt.Calls);
-        Assert.Empty(after.Sms.Received);
-    }
-
-    [Fact]
     public async Task MSG_SEND_007_AC10_APassClaimsNoMoreThanTheRateLeavesInItsSecondAndOpensNoOtherValues()
     {
         ContentProtectorFake vault = new("vault");
@@ -735,6 +714,253 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
         Assert.Equal(0, await NoticeCountAsync(engine.Host, sms, null));
     }
 
+    [Fact]
+    public async Task MSG_EMAIL_003_AC1_AnEmailOfAKindWithAnHtmlTemplateCarriesBothPartsAndOneWithoutTheTextAlone()
+    {
+        await using Engine engine = await StartAsync(
+            declare: declare =>
+            {
+                EngineHost.Essential(declare);
+                declare.Kind("sign.up", EngineHost.Category).Email();
+            },
+            templates: key => key is { Kind: EngineHost.Kind, Channel: Channel.Email, Part: "html" } ? "<p>{{ code }}</p>" : key.Kind == "sign.up" ? EngineHost.Templates(key with { Kind = EngineHost.Kind }) : EngineHost.Templates(key));
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]));
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email], recipient: new Recipient.Person("person-2")) with { Kind = "sign.up" });
+
+        await engine.Host.DispatchAsync();
+
+        Dictionary<string, EmailMessage> received = engine.Email.Received.ToDictionary(message => message.Html is null ? "text" : "both", StringComparer.Ordinal);
+        Assert.Equal(("Text en 123456", "<p>123456</p>"), (received["both"].Text, received["both"].Html));
+        Assert.Equal("Text en 123456", received["text"].Text);
+    }
+
+    [Fact]
+    public async Task MSG_EMAIL_003_AC3_NoEmailCarriesAnythingTheLibraryAddsToTellWhetherItWasOpened()
+    {
+        await using Engine engine = await StartAsync(templates: key => key is { Channel: Channel.Email, Part: "html" } ? "<html><body><p>{{ code }}</p></body></html>" : EngineHost.Templates(key));
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]));
+
+        await engine.Host.DispatchAsync();
+
+        EmailMessage message = Assert.Single(engine.Email.Received);
+        Assert.Equal(("Subject en 123456", "Text en 123456", "<html><body><p>123456</p></body></html>"), (message.Subject, message.Text, message.Html));
+    }
+
+    [Fact]
+    public async Task MSG_EMAIL_004_AC1_A550ToRcptToEndsTheDeliveryFailedWithRecipientrefused()
+    {
+        await using Engine engine = await StartAsync();
+        engine.Email.Answer = _ => new Attempt.Permanent(AttemptReason.RecipientRefused, 550);
+        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]))).Value!;
+
+        await engine.Host.DispatchAsync();
+
+        DeliveryRecord delivery = (await engine.Host.ReadAsync(receipt.Send)).Deliveries[0];
+        Assert.Equal((DeliveryStatus.Failed, AttemptReason.RecipientRefused), (delivery.Status, delivery.Reason!.Value));
+        Assert.Equal(550, Assert.Single(Assert.Single(delivery.Attempts).Calls).Status);
+    }
+
+    [Theory]
+    [InlineData(AttemptReason.AuthFailed, 535)]
+    [InlineData(AttemptReason.AuthFailed, null)]
+    public async Task MSG_EMAIL_004_AC2_A535AndAServerOfferingNoAuthenticationLeaveTheDeliveryWaitingAndRaiseTheAlert(AttemptReason reason, int? status)
+    {
+        AlertSinkFake alerts = new();
+        await using Engine engine = await StartAsync(services: services => services.AddSingleton<IAlertSink>(alerts));
+        engine.Email.Answer = _ => new Attempt.Transient(reason, status, null);
+        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]))).Value!;
+
+        await engine.Host.DispatchAsync();
+
+        DeliveryRecord delivery = (await engine.Host.ReadAsync(receipt.Send)).Deliveries[0];
+        Assert.Equal((DeliveryStatus.Waiting, AttemptReason.AuthFailed), (delivery.Status, delivery.Reason!.Value));
+        Assert.Contains(alerts.Calls, call => call is { Raised: true, Condition: "email-submission-failing" });
+    }
+
+    [Fact]
+    public async Task MSG_EMAIL_001_AC1_ASubmissionToAServerNotTrustedSendsNothingAndRaisesTheAlertUntilOneIsAccepted()
+    {
+        AlertSinkFake alerts = new();
+        await using Engine engine = await StartAsync(services: services => services.AddSingleton<IAlertSink>(alerts));
+        engine.Email.Answer = _ => new Attempt.Transient(AttemptReason.TlsFailed, null, null);
+        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]))).Value!;
+
+        await engine.Host.DispatchAsync();
+        DeliveryStatus held = (await engine.Host.ReadAsync(receipt.Send)).Deliveries[0].Status;
+        engine.Email.Answer = _ => new Attempt.Accepted(null);
+        engine.Host.Clock.Advance(TimeSpan.FromMinutes(1));
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal(DeliveryStatus.Waiting, held);
+        Assert.Equal(DeliveryStatus.Sent, (await engine.Host.ReadAsync(receipt.Send)).Deliveries[0].Status);
+        Assert.Equal(
+            [(true, "email-submission-failing"), (false, "email-submission-failing")],
+            alerts.Calls.Where(call => call.Condition == "email-submission-failing").Select(call => (call.Raised, call.Condition)));
+    }
+
+    [Fact]
+    public async Task MSG_EMAIL_007_AC1_AnEmailAcceptedByTheServerEndsSentAndNothingMovesItFurther()
+    {
+        await using Engine engine = await StartAsync();
+        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]))).Value!;
+
+        await engine.Host.DispatchAsync();
+        DeliveryRecord sent = (await engine.Host.ReadAsync(receipt.Send)).Deliveries[0];
+        engine.Host.Clock.Advance(TimeSpan.FromDays(1));
+        await engine.Host.DispatchAsync();
+
+        DeliveryRecord later = (await engine.Host.ReadAsync(receipt.Send)).Deliveries[0];
+        Assert.Equal(DeliveryStatus.Sent, sent.Status);
+        Assert.Equal((DeliveryStatus.Sent, sent.LastMovedAt, 1), (later.Status, later.LastMovedAt, later.Attempts.Count));
+        Assert.Single(engine.Email.Received);
+    }
+
+    [Fact]
+    public async Task MSG_SMS_002_AC1_AKindsOwnSenderNameIsUsedForItsSms()
+    {
+        await using Engine engine = await StartAsync(declare: declare =>
+        {
+            EngineHost.Essential(declare);
+            declare.Kind("sign.up", EngineHost.Category).Sms(sender: "Orders");
+        },
+        templates: key => key.Kind == "sign.up" ? EngineHost.Templates(key with { Kind = EngineHost.Kind }) : EngineHost.Templates(key));
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { Kind = "sign.up" });
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person("person-2")));
+
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal(new[] { "Orders", TestHost.Sender }.Order(StringComparer.Ordinal), engine.Sms.Received.Select(message => message.Sender).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task MSG_SMS_002_AC3_APrefixRemovedWhileADeliveryToItWaitsEndsItFailedWithDestinationnotallowedWithoutARestart()
+    {
+        await using Engine engine = await StartAsync();
+        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
+        IConfigurationRoot configuration = (IConfigurationRoot)engine.Host.Services.GetRequiredService<IConfiguration>();
+
+        configuration["Hermes:Sms:AllowedPrefixes:0"] = "+30";
+        configuration.Reload();
+        await engine.Host.DispatchAsync();
+
+        DeliveryRecord delivery = (await engine.Host.ReadAsync(receipt.Send)).Deliveries[0];
+        Assert.Equal((DeliveryStatus.Failed, AttemptReason.DestinationNotAllowed), (delivery.Status, delivery.Reason!.Value));
+        AttemptRecord attempt = Assert.Single(delivery.Attempts);
+        Assert.Equal((AttemptClass.Permanent, AttemptReason.DestinationNotAllowed), (attempt.AnswerClass!.Value, attempt.Reason!.Value));
+        Assert.Empty(attempt.Calls);
+        Assert.Empty(engine.Sms.Received);
+    }
+
+    [Fact]
+    public async Task MSG_CHAN_001_AC3_NoAttemptRecordAndNoLogEntryHoldsTextAProviderAnswered()
+    {
+        const string Answered = "550 5.1.1 mailbox someone@example.com unknown";
+        using LogCapture logs = new();
+        await using Engine engine = await StartAsync(logs: logs);
+        engine.Email.Before = (_, _) => throw new InvalidOperationException(Answered);
+        engine.Sms.Answer = _ => new Attempt.Accepted("provider reference");
+        await engine.Host.SendAsync(SendTests.Code());
+
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal(0, await RowsHoldingAsync(engine.Host, "5.1.1"));
+        Assert.DoesNotContain(logs.Entries, entry => entry.Message.Contains("5.1.1", StringComparison.Ordinal) || entry.Message.Contains("mailbox", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task MSG_SEND_017_AC1_NoDeliveryIsAttemptedAfterAFinalStatusAndNoneStaysInflightPastItsClaimsTimeout()
+    {
+        await using Engine engine = await StartAsync();
+        int calls = 0;
+        engine.Sms.Answer = _ => Interlocked.Increment(ref calls) == 2 ? new Attempt.Permanent(AttemptReason.BadRequest, 400) : new Attempt.Accepted(null);
+        SendReceipt[] receipts = new SendReceipt[3];
+        for (int index = 0; index < 3; index++)
+        {
+            receipts[index] = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person($"person-{index}")))).Value!;
+        }
+
+        await engine.Host.RunAsync(connection =>
+        {
+            NpgsqlCommand held = new("UPDATE messaging.deliveries SET status = 'inflight', claimed_by = @holder, claimed_at = @now, claim_expires_at = @now + interval '2 minutes' WHERE id = @id", connection);
+            held.Parameters.AddWithValue("holder", Guid.CreateVersion7());
+            held.Parameters.AddWithValue("now", EngineHost.Start);
+            held.Parameters.AddWithValue("id", receipts[2].Deliveries[0].Delivery.Value);
+            return held;
+        });
+
+        int first = await engine.Host.DispatchAsync();
+        engine.Host.Clock.Advance(TimeSpan.FromMinutes(2));
+        int second = await engine.Host.DispatchAsync();
+        List<DeliveryRecord> ended = [];
+        foreach (SendReceipt receipt in receipts)
+        {
+            ended.Add((await engine.Host.ReadAsync(receipt.Send)).Deliveries[0]);
+        }
+
+        for (int pass = 0; pass < 3; pass++)
+        {
+            engine.Host.Clock.Advance(TimeSpan.FromHours(8));
+            await engine.Host.DispatchAsync();
+        }
+
+        Assert.Equal((2, 1), (first, second));
+        Assert.Equal(3, engine.Sms.Received.Count);
+        Assert.Equal([DeliveryStatus.Sent, DeliveryStatus.Sent, DeliveryStatus.Failed], ended.Select(delivery => delivery.Status).Order());
+        foreach (SendReceipt receipt in receipts)
+        {
+            DeliveryRecord later = (await engine.Host.ReadAsync(receipt.Send)).Deliveries[0];
+            DeliveryRecord before = ended.Single(delivery => delivery.Delivery == later.Delivery);
+            Assert.Equal((before.Status, before.LastMovedAt, 1), (later.Status, later.LastMovedAt, later.Attempts.Count));
+        }
+    }
+
+    [Fact]
+    public async Task MSG_SEND_001_AC3_AKindRetiredWhileThreeOfItsDeliveriesWaitEndsThemCancelledAndTheObserverIsTold()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        ManualClock clock = new(EngineHost.Start);
+        await using (Engine before = await StartAsync(
+            connection: connection,
+            clock: clock,
+            declare: declare =>
+            {
+                EngineHost.Essential(declare);
+                declare.Kind("sign.up", EngineHost.Category).Sms();
+            },
+            templates: key => key.Kind == "sign.up" ? EngineHost.Templates(key with { Kind = EngineHost.Kind }) : EngineHost.Templates(key)))
+        {
+            for (int index = 0; index < 3; index++)
+            {
+                await before.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person($"person-{index}")));
+            }
+
+            await before.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { Kind = "sign.up" });
+        }
+
+        DeliveryObserverFake observer = new();
+        await using Engine after = await StartAsync(
+            connection: connection,
+            clock: clock,
+            configure: configuration => configuration["Hermes:Observer:Enabled"] = "true",
+            services: services => services.AddSingleton<IDeliveryObserver>(observer),
+            declare: declare =>
+            {
+                declare.Category(EngineHost.Category).Essential();
+                declare.Kind("order.placed", EngineHost.Category).Sms();
+                declare.Retire(EngineHost.Kind);
+            },
+            templates: key => key.Kind == "order.placed" ? EngineHost.Templates(key with { Kind = EngineHost.Kind }) : EngineHost.Templates(key));
+
+        await after.Host.DispatchAsync();
+        clock.Advance(TimeSpan.FromSeconds(5));
+        await UntilAsync(() => Task.FromResult(observer.Notices.Count == 3));
+
+        Assert.Equal(3, await CountAsync(after.Host, status: "cancelled"));
+        Assert.All(observer.Notices, notice => Assert.Equal((EngineHost.Kind, DeliveryStatus.Cancelled), (notice.Kind, notice.Status)));
+        Assert.Equal(1, await CountAsync(after.Host, status: "waiting", attempts: 0, unclaimed: true));
+        Assert.Empty(after.Sms.Received);
+    }
+
     private Task<Engine> StartAsync(
         Action<Dictionary<string, string?>>? configure = null,
         Action<DeclarationBuilder>? declare = null,
@@ -780,6 +1006,20 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
         command.Parameters.AddWithValue("now", host.Clock.GetUtcNow());
         command.Parameters.AddWithValue("id", id is { } row ? row : DBNull.Value);
         command.Parameters.AddWithValue("sequence", sequence is { } next ? next : DBNull.Value);
+        return (long)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
+    }
+
+    /// <summary>The attempt and call rows whose text holds <paramref name="text"/>.</summary>
+    private static async Task<long> RowsHoldingAsync(EngineHost host, string text)
+    {
+        const string Holding = """
+            SELECT (SELECT count(*) FROM messaging.attempts a WHERE strpos(a::text, @text) > 0)
+                 + (SELECT count(*) FROM messaging.calls c WHERE strpos(c::text, @text) > 0)
+            """;
+        await using NpgsqlConnection connection = new(host.Connection);
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlCommand command = new(Holding, connection);
+        command.Parameters.AddWithValue("text", text);
         return (long)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
     }
 

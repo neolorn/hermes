@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Hermes.Content;
 using Hermes.Core;
 using Hermes.Sending;
 
@@ -407,6 +408,67 @@ public sealed class SendTests(PostgresFixture postgres) : IClassFixture<Postgres
         Assert.Equal("Sms ar 123456", await host.OpenAsync(egyptian.Value!.Deliveries[0].Delivery.Value, "text"));
         Assert.Equal("ar", await host.ColumnAsync<string>(upper.Value!.Deliveries[0].Delivery.Value, "language"));
         Assert.Equal("en", await host.ColumnAsync<string>(none.Value!.Deliveries[0].Delivery.Value, "language"));
+    }
+
+    [Fact]
+    public async Task MSG_SMS_002_AC2_WithAllowedPrefixesPlus20ASendToPlus44IsRefusedAndRecordsNothing()
+    {
+        await using EngineHost host = await StartAsync(configure: configuration => configuration["Hermes:Sms:AllowedPrefixes:0"] = "+20");
+
+        Result<SendReceipt> result = await host.SendAsync(Code(phone: "+447700900123", channels: [Channel.Sms]));
+
+        AssertRefused(result, "messaging.send.destinationnotallowed", "sms");
+        Assert.Equal((0, 0, 0), await host.RecordedAsync());
+    }
+
+    [Fact]
+    public async Task MSG_TPL_005_AC3_AnArabicWordInAnHtmlPartAndInAPushPayloadArrivesAsItsOwnCharacters()
+    {
+        const string Word = "مرحبا";
+        await using EngineHost host = await StartAsync(templates: key => key is { Channel: Channel.Email, Part: "html" } ? "<p>{{ code }}</p>" : EngineHost.Templates(key));
+
+        Result<SendReceipt> sent = await host.SendAsync(Code(code: Word, language: "ar", channels: [Channel.Email]));
+        string payload = Encoding.UTF8.GetString(PushPayload.Of(new Dictionary<string, string>(StringComparer.Ordinal) { ["title"] = Word, ["body"] = Word }, "ar", "rtl"));
+
+        Assert.Equal($"<p>{Word}</p>", await host.OpenAsync(sent.Value!.Deliveries[0].Delivery.Value, "html"));
+        Assert.Equal($$"""{"title":"{{Word}}","body":"{{Word}}","lang":"ar","dir":"rtl"}""", payload);
+    }
+
+    [Fact]
+    public async Task MSG_TPL_007_AC1_ATemplateLoopingOverATenMillionItemListIsRefusedWithRenderlimitAndRecordsNothing()
+    {
+        IReadOnlyDictionary<string, SendValue> item = new Dictionary<string, SendValue>(StringComparer.Ordinal) { ["name"] = new SendValue.PlainText("x") };
+        await using EngineHost host = await StartAsync(templates: key => key is { Channel: Channel.Sms } ? "{% for item in lines %}{% endfor %}{{ code }}" : EngineHost.Templates(key));
+
+        Result<SendReceipt> result = await host.SendAsync(Code(channels: [Channel.Sms], values: new() { ["lines"] = new SendValue.List(Enumerable.Repeat(item, 10_000_000).ToArray()) }));
+
+        AssertRefused(result, "messaging.send.renderlimit", "sms");
+        Assert.Equal((0, 0, 0), await host.RecordedAsync());
+    }
+
+    [Theory]
+    [InlineData("{% assign v = code %}{% for i in (1..30) %}{% assign v = v | append: v %}{% endfor %}{{ v }}")]
+    [InlineData("{% assign c = code %}{% for i in (1..30) %}{% capture c %}{{ c }}{{ c }}{% endcapture %}{% endfor %}{{ c }}")]
+    public async Task MSG_TPL_007_AC2_AStringGrownByAppendOrByACaptureInALoopIsRefusedWithToolongAndRecordsNothing(string template)
+    {
+        await using EngineHost host = await StartAsync(templates: key => key is { Channel: Channel.Email, Part: "text" } ? template : EngineHost.Templates(key));
+
+        Result<SendReceipt> result = await host.SendAsync(Code(channels: [Channel.Email]));
+
+        AssertRefused(result, "messaging.send.toolong", "email");
+        Assert.Equal((0, 0, 0), await host.RecordedAsync());
+    }
+
+    [Fact]
+    public async Task MSG_TPL_007_AC3_AJoinOfALongListWithALongSeparatorIsRefusedWithToolong()
+    {
+        SendValue.List lines = new([.. Enumerable.Range(0, 2000).Select(index => (IReadOnlyDictionary<string, SendValue>)new Dictionary<string, SendValue>(StringComparer.Ordinal) { ["name"] = new SendValue.PlainText("x") })]);
+        await using EngineHost host = await StartAsync(templates: key => key is { Channel: Channel.Email, Part: "text" } ? "{{ lines | map: 'name' | join: separator }}" : EngineHost.Templates(key));
+
+        Result<SendReceipt> result = await host.SendAsync(Code(channels: [Channel.Email], values: new() { ["lines"] = lines, ["separator"] = new SendValue.PlainText(new string('-', 1000)) }));
+
+        AssertRefused(result, "messaging.send.toolong", "email");
+        Assert.Equal((0, 0, 0), await host.RecordedAsync());
     }
 
     [Fact]

@@ -311,6 +311,17 @@ public sealed class ConfigurationTests
     }
 
     [Fact]
+    public async Task MSG_TPL_003_AC2_ADeploymentDeclaringALanguageThatResolvesOnlyToTheInvariantCultureDoesNotStart()
+    {
+        Dictionary<string, string?> configuration = TestHost.Languages("en", "und");
+        using IHost host = TestHost.Build(configuration);
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(("messaging.startup.configurationinvalid", "Languages"), (failure.Code, failure.Details["key"]));
+    }
+
+    [Fact]
     public void MSG_OPS_001_AC1_DefaultLanguageMatchesItsLanguageWhateverItsCase()
     {
         Dictionary<string, string?> configuration = TestHost.Languages("en-GB", "ar-EG");
