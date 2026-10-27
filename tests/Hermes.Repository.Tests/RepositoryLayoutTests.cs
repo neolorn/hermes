@@ -142,10 +142,21 @@ public sealed class RepositoryLayoutTests
         Assert.Contains("samples/nuget.config is missing, though samples/ holds the sample host.", LayoutRules.SamplePackageSourceViolations(fixture.Root));
     }
 
+    [Fact]
+    public void MSG_ENG_001_AC1_FileOfTopLevelStatementsIsAccepted()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSample();
+        fixture.Write("samples/Bakery/Program.cs", "using System;\n\n// A program's statements, in no namespace.\nConsole.WriteLine(Greeting());\n\nstatic string Greeting() => \"Hello\";\n");
+
+        Assert.Empty(LayoutRules.FolderViolations(fixture.Root));
+    }
+
     [Theory]
     [InlineData("public sealed class Message;\n")]
     [InlineData("// namespace Hermes.Core;\n\npublic sealed class Message;\n")]
     [InlineData("[assembly: System.CLSCompliant(false)]\n")]
+    [InlineData("using System;\n\nConsole.WriteLine(1);\n\ninternal sealed class Message;\n")]
     public void MSG_ENG_001_AC1_FileWithoutANamespaceIsFound(string source)
     {
         using RepositoryFixture fixture = new();

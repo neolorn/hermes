@@ -146,7 +146,10 @@ internal static partial class LayoutRules
             Match declared = NamespacePattern().Match(code);
             if (!declared.Success)
             {
-                yield return $"{where} declares no namespace.";
+                if (!IsTopLevelProgram(code))
+                {
+                    yield return $"{where} declares no namespace.";
+                }
             }
             else if (!string.Equals(declared.Groups["name"].Value, expected, StringComparison.Ordinal))
             {
@@ -429,8 +432,26 @@ internal static partial class LayoutRules
         }
     }
 
+    /// <summary>
+    /// Whether <paramref name="code"/> is a program's top-level statements: statements beside its
+    /// using directives and attributes, and no type, which C# lets declare no namespace (the
+    /// sample host's entry point); a file holding only directives and attributes is none.
+    /// </summary>
+    private static bool IsTopLevelProgram(string code)
+    {
+        string statements = DirectivePattern().Replace(code, string.Empty);
+        return statements.Trim().Length > 0 && !TypePattern().IsMatch(statements);
+    }
+
     [GeneratedRegex(@"^\s*namespace\s+(?<name>[\w.]+)", RegexOptions.Multiline)]
     private static partial Regex NamespacePattern();
+
+    /// <summary>A using directive, or an assembly's or module's attribute.</summary>
+    [GeneratedRegex(@"^\s*(?:global\s+)?using\s+[^;]+;|^\s*\[\s*(?:assembly|module)\s*:[^\]]*\]", RegexOptions.Multiline)]
+    private static partial Regex DirectivePattern();
+
+    [GeneratedRegex(@"\b(?:class|record|struct|interface|enum|delegate)\s+[A-Za-z_]")]
+    private static partial Regex TypePattern();
 
     /// <summary>A namespace's declaration, a brace, or a public type's declaration.</summary>
     [GeneratedRegex(@"(?<namespace>\bnamespace\s+[\w.]+\s*[{;])|[{}]|\bpublic\s+(?:(?:abstract|sealed|static|partial|readonly|ref|unsafe|new)\s+)*(?:class|record|struct|interface|enum|delegate)\b")]
