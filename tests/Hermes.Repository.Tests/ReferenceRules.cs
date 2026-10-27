@@ -265,7 +265,7 @@ internal static class ReferenceRules
 
         string[] allowed = name switch
         {
-            Packages.Channels => [Packages.Engine, Packages.JanusChannels, Packages.Testing],
+            Packages.Channels => [Packages.Engine, Packages.Testing],
             Packages.Engine => [Packages.Cli, Packages.Testing],
             _ => [],
         };
