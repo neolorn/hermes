@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <!-- Its packages change with every commit, so it alone keeps no lockfile (07 MSG-ENG-001). -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hermes" />
+    <PackageReference Include="Hermes.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Each kind's templates, read from this assembly by their paths under the template folder (03 MSG-TPL-006). -->
+    <EmbeddedResource Include="order.received.email.en.subject.liquid" LogicalName="order.received/email.en.subject.liquid" />
+    <EmbeddedResource Include="order.received.email.en.text.liquid" LogicalName="order.received/email.en.text.liquid" />
+    <EmbeddedResource Include="order.received.sms.en.text.liquid" LogicalName="order.received/sms.en.text.liquid" />
+    <EmbeddedResource Include="offer.weekly.email.en.subject.liquid" LogicalName="offer.weekly/email.en.subject.liquid" />
+    <EmbeddedResource Include="offer.weekly.email.en.text.liquid" LogicalName="offer.weekly/email.en.text.liquid" />
+    <EmbeddedResource Include="offer.weekly.push.en.title.liquid" LogicalName="offer.weekly/push.en.title.liquid" />
+    <EmbeddedResource Include="offer.weekly.push.en.body.liquid" LogicalName="offer.weekly/push.en.body.liquid" />
+  </ItemGroup>
+
+</Project>

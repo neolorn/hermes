@@ -447,17 +447,17 @@ and for a release tag the commits since the previous release tag (the whole hist
 the first), save the merge commits the platform writes, while the secret scan reads the
 whole history each time (`10` MSG-THR-004); a gate whose part is built in a later phase
 (the migrations gate, plan phase 1; the release compatibility gate, phase 5; the sample
-host's, phase 6) has its script added by that phase, and the job runs every script
-present; the implementer runs all of them on the commit its phase report names, before
-it pushes the phase's work (the first `docs:` commit, pushed before the gates exist, is
-checked by the secret scan alone), and reports each one's result for that commit; the
-report's own commit, on top of it, runs the secret scan and the commit-message gate
-again and is the commit the implementer pushes and names in its pull request (plan,
-section 5).
+host's, phase 5a) has its script added by that phase, and the job runs every script
+present. Before it pushes, the implementer runs the fast checks, every unit test, the
+commit-message gate and the secret scan, and the integration tests it writes or its
+change touches, never the whole integration set; the pipeline's `gates` run on the last
+commit pushed, the report's own commit, is the gate of record, which the implementer
+waits for in the same run and names with its result (the first `docs:` commit, pushed
+before the gates exist, is checked by the secret scan alone) (M-018, M-019).
 
-*Source: M-012, M-014, M-015*
+*Source: M-012, M-014, M-015, M-018, M-019*
 
 **Acceptance criteria**
 1. Each gate runs on pull request, and any failing blocks the merge.
 2. Each gate's script, run locally on a commit, gives the result the pipeline gives on
-   it.
+   it, whether or not the implementer runs it before a push (M-019).

@@ -76,13 +76,18 @@ internal static class ReferenceRules
         {
             bool shipped = project.RelativePath.StartsWith("src/", StringComparison.Ordinal);
             bool test = project.RelativePath.StartsWith("tests/", StringComparison.Ordinal);
-            if (!shipped && !test)
+            bool sample = IsSample(project);
+            if (!shipped && !test && !sample)
             {
                 continue;
             }
 
-            IReadOnlyList<string> allowedProjects = shipped ? AllowedProjects.GetValueOrDefault(project.Name, []) : AllowedTestProjects(project.Name);
-            IReadOnlyList<string> allowedPackages = shipped ? AllowedPackages.GetValueOrDefault(project.Name, []) : TestPackages;
+            IReadOnlyList<string> allowedProjects = shipped ? AllowedProjects.GetValueOrDefault(project.Name, [])
+                : sample ? AllowedSampleProjects(project.Name)
+                : AllowedTestProjects(project.Name);
+            IReadOnlyList<string> allowedPackages = shipped ? AllowedPackages.GetValueOrDefault(project.Name, [])
+                : sample ? AllowedSamplePackages(project.Name)
+                : TestPackages;
 
             foreach (string reference in project.ProjectReferences.Where(reference => !allowedProjects.Contains(reference, StringComparer.Ordinal)))
             {
@@ -221,7 +226,10 @@ internal static class ReferenceRules
     internal static IReadOnlyList<string> GrantViolations(string root)
     {
         List<string> violations = [];
-        foreach (ProjectFile project in ProjectFile.ReadAll(root))
+
+        // The sample host is built only by its own gate, from the packed packages, so it has no
+        // assembly to read here; it is no source project, so it may grant nothing.
+        foreach (ProjectFile project in ProjectFile.ReadAll(root).Where(project => !IsSample(project)))
         {
             string assembly = Path.Combine(project.Folder, "bin", "Release", "net10.0", project.Name + ".dll");
             if (!File.Exists(assembly))
@@ -276,6 +284,27 @@ internal static class ReferenceRules
         return [source, Packages.Testing];
     }
 
+    /// <summary>Whether <paramref name="project"/> is the sample host's or its test project's, under <c>samples/</c>.</summary>
+    internal static bool IsSample(ProjectFile project)
+    {
+        return project.RelativePath.StartsWith("samples/", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The sample host, built only from the packed packages, references no project; its test
+    /// project references the sample host it tests.
+    /// </summary>
+    private static IReadOnlyList<string> AllowedSampleProjects(string project)
+    {
+        return project.EndsWith(".Tests", StringComparison.Ordinal) ? [project[..^".Tests".Length]] : [];
+    }
+
+    /// <summary>The packed packages, and for the sample host's tests the test packages of <c>07</c> MSG-ENG-009.</summary>
+    private static IReadOnlyList<string> AllowedSamplePackages(string project)
+    {
+        return project.EndsWith(".Tests", StringComparison.Ordinal) ? [.. Packages.All, .. TestPackages] : Packages.All;
+    }
+
     private static bool IsBuildOnly(ProjectFile project, string package)
     {
         bool shipped = project.RelativePath.StartsWith("src/", StringComparison.Ordinal);
@@ -307,8 +336,9 @@ internal static class ReferenceRules
             yield return $"{project.RelativePath} references a project that references {AspNetCore}, without referencing the framework itself.";
         }
 
+        bool test = project.RelativePath.StartsWith("tests/", StringComparison.Ordinal) || (IsSample(project) && project.Name.EndsWith(".Tests", StringComparison.Ordinal));
         bool allowed = string.Equals(project.Name, Packages.Engine, StringComparison.Ordinal) || needs
-            || (project.RelativePath.StartsWith("tests/", StringComparison.Ordinal) && project.PackageReferences.Any(reference => string.Equals(ProjectFile.Include(reference), "Microsoft.AspNetCore.Mvc.Testing", StringComparison.Ordinal)));
+            || (test && project.PackageReferences.Any(reference => string.Equals(ProjectFile.Include(reference), "Microsoft.AspNetCore.Mvc.Testing", StringComparison.Ordinal)));
         if (references && !allowed)
         {
             yield return $"{project.RelativePath} references {AspNetCore} without needing it.";

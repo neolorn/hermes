@@ -81,7 +81,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<NoticeDelivery>();
         services.AddSingleton<SmsReports>();
         services.AddSingleton<WrongKeyLimiter>();
-        services.AddSingleton<PushSubscriptions>();
+        services.AddScoped<PushSubscriptions>();
         services.TryAddSingleton<ChannelsUnderEngine>();
         services.AddHermesChannels(configuration);
 

@@ -203,3 +203,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   least `Hermes:Secrets:RetireAfter` before; a token's versions stay until the longest
   recorded token lifetime and `RetireAfter` have passed since its last email went out;
   it does neither while the database holds a migration the release does not know
+- A host whose service provider checks lifetimes, as ASP.NET Core's does in
+  development, starts with the push subscription group mapped: its service no
+  longer holds a host protector for the life of the process
+- A sample host, a bakery that tells its customers of their orders by email and SMS
+  and of its weekly offers by email and push, built from the packed packages alone,
+  with tests that run it against PostgreSQL

@@ -25,4 +25,10 @@
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 
+  <!-- The library's own packages, which the sample host alone references, at the version its gate packs them at (07 MSG-ENG-001). -->
+  <ItemGroup Condition="'$(HermesPackageVersion)' != ''">
+    <PackageVersion Include="Hermes" Version="$(HermesPackageVersion)" />
+    <PackageVersion Include="Hermes.Testing" Version="$(HermesPackageVersion)" />
+  </ItemGroup>
+
 </Project>

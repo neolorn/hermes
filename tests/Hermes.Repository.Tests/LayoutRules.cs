@@ -16,6 +16,9 @@ internal static partial class LayoutRules
 {
     private const string NuGetOrg = "https://api.nuget.org/v3/index.json";
 
+    /// <summary>The folder the sample host's gate packs the packages into, as <c>samples/nuget.config</c> names it.</summary>
+    private const string PackedFolder = "../artifacts/packages";
+
     /// <summary>The files at the repository's root (07 MSG-ENG-001).</summary>
     private static readonly IReadOnlyList<string> RootFiles =
         ["Hermes.sln", "Directory.Build.props", "Directory.Packages.props", "global.json", ".editorconfig", ".gitignore", "nuget.config", "CHANGELOG.md", "RELEASE-NOTES.md"];
@@ -34,6 +37,7 @@ internal static partial class LayoutRules
         IReadOnlyList<ProjectFile> projects = ProjectFile.ReadAll(root);
         List<string> sources = [];
         List<string> tests = [];
+        List<string> samples = [];
 
         foreach (ProjectFile project in projects)
         {
@@ -47,10 +51,24 @@ internal static partial class LayoutRules
             {
                 tests.Add(project.Name);
             }
-            else if (!(parts.Length == 3 && string.Equals(parts[0], "samples", StringComparison.Ordinal)))
+            else if (placed && string.Equals(parts[0], "samples", StringComparison.Ordinal))
             {
-                violations.Add($"{project.RelativePath} is not a package's project at src/<Package>/ or a test project at tests/<Project>/.");
+                samples.Add(project.Name);
             }
+            else
+            {
+                violations.Add($"{project.RelativePath} is not a package's project at src/<Package>/, a test project at tests/<Project>/ or the sample host's at samples/<Project>/.");
+            }
+        }
+
+        foreach (string sample in samples.Where(sample => sample.EndsWith(".Tests", StringComparison.Ordinal) && !samples.Contains(sample[..^".Tests".Length], StringComparer.Ordinal)))
+        {
+            violations.Add($"samples/{sample} is the test project of no sample host.");
+        }
+
+        if (samples.Count > 0)
+        {
+            violations.AddRange(SampleSolutionViolations(root, [.. samples.Select(name => $"{name}/{name}.csproj")]));
         }
 
         foreach (string test in tests)
@@ -128,7 +146,10 @@ internal static partial class LayoutRules
             Match declared = NamespacePattern().Match(code);
             if (!declared.Success)
             {
-                yield return $"{where} declares no namespace.";
+                if (!IsTopLevelProgram(code))
+                {
+                    yield return $"{where} declares no namespace.";
+                }
             }
             else if (!string.Equals(declared.Groups["name"].Value, expected, StringComparison.Ordinal))
             {
@@ -166,6 +187,28 @@ internal static partial class LayoutRules
         foreach (string project in listed.Where(project => !expected.Contains(project, StringComparer.Ordinal)))
         {
             yield return $"Hermes.sln lists {project}, which is not a package's project or its test project.";
+        }
+    }
+
+    /// <summary>Answers each sample project <c>samples/Samples.sln</c> does not list, and each it lists that is not one, by its path under <c>samples/</c>.</summary>
+    private static IEnumerable<string> SampleSolutionViolations(string root, IReadOnlyList<string> expected)
+    {
+        string solution = Path.Combine(root, "samples", "Samples.sln");
+        if (!File.Exists(solution))
+        {
+            yield return "samples/Samples.sln is missing, though samples/ holds the sample host.";
+            yield break;
+        }
+
+        HashSet<string> listed = [.. SolutionProjectPattern().Matches(File.ReadAllText(solution)).Select(match => match.Groups["path"].Value.Replace('\\', '/'))];
+        foreach (string project in expected.Where(project => !listed.Contains(project)))
+        {
+            yield return $"samples/Samples.sln does not list {project}.";
+        }
+
+        foreach (string project in listed.Where(project => !expected.Contains(project, StringComparer.Ordinal)))
+        {
+            yield return $"samples/Samples.sln lists {project}, which is not the sample host's project or its test project.";
         }
     }
 
@@ -283,6 +326,88 @@ internal static partial class LayoutRules
         }
     }
 
+    /// <summary>
+    /// Answers each part of <c>samples/nuget.config</c> outside MSG-ENG-001, where
+    /// <c>samples/</c> holds a project: the sources cleared, nuget.org and
+    /// <c>artifacts/packages/</c> the two sources, the mapping cleared, the library's own
+    /// package identifiers mapped, each by its name, to <c>artifacts/packages/</c> alone, and
+    /// every other identifier to nuget.org alone.
+    /// </summary>
+    internal static IEnumerable<string> SamplePackageSourceViolations(string root)
+    {
+        string samples = Path.Combine(root, "samples");
+        if (!Directory.Exists(samples) || !ProjectFile.Enumerate(samples, "*.csproj").Any())
+        {
+            yield break;
+        }
+
+        string path = Path.Combine(samples, "nuget.config");
+        if (!File.Exists(path))
+        {
+            yield return "samples/nuget.config is missing, though samples/ holds the sample host.";
+            yield break;
+        }
+
+        XElement configuration = XDocument.Load(path).Root!;
+        List<XElement> sources = [.. configuration.Element("packageSources")?.Elements() ?? []];
+        if (sources.Count == 0 || sources[0].Name.LocalName is not "clear")
+        {
+            yield return "samples/nuget.config does not clear the package sources first.";
+        }
+
+        List<XElement> added = [.. sources.Skip(1)];
+        XElement? nugetOrg = added.FirstOrDefault(source => string.Equals(source.Attribute("key")?.Value, "nuget.org", StringComparison.Ordinal));
+        XElement? packed = added.FirstOrDefault(source => source.Attribute("value")?.Value.TrimEnd('/') is PackedFolder);
+        bool twoSources = added.Count == 2 && added.All(source => source.Name.LocalName is "add")
+            && nugetOrg is not null && string.Equals(nugetOrg.Attribute("value")?.Value, NuGetOrg, StringComparison.Ordinal)
+            && packed is not null && !ReferenceEquals(packed, nugetOrg);
+        if (!twoSources)
+        {
+            yield return $"samples/nuget.config does not add nuget.org, {NuGetOrg}, and {PackedFolder} as its two sources.";
+        }
+
+        List<XElement> mapping = [.. configuration.Element("packageSourceMapping")?.Elements() ?? []];
+        if (mapping.Count == 0 || mapping[0].Name.LocalName is not "clear")
+        {
+            yield return "samples/nuget.config does not clear the package source mapping first.";
+        }
+
+        List<XElement> mapped = [.. mapping.Skip(1)];
+        string? packedKey = packed?.Attribute("key")?.Value;
+        if (!Maps(mapped, packedKey, Packages.All))
+        {
+            yield return $"samples/nuget.config does not map the library's own package identifiers, each by its name, to {PackedFolder} alone.";
+        }
+
+        if (!Maps(mapped, "nuget.org", ["*"]))
+        {
+            yield return "samples/nuget.config does not map every other package identifier, \"*\", to nuget.org alone.";
+        }
+
+        if (mapped.Any(source => source.Name.LocalName is not "packageSource" || !(source.Attribute("key")?.Value is "nuget.org" || string.Equals(source.Attribute("key")?.Value, packedKey, StringComparison.Ordinal))))
+        {
+            yield return "samples/nuget.config maps a package source other than its two.";
+        }
+
+        foreach (XElement section in configuration.Elements().Where(section => section.Name.LocalName is not ("packageSources" or "packageSourceMapping")))
+        {
+            yield return $"samples/nuget.config holds the section {section.Name.LocalName}, which MSG-ENG-001 does not give it.";
+        }
+    }
+
+    /// <summary>Whether one <c>packageSource</c> of <paramref name="mapped"/>, keyed <paramref name="key"/>, maps exactly <paramref name="patterns"/>.</summary>
+    private static bool Maps(List<XElement> mapped, string? key, IReadOnlyList<string> patterns)
+    {
+        List<XElement> sources = [.. mapped.Where(source => key is not null && string.Equals(source.Attribute("key")?.Value, key, StringComparison.Ordinal))];
+        if (sources.Count != 1 || sources[0].Elements().Any(package => package.Name.LocalName is not "package"))
+        {
+            return false;
+        }
+
+        List<string> taken = [.. sources[0].Elements().Select(package => package.Attribute("pattern")?.Value ?? string.Empty)];
+        return taken.Count == patterns.Count && taken.Order(StringComparer.Ordinal).SequenceEqual(patterns.Order(StringComparer.Ordinal), StringComparer.Ordinal);
+    }
+
     /// <summary>Answers whether the root <c>.gitignore</c> lists <c>artifacts/packages/</c>, where the gate packs the packages.</summary>
     internal static IEnumerable<string> IgnoreViolations(string root)
     {
@@ -307,8 +432,26 @@ internal static partial class LayoutRules
         }
     }
 
+    /// <summary>
+    /// Whether <paramref name="code"/> is a program's top-level statements: statements beside its
+    /// using directives and attributes, and no type, which C# lets declare no namespace (the
+    /// sample host's entry point); a file holding only directives and attributes is none.
+    /// </summary>
+    private static bool IsTopLevelProgram(string code)
+    {
+        string statements = DirectivePattern().Replace(code, string.Empty);
+        return statements.Trim().Length > 0 && !TypePattern().IsMatch(statements);
+    }
+
     [GeneratedRegex(@"^\s*namespace\s+(?<name>[\w.]+)", RegexOptions.Multiline)]
     private static partial Regex NamespacePattern();
+
+    /// <summary>A using directive, or an assembly's or module's attribute.</summary>
+    [GeneratedRegex(@"^\s*(?:global\s+)?using\s+[^;]+;|^\s*\[\s*(?:assembly|module)\s*:[^\]]*\]", RegexOptions.Multiline)]
+    private static partial Regex DirectivePattern();
+
+    [GeneratedRegex(@"\b(?:class|record|struct|interface|enum|delegate)\s+[A-Za-z_]")]
+    private static partial Regex TypePattern();
 
     /// <summary>A namespace's declaration, a brace, or a public type's declaration.</summary>
     [GeneratedRegex(@"(?<namespace>\bnamespace\s+[\w.]+\s*[{;])|[{}]|\bpublic\s+(?:(?:abstract|sealed|static|partial|readonly|ref|unsafe|new)\s+)*(?:class|record|struct|interface|enum|delegate)\b")]

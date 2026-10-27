@@ -73,15 +73,90 @@ public sealed class RepositoryLayoutTests
     public void MSG_ENG_001_AC1_SampleSolutionIsAccepted()
     {
         using RepositoryFixture fixture = new();
-        fixture.Write("samples/Samples.sln", string.Empty);
+        fixture.WriteSample();
 
         Assert.Empty(LayoutRules.ProjectViolations(fixture.Root));
+        Assert.Empty(LayoutRules.SamplePackageSourceViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_ENG_001_AC1_SampleProjectOutsideItsFolderIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSample();
+        fixture.Write("samples/Bakery/Other.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />");
+
+        Assert.Contains(LayoutRules.ProjectViolations(fixture.Root), violation => violation.StartsWith("samples/Bakery/Other.csproj is not", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MSG_ENG_001_AC1_SampleProjectTheSampleSolutionDoesNotListIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSample();
+        fixture.Write("samples/Samples.sln", "Project(\"{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}\") = \"Bakery\", \"Bakery\\Bakery.csproj\", \"{0193A3C2-0000-7000-8000-000000000001}\"\nEndProject\n");
+
+        Assert.Contains("samples/Samples.sln does not list Bakery.Tests/Bakery.Tests.csproj.", LayoutRules.ProjectViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_ENG_001_AC1_SampleTestProjectWithoutItsSampleHostIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSample();
+        File.Delete(Path.Combine(fixture.Root, "samples", "Bakery", "Bakery.csproj"));
+
+        Assert.Contains("samples/Bakery.Tests is the test project of no sample host.", LayoutRules.ProjectViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_ENG_001_AC1_SamplePackageSourcesFollowTheRule()
+    {
+        Assert.Empty(LayoutRules.SamplePackageSourceViolations(RepositoryRoot.Path));
+    }
+
+    [Theory]
+    [InlineData("<packageSources>\n    <clear />", "<packageSources>", "does not clear the package sources first.")]
+    [InlineData("../artifacts/packages", "../artifacts/other", "does not add nuget.org, https://api.nuget.org/v3/index.json, and ../artifacts/packages as its two sources.")]
+    [InlineData("<package pattern=\"Hermes.Cli\" />", "<package pattern=\"Hermes.*\" />", "does not map the library's own package identifiers, each by its name, to ../artifacts/packages alone.")]
+    [InlineData("<package pattern=\"*\" />", "<package pattern=\"Microsoft.*\" />", "does not map every other package identifier, \"*\", to nuget.org alone.")]
+    [InlineData("<packageSourceMapping>\n    <clear />", "<packageSourceMapping>", "does not clear the package source mapping first.")]
+    public void MSG_ENG_001_AC1_SamplePackageSourcesOutsideTheRuleAreFound(string part, string replacement, string expected)
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSample();
+        string sources = RepositoryFixture.SampleSources.ReplaceLineEndings("\n");
+        Assert.Contains(part, sources, StringComparison.Ordinal);
+        fixture.Write("samples/nuget.config", sources.Replace(part, replacement, StringComparison.Ordinal));
+
+        Assert.Contains($"samples/nuget.config {expected}", LayoutRules.SamplePackageSourceViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_ENG_001_AC1_SampleHostWithoutItsPackageSourcesIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSample();
+        File.Delete(Path.Combine(fixture.Root, "samples", "nuget.config"));
+
+        Assert.Contains("samples/nuget.config is missing, though samples/ holds the sample host.", LayoutRules.SamplePackageSourceViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_ENG_001_AC1_FileOfTopLevelStatementsIsAccepted()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSample();
+        fixture.Write("samples/Bakery/Program.cs", "using System;\n\n// A program's statements, in no namespace.\nConsole.WriteLine(Greeting());\n\nstatic string Greeting() => \"Hello\";\n");
+
+        Assert.Empty(LayoutRules.FolderViolations(fixture.Root));
     }
 
     [Theory]
     [InlineData("public sealed class Message;\n")]
     [InlineData("// namespace Hermes.Core;\n\npublic sealed class Message;\n")]
     [InlineData("[assembly: System.CLSCompliant(false)]\n")]
+    [InlineData("using System;\n\nConsole.WriteLine(1);\n\ninternal sealed class Message;\n")]
     public void MSG_ENG_001_AC1_FileWithoutANamespaceIsFound(string source)
     {
         using RepositoryFixture fixture = new();

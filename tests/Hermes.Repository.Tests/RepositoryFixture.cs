@@ -7,7 +7,7 @@ namespace Hermes.Repository.Tests;
 
 /// <summary>
 /// A repository tree under <c>tmp/</c> that keeps every rule: copies of the repository's
-/// project files and lockfiles, its solution, its shared settings, package sources, tool
+/// project files and lockfiles, its solutions, its shared settings, package sources, tool
 /// manifest and scanner configuration, and of the test vectors' files that configuration
 /// names, without any other source file. A test breaks one rule in it and checks the rule
 /// finds that.
@@ -20,11 +20,19 @@ internal sealed class RepositoryFixture : IDisposable
         ".config/dotnet-tools.json", "build/gates/gitleaks.toml",
     ];
 
+    /// <summary>The sample host's solution and package sources, copied with its projects.</summary>
+    private static readonly IReadOnlyList<string> SampleFiles = ["samples/Samples.sln", "samples/nuget.config"];
+
     private readonly ScratchFolder _folder = new();
 
     internal RepositoryFixture()
     {
         foreach (string file in SharedFiles)
+        {
+            Write(file, File.ReadAllText(RepositoryRoot.Combine(file)));
+        }
+
+        foreach (string file in SampleFiles.Where(file => File.Exists(RepositoryRoot.Combine(file))))
         {
             Write(file, File.ReadAllText(RepositoryRoot.Combine(file)));
         }
@@ -86,9 +94,70 @@ internal sealed class RepositoryFixture : IDisposable
 
     internal void WriteSolution(IReadOnlyList<string> projects)
     {
+        Write("Hermes.sln", Solution(projects));
+    }
+
+    /// <summary>
+    /// Writes a sample host that keeps every rule: <c>samples/Bakery</c> on the packed packages,
+    /// its test project on the sample host and the test packages, the sample solution listing
+    /// both, and the sample package sources.
+    /// </summary>
+    internal void WriteSample()
+    {
+        Write("samples/Bakery/Bakery.csproj", """
+            <Project Sdk="Microsoft.NET.Sdk.Web">
+              <ItemGroup>
+                <PackageReference Include="Hermes" />
+                <PackageReference Include="Hermes.Testing" />
+              </ItemGroup>
+            </Project>
+            """);
+        Write("samples/Bakery.Tests/Bakery.Tests.csproj", """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <ItemGroup>
+                <FrameworkReference Include="Microsoft.AspNetCore.App" />
+                <PackageReference Include="xunit.v3" />
+                <PackageReference Include="Testcontainers.PostgreSql" />
+                <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+                <ProjectReference Include="..\Bakery\Bakery.csproj" />
+              </ItemGroup>
+            </Project>
+            """);
+        Write("samples/Samples.sln", Solution(["Bakery/Bakery.csproj", "Bakery.Tests/Bakery.Tests.csproj"]));
+        Write("samples/nuget.config", SampleSources);
+    }
+
+    /// <summary>A <c>samples/nuget.config</c> that keeps MSG-ENG-001's rule.</summary>
+    internal const string SampleSources = """
+        <configuration>
+          <packageSources>
+            <clear />
+            <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+            <add key="packed" value="../artifacts/packages" />
+          </packageSources>
+          <packageSourceMapping>
+            <clear />
+            <packageSource key="packed">
+              <package pattern="Hermes" />
+              <package pattern="Hermes.Core" />
+              <package pattern="Hermes.Channels" />
+              <package pattern="Hermes.Janus.Channels" />
+              <package pattern="Hermes.Janus" />
+              <package pattern="Hermes.Testing" />
+              <package pattern="Hermes.Cli" />
+            </packageSource>
+            <packageSource key="nuget.org">
+              <package pattern="*" />
+            </packageSource>
+          </packageSourceMapping>
+        </configuration>
+        """;
+
+    private static string Solution(IReadOnlyList<string> projects)
+    {
         IEnumerable<string> lines = projects.Select(project =>
             $"Project(\"{{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}}\") = \"{Path.GetFileNameWithoutExtension(project)}\", \"{project.Replace('/', '\\')}\", \"{{{Guid.CreateVersion7().ToString().ToUpperInvariant()}}}\"\nEndProject");
-        Write("Hermes.sln", string.Join('\n', lines) + "\n");
+        return string.Join('\n', lines) + "\n";
     }
 
     public void Dispose()
