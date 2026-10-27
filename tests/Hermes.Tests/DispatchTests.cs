@@ -593,6 +593,33 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task MSG_SEND_007_AC11_WithEveryEmailCallTakingTheTimeoutAndAThousandOptionalEmailsDueADueSmsIsSentAndAnEssentialEmailIsClaimedFirst()
+    {
+        await using DispatchEngine engine = await StartAsync(
+            configure: UnsubscribeLinkTests.Configure,
+            declare: UnsubscribeLinkTests.Declare,
+            templates: UnsubscribeLinkTests.Templates);
+        engine.Email.Before = (_, _) =>
+        {
+            engine.Host.Clock.Advance(TimeSpan.FromSeconds(20));
+            return Task.CompletedTask;
+        };
+        for (int index = 0; index < 1_000; index++)
+        {
+            await engine.Host.SendAsync(UnsubscribeLinkTests.LetterTo($"reader-{index}@example.com"));
+        }
+
+        engine.Host.Clock.Advance(TimeSpan.FromSeconds(1));
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]));
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person("person-2")));
+
+        await engine.Host.DispatchAsync();
+
+        Assert.Single(engine.Sms.Received);
+        Assert.Equal("someone@example.com", engine.Email.Received[0].ToAddress);
+    }
+
+    [Fact]
     public async Task MSG_TPL_005_AC2_ASubjectValueCarryingALineFeedAndBccArrivesAsOneSubjectLine()
     {
         await using DispatchEngine engine = await StartAsync(templates: key => key is { Channel: Channel.Email, Part: "subject" } ? "Code {{ code }}" : EngineHost.Templates(key));
@@ -1119,7 +1146,7 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     /// <summary>Makes the delivery as a holder that stopped after counting its attempt leaves it: inflight, its claim expired, its attempt unanswered.</summary>
-    private static async Task LoseAsync(EngineHost host, Guid delivery)
+    internal static async Task LoseAsync(EngineHost host, Guid delivery)
     {
         const string Lose = """
             UPDATE messaging.deliveries SET status = 'inflight', attempts = 1, claimed_by = @holder, claimed_at = @at, claim_expires_at = @at WHERE id = @id;

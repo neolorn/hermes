@@ -136,6 +136,28 @@ public sealed class SmsReportTests(PostgresFixture postgres) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task MSG_SEND_007_AC7_ADeliveredReportOfAClaimlostAttemptArrivingWhileItsDeliveryWaitsEndsItDelivered()
+    {
+        await using DispatchEngine engine = await StartAsync();
+        using HttpClient client = engine.Host.Client();
+        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
+        await DispatchTests.LoseAsync(engine.Host, receipt.Deliveries[0].Delivery.Value);
+        await engine.Host.DispatchAsync();
+        DeliveryRecord waiting = Assert.Single((await engine.Host.ReadAsync(receipt.Send)).Deliveries);
+
+        using HttpResponseMessage response = await ReportAsync(client, Fields("lost-reference", "delivered"));
+        engine.Host.Clock.Advance(TimeSpan.FromHours(1));
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal((DeliveryStatus.Waiting, AttemptReason.ClaimLost), (waiting.Status, waiting.Reason!.Value));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        DeliveryRecord delivery = Assert.Single((await engine.Host.ReadAsync(receipt.Send)).Deliveries);
+        Assert.Equal(DeliveryStatus.Delivered, delivery.Status);
+        Assert.Single(delivery.Attempts);
+        Assert.Empty(engine.Sms.Received);
+    }
+
+    [Fact]
     public async Task MSG_SMS_004_AC4_ALateFailureReportOfAFirstAttemptDoesNotMoveADeliveryWhoseSecondAttemptWasSent()
     {
         await using DispatchEngine engine = await StartAsync();

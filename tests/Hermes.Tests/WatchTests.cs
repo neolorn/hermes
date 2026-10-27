@@ -75,6 +75,37 @@ public sealed class WatchTests(PostgresFixture postgres) : IClassFixture<Postgre
     }
 
     [Fact]
+    public async Task MSG_SEND_007_AC10_FortySmsNotifiedWithinASecondAreClaimedFiveInItAndDispatchLagReadsTheLastFromWhenItBecameDue()
+    {
+        AlertSinkFake alerts = new();
+        ContentProtectorFake vault = new("vault");
+        await using DispatchEngine engine = await StartAsync(
+            alerts,
+            configuration =>
+            {
+                configuration["Hermes:Dispatch:Hosted"] = "true";
+                configuration["Hermes:Dispatch:MaxPasses"] = "4";
+                configuration["Hermes:Sms:Rate"] = "5";
+            },
+            services => services.AddSingleton<IContentProtector>(vault));
+        ConcurrentQueue<(double Age, string? Channel)> ages = [];
+        using MeterListener listener = Listen(engine.Host, ages);
+        for (int index = 0; index < 40; index++)
+        {
+            await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person($"person-{index}")));
+        }
+
+        await Watching.UntilAsync(() => Task.FromResult(engine.Sms.Received.Count == 5));
+        await Task.Delay(300, TestContext.Current.CancellationToken);
+        (int Sent, int Opened) inSecond = (engine.Sms.Received.Count, vault.Opens);
+        await Watching.RunAsync(engine.Host, "watch", Watching.Interval);
+
+        Assert.Equal((5, 10), inSecond);
+        Assert.InRange(engine.Sms.Received.Count, 6, 30);
+        Assert.Equal(Watching.Interval.TotalSeconds, ages.Last(age => age.Channel == "sms").Age, 0.5);
+    }
+
+    [Fact]
     public async Task MSG_SEND_017_AC3_AnObserverThatKeepsThrowingRaisesTheAlertOnceItsOldestNoticePassesTheThresholdAndOnceTakenClearsIt()
     {
         AlertSinkFake alerts = new();
