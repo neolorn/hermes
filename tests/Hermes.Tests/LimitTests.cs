@@ -158,6 +158,45 @@ public sealed class LimitTests(PostgresFixture postgres) : IClassFixture<Postgre
     }
 
     [Fact]
+    public async Task MSG_SEND_006_AC1_ALimitLookupUnderAHashKeysVersionThisProcessDoesNotHoldHoldsTheDeliveryForAKeyAndCallsNoProvider()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        ManualClock clock = new(EngineHost.Start);
+        SecretSourceFake older = Secrets.Held(connection).With("hashKeys", Secrets.Bytes(32, 2));
+        SecretSourceFake newer = Secrets.Held(connection).With("hashKeys", Secrets.Bytes(32, 2), Secrets.Bytes(32, 9));
+        Action<DeclarationBuilder> declare = Declare(category => category.Limit(Channel.Sms, 1, TimeSpan.FromDays(1)));
+        await using DispatchEngine without = await DispatchEngine.StartAsync(
+            postgres,
+            configure: configuration => Configure(configuration, writeVersion: 1),
+            declare: declare,
+            connection: connection,
+            clock: clock,
+            services: services => services.AddSingleton<ISecretSource>(older));
+        await using DispatchEngine with = await DispatchEngine.StartAsync(
+            postgres,
+            configure: configuration => Configure(configuration, writeVersion: 2),
+            declare: declare,
+            connection: connection,
+            clock: clock,
+            services: services => services.AddSingleton<ISecretSource>(newer));
+        SendReceipt first = (await with.Host.SendAsync(ReminderTo(Number))).Value!;
+        await with.Host.DispatchAsync();
+        SendReceipt second = (await with.Host.SendAsync(ReminderTo(Number))).Value!;
+
+        await without.Host.DispatchAsync();
+        DeliveryRecord held = Assert.Single((await with.Host.ReadAsync(second.Send)).Deliveries);
+        clock.Advance(TimeSpan.FromSeconds(31));
+        await with.Host.DispatchAsync();
+
+        Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(with.Host, first));
+        Assert.Equal((DeliveryStatus.Waiting, AttemptReason.KeyUnavailable), (held.Status, held.Reason!.Value));
+        Assert.Empty(held.Attempts);
+        Assert.Empty(without.Sms.Received);
+        Assert.Equal(DeliveryStatus.Limited, await SuppressionTests.StatusAsync(with.Host, second));
+        Assert.Single(with.Sms.Received);
+    }
+
+    [Fact]
     public async Task MSG_SEND_014_AC3_WithADeploymentLimitOf3SmsAnHourTheFourthToAnyNumberEndsLimitedAndAFailureDoesNotLetAFourthThrough()
     {
         await using DispatchEngine engine = await StartAsync(category => category.DeploymentLimit(Channel.Sms, 3, TimeSpan.FromHours(1)));

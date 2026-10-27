@@ -88,6 +88,28 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task MSG_SEND_006_AC1_APushDeliveryToASubscriptionOfAVapidVersionThisProcessDoesNotHoldIsHeldForAKeyAndCallsNoProvider()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        await using DispatchEngine first = await StartAsync(connection: connection, versions: 1);
+        await using DispatchEngine both = await StartAsync(connection: connection, vapidWriteVersion: 2);
+        Pusher push = new(both);
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Person, Endpoint));
+        SendReceipt receipt = (await both.Host.SendAsync(Code(Person))).Value!;
+
+        await first.Host.DispatchAsync();
+        DeliveryRecord held = Assert.Single((await both.Host.ReadAsync(receipt.Send)).Deliveries);
+        both.Host.Clock.Advance(TimeSpan.FromSeconds(31));
+        await both.Host.DispatchAsync();
+
+        Assert.Equal((DeliveryStatus.Waiting, AttemptReason.KeyUnavailable), (held.Status, held.Reason!.Value));
+        Assert.Empty(held.Attempts);
+        Assert.Empty(new Pusher(first).Provider.Received);
+        Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(both.Host, receipt));
+        Assert.Equal(2, Assert.Single(push.Provider.Received).KeyVersion);
+    }
+
+    [Fact]
     public async Task MSG_API_004_AC1_ASubscriptionPostedByASignedInPersonReceivesThatPersonsPushDeliveries()
     {
         await using DispatchEngine engine = await StartAsync();
