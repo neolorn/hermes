@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Hermes.Core;
@@ -100,6 +101,27 @@ public sealed class AlertTests(PostgresFixture postgres) : IClassFixture<Postgre
         Assert.Equal(Midnight.AddMinutes(1).AddSeconds(10), await HoldsUntilAsync(connection, "newer-release", string.Empty));
         AlertSinkFake.AlertCall raised = Assert.Single(sink.Calls);
         Assert.Equal((true, "newer-release", (string?)null, "29990101000000_Later"), (raised.Raised, raised.Condition, raised.Scope, raised.Details!["migration"]));
+    }
+
+    [Fact]
+    public async Task Holding_ASinkThatDoesNotAnswer_IsLeftOnceTheDispatchTimeoutPassesAndTheRaiseStaysRecorded()
+    {
+        string connection = await MigratedAsync();
+        ManualClock clock = new(Midnight);
+        SilentSink sink = new();
+        await using Process process = Open(connection, clock, sink);
+        Dictionary<string, string> details = new(StringComparer.Ordinal) { ["channel"] = "email" };
+
+        Task raising = process.Alerts.HoldingAsync("email-submission-failing", null, details, TestContext.Current.CancellationToken);
+        CancellationToken given = await sink.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromSeconds(19));
+        bool leftEarly = raising.IsCompleted;
+        clock.Advance(TimeSpan.FromSeconds(1));
+        await raising.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        Assert.False(leftEarly);
+        Assert.True(given.IsCancellationRequested);
+        Assert.True(await HoldingAsync(connection, "email-submission-failing", string.Empty));
     }
 
     [Fact]
@@ -232,7 +254,7 @@ public sealed class AlertTests(PostgresFixture postgres) : IClassFixture<Postgre
             services => services.AddSingleton<ISecretSource>(Secrets.Held(connection)).AddSingleton<TimeProvider>(clock).AddSingleton<IAlertSink>(sink));
     }
 
-    private static Process Open(string connection, ManualClock clock, AlertSinkFake sink)
+    private static Process Open(string connection, ManualClock clock, IAlertSink sink)
     {
         ServiceCollection services = new();
         services.AddOptions<MessagingOptions>().Configure(options => options.Alerts.Repeat = TimeSpan.FromHours(1));
@@ -310,6 +332,34 @@ public sealed class AlertTests(PostgresFixture postgres) : IClassFixture<Postgre
         command.Parameters.AddWithValue("condition", condition);
         command.Parameters.AddWithValue("scope", scope);
         return await command.ExecuteScalarAsync(TestContext.Current.CancellationToken) is DateTime until ? new DateTimeOffset(until) : null;
+    }
+
+    private static async Task<bool?> HoldingAsync(string connection, string condition, string scope)
+    {
+        await using NpgsqlConnection database = new(connection);
+        await database.OpenAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlCommand command = new("SELECT holding FROM messaging.alerts WHERE condition = @condition AND scope = @scope", database);
+        command.Parameters.AddWithValue("condition", condition);
+        command.Parameters.AddWithValue("scope", scope);
+        return await command.ExecuteScalarAsync(TestContext.Current.CancellationToken) as bool?;
+    }
+
+    /// <summary>A sink whose calls never complete, whatever their token, telling the test the token its first call took.</summary>
+    private sealed class SilentSink : IAlertSink
+    {
+        internal TaskCompletionSource<CancellationToken> Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public ValueTask RaiseAsync(string condition, string? scope, IReadOnlyDictionary<string, string> details, CancellationToken cancellationToken)
+        {
+            Entered.TrySetResult(cancellationToken);
+            return new ValueTask(new TaskCompletionSource().Task);
+        }
+
+        public ValueTask ClearAsync(string condition, string? scope, CancellationToken cancellationToken)
+        {
+            Entered.TrySetResult(cancellationToken);
+            return new ValueTask(new TaskCompletionSource().Task);
+        }
     }
 
     private sealed class Process(ServiceProvider provider, Alerts alerts) : IAsyncDisposable

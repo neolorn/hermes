@@ -121,21 +121,24 @@ internal sealed partial class Alerts(MessagingDatabase database, IOptionsMonitor
         }
     }
 
-    /// <summary>Tells the sink; a sink that fails is logged, the state staying as recorded, so the next raise is a repeat away.</summary>
+    /// <summary>
+    /// Tells the sink within <c>Hermes:Dispatch:Timeout</c> (<c>04</c>, <c>IAlertSink</c>); a sink
+    /// that fails or does not answer in time is logged, the state staying as recorded, so the
+    /// next raise is a repeat away.
+    /// </summary>
     private async Task TellAsync(string condition, string? scope, IReadOnlyDictionary<string, string>? details, CancellationToken cancellationToken)
     {
+        TimeSpan timeout = options.CurrentValue.Dispatch.Timeout;
         try
         {
-            if (details is null)
-            {
-                await sink.ClearAsync(condition, scope, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await sink.RaiseAsync(condition, scope, details, cancellationToken).ConfigureAwait(false);
-            }
+            using CancellationTokenSource bound = new(timeout, clock);
+            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(bound.Token, cancellationToken);
+            ValueTask call = details is null
+                ? sink.ClearAsync(condition, scope, linked.Token)
+                : sink.RaiseAsync(condition, scope, details, linked.Token);
+            await call.AsTask().WaitAsync(timeout, clock, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception failure) when (failure is not OperationCanceledException)
+        catch (Exception failure) when (failure is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             SinkFailed(failure, condition, scope ?? "none");
         }

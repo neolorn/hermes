@@ -103,3 +103,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Hermes.Testing`: in-memory email, SMS and push providers, fixed secrets, a dispatcher
   run on demand, a test database's migration and `AddHermesTesting`, under which only a
   test's passes dispatch and each delivers the pending notices
+- Each call to the alert sink is bounded by `Dispatch:Timeout`; a sink that does not
+  answer in time is logged and the alert stays recorded, so a pass or job never waits on it
