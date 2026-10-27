@@ -113,6 +113,30 @@ internal sealed class UnsubscribeTokens(HeldKeys keys)
         return TokenReading.Valid(fields.TokenVersion, fields.HashVersion, fields.Category, fields.Language, fields.Hash);
     }
 
+    /// <summary>
+    /// The <c>tokenKeys</c> and <c>hashKeys</c> versions the token at the end of the unsubscribe
+    /// address <paramref name="address"/> names, or none where it is not of this release's format.
+    /// </summary>
+    internal static (int TokenVersion, int HashVersion)? Versions(string address)
+    {
+        byte[] bytes;
+        try
+        {
+            bytes = Base64Url.DecodeFromChars(address.AsSpan(address.LastIndexOf('/') + 1));
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+
+        if (bytes.Length < 9 || bytes[0] != Format)
+        {
+            return null;
+        }
+
+        return (BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(1)), BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(5)));
+    }
+
     private HeldKey Held => keys.Find(KeyNeeds.TokenKeys) ?? throw new InvalidOperationException("An unsubscribe token is used before the startup checks read tokenKeys.");
 
     /// <summary>The days since 1970-01-01 UTC of <paramref name="instant"/>.</summary>

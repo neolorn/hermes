@@ -75,6 +75,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddScoped<IMessages, Messages>();
         services.AddScoped<ISuppressions, Suppressions>();
         services.AddScoped<IPreferences, Preferences>();
+        services.AddScoped<ISubjects, Subjects>();
         services.AddSingleton<DispatchPasses>();
         services.AddSingleton<IDispatcher, Dispatcher>();
         services.AddSingleton<NoticeDelivery>();
@@ -94,6 +95,9 @@ public static class MessagingServiceCollectionExtensions
             services.AddSingleton<IHostedService, ObserverJob>();
             services.AddSingleton<IHostedService, BalanceJob>();
             services.AddSingleton<IHostedService, SubscriptionsJob>();
+            services.AddSingleton<RetentionKeys>();
+            services.AddSingleton<RetentionJob>();
+            services.AddSingleton<IHostedService>(provider => provider.GetRequiredService<RetentionJob>());
             services.AddSingleton<IHostedService, WatchJob>();
         }
 

@@ -8,6 +8,7 @@ using Hermes.Core;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using Npgsql;
 
@@ -754,6 +755,19 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
             Assert.DoesNotContain("778899", entry.Message, StringComparison.Ordinal);
             Assert.DoesNotContain("person-1", entry.Message, StringComparison.Ordinal);
         });
+    }
+
+    [Fact]
+    public async Task MSG_OPS_005_AC1_ATestWhoseLibraryLogsADestinationItSentFailsWhenItsHostStops()
+    {
+        await using DispatchEngine engine = await StartAsync();
+        await engine.Host.SendAsync(SendTests.Code());
+        ILogger logger = engine.Host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Hermes.Sending.Leak");
+        logger.Log(LogLevel.Warning, default, "Refused at someone@example.com.", null, (state, _) => state);
+
+        Exception failure = await Assert.ThrowsAnyAsync<Exception>(() => engine.DisposeAsync().AsTask());
+
+        Assert.Contains("'someone@example.com'", failure.Message, StringComparison.Ordinal);
     }
 
     [Fact]

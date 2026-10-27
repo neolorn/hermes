@@ -17,7 +17,7 @@ namespace Hermes.Tests;
 [Trait("Category", "integration")]
 public sealed class SendTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
 {
-    private const string Email = "someone@example.com";
+    internal const string Email = "someone@example.com";
 
     internal const string Phone = "+201000000001";
 

@@ -10,7 +10,8 @@
     even when one before it fails, and the script fails when any of them did, or when it finds
     no gate script to run.
 .PARAMETER Base
-    The commit after which the commit-message gate checks; none checks the whole history.
+    The commit after which the commit-message gate checks, none checking the whole history; and
+    the commit whose baseline the release compatibility gate compares with.
 .PARAMETER Head
     The commit the gates check: the last commit the commit-message gate checks, and HEAD.
 #>
@@ -54,7 +55,7 @@ $results = [System.Collections.Generic.List[pscustomobject]]::new()
 
 foreach ($gate in $gates) {
     $arguments = @()
-    if ($gate.Name -eq 'gate-commit-messages.ps1') {
+    if ($gate.Name -in 'gate-commit-messages.ps1', 'gate-release-compatibility.ps1') {
         $arguments = @('-Base', $Base, '-Head', $Head)
     }
 

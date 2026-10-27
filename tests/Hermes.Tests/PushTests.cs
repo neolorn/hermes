@@ -31,6 +31,16 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
 
     private const string Other = "person-2";
 
+    private const string News = "news";
+
+    private const string NewsPosted = "news.posted";
+
+    /// <summary>A trigger holding each place's insert until the test lets go of advisory lock 4242.</summary>
+    private const string Gate = """
+        CREATE FUNCTION public.test_gate() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_lock(4242); PERFORM pg_advisory_unlock(4242); RETURN NEW; END $$;
+        CREATE TRIGGER test_gate BEFORE INSERT ON messaging.places FOR EACH ROW EXECUTE FUNCTION public.test_gate();
+        """;
+
     [Fact]
     public async Task MSG_PUSH_003_AC1_ARegisteredSubscriptionReceivesThePersonsNextPushAndARemovedOneDoesNot()
     {
@@ -528,6 +538,82 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
         Assert.InRange(ttl, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(600));
     }
 
+    [Fact]
+    public async Task MSG_SEND_020_AC1_AnErasureDeletesThePersonsSubscriptionsAndThePushLimitPlacesKeyedByTheirReference()
+    {
+        await using DispatchEngine engine = await StartAsync(declare: DeclareNews);
+        Pusher push = new(engine);
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Person, Endpoint));
+        SendReceipt sent = (await engine.Host.SendAsync(Code(Person) with { Kind = NewsPosted })).Value!;
+        await engine.Host.DispatchAsync();
+        Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(engine.Host, sent));
+        Assert.Equal(1L, await PushPlacesAsync(engine.Host));
+
+        Assert.True((await SubjectTests.EraseAsync(engine.Host, Person)).IsSuccess);
+
+        Assert.Equal(0L, await push.SubscriptionsAsync());
+        Assert.Equal(0L, await PushPlacesAsync(engine.Host));
+        Assert.DoesNotContain(Person, await SubjectTests.DumpAsync(engine.Host), StringComparison.Ordinal);
+        Assert.Equal(DeliveryStatus.NoSubscription, await SuppressionTests.StatusAsync(engine.Host, await push.PushedAsync(Person)));
+    }
+
+    [Fact]
+    public async Task MSG_SEND_020_AC2_TheExportHoldsThePersonsSubscriptionsWithTheirServiceAndInstantsAndAPushDeliveryWithItsContent()
+    {
+        await using DispatchEngine engine = await StartAsync();
+        Pusher push = new(engine);
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Person, Endpoint));
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Other, OtherEndpoint));
+        await push.PushedAsync(Person);
+
+        SubjectExport export = (await SubjectTests.ExportAsync(engine.Host, Person)).Value!;
+
+        SubscriptionExport subscription = Assert.Single(export.Subscriptions);
+        Assert.Equal((PushService.Other, EngineHost.Start, (DateTimeOffset?)EngineHost.Start), (subscription.Service, subscription.MadeAt, subscription.LastAcceptedAt));
+        DeliveryExport delivery = Assert.Single(export.Deliveries);
+        Assert.Equal((Channel.Push, DeliveryStatus.Sent, (string?)null), (delivery.Channel, delivery.Status, delivery.Destination));
+        Assert.Equal(new Dictionary<string, string> { ["title"] = "Title en", ["body"] = "Body en 123456" }, delivery.Content);
+    }
+
+    [Fact]
+    public async Task MSG_SEND_020_AC4_AnErasureWhileADispatcherIsAtCheck8LeavesNoPlaceKeyedByThePersonOrLinkedToTheirDeliveriesAndNeitherSideAborts()
+    {
+        await using DispatchEngine engine = await StartAsync(declare: DeclareNews);
+        Pusher push = new(engine);
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Person, Endpoint));
+        SendReceipt receipt = (await engine.Host.SendAsync(Code(Person) with { Kind = NewsPosted })).Value!;
+        await using NpgsqlConnection gate = new(engine.Host.Connection);
+        await gate.OpenAsync(TestContext.Current.CancellationToken);
+        await using (NpgsqlCommand held = new("SELECT pg_advisory_lock(4242)", gate))
+        {
+            await held.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        await engine.Host.RunAsync(database => new NpgsqlCommand(Gate, database));
+        Task<int> pass = engine.Host.DispatchAsync();
+        await UntilAsync(async () => await WaitingAsync(engine.Host, "advisory") > 0);
+        Task<Result> erased = SubjectTests.EraseAsync(engine.Host, Person);
+        await UntilAsync(async () => await WaitingAsync(engine.Host, "transactionid") > 0);
+        await using (NpgsqlCommand released = new("SELECT pg_advisory_unlock(4242)", gate))
+        {
+            await released.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        Result result = await erased;
+        await pass;
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(DeliveryStatus.Cancelled, await SuppressionTests.StatusAsync(engine.Host, receipt));
+        Assert.Equal(0L, await PushPlacesAsync(engine.Host));
+        Assert.Equal(0L, await engine.Host.RunAsync(database =>
+        {
+            NpgsqlCommand linked = new("DELETE FROM messaging.places WHERE delivery_id = @id", database);
+            linked.Parameters.AddWithValue("id", receipt.Deliveries[0].Delivery.Value);
+            return linked;
+        }));
+        Assert.Empty(push.Provider.Received);
+    }
+
     /// <summary>The VAPID public key of the scalar of 32 bytes of <paramref name="value"/>.</summary>
     private static byte[] KeyOf(byte value)
     {
@@ -547,7 +633,33 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
         return $$"""{"endpoint":"{{endpoint}}","expirationTime":{{expiration}},"keys":{"p256dh":"{{keys.P256dh}}","auth":"{{keys.Auth}}"},"applicationServerKey":"{{serverKey}}"}""";
     }
 
-    private static async Task UntilAsync(Func<Task<bool>> condition)
+    /// <summary>An essential category of every channel, and the optional category <c>news</c> with a push limit and a push kind.</summary>
+    private static void DeclareNews(DeclarationBuilder declare)
+    {
+        EngineHost.Essential(declare);
+        declare.Category(News).Limit(Channel.Push, 5, TimeSpan.FromDays(1));
+        declare.Kind(NewsPosted, News).Push();
+    }
+
+    private static async Task<long> PushPlacesAsync(EngineHost host)
+    {
+        await using NpgsqlConnection database = new(host.Connection);
+        await database.OpenAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlCommand command = new("SELECT count(*) FROM messaging.places WHERE channel = 'push' AND kind = 'limit'", database);
+        return (long)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
+    }
+
+    /// <summary>How many sessions of the test's database wait for a lock of <paramref name="type"/>.</summary>
+    internal static async Task<long> WaitingAsync(EngineHost host, string type)
+    {
+        await using NpgsqlConnection database = new(host.Connection);
+        await database.OpenAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlCommand command = new("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND wait_event = @type", database);
+        command.Parameters.AddWithValue("type", type);
+        return (long)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
+    }
+
+    internal static async Task UntilAsync(Func<Task<bool>> condition)
     {
         for (int tries = 0; tries < 400; tries++)
         {
@@ -598,6 +710,26 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
     }
 
     /// <summary>A started engine mapping the push group, with its push provider.</summary>
+    [Fact]
+    public async Task MSG_THR_003_AC1_ASubscriptionAnotherPersonRegistersBeforeOrAfterASendIsNeverUsedForIt()
+    {
+        await using DispatchEngine engine = await StartAsync();
+        Pusher push = new(engine);
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Other, OtherEndpoint));
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Person, Endpoint));
+        SendReceipt receipt = (await push.Host.SendAsync(Code(Person))).Value!;
+        SendReceipt later = (await push.Host.SendAsync(Code("person-3"))).Value!;
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Other, "https://push.example.com/send/third"));
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync("person-3", "https://push.example.com/send/fourth"));
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync("person-3", Endpoint));
+
+        await push.Host.DispatchAsync();
+
+        Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(push.Host, later));
+        Assert.Equal(DeliveryStatus.NoSubscription, await SuppressionTests.StatusAsync(push.Host, receipt));
+        Assert.Equal([Endpoint, "https://push.example.com/send/fourth"], push.Provider.Received.Select(request => request.Endpoint).Order(StringComparer.Ordinal));
+    }
+
     private sealed class Pusher(DispatchEngine engine)
     {
         internal EngineHost Host => engine.Host;

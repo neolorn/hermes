@@ -129,6 +129,30 @@ Hermes.Core.ConsentQuery.Purpose.get -> string!
 Hermes.Core.ConsentQuery.Purpose.init -> void
 Hermes.Core.ConsentQuery.Recipient.get -> Hermes.Core.Recipient!
 Hermes.Core.ConsentQuery.Recipient.init -> void
+Hermes.Core.DeliveryExport
+Hermes.Core.DeliveryExport.<Clone>$() -> Hermes.Core.DeliveryExport!
+Hermes.Core.DeliveryExport.Channel.get -> Hermes.Core.Channel
+Hermes.Core.DeliveryExport.Channel.init -> void
+Hermes.Core.DeliveryExport.Content.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Hermes.Core.DeliveryExport.Content.init -> void
+Hermes.Core.DeliveryExport.ContentDeleted.get -> bool
+Hermes.Core.DeliveryExport.ContentDeleted.init -> void
+Hermes.Core.DeliveryExport.DeliveryExport() -> void
+Hermes.Core.DeliveryExport.Destination.get -> string?
+Hermes.Core.DeliveryExport.Destination.init -> void
+Hermes.Core.DeliveryExport.Equals(Hermes.Core.DeliveryExport? other) -> bool
+Hermes.Core.DeliveryExport.Erased.get -> bool
+Hermes.Core.DeliveryExport.Erased.init -> void
+Hermes.Core.DeliveryExport.Kind.get -> string!
+Hermes.Core.DeliveryExport.Kind.init -> void
+Hermes.Core.DeliveryExport.LastMovedAt.get -> System.DateTimeOffset
+Hermes.Core.DeliveryExport.LastMovedAt.init -> void
+Hermes.Core.DeliveryExport.RecordedAt.get -> System.DateTimeOffset
+Hermes.Core.DeliveryExport.RecordedAt.init -> void
+Hermes.Core.DeliveryExport.Rejected.get -> bool
+Hermes.Core.DeliveryExport.Rejected.init -> void
+Hermes.Core.DeliveryExport.Status.get -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryExport.Status.init -> void
 Hermes.Core.DeliveryId
 Hermes.Core.DeliveryId.Deconstruct(out System.Guid Value) -> void
 Hermes.Core.DeliveryId.DeliveryId() -> void
@@ -247,6 +271,16 @@ Hermes.Core.IContentProtector.ProtectAsync(string! person, System.ReadOnlyMemory
 Hermes.Core.IContentProtector.UnprotectAsync(string! person, System.ReadOnlyMemory<byte> protectedValue, string! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.UnprotectResult!>
 Hermes.Core.IDeliveryObserver
 Hermes.Core.IDeliveryObserver.ObserveAsync(Hermes.Core.DeliveryNotice! notice, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Hermes.Core.IdempotencyKeyExport
+Hermes.Core.IdempotencyKeyExport.<Clone>$() -> Hermes.Core.IdempotencyKeyExport!
+Hermes.Core.IdempotencyKeyExport.Equals(Hermes.Core.IdempotencyKeyExport? other) -> bool
+Hermes.Core.IdempotencyKeyExport.IdempotencyKeyExport() -> void
+Hermes.Core.IdempotencyKeyExport.Key.get -> string!
+Hermes.Core.IdempotencyKeyExport.Key.init -> void
+Hermes.Core.IdempotencyKeyExport.Kind.get -> string!
+Hermes.Core.IdempotencyKeyExport.Kind.init -> void
+Hermes.Core.IdempotencyKeyExport.RecordedAt.get -> System.DateTimeOffset
+Hermes.Core.IdempotencyKeyExport.RecordedAt.init -> void
 Hermes.Core.IEmailProvider
 Hermes.Core.IEmailProvider.OpenAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.IEmailSession!>
 Hermes.Core.IEmailSession
@@ -266,6 +300,9 @@ Hermes.Core.ISmsProvider.BalanceAsync(System.Threading.CancellationToken cancell
 Hermes.Core.ISmsProvider.IsValidSender(string! sender) -> bool
 Hermes.Core.ISmsProvider.ReadReportAsync(Hermes.Core.SmsReportRequest! request, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.SmsReportReading!>
 Hermes.Core.ISmsProvider.SendAsync(Hermes.Core.SmsMessage! message, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Attempt!>
+Hermes.Core.ISubjects
+Hermes.Core.ISubjects.EraseAsync(string! person, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.ISubjects.ExportAsync(string! person, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.SubjectExport!>!>
 Hermes.Core.ITemplateSource
 Hermes.Core.ITemplateSource.ReadAsync(Hermes.Core.TemplateKey! key, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<string?>
 Hermes.Core.MessagingStartupException
@@ -513,6 +550,28 @@ Hermes.Core.SmsReportResponse.SmsReportResponse() -> void
 Hermes.Core.SmsReportResponse.Status.get -> int
 Hermes.Core.SmsReportResponse.Status.init -> void
 Hermes.Core.SmsText
+Hermes.Core.SubjectExport
+Hermes.Core.SubjectExport.<Clone>$() -> Hermes.Core.SubjectExport!
+Hermes.Core.SubjectExport.Deliveries.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.DeliveryExport!>!
+Hermes.Core.SubjectExport.Deliveries.init -> void
+Hermes.Core.SubjectExport.Equals(Hermes.Core.SubjectExport? other) -> bool
+Hermes.Core.SubjectExport.IdempotencyKeys.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.IdempotencyKeyExport!>!
+Hermes.Core.SubjectExport.IdempotencyKeys.init -> void
+Hermes.Core.SubjectExport.Preferences.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.CategoryPreferences!>!
+Hermes.Core.SubjectExport.Preferences.init -> void
+Hermes.Core.SubjectExport.SubjectExport() -> void
+Hermes.Core.SubjectExport.Subscriptions.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.SubscriptionExport!>!
+Hermes.Core.SubjectExport.Subscriptions.init -> void
+Hermes.Core.SubscriptionExport
+Hermes.Core.SubscriptionExport.<Clone>$() -> Hermes.Core.SubscriptionExport!
+Hermes.Core.SubscriptionExport.Equals(Hermes.Core.SubscriptionExport? other) -> bool
+Hermes.Core.SubscriptionExport.LastAcceptedAt.get -> System.DateTimeOffset?
+Hermes.Core.SubscriptionExport.LastAcceptedAt.init -> void
+Hermes.Core.SubscriptionExport.MadeAt.get -> System.DateTimeOffset
+Hermes.Core.SubscriptionExport.MadeAt.init -> void
+Hermes.Core.SubscriptionExport.Service.get -> Hermes.Core.PushService
+Hermes.Core.SubscriptionExport.Service.init -> void
+Hermes.Core.SubscriptionExport.SubscriptionExport() -> void
 Hermes.Core.TemplateKey
 Hermes.Core.TemplateKey.<Clone>$() -> Hermes.Core.TemplateKey!
 Hermes.Core.TemplateKey.Channel.get -> Hermes.Core.Channel?
@@ -587,6 +646,9 @@ override Hermes.Core.CallRecord.ToString() -> string!
 override Hermes.Core.ConsentQuery.Equals(object? obj) -> bool
 override Hermes.Core.ConsentQuery.GetHashCode() -> int
 override Hermes.Core.ConsentQuery.ToString() -> string!
+override Hermes.Core.DeliveryExport.Equals(object? obj) -> bool
+override Hermes.Core.DeliveryExport.GetHashCode() -> int
+override Hermes.Core.DeliveryExport.ToString() -> string!
 override Hermes.Core.DeliveryId.GetHashCode() -> int
 override Hermes.Core.DeliveryNotice.Equals(object? obj) -> bool
 override Hermes.Core.DeliveryNotice.GetHashCode() -> int
@@ -606,6 +668,9 @@ override Hermes.Core.EmailMessage.ToString() -> string!
 override Hermes.Core.Failure.Equals(object? obj) -> bool
 override Hermes.Core.Failure.GetHashCode() -> int
 override Hermes.Core.Failure.ToString() -> string!
+override Hermes.Core.IdempotencyKeyExport.Equals(object? obj) -> bool
+override Hermes.Core.IdempotencyKeyExport.GetHashCode() -> int
+override Hermes.Core.IdempotencyKeyExport.ToString() -> string!
 override Hermes.Core.PushRequest.Equals(object? obj) -> bool
 override Hermes.Core.PushRequest.GetHashCode() -> int
 override Hermes.Core.PushRequest.ToString() -> string!
@@ -689,6 +754,12 @@ override Hermes.Core.SmsReportRequest.ToString() -> string!
 override Hermes.Core.SmsReportResponse.Equals(object? obj) -> bool
 override Hermes.Core.SmsReportResponse.GetHashCode() -> int
 override Hermes.Core.SmsReportResponse.ToString() -> string!
+override Hermes.Core.SubjectExport.Equals(object? obj) -> bool
+override Hermes.Core.SubjectExport.GetHashCode() -> int
+override Hermes.Core.SubjectExport.ToString() -> string!
+override Hermes.Core.SubscriptionExport.Equals(object? obj) -> bool
+override Hermes.Core.SubscriptionExport.GetHashCode() -> int
+override Hermes.Core.SubscriptionExport.ToString() -> string!
 override Hermes.Core.TemplateKey.Equals(object? obj) -> bool
 override Hermes.Core.TemplateKey.GetHashCode() -> int
 override Hermes.Core.TemplateKey.ToString() -> string!
@@ -755,6 +826,8 @@ static Hermes.Core.CallRecord.operator !=(Hermes.Core.CallRecord? left, Hermes.C
 static Hermes.Core.CallRecord.operator ==(Hermes.Core.CallRecord? left, Hermes.Core.CallRecord? right) -> bool
 static Hermes.Core.ConsentQuery.operator !=(Hermes.Core.ConsentQuery? left, Hermes.Core.ConsentQuery? right) -> bool
 static Hermes.Core.ConsentQuery.operator ==(Hermes.Core.ConsentQuery? left, Hermes.Core.ConsentQuery? right) -> bool
+static Hermes.Core.DeliveryExport.operator !=(Hermes.Core.DeliveryExport? left, Hermes.Core.DeliveryExport? right) -> bool
+static Hermes.Core.DeliveryExport.operator ==(Hermes.Core.DeliveryExport? left, Hermes.Core.DeliveryExport? right) -> bool
 static Hermes.Core.DeliveryId.operator !=(Hermes.Core.DeliveryId left, Hermes.Core.DeliveryId right) -> bool
 static Hermes.Core.DeliveryId.operator ==(Hermes.Core.DeliveryId left, Hermes.Core.DeliveryId right) -> bool
 static Hermes.Core.DeliveryNotice.operator !=(Hermes.Core.DeliveryNotice? left, Hermes.Core.DeliveryNotice? right) -> bool
@@ -769,6 +842,8 @@ static Hermes.Core.EmailMessage.operator !=(Hermes.Core.EmailMessage? left, Herm
 static Hermes.Core.EmailMessage.operator ==(Hermes.Core.EmailMessage? left, Hermes.Core.EmailMessage? right) -> bool
 static Hermes.Core.Failure.operator !=(Hermes.Core.Failure? left, Hermes.Core.Failure? right) -> bool
 static Hermes.Core.Failure.operator ==(Hermes.Core.Failure? left, Hermes.Core.Failure? right) -> bool
+static Hermes.Core.IdempotencyKeyExport.operator !=(Hermes.Core.IdempotencyKeyExport? left, Hermes.Core.IdempotencyKeyExport? right) -> bool
+static Hermes.Core.IdempotencyKeyExport.operator ==(Hermes.Core.IdempotencyKeyExport? left, Hermes.Core.IdempotencyKeyExport? right) -> bool
 static Hermes.Core.PushRequest.operator !=(Hermes.Core.PushRequest? left, Hermes.Core.PushRequest? right) -> bool
 static Hermes.Core.PushRequest.operator ==(Hermes.Core.PushRequest? left, Hermes.Core.PushRequest? right) -> bool
 static Hermes.Core.PushRequest.WebPush.operator !=(Hermes.Core.PushRequest.WebPush? left, Hermes.Core.PushRequest.WebPush? right) -> bool
@@ -824,6 +899,10 @@ static Hermes.Core.SmsReportRequest.operator ==(Hermes.Core.SmsReportRequest? le
 static Hermes.Core.SmsReportResponse.operator !=(Hermes.Core.SmsReportResponse? left, Hermes.Core.SmsReportResponse? right) -> bool
 static Hermes.Core.SmsReportResponse.operator ==(Hermes.Core.SmsReportResponse? left, Hermes.Core.SmsReportResponse? right) -> bool
 static Hermes.Core.SmsText.Measure(string! text) -> Hermes.Core.SmsMeasure!
+static Hermes.Core.SubjectExport.operator !=(Hermes.Core.SubjectExport? left, Hermes.Core.SubjectExport? right) -> bool
+static Hermes.Core.SubjectExport.operator ==(Hermes.Core.SubjectExport? left, Hermes.Core.SubjectExport? right) -> bool
+static Hermes.Core.SubscriptionExport.operator !=(Hermes.Core.SubscriptionExport? left, Hermes.Core.SubscriptionExport? right) -> bool
+static Hermes.Core.SubscriptionExport.operator ==(Hermes.Core.SubscriptionExport? left, Hermes.Core.SubscriptionExport? right) -> bool
 static Hermes.Core.TemplateKey.operator !=(Hermes.Core.TemplateKey? left, Hermes.Core.TemplateKey? right) -> bool
 static Hermes.Core.TemplateKey.operator ==(Hermes.Core.TemplateKey? left, Hermes.Core.TemplateKey? right) -> bool
 static Hermes.Core.UnprotectResult.Erased.operator !=(Hermes.Core.UnprotectResult.Erased? left, Hermes.Core.UnprotectResult.Erased? right) -> bool

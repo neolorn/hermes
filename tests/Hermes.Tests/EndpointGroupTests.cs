@@ -1,13 +1,17 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 using Hermes.Core;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http.Metadata;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
@@ -16,7 +20,7 @@ namespace Hermes.Tests;
 
 /// <summary>Each endpoint group of <c>05</c> mapped alone (<c>04</c> MSG-LIB-004; <c>00</c> MSG-OVR-001).</summary>
 [Trait("Category", "integration")]
-public sealed class EndpointGroupTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
+public sealed partial class EndpointGroupTests(PostgresFixture postgres) : IClassFixture<PostgresFixture>
 {
     private const string Person = "person-1";
 
@@ -89,6 +93,59 @@ public sealed class EndpointGroupTests(PostgresFixture postgres) : IClassFixture
     }
 
     [Fact]
+    public async Task MSG_THR_002_AC1_NoRouteOfTheFourGroupsRecordsASend()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        await using DispatchEngine engine = await DispatchEngine.StartAsync(
+            postgres,
+            configure: configuration =>
+            {
+                UnsubscribeLinkTests.Configure(configuration);
+                configuration["Hermes:Push:AllowedHosts:0"] = "push.example.com";
+            },
+            declare: UnsubscribeLinkTests.Declare,
+            templates: UnsubscribeLinkTests.Templates,
+            services: services =>
+            {
+                Endpoints.Identity(services);
+                services.AddSingleton<IPushProvider, RecordingPushProvider>();
+            },
+            connection: connection,
+            map: application =>
+            {
+                SmsReportTests.Map(application);
+                application.MapHermesPreferences(Endpoints.Prefix);
+                application.MapHermesUnsubscribe(Endpoints.Prefix);
+                application.MapHermesPushSubscriptions(Endpoints.Prefix);
+            },
+            secrets: Secrets.Held(connection).With("smsReportKey", Secrets.Bytes(16, 5)));
+        SendReceipt letter = (await engine.Host.SendAsync(UnsubscribeLinkTests.LetterTo("reader@example.com"))).Value!;
+        string unsubscribe = (await engine.Host.OpenAsync(letter.Deliveries[0].Delivery.Value, "unsubscribe"))![UnsubscribeLinkTests.BaseAddress.Length..];
+        (long sends, long deliveries, long keys) recorded = await engine.Host.RecordedAsync();
+        using HttpClient client = engine.Host.Client();
+
+        using FormUrlEncodedContent oneClick = new([new("List-Unsubscribe", "One-Click")]);
+        using HttpResponseMessage unsubscribed = await Endpoints.SendAsync(client, HttpMethod.Post, unsubscribe, content: oneClick);
+        List<string> called = [];
+        foreach (RouteEndpoint endpoint in engine.Host.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>())
+        {
+            foreach (string method in endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? [])
+            {
+                string route = Parameter().Replace(endpoint.RoutePattern.RawText!, "x");
+                using HttpResponseMessage response = await CallAsync(client, method, "/" + route.TrimStart('/'));
+                called.Add($"{method} {endpoint.RoutePattern.RawText}");
+            }
+        }
+
+        Assert.Equal(HttpStatusCode.OK, unsubscribed.StatusCode);
+        Assert.Contains(called, route => route.StartsWith("POST", StringComparison.Ordinal) && route.Contains("/unsubscribe/", StringComparison.Ordinal));
+        Assert.Contains(called, route => route.StartsWith("PUT", StringComparison.Ordinal) && route.Contains("/preferences", StringComparison.Ordinal));
+        Assert.Contains(called, route => route.StartsWith("POST", StringComparison.Ordinal) && route.Contains("/push/subscriptions", StringComparison.Ordinal));
+        Assert.Contains(called, route => route.StartsWith("POST", StringComparison.Ordinal) && route.Contains("/sms/", StringComparison.Ordinal));
+        Assert.Equal(recorded, await engine.Host.RecordedAsync());
+    }
+
+    [Fact]
     public async Task MSG_OVR_001_AC2_TheUnsubscribeGroupMappedAloneInAnApplicationThatDoesNotDispatchWorksForALetterAnotherApplicationSent()
     {
         string connection = await EngineHost.DatabaseAsync(postgres);
@@ -141,4 +198,20 @@ public sealed class EndpointGroupTests(PostgresFixture postgres) : IClassFixture
 
         Assert.Equal(HttpStatusCode.OK, key.StatusCode);
     }
+
+    /// <summary>Calls <paramref name="route"/> as the person, with an empty JSON object as the body of any method but <c>GET</c>.</summary>
+    private static async Task<HttpResponseMessage> CallAsync(HttpClient client, string method, string route)
+    {
+        if (method == "GET")
+        {
+            return await Endpoints.SendAsync(client, HttpMethod.Get, route, Person, prefix: string.Empty);
+        }
+
+        using StringContent body = Endpoints.Json("{}");
+        return await Endpoints.SendAsync(client, new HttpMethod(method), route, Person, body, prefix: string.Empty);
+    }
+
+    /// <summary>A route parameter, which the test fills with a value of its own.</summary>
+    [GeneratedRegex(@"\{[^}]*\}")]
+    private static partial Regex Parameter();
 }

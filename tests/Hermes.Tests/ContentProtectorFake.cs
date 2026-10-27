@@ -21,6 +21,9 @@ internal sealed class ContentProtectorFake(string id) : IContentProtector
     /// <summary>Whether protecting throws, as a vault that cannot be reached does.</summary>
     internal bool Throws { get; init; }
 
+    /// <summary>Whether each opening answers that the person's key was erased.</summary>
+    internal bool Erased { get; set; }
+
     /// <summary>A step before each opening, where a test sets one.</summary>
     internal Func<Task>? BeforeOpen { get; set; }
 
@@ -43,6 +46,11 @@ internal sealed class ContentProtectorFake(string id) : IContentProtector
         if (BeforeOpen is { } before)
         {
             await before();
+        }
+
+        if (Erased)
+        {
+            return new UnprotectResult.Erased();
         }
 
         byte[] head = Head(person, context);

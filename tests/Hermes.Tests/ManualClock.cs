@@ -35,6 +35,15 @@ internal sealed class ManualClock(DateTimeOffset start) : TimeProvider
         return timer;
     }
 
+    /// <summary>Whether a timer is due at <paramref name="due"/>.</summary>
+    internal bool IsDue(DateTimeOffset due)
+    {
+        lock (gate)
+        {
+            return timers.Any(timer => timer.Due == due);
+        }
+    }
+
     /// <summary>Moves the clock on by <paramref name="by"/>, firing each timer as its due instants pass.</summary>
     internal void Advance(TimeSpan by)
     {

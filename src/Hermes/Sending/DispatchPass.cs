@@ -314,6 +314,11 @@ internal sealed partial class DispatchPass : IDisposable
             return;
         }
 
+        if (channel == Channel.Email && values.GetValueOrDefault("unsubscribe") is { } unsubscribe)
+        {
+            await passes.TokenSentAsync(unsubscribe, finish.Token).ConfigureAwait(false);
+        }
+
         if (!BeginRenewal(delivery))
         {
             return;
