@@ -115,15 +115,18 @@ internal static class PackageRules
         foreach (ProjectFile project in ProjectFile.ReadAll(root))
         {
             // A reference made outside the project file reaches its lockfile's direct entries.
+            // The sample host references the library's own packages, which are not third-party ones.
+            bool sample = ReferenceRules.IsSample(project);
             IEnumerable<string> direct = project.PackageReferences.Select(ProjectFile.Include).Union(project.LockedDirectPackages, StringComparer.Ordinal);
-            foreach (string package in direct.Where(package => !Allowed.Contains(package, StringComparer.Ordinal)))
+            foreach (string package in direct.Where(package => !Allowed.Contains(package, StringComparer.Ordinal) && !(sample && Packages.All.Contains(package, StringComparer.Ordinal))))
             {
                 violations.Add($"{project.RelativePath} references {package}, which is not in MSG-ENG-009's table.");
             }
         }
 
+        // The library's own packages take the version the sample host's gate packs.
         Dictionary<string, string> versions = PackageVersions(root);
-        foreach (string package in versions.Keys.Where(package => !Allowed.Contains(package, StringComparer.Ordinal)))
+        foreach (string package in versions.Keys.Where(package => !Allowed.Contains(package, StringComparer.Ordinal) && !Packages.All.Contains(package, StringComparer.Ordinal)))
         {
             violations.Add($"Directory.Packages.props names {package}, which is not in MSG-ENG-009's table.");
         }

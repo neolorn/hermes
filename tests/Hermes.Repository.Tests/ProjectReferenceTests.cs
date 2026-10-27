@@ -159,6 +159,55 @@ public sealed class ProjectReferenceTests
     }
 
     [Fact]
+    public void MSG_LIB_001_AC1_SampleHostAndItsTestsWithinTheirRowAreAccepted()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSample();
+
+        Assert.DoesNotContain(ReferenceRules.ReferenceViolations(fixture.Root), violation => violation.StartsWith("samples/", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("<ProjectReference Include=\"..\\..\\src\\Hermes\\Hermes.csproj\" />", "references the project Hermes")]
+    [InlineData("<PackageReference Include=\"Fluid.Core\" />", "references the package Fluid.Core")]
+    [InlineData("<PackageReference Include=\"xunit.v3\" />", "references the package xunit.v3")]
+    public void MSG_LIB_001_AC1_SampleHostReferenceOutsideItsRowIsFound(string reference, string found)
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSample();
+        fixture.Write("samples/Bakery/Bakery.csproj", $"""
+            <Project Sdk="Microsoft.NET.Sdk.Web">
+              <ItemGroup>
+                <PackageReference Include="Hermes" />
+                {reference}
+              </ItemGroup>
+            </Project>
+            """);
+
+        Assert.Contains($"samples/Bakery/Bakery.csproj {found}, which MSG-LIB-001 does not allow it.", ReferenceRules.ReferenceViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_LIB_001_AC1_SampleTestsReferencingALibraryProjectIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSample();
+        fixture.Write("samples/Bakery.Tests/Bakery.Tests.csproj", """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <ItemGroup>
+                <PackageReference Include="xunit.v3" />
+                <ProjectReference Include="..\Bakery\Bakery.csproj" />
+                <ProjectReference Include="..\..\src\Hermes.Testing\Hermes.Testing.csproj" />
+              </ItemGroup>
+            </Project>
+            """);
+
+        Assert.Contains(
+            "samples/Bakery.Tests/Bakery.Tests.csproj references the project Hermes.Testing, which MSG-LIB-001 does not allow it.",
+            ReferenceRules.ReferenceViolations(fixture.Root));
+    }
+
+    [Fact]
     public void MSG_LIB_001_AC2_ChannelsReachingTheEngineThroughAProjectIsFound()
     {
         using RepositoryFixture fixture = new();

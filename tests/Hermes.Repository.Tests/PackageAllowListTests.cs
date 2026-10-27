@@ -46,6 +46,41 @@ public sealed class PackageAllowListTests
     }
 
     [Fact]
+    public void MSG_ENG_009_AC1_TheLibrarysOwnPackagesInTheSampleHostAndTheirVersionsAreNoThirdPartyOnes()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSample();
+        fixture.Write("Directory.Packages.props", """
+            <Project>
+              <ItemGroup Condition="'$(HermesPackageVersion)' != ''">
+                <PackageVersion Include="Hermes" Version="$(HermesPackageVersion)" />
+                <PackageVersion Include="Hermes.Testing" Version="$(HermesPackageVersion)" />
+              </ItemGroup>
+            </Project>
+            """);
+
+        Assert.DoesNotContain(
+            PackageRules.AllowListViolations(fixture.Root),
+            violation => violation.StartsWith("samples/", StringComparison.Ordinal) || violation.StartsWith("Directory.Packages.props names Hermes", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MSG_ENG_009_AC1_TheLibrarysOwnPackageOutsideTheSampleHostIsFound()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteProject("tests/Hermes.Core.Tests/Hermes.Core.Tests.csproj", """
+              <ItemGroup>
+                <PackageReference Include="xunit.v3" />
+                <PackageReference Include="Hermes.Testing" />
+              </ItemGroup>
+            """);
+
+        Assert.Contains(
+            "tests/Hermes.Core.Tests/Hermes.Core.Tests.csproj references Hermes.Testing, which is not in MSG-ENG-009's table.",
+            PackageRules.AllowListViolations(fixture.Root));
+    }
+
+    [Fact]
     public void MSG_ENG_009_AC1_PinnedPackageAtAnotherVersionIsFound()
     {
         using RepositoryFixture fixture = new();
