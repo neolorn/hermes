@@ -74,7 +74,7 @@ internal sealed partial class DispatchPasses
     }
 
     /// <summary>The channels a pass runs on.</summary>
-    internal static IReadOnlyList<Channel> Dispatched { get; } = [Channel.Email, Channel.Sms];
+    internal static IReadOnlyList<Channel> Dispatched { get; } = [Channel.Email, Channel.Sms, Channel.Push];
 
     internal MessagingDatabase Database { get; }
 
@@ -138,7 +138,7 @@ internal sealed partial class DispatchPasses
     {
         string spelling = Spellings.Of(channel);
         ChannelsOptions channelOptions = Channels.CurrentValue;
-        int rate = channel == Channel.Email ? channelOptions.Email.Rate : channelOptions.Sms.Rate;
+        int rate = channel switch { Channel.Email => channelOptions.Email.Rate, Channel.Sms => channelOptions.Sms.Rate, _ => channelOptions.Push.Rate };
         try
         {
             return await LibraryTransactions.RunAsync(

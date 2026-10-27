@@ -33,6 +33,12 @@ internal sealed class ContentProtection(IEnumerable<IContentProtector> registere
         return new ContentProtecting(ContentEnvelope.Wrap(writer.Id, output), null, null);
     }
 
+    /// <summary>The key a person's values are written under: the last host protector's <c>Id</c>, or <c>contentKeys</c> where there is none.</summary>
+    internal string WriterId()
+    {
+        return hosts.Count == 0 ? KeyNeeds.ContentKeys : hosts[^1].Id;
+    }
+
     /// <summary>Opens <paramref name="stored"/>, protected for <paramref name="person"/> (none for an anonymous recipient) under <paramref name="context"/>.</summary>
     internal async ValueTask<ContentOpening> OpenAsync(string? person, ReadOnlyMemory<byte> stored, string context, CancellationToken cancellationToken)
     {

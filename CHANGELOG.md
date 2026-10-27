@@ -161,3 +161,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Hermes:Sms:FloorWarning`, and `sms-balance-unreadable` once reads have failed for
   `Hermes:Sms:BalanceUnreadableAfter`; below the floor an optional category's SMS ends
   `balancefloor`, and a provider that reports no balance has no floor
+- The push subscription group, `MapHermesPushSubscriptions(prefix)`: `GET /push/key`
+  answers the VAPID public key of the write version to anyone; `POST` and
+  `DELETE /push/subscriptions` register and remove the signed-in person's subscription,
+  refusing an endpoint outside `Hermes:Push:AllowedHosts` (https, port 443, no user
+  information) with `422 messaging.push.endpointnotallowed` and a key no held version has
+  with `422 messaging.push.keyunknown`; the endpoint and keys are stored protected, and
+  past `Hermes:Push:MaxSubscriptions` the least recently used subscription is removed
+- Push delivery: each attempt goes to the person's live subscriptions, signed with the
+  VAPID version each was registered under, with a TTL no longer than the time left to the
+  delivery's expiry; `404` and `410` remove the subscription, one acceptance ends the
+  delivery `sent`, and `401` and `403` from one push service over
+  `Hermes:Push:AuthFailThreshold` within an hour raise `push-auth-failing`
+- The `subscriptions` job removes subscriptions past their expiration time every
+  `Hermes:Jobs:SubscriptionsInterval`

@@ -54,4 +54,8 @@ internal static class Codes
     internal const string RequestRateLimited = "messaging.request.ratelimited";
 
     internal const string UnsubscribeInvalid = "messaging.unsubscribe.invalid";
+
+    internal const string PushEndpointNotAllowed = "messaging.push.endpointnotallowed";
+
+    internal const string PushKeyUnknown = "messaging.push.keyunknown";
 }

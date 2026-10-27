@@ -24,3 +24,4 @@ Hermes.MessagingEndpointRouteBuilderExtensions
 static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesPreferences(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
 static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesUnsubscribe(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
 static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesSmsReports(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
+static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesPushSubscriptions(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!

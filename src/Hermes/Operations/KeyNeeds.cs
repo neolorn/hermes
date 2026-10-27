@@ -21,17 +21,17 @@ internal static class KeyNeeds
 
     /// <summary>
     /// The keys needed, in the order of <c>08</c> section 7: <c>hashKeys</c> by the engine;
-    /// <c>contentKeys</c> where the application records sends, dispatches or runs the jobs;
+    /// <c>contentKeys</c> where the application records sends, dispatches, runs the jobs or maps
+    /// the push subscription group;
     /// <c>tokenKeys</c> where it records sends and an optional category has an email kind, or
     /// maps the unsubscribe group; <c>smsReportKey</c> where SMS is dispatched with a report
     /// address (<paramref name="reportAddress"/>) or the report group is mapped;
-    /// <c>pushVapidKeys</c> where push is dispatched. The push group needs them too, with the
-    /// item that builds it.
+    /// <c>pushVapidKeys</c> where push is dispatched or the push subscription group is mapped.
     /// </summary>
     internal static IReadOnlyList<string> Needed(Declarations declarations, MessagingOptions options, EndpointGroups groups, bool reportAddress)
     {
         List<string> needed = [];
-        if (options.Messages.Enabled || options.Dispatch.Enabled || options.Jobs.Enabled)
+        if (options.Messages.Enabled || options.Dispatch.Enabled || options.Jobs.Enabled || groups.PushSubscriptions)
         {
             needed.Add(ContentKeys);
         }
@@ -47,7 +47,7 @@ internal static class KeyNeeds
             needed.Add(SmsReportKey);
         }
 
-        if (options.Dispatch.Enabled && declarations.Kinds.Any(kind => kind.Push is not null))
+        if ((options.Dispatch.Enabled && declarations.Kinds.Any(kind => kind.Push is not null)) || groups.PushSubscriptions)
         {
             needed.Add(PushVapidKeys);
         }

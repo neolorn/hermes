@@ -266,6 +266,9 @@ namespace Hermes.Migrations
                     b.HasKey("DeliveryId", "Attempt", "Number")
                         .HasName("pk_calls");
 
+                    b.HasIndex("SubscriptionId")
+                        .HasDatabaseName("ix_calls_subscription_id");
+
                     b.ToTable("calls", "messaging", t =>
                         {
                             t.HasCheckConstraint("ck_calls_class", "class IN ('accepted', 'transient', 'permanent', 'gone')");
@@ -717,6 +720,31 @@ namespace Hermes.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hermes.Sending.PushAuthFailureRow", b =>
+                {
+                    b.Property<string>("Service")
+                        .HasColumnType("text")
+                        .HasColumnName("service");
+
+                    b.Property<DateTimeOffset>("Minute")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("minute");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer")
+                        .HasColumnName("count");
+
+                    b.HasKey("Service", "Minute")
+                        .HasName("pk_push_auth_failures");
+
+                    b.ToTable("push_auth_failures", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_push_auth_failures_count", "count >= 1");
+
+                            t.HasCheckConstraint("ck_push_auth_failures_service", "service IN ('fcm', 'mozilla', 'apple', 'windows', 'other')");
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Sending.RateCounter", b =>
                 {
                     b.Property<string>("Channel")
@@ -782,6 +810,86 @@ namespace Hermes.Migrations
                     b.ToTable("sends", "messaging");
                 });
 
+            modelBuilder.Entity("Hermes.Sending.SubscriptionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("ContentKeyVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("content_key_version");
+
+                    b.Property<byte[]>("Endpoint")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("endpoint");
+
+                    b.Property<byte[]>("EndpointHash")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("endpoint_hash");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<int>("HashVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("hash_version");
+
+                    b.Property<byte[]>("Keys")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("keys");
+
+                    b.Property<DateTimeOffset?>("LastAcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_accepted_at");
+
+                    b.Property<DateTimeOffset>("MadeAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("made_at");
+
+                    b.Property<string>("Person")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("person");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("service");
+
+                    b.Property<int>("VapidVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("vapid_version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_subscriptions");
+
+                    b.HasIndex("ContentKeyVersion")
+                        .HasDatabaseName("ix_subscriptions_content_key_version");
+
+                    b.HasIndex("EndpointHash")
+                        .IsUnique()
+                        .HasDatabaseName("ux_subscriptions_endpoint_hash");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_subscriptions_expires_at");
+
+                    b.HasIndex("Person")
+                        .HasDatabaseName("ix_subscriptions_person");
+
+                    b.HasIndex("VapidVersion")
+                        .HasDatabaseName("ix_subscriptions_vapid_version");
+
+                    b.ToTable("subscriptions", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_subscriptions_service", "service IN ('fcm', 'mozilla', 'apple', 'windows', 'other')");
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Sending.SuppressionRow", b =>
                 {
                     b.Property<string>("Channel")
@@ -830,6 +938,12 @@ namespace Hermes.Migrations
 
             modelBuilder.Entity("Hermes.Sending.CallRow", b =>
                 {
+                    b.HasOne("Hermes.Sending.SubscriptionRow", null)
+                        .WithMany()
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_calls_subscriptions");
+
                     b.HasOne("Hermes.Sending.AttemptRow", null)
                         .WithMany()
                         .HasForeignKey("DeliveryId", "Attempt")

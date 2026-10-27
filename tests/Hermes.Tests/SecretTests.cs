@@ -117,6 +117,28 @@ public sealed class SecretTests
         AssertFailure(failure, "messaging.startup.secretunavailable", "tokenKeys");
     }
 
+    [Theory]
+    [InlineData("pushVapidKeys")]
+    [InlineData("contentKeys")]
+    public async Task MSG_OPS_008_AC1_AKeyThePushGroupNeedsMissingWhereItIsMappedStopsTheStartNamingIt(string key)
+    {
+        Dictionary<string, string?> configuration = TestHost.Languages();
+        configuration["Hermes:Messages:Enabled"] = "false";
+        using IHost host = TestHost.Build(
+            configuration,
+            Essential,
+            services =>
+            {
+                services.AddSingleton<ISecretSource>(Secrets.Held().Without(key));
+                Endpoints.Identity(services);
+            },
+            map: application => application.MapHermesPushSubscriptions("/notifications"));
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        AssertFailure(failure, "messaging.startup.secretunavailable", key);
+    }
+
     [Fact]
     public async Task MSG_OPS_008_AC1_SmsReportKeyMissingWhereTheReportGroupIsMappedStopsTheStartNamingIt()
     {

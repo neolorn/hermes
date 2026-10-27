@@ -580,7 +580,7 @@ internal sealed partial class Messages(
     }
 
     /// <summary>The <c>contentKeys</c> version a value of the library's protector was made under, none for another protector's.</summary>
-    private static int? LibraryVersion(byte[] stored)
+    internal static int? LibraryVersion(byte[] stored)
     {
         ContentEnvelope.Envelope envelope = ContentEnvelope.Read(stored);
         return string.Equals(envelope.Id, LibraryProtector.LibraryId, StringComparison.Ordinal) ? BinaryPrimitives.ReadInt32BigEndian(envelope.Output.Span) : null;

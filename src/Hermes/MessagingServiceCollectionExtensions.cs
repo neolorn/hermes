@@ -80,6 +80,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<NoticeDelivery>();
         services.AddSingleton<SmsReports>();
         services.AddSingleton<WrongKeyLimiter>();
+        services.AddSingleton<PushSubscriptions>();
         services.TryAddSingleton<ChannelsUnderEngine>();
         services.AddHermesChannels(configuration);
 
@@ -92,6 +93,7 @@ public static class MessagingServiceCollectionExtensions
             services.AddSingleton<IHostedService, HostedDispatcher>();
             services.AddSingleton<IHostedService, ObserverJob>();
             services.AddSingleton<IHostedService, BalanceJob>();
+            services.AddSingleton<IHostedService, SubscriptionsJob>();
         }
 
         // Dispatch:Enabled is read only at the start, so the configuration given here is the one the application runs under.

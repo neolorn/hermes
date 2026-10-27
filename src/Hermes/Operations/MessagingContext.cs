@@ -53,6 +53,10 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
     internal DbSet<BalanceRow> BalanceReadings => Set<BalanceRow>();
 
+    internal DbSet<SubscriptionRow> Subscriptions => Set<SubscriptionRow>();
+
+    internal DbSet<PushAuthFailureRow> PushAuthFailures => Set<PushAuthFailureRow>();
+
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
     {
@@ -117,6 +121,7 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
         ChoiceTables(modelBuilder);
         ReportTables(modelBuilder);
         BalanceTable(modelBuilder);
+        PushTables(modelBuilder);
     }
 
     /// <summary>The send's tables (<c>01</c> MSG-SEND-003 to MSG-SEND-009, MSG-SEND-014, MSG-SEND-017), each closed set checked by the database.</summary>
@@ -364,6 +369,55 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             rejected.HasKey(row => row.Minute).HasName("pk_rejected_reports");
             rejected.Property(row => row.Minute).HasColumnName("minute");
             rejected.Property(row => row.Count).HasColumnName("count");
+        });
+    }
+
+    /// <summary>
+    /// The push subscriptions (<c>02</c> MSG-PUSH-003), a call's link to one set to null when it
+    /// is removed (MSG-PUSH-005), and the push services' authorization failures per minute.
+    /// </summary>
+    private static void PushTables(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SubscriptionRow>(subscription =>
+        {
+            subscription.ToTable("subscriptions", table => table.HasCheckConstraint("ck_subscriptions_service", $"service IN ({InList(Spellings.AllServices)})"));
+            subscription.HasKey(row => row.Id).HasName("pk_subscriptions");
+            subscription.HasIndex(row => row.EndpointHash).IsUnique().HasDatabaseName("ux_subscriptions_endpoint_hash");
+            subscription.HasIndex(row => row.Person).HasDatabaseName("ix_subscriptions_person");
+            subscription.HasIndex(row => row.ExpiresAt).HasDatabaseName("ix_subscriptions_expires_at");
+            subscription.HasIndex(row => row.VapidVersion).HasDatabaseName("ix_subscriptions_vapid_version");
+            subscription.HasIndex(row => row.ContentKeyVersion).HasDatabaseName("ix_subscriptions_content_key_version");
+            subscription.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            subscription.Property(row => row.Person).HasColumnName("person");
+            subscription.Property(row => row.EndpointHash).HasColumnName("endpoint_hash");
+            subscription.Property(row => row.HashVersion).HasColumnName("hash_version");
+            subscription.Property(row => row.Endpoint).HasColumnName("endpoint");
+            subscription.Property(row => row.Keys).HasColumnName("keys");
+            subscription.Property(row => row.ContentKeyVersion).HasColumnName("content_key_version");
+            subscription.Property(row => row.VapidVersion).HasColumnName("vapid_version");
+            subscription.Property(row => row.Service).HasColumnName("service");
+            subscription.Property(row => row.MadeAt).HasColumnName("made_at");
+            subscription.Property(row => row.ExpiresAt).HasColumnName("expires_at");
+            subscription.Property(row => row.LastAcceptedAt).HasColumnName("last_accepted_at");
+        });
+
+        modelBuilder.Entity<CallRow>(call =>
+        {
+            call.HasOne<SubscriptionRow>().WithMany().HasForeignKey(row => row.SubscriptionId).HasConstraintName("fk_calls_subscriptions").OnDelete(DeleteBehavior.SetNull);
+            call.HasIndex(row => row.SubscriptionId).HasDatabaseName("ix_calls_subscription_id");
+        });
+
+        modelBuilder.Entity<PushAuthFailureRow>(failure =>
+        {
+            failure.ToTable("push_auth_failures", table =>
+            {
+                table.HasCheckConstraint("ck_push_auth_failures_service", $"service IN ({InList(Spellings.AllServices)})");
+                table.HasCheckConstraint("ck_push_auth_failures_count", "count >= 1");
+            });
+            failure.HasKey(row => new { row.Service, row.Minute }).HasName("pk_push_auth_failures");
+            failure.Property(row => row.Service).HasColumnName("service");
+            failure.Property(row => row.Minute).HasColumnName("minute");
+            failure.Property(row => row.Count).HasColumnName("count");
         });
     }
 
