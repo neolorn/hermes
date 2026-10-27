@@ -51,6 +51,64 @@ public sealed class LimitTests(PostgresFixture postgres) : IClassFixture<Postgre
     }
 
     [Fact]
+    public async Task MSG_SEND_014_AC1_WithALimitOf2SmsADayTheThirdToOneNumberEndsLimitedAndAfterOneOfTheFirstTwoIsReportedFailedAFurtherOneIsSent()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        await using DispatchEngine engine = await DispatchEngine.StartAsync(
+            postgres,
+            declare: Declare(category => category.Limit(Channel.Sms, 2, TimeSpan.FromDays(1))),
+            connection: connection,
+            services: services => services.AddSingleton<ISecretSource>(Secrets.Held(connection).With("smsReportKey", Secrets.Bytes(16, 5))),
+            map: SmsReportTests.Map);
+        using System.Net.Http.HttpClient client = engine.Host.Client();
+        List<SendReceipt> receipts = [];
+        for (int send = 0; send < 3; send++)
+        {
+            receipts.Add((await engine.Host.SendAsync(ReminderTo(Number))).Value!);
+            await engine.Host.DispatchAsync();
+            engine.Host.Clock.Advance(TimeSpan.FromHours(1));
+        }
+
+        DeliveryStatus third = await SuppressionTests.StatusAsync(engine.Host, receipts[2]);
+        using System.Net.Http.FormUrlEncodedContent body = new([new("ref", engine.Sms.Received[0].DeliveryReference), new("status", "failed")]);
+        using System.Net.Http.HttpRequestMessage request = new(System.Net.Http.HttpMethod.Post, Endpoints.Prefix + SmsReportTests.Route()) { Content = body };
+        request.Headers.Add(SmsReportTests.SourceHeader, "127.0.0.1");
+        using System.Net.Http.HttpResponseMessage reported = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        SendReceipt further = (await engine.Host.SendAsync(ReminderTo(Number))).Value!;
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal(DeliveryStatus.Limited, third);
+        Assert.Equal(System.Net.HttpStatusCode.OK, reported.StatusCode);
+        Assert.Equal(DeliveryStatus.Failed, await SuppressionTests.StatusAsync(engine.Host, receipts[0]));
+        Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(engine.Host, further));
+        Assert.Equal(3, engine.Sms.Received.Count);
+    }
+
+    [Fact]
+    public async Task MSG_SEND_014_AC5_WithAnSmsRateOf5NoCounterSecondHoldsMoreThanFiveSmsAcrossTwoProcesses()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        ManualClock clock = new(EngineHost.Start);
+        await using DispatchEngine first = await DispatchEngine.StartAsync(postgres, configure: configuration => configuration["Hermes:Sms:Rate"] = "5", connection: connection, clock: clock);
+        await using DispatchEngine second = await DispatchEngine.StartAsync(postgres, configure: configuration => configuration["Hermes:Sms:Rate"] = "5", connection: connection, clock: clock);
+        for (int index = 0; index < 12; index++)
+        {
+            await first.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person($"person-{index}")));
+        }
+
+        int[] inFirst = await Task.WhenAll(first.Host.DispatchAsync(), second.Host.DispatchAsync());
+        clock.Advance(TimeSpan.FromSeconds(1));
+        int[] inSecond = await Task.WhenAll(first.Host.DispatchAsync(), second.Host.DispatchAsync());
+
+        Assert.Equal((5, 5), (inFirst.Sum(), inSecond.Sum()));
+        Assert.Equal(10, first.Sms.Received.Count + second.Sms.Received.Count);
+        await using NpgsqlConnection database = new(connection);
+        await database.OpenAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlCommand command = new("SELECT max(count) FROM messaging.rate_counters WHERE channel = 'sms'", database);
+        Assert.Equal(5, Convert.ToInt32(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken), System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
     public async Task Limit_AfterItsWindow_ADeliveryToTheSameNumberFitsAgain()
     {
         await using DispatchEngine engine = await StartAsync(category => category.Limit(Channel.Sms, 1, TimeSpan.FromDays(1)));

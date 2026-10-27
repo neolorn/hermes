@@ -25,6 +25,28 @@ public sealed class SuppressionTests(PostgresFixture postgres) : IClassFixture<P
     private const string Other = "+201000000002";
 
     [Fact]
+    public async Task MSG_OPS_008_AC3_RemovingAHashKeysVersionASuppressionStillUsesStopsTheStart()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        await using (EngineHost before = await EngineHost.StartAsync(
+            connection,
+            declare: Declare,
+            configure: configuration => configuration["Hermes:Secrets:HashKeys:WriteVersion"] = "2",
+            secrets: Secrets.Held(connection).With("hashKeys", Secrets.Bytes(32, 2), Secrets.Bytes(32, 9))))
+        {
+            Assert.True((await AddAsync(before, Channel.Sms, "+201000000001", Offers)).IsSuccess);
+        }
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(async () =>
+        {
+            await using EngineHost after = await EngineHost.StartAsync(connection, declare: Declare, secrets: Secrets.Held(connection).With("hashKeys", Secrets.Bytes(32, 2)));
+        });
+
+        Assert.Equal("messaging.startup.secretunavailable", failure.Code);
+        Assert.Equal("hashKeys", failure.Details["key"]);
+    }
+
+    [Fact]
     public async Task MSG_SEND_012_AC1_AfterAnUnsubscribeADeliveryOfTheCategoryToTheDestinationEndsSuppressedForAPersonAndAnAnonymousRecipientAlike()
     {
         await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, declare: Declare);

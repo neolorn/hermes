@@ -75,7 +75,7 @@ public sealed class WatchTests(PostgresFixture postgres) : IClassFixture<Postgre
     }
 
     [Fact]
-    public async Task ObserverFailing_ANoticePendingLongerThanTheThresholdRaisesItAndOnceTakenClearsIt()
+    public async Task MSG_SEND_017_AC3_AnObserverThatKeepsThrowingRaisesTheAlertOnceItsOldestNoticePassesTheThresholdAndOnceTakenClearsIt()
     {
         AlertSinkFake alerts = new();
         DeliveryObserverFake observer = new() { Before = (_, _) => throw new InvalidOperationException("The observer is down.") };

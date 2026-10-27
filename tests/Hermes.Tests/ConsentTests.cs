@@ -105,6 +105,27 @@ public sealed class ConsentTests(PostgresFixture postgres) : IClassFixture<Postg
     }
 
     [Fact]
+    public async Task MSG_SEND_006_AC5_ADeliveryNotClaimedForWantOfAPlaceInTheRateAsksNoConsentAndOpensNoValues()
+    {
+        ConsentSourceFake consent = new();
+        ContentProtectorFake vault = new("vault");
+        await using DispatchEngine engine = await DispatchEngine.StartAsync(
+            postgres,
+            configure: configuration => configuration["Hermes:Sms:Rate"] = "1",
+            declare: declare => Declare(declare),
+            services: services => services.AddSingleton<IConsentSource>(consent).AddSingleton<IContentProtector>(vault));
+        await engine.Host.SendAsync(PromotionTo("+201000000001"));
+        await engine.Host.SendAsync(PromotionTo("+201000000002") with { Recipient = new Recipient.Person("person-2") });
+
+        int claimed = await engine.Host.DispatchAsync();
+
+        Assert.Equal(1, claimed);
+        Assert.Single(consent.Queries);
+        Assert.Equal(2, vault.Opens);
+        Assert.Single(engine.Sms.Received);
+    }
+
+    [Fact]
     public async Task Consent_AnEssentialCategorysDelivery_NeverAsksTheSource()
     {
         ConsentSourceFake consent = new() { Answer = (_, _) => Task.FromResult(ConsentAnswer.NotGiven) };

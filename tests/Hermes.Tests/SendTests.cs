@@ -19,9 +19,9 @@ public sealed class SendTests(PostgresFixture postgres) : IClassFixture<Postgres
 {
     private const string Email = "someone@example.com";
 
-    private const string Phone = "+201000000001";
+    internal const string Phone = "+201000000001";
 
-    private const string Person = "person-1";
+    internal const string Person = "person-1";
 
     [Fact]
     public async Task MSG_SEND_003_AC3_ASendToAPersonWithNoChannelNamedSendsOnEveryDeclaredChannelItHasADestinationFor()

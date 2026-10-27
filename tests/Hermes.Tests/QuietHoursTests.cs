@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 using Hermes.Core;
@@ -39,6 +40,40 @@ public sealed class QuietHoursTests(PostgresFixture postgres) : IClassFixture<Po
         Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(engine.Host, receipt));
         Assert.Single(engine.Sms.Received);
         Assert.Single(Assert.Single((await engine.Host.ReadAsync(receipt.Send)).Deliveries).Attempts);
+    }
+
+    [Fact]
+    public async Task MSG_EMAIL_003_AC2_AnEmailHeldByQuietHoursIsSubmittedAtTheInstantTheyEndWhichDatesIt()
+    {
+        TimeZoneInfo zone = TimeZoneInfo.FindSystemTimeZoneById(Cairo);
+        ManualClock clock = new(Local(zone, 23, 30));
+        await using DispatchEngine engine = await DispatchEngine.StartAsync(
+            postgres,
+            configure: UnsubscribeLinkTests.Configure,
+            declare: declare =>
+            {
+                EngineHost.Essential(declare);
+                declare.Category(UnsubscribeLinkTests.News).Label("en", "News").Label("ar", "News").QuietHours(true);
+                declare.Kind(UnsubscribeLinkTests.Letter, UnsubscribeLinkTests.News).Email();
+            },
+            templates: UnsubscribeLinkTests.Templates,
+            clock: clock);
+        List<DateTimeOffset> submitted = [];
+        engine.Email.Before = (_, _) =>
+        {
+            submitted.Add(clock.GetUtcNow());
+            return Task.CompletedTask;
+        };
+        SendReceipt receipt = (await engine.Host.SendAsync(UnsubscribeLinkTests.LetterTo("reader@example.com") with { TimeZone = Cairo })).Value!;
+
+        await engine.Host.DispatchAsync();
+        DateTimeOffset due = await engine.Host.ColumnAsync<DateTime>(receipt.Deliveries[0].Delivery.Value, "due_at");
+        clock.Advance(due - clock.GetUtcNow());
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(engine.Host, receipt));
+        Assert.Equal(due, Assert.Single(submitted));
+        Assert.InRange(due, Local(zone, 9, 0).AddDays(1), Local(zone, 9, 30).AddDays(1));
     }
 
     [Fact]

@@ -28,7 +28,7 @@ public sealed class SeamTests
     }
 
     [Fact]
-    public async Task MSG_LIB_005_AC1_ConsentSourceMissingWhereACategoryRequiresConsentStopsTheStartNamingIt()
+    public async Task MSG_SEND_011_AC3_ADeploymentWithAConsentCategoryAndNoConsentSourceDoesNotStartNamingIt()
     {
         using IHost host = TestHost.Build(
             TestHost.Languages(),
