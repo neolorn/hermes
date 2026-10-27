@@ -715,6 +715,31 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task Pass_ChecksLastingLongerThanTheClaimTimeout_AreNotTakenOverMidwayAndTheDeliveryIsSentOnce()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        ManualClock clock = new(EngineHost.Start);
+        ContentProtectorFake slow = new("vault");
+        Action<Dictionary<string, string?>> configure = configuration => configuration["Hermes:Dispatch:ClaimTimeout"] = "00:01:10";
+        Func<TemplateKey, string?> templates = key => key is { Channel: Channel.Email, Part: "html" } ? "<p>{{ code }}</p>" : EngineHost.Templates(key);
+        await using Engine first = await StartAsync(configure: configure, templates: templates, connection: connection, clock: clock, services: services => services.AddSingleton<IContentProtector>(slow));
+        await using Engine second = await StartAsync(configure: configure, templates: templates, connection: connection, clock: clock, services: services => services.AddSingleton<IContentProtector>(new ContentProtectorFake("vault")));
+        await first.Host.SendAsync(SendTests.Code(channels: [Channel.Email]));
+        int takenOver = 0;
+        slow.BeforeOpen = async () =>
+        {
+            clock.Advance(TimeSpan.FromSeconds(19));
+            takenOver += await second.Host.DispatchAsync();
+        };
+
+        int taken = await first.Host.DispatchAsync();
+
+        Assert.Equal((1, 0, 4), (taken, takenOver, slow.Opens));
+        Assert.Single(first.Email.Received);
+        Assert.Empty(second.Email.Received);
+    }
+
+    [Fact]
     public async Task MSG_EMAIL_003_AC1_AnEmailOfAKindWithAnHtmlTemplateCarriesBothPartsAndOneWithoutTheTextAlone()
     {
         await using Engine engine = await StartAsync(
