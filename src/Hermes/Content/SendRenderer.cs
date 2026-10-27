@@ -92,7 +92,7 @@ internal sealed class SendRenderer(Templates templates, TemplateRenderer rendere
                     return SendRender.Refused(refusal, channel);
                 }
 
-                texts[part] = rendering.Text!;
+                texts[part] = channel == Channel.Email && string.Equals(part, TemplateParts.Subject, StringComparison.Ordinal) ? HeaderText.Spaced(rendering.Text!) : rendering.Text!;
             }
 
             if (channel == Channel.Sms && SmsText.Measure(texts[TemplateParts.Text]).Segments > kind.Sms!.MaxSegments)

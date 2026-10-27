@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Hermes.Channels;
+using Hermes.Content;
 using Hermes.Core;
 using Hermes.Operations;
 
@@ -588,12 +589,12 @@ internal sealed partial class DispatchPass : IDisposable
     private async Task<Attempt> SendEmailAsync(DeliveryRow row, KindDeclaration kind, Dictionary<string, string?> values, IServiceProvider services, CancellationToken cancellationToken)
     {
         EmailFromOptions defaults = passes.Channels.CurrentValue.Email.From;
-        EmailAddress from = kind.Email?.From ?? new EmailAddress { Address = defaults.Address!, DisplayName = defaults.DisplayName };
+        EmailAddress from = HeaderText.Spaced(kind.Email?.From ?? new EmailAddress { Address = defaults.Address!, DisplayName = defaults.DisplayName })!;
         session ??= await services.GetRequiredService<IEmailProvider>().OpenAsync(cancellationToken).ConfigureAwait(false);
         EmailMessage message = new()
         {
             From = from,
-            ReplyTo = kind.Email?.ReplyTo,
+            ReplyTo = HeaderText.Spaced(kind.Email?.ReplyTo),
             ToAddress = values["destination"]!,
             Subject = values["subject"]!,
             Text = values["text"]!,

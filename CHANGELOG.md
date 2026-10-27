@@ -96,3 +96,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   process tells the observer of each pending notice, in order for each delivery, up to
   `Observer:MaxCalls` of different deliveries at once, each call bounded by
   `Dispatch:Timeout`, and deletes a notice once the observer took it
+- Each control character of an email's subject and of a sender's or reply address's
+  display name is replaced by a space, so no value starts a header of its own

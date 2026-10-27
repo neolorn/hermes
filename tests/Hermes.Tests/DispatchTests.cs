@@ -571,6 +571,36 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task MSG_TPL_005_AC2_ASubjectValueCarryingALineFeedAndBccArrivesAsOneSubjectLine()
+    {
+        await using Engine engine = await StartAsync(templates: key => key is { Channel: Channel.Email, Part: "subject" } ? "Code {{ code }}" : EngineHost.Templates(key));
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email], code: "1\nBcc: x@example.com\r\u007F"));
+
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal("Code 1 Bcc: x@example.com  ", Assert.Single(engine.Email.Received).Subject);
+    }
+
+    [Fact]
+    public async Task Pass_ADisplayNameCarryingControlCharacters_ArrivesWithSpacesInTheirPlace()
+    {
+        EmailAddress from = new() { Address = "orders@example.net", DisplayName = "Orders\r\nBcc: x@example.com" };
+        EmailAddress replyTo = new() { Address = "help@example.net", DisplayName = "Help\tdesk" };
+        await using Engine engine = await StartAsync(declare: declare =>
+        {
+            declare.Category(EngineHost.Category).Essential();
+            declare.Kind(EngineHost.Kind, EngineHost.Category).Email(from, replyTo);
+        });
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]));
+
+        await engine.Host.DispatchAsync();
+
+        EmailMessage message = Assert.Single(engine.Email.Received);
+        Assert.Equal(("Orders  Bcc: x@example.com", "orders@example.net"), (message.From.DisplayName, message.From.Address));
+        Assert.Equal(("Help desk", "help@example.net"), (message.ReplyTo!.DisplayName, message.ReplyTo.Address));
+    }
+
+    [Fact]
     public async Task MSG_EMAIL_002_AC1_AnEmailOfAKindWithItsOwnSenderCarriesItAndItsParts()
     {
         EmailAddress from = new() { Address = "orders@example.net", DisplayName = "Orders" };
