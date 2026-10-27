@@ -83,3 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with an idempotency key recorded once inside its window
 - `IMessages.CancelAsync`, which cancels a send's waiting deliveries, and
   `IMessages.ReadAsync`, which answers a send's deliveries, attempts and calls
+- `IDispatcher.RunPassAsync`, which runs a pass of email and of SMS: each claims its due
+  deliveries within the second's rate, essential kinds first, checks each, renews its
+  claim, calls the provider and records the answer, retrying a transient one with
+  back-off until it is sent, its attempts are used up or it expires; a delivery whose
+  value cannot open yet is held for a key, and a stop hands back what it has not begun

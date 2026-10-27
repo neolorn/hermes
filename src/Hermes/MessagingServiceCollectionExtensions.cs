@@ -68,6 +68,8 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<Notices>();
         services.AddSingleton<MessagingReady>();
         services.AddScoped<IMessages, Messages>();
+        services.AddSingleton<DispatchPasses>();
+        services.AddSingleton<IDispatcher, Dispatcher>();
         services.TryAddSingleton<ChannelsUnderEngine>();
         services.AddHermesChannels(configuration);
 

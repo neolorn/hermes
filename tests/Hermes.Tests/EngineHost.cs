@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Hermes.Core;
@@ -91,7 +92,8 @@ internal sealed class EngineHost : IAsyncDisposable
         Action<Dictionary<string, string?>>? configure = null,
         Action<IServiceCollection>? services = null,
         SecretSourceFake? secrets = null,
-        ManualClock? clock = null)
+        ManualClock? clock = null,
+        LogCapture? logs = null)
     {
         ManualClock time = clock ?? new ManualClock(Start);
         Dictionary<string, string?> configuration = Configuration();
@@ -106,6 +108,7 @@ internal sealed class EngineHost : IAsyncDisposable
                 collection.AddSingleton<ITemplateSource>(new TemplateSourceFake(templates ?? Templates));
                 services?.Invoke(collection);
             },
+            logs: logs,
             hostTemplates: false);
         try
         {
@@ -127,6 +130,30 @@ internal sealed class EngineHost : IAsyncDisposable
         {
             return await scope.ServiceProvider.GetRequiredService<IMessages>().SendAsync(send, TestContext.Current.CancellationToken);
         }
+    }
+
+    /// <summary>The configuration of an application that dispatches when a test runs a pass, its retries without jitter and its rates past any test's batch.</summary>
+    internal static void Dispatching(Dictionary<string, string?> configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        configuration["Hermes:Dispatch:Enabled"] = "true";
+        configuration["Hermes:Dispatch:Hosted"] = "false";
+        configuration["Hermes:Retry:Jitter"] = "0";
+        configuration["Hermes:Email:Rate"] = "1000";
+        configuration["Hermes:Sms:Rate"] = "1000";
+    }
+
+    /// <summary>Runs one pass of each channel.</summary>
+    internal Task<int> DispatchAsync(CancellationToken? cancellationToken = null)
+    {
+        return Services.GetRequiredService<IDispatcher>().RunPassAsync(cancellationToken ?? TestContext.Current.CancellationToken).AsTask();
+    }
+
+    /// <summary>The send as <c>IMessages.ReadAsync</c> answers it.</summary>
+    internal async Task<SendRecord> ReadAsync(SendId send)
+    {
+        Result<SendRecord> record = await WithMessagesAsync(messages => messages.ReadAsync(send, TestContext.Current.CancellationToken).AsTask());
+        return record.Value!;
     }
 
     internal async Task<T> WithMessagesAsync<T>(Func<IMessages, Task<T>> use)
