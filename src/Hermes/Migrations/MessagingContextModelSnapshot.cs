@@ -529,6 +529,37 @@ namespace Hermes.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hermes.Sending.PreferenceRow", b =>
+                {
+                    b.Property<string>("Person")
+                        .HasColumnType("text")
+                        .HasColumnName("person");
+
+                    b.Property<string>("Category")
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<string>("Channel")
+                        .HasColumnType("text")
+                        .HasColumnName("channel");
+
+                    b.Property<bool>("On")
+                        .HasColumnType("boolean")
+                        .HasColumnName("on");
+
+                    b.Property<DateTimeOffset>("SetAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("set_at");
+
+                    b.HasKey("Person", "Category", "Channel")
+                        .HasName("pk_preferences");
+
+                    b.ToTable("preferences", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_preferences_channel", "channel IN ('email', 'sms', 'push')");
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Sending.RateCounter", b =>
                 {
                     b.Property<string>("Channel")

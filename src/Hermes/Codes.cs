@@ -33,6 +33,10 @@ internal static class Codes
 
     internal const string KeyUnavailable = "messaging.key.unavailable";
 
+    internal const string PreferenceUnknown = "messaging.preference.unknown";
+
+    internal const string PreferenceEssential = "messaging.preference.essential";
+
     internal const string SuppressionEssential = "messaging.suppression.essential";
 
     internal const string SuppressionInvalid = "messaging.suppression.invalid";

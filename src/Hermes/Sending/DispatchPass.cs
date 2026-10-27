@@ -312,7 +312,8 @@ internal sealed partial class DispatchPass : IDisposable
 
     /// <summary>
     /// Runs the checks an optional category's delivery meets and an essential one's does not,
-    /// each against the state at that moment: 3, the suppression of an email or SMS destination.
+    /// each against the state at that moment: 3, the suppression of an email or SMS destination;
+    /// 4, the person's preference for the category on the channel.
     /// Answers whether the delivery goes on; a check that ends or holds it gives its place in the
     /// rate back.
     /// </summary>
@@ -340,6 +341,26 @@ internal sealed partial class DispatchPass : IDisposable
             if (suppressed)
             {
                 await EndAsync(delivery, "suppressed", reason: null, giveBack: true).ConfigureAwait(false);
+                return false;
+            }
+        }
+
+        if (delivery.Row.Person is { } person)
+        {
+            if (!await ExtendAsync(delivery).ConfigureAwait(false))
+            {
+                return false;
+            }
+
+            (bool read, bool off) = await ReadAsync((context, token) => Preferences.IsOffAsync(context, person, category.Name, channel, token)).ConfigureAwait(false);
+            if (!read)
+            {
+                return false;
+            }
+
+            if (off)
+            {
+                await EndAsync(delivery, "optedout", reason: null, giveBack: true).ConfigureAwait(false);
                 return false;
             }
         }

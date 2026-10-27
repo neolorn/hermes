@@ -43,6 +43,8 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
     internal DbSet<SuppressionRow> Suppressions => Set<SuppressionRow>();
 
+    internal DbSet<PreferenceRow> Preferences => Set<PreferenceRow>();
+
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
     {
@@ -279,6 +281,17 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             suppression.Property(row => row.Hash).HasColumnName("hash");
             suppression.Property(row => row.HashVersion).HasColumnName("hash_version");
             suppression.Property(row => row.MadeAt).HasColumnName("made_at");
+        });
+
+        modelBuilder.Entity<PreferenceRow>(preference =>
+        {
+            preference.ToTable("preferences", table => table.HasCheckConstraint("ck_preferences_channel", $"channel IN ({InList(Spellings.AllChannels)})"));
+            preference.HasKey(row => new { row.Person, row.Category, row.Channel }).HasName("pk_preferences");
+            preference.Property(row => row.Person).HasColumnName("person");
+            preference.Property(row => row.Category).HasColumnName("category");
+            preference.Property(row => row.Channel).HasColumnName("channel");
+            preference.Property(row => row.On).HasColumnName("on");
+            preference.Property(row => row.SetAt).HasColumnName("set_at");
         });
     }
 

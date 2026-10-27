@@ -109,3 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   category, keeping only its keyed hash, and withdraws a suppression under every
   `hashKeys` version; a dispatched delivery of the category to a suppressed destination
   ends `suppressed`, and one whose lookup needs a version this process lacks is held
+- `IPreferences`, which reads a person's preferences for every declared category and
+  sets whether they receive an optional category on a channel its kinds use, under the
+  person's locks taken shared within `Dispatch:Timeout`; a delivery of a category the
+  person turned off on its channel ends `optedout` when it is checked

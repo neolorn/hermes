@@ -18,7 +18,7 @@ public sealed class MigrationsGateTests
         ProcessResult run = await Processes.GateAsync("gate-migrations.ps1", RepositoryRoot.Path, cancellationToken, "-NoBuild");
 
         Assert.True(run.ExitCode == 0, run.Output);
-        Assert.Contains("The first run applied 3 migration(s): 20261026082731_Foundations, 20261026233241_SendAndDispatch, 20261027093618_Suppressions.", run.Output, StringComparison.Ordinal);
+        Assert.Contains("The first run applied 4 migration(s): 20261026082731_Foundations, 20261026233241_SendAndDispatch, 20261027093618_Suppressions, 20261027094149_Preferences.", run.Output, StringComparison.Ordinal);
         Assert.Contains("The second run applied nothing.", run.Output, StringComparison.Ordinal);
     }
 
