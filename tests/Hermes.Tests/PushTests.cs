@@ -710,6 +710,26 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
     }
 
     /// <summary>A started engine mapping the push group, with its push provider.</summary>
+    [Fact]
+    public async Task MSG_THR_003_AC1_ASubscriptionAnotherPersonRegistersBeforeOrAfterASendIsNeverUsedForIt()
+    {
+        await using DispatchEngine engine = await StartAsync();
+        Pusher push = new(engine);
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Other, OtherEndpoint));
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Person, Endpoint));
+        SendReceipt receipt = (await push.Host.SendAsync(Code(Person))).Value!;
+        SendReceipt later = (await push.Host.SendAsync(Code("person-3"))).Value!;
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Other, "https://push.example.com/send/third"));
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync("person-3", "https://push.example.com/send/fourth"));
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync("person-3", Endpoint));
+
+        await push.Host.DispatchAsync();
+
+        Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(push.Host, later));
+        Assert.Equal(DeliveryStatus.NoSubscription, await SuppressionTests.StatusAsync(push.Host, receipt));
+        Assert.Equal([Endpoint, "https://push.example.com/send/fourth"], push.Provider.Received.Select(request => request.Endpoint).Order(StringComparer.Ordinal));
+    }
+
     private sealed class Pusher(DispatchEngine engine)
     {
         internal EngineHost Host => engine.Host;
