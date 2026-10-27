@@ -32,4 +32,8 @@ internal static class Codes
     internal const string SendUnknown = "messaging.send.unknown";
 
     internal const string KeyUnavailable = "messaging.key.unavailable";
+
+    internal const string SuppressionEssential = "messaging.suppression.essential";
+
+    internal const string SuppressionInvalid = "messaging.suppression.invalid";
 }

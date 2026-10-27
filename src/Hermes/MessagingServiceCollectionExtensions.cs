@@ -69,6 +69,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<Notices>();
         services.AddSingleton<MessagingReady>();
         services.AddScoped<IMessages, Messages>();
+        services.AddScoped<ISuppressions, Suppressions>();
         services.AddSingleton<DispatchPasses>();
         services.AddSingleton<IDispatcher, Dispatcher>();
         services.AddSingleton<NoticeDelivery>();

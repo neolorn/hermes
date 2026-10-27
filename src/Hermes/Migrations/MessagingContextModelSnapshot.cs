@@ -575,6 +575,42 @@ namespace Hermes.Migrations
                     b.ToTable("sends", "messaging");
                 });
 
+            modelBuilder.Entity("Hermes.Sending.SuppressionRow", b =>
+                {
+                    b.Property<string>("Channel")
+                        .HasColumnType("text")
+                        .HasColumnName("channel");
+
+                    b.Property<string>("Category")
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<byte[]>("Hash")
+                        .HasColumnType("bytea")
+                        .HasColumnName("hash");
+
+                    b.Property<int>("HashVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("hash_version");
+
+                    b.Property<DateTimeOffset>("MadeAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("made_at");
+
+                    b.HasKey("Channel", "Category", "Hash")
+                        .HasName("pk_suppressions");
+
+                    b.HasIndex("HashVersion")
+                        .HasDatabaseName("ix_suppressions_hash_version");
+
+                    b.ToTable("suppressions", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_suppressions_channel", "channel IN ('email', 'sms')");
+
+                            t.HasCheckConstraint("ck_suppressions_hash_version", "hash_version >= 1");
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Sending.AttemptRow", b =>
                 {
                     b.HasOne("Hermes.Sending.DeliveryRow", null)

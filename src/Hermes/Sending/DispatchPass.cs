@@ -281,6 +281,12 @@ internal sealed partial class DispatchPass : IDisposable
             return;
         }
 
+        CategoryDeclaration? category = passes.Category(row.Category);
+        if (category is { Essential: false } && !await OptionalChecksAsync(delivery, kind, category, values).ConfigureAwait(false))
+        {
+            return;
+        }
+
         if (channel == Channel.Sms && !SenderRule.Allows(passes.Channels.CurrentValue.Sms.AllowedPrefixes, values["destination"]!))
         {
             await EndAtCheckAsync(delivery, AttemptReason.DestinationNotAllowed).ConfigureAwait(false);
@@ -301,6 +307,70 @@ internal sealed partial class DispatchPass : IDisposable
         if (await CallAsync(delivery, kind, values, reference, services).ConfigureAwait(false) is { } answer)
         {
             await RecordAsync(delivery, kind, number, answer).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Runs the checks an optional category's delivery meets and an essential one's does not,
+    /// each against the state at that moment: 3, the suppression of an email or SMS destination.
+    /// Answers whether the delivery goes on; a check that ends or holds it gives its place in the
+    /// rate back.
+    /// </summary>
+    private async Task<bool> OptionalChecksAsync(ClaimedDelivery delivery, KindDeclaration kind, CategoryDeclaration category, Dictionary<string, string?> values)
+    {
+        if (channel is Channel.Email or Channel.Sms && Suppressions.Value(channel, values["destination"]) is { } destination)
+        {
+            if (!await ExtendAsync(delivery).ConfigureAwait(false))
+            {
+                return false;
+            }
+
+            (bool read, (bool suppressed, int? missing)) = await ReadAsync((context, token) => Suppressions.LookUpAsync(context, passes.Hashes, channel, category.Name, destination, token)).ConfigureAwait(false);
+            if (!read)
+            {
+                return false;
+            }
+
+            if (missing is not null)
+            {
+                await HoldAsync(delivery, kind, KeyNeeds.HashKeys).ConfigureAwait(false);
+                return false;
+            }
+
+            if (suppressed)
+            {
+                await EndAsync(delivery, "suppressed", reason: null, giveBack: true).ConfigureAwait(false);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Reads in a transaction of its own, under the pass's lock timeout; answers false where a stop left no time or a lock timed out.</summary>
+    private async Task<(bool Read, T Value)> ReadAsync<T>(Func<MessagingContext, CancellationToken, Task<T>> read)
+    {
+        if (LockTimeout() is not { } timeout)
+        {
+            return (false, default!);
+        }
+
+        try
+        {
+            T value = await LibraryTransactions.RunAsync(
+                passes.Database,
+                current,
+                async (context, token) =>
+                {
+                    await DeliveryClaims.LockTimeoutAsync(context, timeout, token).ConfigureAwait(false);
+                    return await read(context, token).ConfigureAwait(false);
+                },
+                finish.Token).ConfigureAwait(false);
+            return (true, value);
+        }
+        catch (Exception failure) when (DispatchPasses.IsLockTimeout(failure) || (failure is OperationCanceledException && finish.IsCancellationRequested))
+        {
+            return (false, default!);
         }
     }
 

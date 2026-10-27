@@ -41,6 +41,8 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
     internal DbSet<JobRow> Jobs => Set<JobRow>();
 
+    internal DbSet<SuppressionRow> Suppressions => Set<SuppressionRow>();
+
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
     {
@@ -102,6 +104,7 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
         SendTables(modelBuilder);
         JobTable(modelBuilder);
+        ChoiceTables(modelBuilder);
     }
 
     /// <summary>The send's tables (<c>01</c> MSG-SEND-003 to MSG-SEND-009, MSG-SEND-014, MSG-SEND-017), each closed set checked by the database.</summary>
@@ -256,6 +259,26 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             notice.Property(row => row.At).HasColumnName("at");
             notice.Property(row => row.ClaimedBy).HasColumnName("claimed_by");
             notice.Property(row => row.ClaimExpiresAt).HasColumnName("claim_expires_at");
+        });
+    }
+
+    /// <summary>The person's choices (<c>01</c> MSG-SEND-010 to MSG-SEND-014), each closed set checked by the database.</summary>
+    private static void ChoiceTables(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SuppressionRow>(suppression =>
+        {
+            suppression.ToTable("suppressions", table =>
+            {
+                table.HasCheckConstraint("ck_suppressions_channel", "channel IN ('email', 'sms')");
+                table.HasCheckConstraint("ck_suppressions_hash_version", "hash_version >= 1");
+            });
+            suppression.HasKey(row => new { row.Channel, row.Category, row.Hash }).HasName("pk_suppressions");
+            suppression.HasIndex(row => row.HashVersion).HasDatabaseName("ix_suppressions_hash_version");
+            suppression.Property(row => row.Channel).HasColumnName("channel");
+            suppression.Property(row => row.Category).HasColumnName("category");
+            suppression.Property(row => row.Hash).HasColumnName("hash");
+            suppression.Property(row => row.HashVersion).HasColumnName("hash_version");
+            suppression.Property(row => row.MadeAt).HasColumnName("made_at");
         });
     }
 

@@ -30,12 +30,15 @@ internal sealed partial class DispatchPasses
 
     private readonly Dictionary<string, KindDeclaration> kinds = new(StringComparer.Ordinal);
 
+    private readonly Dictionary<string, CategoryDeclaration> categories = new(StringComparer.Ordinal);
+
     public DispatchPasses(
         MessagingDatabase database,
         Declarations declarations,
         IOptionsMonitor<MessagingOptions> options,
         IOptionsMonitor<ChannelsOptions> channels,
         IServiceScopeFactory scopes,
+        KeyedHashes hashes,
         Alerts alerts,
         Notices notices,
         MessagingMetrics metrics,
@@ -47,6 +50,7 @@ internal sealed partial class DispatchPasses
         Options = options;
         Channels = channels;
         Scopes = scopes;
+        Hashes = hashes;
         Alerts = alerts;
         Notices = notices;
         Metrics = metrics;
@@ -60,6 +64,11 @@ internal sealed partial class DispatchPasses
             // A kind declared twice stops the start (MSG-SEND-001); this is built before that check runs.
             kinds.TryAdd(kind.Name, kind);
         }
+
+        foreach (CategoryDeclaration category in declarations.Categories)
+        {
+            categories.TryAdd(category.Name, category);
+        }
     }
 
     /// <summary>The channels a pass runs on.</summary>
@@ -72,6 +81,8 @@ internal sealed partial class DispatchPasses
     internal IOptionsMonitor<ChannelsOptions> Channels { get; }
 
     internal IServiceScopeFactory Scopes { get; }
+
+    internal KeyedHashes Hashes { get; }
 
     internal Alerts Alerts { get; }
 
@@ -106,6 +117,12 @@ internal sealed partial class DispatchPasses
     internal KindDeclaration? Kind(string name)
     {
         return kinds.GetValueOrDefault(name);
+    }
+
+    /// <summary>The category <paramref name="name"/> as this application declares it, or none.</summary>
+    internal CategoryDeclaration? Category(string name)
+    {
+        return categories.GetValueOrDefault(name);
     }
 
     /// <summary>

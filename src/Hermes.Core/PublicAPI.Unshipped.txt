@@ -858,3 +858,6 @@ virtual Hermes.Core.UnprotectResult.PrintMembers(System.Text.StringBuilder! buil
 ~override Hermes.Core.DeliveryId.ToString() -> string
 ~override Hermes.Core.SendId.Equals(object obj) -> bool
 ~override Hermes.Core.SendId.ToString() -> string
+Hermes.Core.ISuppressions
+Hermes.Core.ISuppressions.AddAsync(Hermes.Core.Channel channel, string! destination, string! category, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.ISuppressions.RemoveAsync(Hermes.Core.Channel channel, string! destination, string! category, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>

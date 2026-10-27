@@ -105,3 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test's passes dispatch and each delivers the pending notices
 - Each call to the alert sink is bounded by `Dispatch:Timeout`; a sink that does not
   answer in time is logged and the alert stays recorded, so a pass or job never waits on it
+- `ISuppressions`, which suppresses an email address or phone number for an optional
+  category, keeping only its keyed hash, and withdraws a suppression under every
+  `hashKeys` version; a dispatched delivery of the category to a suppressed destination
+  ends `suppressed`, and one whose lookup needs a version this process lacks is held
