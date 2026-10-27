@@ -34,6 +34,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Hermes.Tests" />
     <InternalsVisibleTo Include="Hermes.Cli" />
+    <InternalsVisibleTo Include="Hermes.Testing" />
   </ItemGroup>
 
 </Project>

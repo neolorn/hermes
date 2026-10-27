@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 using Hermes.Channels;
 using Hermes.Content;
@@ -78,8 +79,11 @@ public static class MessagingServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Singleton(provider => new CallTimeout(() => provider.GetRequiredService<IOptionsMonitor<MessagingOptions>>().CurrentValue.Dispatch.Timeout)));
         services.AddSingleton<IHostedService, MessagingStartup>();
         services.AddSingleton<IHostedService, KeyTableTimer>();
-        services.AddSingleton<IHostedService, HostedDispatcher>();
-        services.AddSingleton<IHostedService, ObserverJob>();
+        if (!services.Any(service => service.ServiceType == typeof(TestPasses)))
+        {
+            services.AddSingleton<IHostedService, HostedDispatcher>();
+            services.AddSingleton<IHostedService, ObserverJob>();
+        }
 
         // Dispatch:Enabled is read only at the start, so the configuration given here is the one the application runs under.
         if (!bool.TryParse(configuration["Hermes:Dispatch:Enabled"], out bool dispatching) || dispatching)

@@ -100,3 +100,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   display name is replaced by a space, so no value starts a header of its own
 - The health check `hermes.dispatch`, where `Dispatch:Enabled` is on: unhealthy while
   the oldest due delivery became due longer ago than `Dispatch:LagThreshold`
+- `Hermes.Testing`: in-memory email, SMS and push providers, fixed secrets, a dispatcher
+  run on demand, a test database's migration and `AddHermesTesting`, under which only a
+  test's passes dispatch and each delivers the pending notices

@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Hermes" />
+    <InternalsVisibleTo Include="Hermes.Testing" />
     <InternalsVisibleTo Include="Hermes.Channels.Tests" />
   </ItemGroup>
 
