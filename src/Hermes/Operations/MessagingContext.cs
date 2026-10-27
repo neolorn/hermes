@@ -45,6 +45,8 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
     internal DbSet<PreferenceRow> Preferences => Set<PreferenceRow>();
 
+    internal DbSet<PlaceRow> Places => Set<PlaceRow>();
+
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
     {
@@ -292,6 +294,33 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             preference.Property(row => row.Channel).HasColumnName("channel");
             preference.Property(row => row.On).HasColumnName("on");
             preference.Property(row => row.SetAt).HasColumnName("set_at");
+        });
+
+        modelBuilder.Entity<PlaceRow>(place =>
+        {
+            place.ToTable("places", table =>
+            {
+                table.HasCheckConstraint("ck_places_kind", "kind IN ('limit', 'deployment')");
+                table.HasCheckConstraint("ck_places_channel", $"channel IN ({InList(Spellings.AllChannels)})");
+                table.HasCheckConstraint("ck_places_window_seconds", "window_seconds >= 60");
+                table.HasCheckConstraint("ck_places_hash", "(kind = 'limit') = (hash IS NOT NULL AND hash_version IS NOT NULL)");
+            });
+            place.HasKey(row => row.Id).HasName("pk_places");
+            place.HasOne<DeliveryRow>().WithMany().HasForeignKey(row => row.DeliveryId).HasConstraintName("fk_places_deliveries").OnDelete(DeleteBehavior.SetNull);
+            place.HasIndex(row => new { row.Channel, row.Category, row.WindowSeconds, row.Kind, row.TakenAt }).HasDatabaseName("ix_places_window");
+            place.HasIndex(row => row.DeliveryId).HasDatabaseName("ix_places_delivery_id");
+            place.HasIndex(row => row.LapsesAt).HasDatabaseName("ix_places_lapses_at");
+            place.HasIndex(row => row.HashVersion).HasDatabaseName("ix_places_hash_version");
+            place.Property(row => row.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            place.Property(row => row.DeliveryId).HasColumnName("delivery_id");
+            place.Property(row => row.Kind).HasColumnName("kind");
+            place.Property(row => row.Channel).HasColumnName("channel");
+            place.Property(row => row.Category).HasColumnName("category");
+            place.Property(row => row.WindowSeconds).HasColumnName("window_seconds");
+            place.Property(row => row.Hash).HasColumnName("hash");
+            place.Property(row => row.HashVersion).HasColumnName("hash_version");
+            place.Property(row => row.TakenAt).HasColumnName("taken_at");
+            place.Property(row => row.LapsesAt).HasColumnName("lapses_at");
         });
     }
 

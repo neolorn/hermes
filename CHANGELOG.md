@@ -126,3 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dispatch, within `Dispatch:Timeout`, ending `noconsent` where it is not given and
   retrying where the source cannot answer, then ending `failed` with
   `consentunavailable`
+- Category limits: at dispatch a delivery takes one place under each of its category's
+  `Limit`s and `DeploymentLimit`s on its channel, under their advisory locks within
+  `Dispatch:Timeout`, or ends `limited` where a window is full; a delivery that ends
+  unsent gives its places back, and one on which a provider call is recorded gives back
+  only its per-destination places

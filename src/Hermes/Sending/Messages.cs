@@ -180,6 +180,11 @@ internal sealed partial class Messages(
                     }
                 }
 
+                if (cancelled.Count > 0)
+                {
+                    await Places.ReleaseAsync(context, [.. cancelled.Select(delivery => delivery.Id)], token).ConfigureAwait(false);
+                }
+
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
                 foreach (Cancelled delivery in cancelled)
                 {

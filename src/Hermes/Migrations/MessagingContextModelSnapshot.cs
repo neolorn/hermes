@@ -529,6 +529,81 @@ namespace Hermes.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hermes.Sending.PlaceRow", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("channel");
+
+                    b.Property<Guid?>("DeliveryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delivery_id");
+
+                    b.Property<byte[]>("Hash")
+                        .HasColumnType("bytea")
+                        .HasColumnName("hash");
+
+                    b.Property<int?>("HashVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("hash_version");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTimeOffset>("LapsesAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lapses_at");
+
+                    b.Property<DateTimeOffset>("TakenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("taken_at");
+
+                    b.Property<int>("WindowSeconds")
+                        .HasColumnType("integer")
+                        .HasColumnName("window_seconds");
+
+                    b.HasKey("Id")
+                        .HasName("pk_places");
+
+                    b.HasIndex("DeliveryId")
+                        .HasDatabaseName("ix_places_delivery_id");
+
+                    b.HasIndex("HashVersion")
+                        .HasDatabaseName("ix_places_hash_version");
+
+                    b.HasIndex("LapsesAt")
+                        .HasDatabaseName("ix_places_lapses_at");
+
+                    b.HasIndex("Channel", "Category", "WindowSeconds", "Kind", "TakenAt")
+                        .HasDatabaseName("ix_places_window");
+
+                    b.ToTable("places", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_places_channel", "channel IN ('email', 'sms', 'push')");
+
+                            t.HasCheckConstraint("ck_places_hash", "(kind = 'limit') = (hash IS NOT NULL AND hash_version IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_places_kind", "kind IN ('limit', 'deployment')");
+
+                            t.HasCheckConstraint("ck_places_window_seconds", "window_seconds >= 60");
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Sending.PreferenceRow", b =>
                 {
                     b.Property<string>("Person")
@@ -680,6 +755,15 @@ namespace Hermes.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_notices_deliveries");
+                });
+
+            modelBuilder.Entity("Hermes.Sending.PlaceRow", b =>
+                {
+                    b.HasOne("Hermes.Sending.DeliveryRow", null)
+                        .WithMany()
+                        .HasForeignKey("DeliveryId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_places_deliveries");
                 });
 #pragma warning restore 612, 618
         }

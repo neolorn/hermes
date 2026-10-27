@@ -287,6 +287,11 @@ internal sealed partial class DispatchPass : IDisposable
             return;
         }
 
+        if (category is not null && !await LimitsAsync(delivery, kind, category, values).ConfigureAwait(false))
+        {
+            return;
+        }
+
         if (channel == Channel.Sms && !SenderRule.Allows(passes.Channels.CurrentValue.Sms.AllowedPrefixes, values["destination"]!))
         {
             await EndAtCheckAsync(delivery, AttemptReason.DestinationNotAllowed).ConfigureAwait(false);
@@ -404,6 +409,203 @@ internal sealed partial class DispatchPass : IDisposable
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Check 8 (<c>01</c> MSG-SEND-014): in one transaction whose locks together wait no longer
+    /// than the dispatch timeout, takes the locks of the category's limits on the channel, then
+    /// the delivery's row, counts each window's places and takes one place for each limit where
+    /// every count is under its limit, or ends the delivery <c>limited</c>. A delivery that holds
+    /// places already keeps them; a lock that times out holds it for <c>Dispatch:Interval</c>.
+    /// Answers whether the delivery goes on.
+    /// </summary>
+    private async Task<bool> LimitsAsync(ClaimedDelivery delivery, KindDeclaration kind, CategoryDeclaration category, Dictionary<string, string?> values)
+    {
+        List<LimitDeclaration> limits = [.. category.Limits.Where(limit => limit.Channel == channel).OrderBy(limit => limit.Window)];
+        List<LimitDeclaration> caps = [.. category.DeploymentLimits.Where(limit => limit.Channel == channel).OrderBy(limit => limit.Window)];
+        if (limits.Count == 0 && caps.Count == 0)
+        {
+            return true;
+        }
+
+        if (!await ExtendAsync(delivery).ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        DeliveryRow row = delivery.Row;
+        byte[]? value = channel == Channel.Push
+            ? (row.Person is { } person ? Encoding.UTF8.GetBytes(person) : null)
+            : Suppressions.Value(channel, values["destination"]);
+        string domain = channel == Channel.Push ? KeyedHashes.Person : Suppressions.Domain(channel);
+        IReadOnlyList<(int Version, byte[] Hash)> every = value is null ? [] : passes.Hashes.Every(domain, value);
+        List<LimitDeclaration> hashed = value is null ? [] : limits;
+        long started = Stopwatch.GetTimestamp();
+        LimitOutcome outcome;
+        try
+        {
+            outcome = await LibraryTransactions.RunAsync(
+                passes.Database,
+                current,
+                (context, token) => TakePlacesAsync(context, row, category.Name, hashed, caps, domain, value, every, started, token),
+                finish.Token).ConfigureAwait(false);
+        }
+        catch (Exception failure) when (DispatchPasses.IsLockTimeout(failure))
+        {
+            outcome = LimitOutcome.NoTime;
+        }
+        catch (OperationCanceledException) when (finish.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        switch (outcome)
+        {
+            case LimitOutcome.Taken:
+                return true;
+            case LimitOutcome.Limited:
+                Ended(row, "limited", reason: null);
+                return false;
+            case LimitOutcome.KeyMissing:
+                await HoldAsync(delivery, kind, KeyNeeds.HashKeys).ConfigureAwait(false);
+                return false;
+            case LimitOutcome.NoTime:
+                await LockHoldAsync(delivery).ConfigureAwait(false);
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>The transaction of check 8, its locks taken in the order of <c>01</c> MSG-SEND-014.</summary>
+    private async Task<LimitOutcome> TakePlacesAsync(
+        MessagingContext context,
+        DeliveryRow row,
+        string category,
+        List<LimitDeclaration> limits,
+        List<LimitDeclaration> caps,
+        string domain,
+        byte[]? value,
+        IReadOnlyList<(int Version, byte[] Hash)> every,
+        long started,
+        CancellationToken token)
+    {
+        if (await context.Places.AnyAsync(place => place.DeliveryId == row.Id, token).ConfigureAwait(false))
+        {
+            return LimitOutcome.Taken;
+        }
+
+        List<long> keys = [.. limits.SelectMany(limit => every.Select(hash => Places.Key(spelling, category, Places.Seconds(limit.Window), hash.Hash)))];
+        keys.AddRange(caps.Select(limit => Places.Key(spelling, category, Places.Seconds(limit.Window), hash: null)));
+        foreach (long key in keys)
+        {
+            if (!await NextLockAsync(context, started, token).ConfigureAwait(false))
+            {
+                return LimitOutcome.NoTime;
+            }
+
+            await AdvisoryLocks.TakeAsync(context, [key], shared: false, token).ConfigureAwait(false);
+        }
+
+        if (!await NextLockAsync(context, started, token).ConfigureAwait(false))
+        {
+            return LimitOutcome.NoTime;
+        }
+
+        DeliveryRow? locked = await DeliveryClaims.LockAsync(context, row.Id, token).ConfigureAwait(false);
+        DateTimeOffset now = Clock.GetUtcNow();
+        if (locked is null || !DeliveryClaims.IsHeld(locked, holder, now))
+        {
+            return LimitOutcome.Lost;
+        }
+
+        if (limits.Count > 0 && await KeysInUse.MissingAsync(context, KeyNeeds.HashKeys, [.. passes.Hashes.Versions], token).ConfigureAwait(false) is not null)
+        {
+            return LimitOutcome.KeyMissing;
+        }
+
+        List<byte[]> hashes = [.. every.Select(hash => hash.Hash)];
+        bool full = false;
+        foreach (LimitDeclaration limit in limits)
+        {
+            full |= await Places.CountAsync(context, spelling, category, limit.Window, hashes, now, token).ConfigureAwait(false) >= limit.Count;
+        }
+
+        foreach (LimitDeclaration limit in caps)
+        {
+            full |= await Places.CountAsync(context, spelling, category, limit.Window, hashes: null, now, token).ConfigureAwait(false) >= limit.Count;
+        }
+
+        if (full)
+        {
+            End(context, locked, "limited", reason: null, now);
+        }
+        else
+        {
+            DateTimeOffset lapses = now + current.Retention.Places;
+            int version = passes.Hashes.WriteVersion;
+            foreach (LimitDeclaration limit in limits)
+            {
+                context.Places.Add(new PlaceRow
+                {
+                    DeliveryId = row.Id,
+                    Kind = PlaceRow.Limit,
+                    Channel = spelling,
+                    Category = category,
+                    WindowSeconds = Places.Seconds(limit.Window),
+                    Hash = passes.Hashes.Under(version, domain, value!),
+                    HashVersion = version,
+                    TakenAt = now,
+                    LapsesAt = lapses,
+                });
+            }
+
+            foreach (LimitDeclaration limit in caps)
+            {
+                context.Places.Add(new PlaceRow
+                {
+                    DeliveryId = row.Id,
+                    Kind = PlaceRow.Deployment,
+                    Channel = spelling,
+                    Category = category,
+                    WindowSeconds = Places.Seconds(limit.Window),
+                    TakenAt = now,
+                    LapsesAt = lapses,
+                });
+            }
+        }
+
+        await context.SaveChangesAsync(token).ConfigureAwait(false);
+        return full ? LimitOutcome.Limited : LimitOutcome.Taken;
+    }
+
+    /// <summary>Sets the <c>lock_timeout</c> of the next lock of check 8 to what is left of the dispatch timeout since <paramref name="started"/>, or of a stop's; false where nothing is left.</summary>
+    private async Task<bool> NextLockAsync(MessagingContext context, long started, CancellationToken token)
+    {
+        TimeSpan left = current.Dispatch.Timeout - Stopwatch.GetElapsedTime(started);
+        if (LockTimeout() is not { } stop || left <= TimeSpan.Zero)
+        {
+            return false;
+        }
+
+        await DeliveryClaims.LockTimeoutAsync(context, left < stop ? left : stop, token).ConfigureAwait(false);
+        return true;
+    }
+
+    /// <summary>Holds the delivery whose limit locks were not had in time: back to <c>waiting</c>, due after <c>Dispatch:Interval</c>, no attempt counted.</summary>
+    private async Task LockHoldAsync(ClaimedDelivery delivery)
+    {
+        (bool held, DateTimeOffset due) = await UnderClaimAsync(delivery, (_, row, now) =>
+        {
+            row.Status = "waiting";
+            row.DueAt = now + current.Dispatch.Interval;
+            DeliveryClaims.Release(row);
+            return Task.FromResult(row.DueAt);
+        }).ConfigureAwait(false);
+        if (held)
+        {
+            LimitLockHeld(Logger, delivery.Row.Id, spelling, due);
+        }
     }
 
     /// <summary>Holds the delivery for quiet hours: back to <c>waiting</c>, due at <paramref name="due"/>, no attempt counted, its place in the rate given back.</summary>
@@ -974,6 +1176,11 @@ internal sealed partial class DispatchPass : IDisposable
 
                     T value = await change(context, row, now).ConfigureAwait(false);
                     await context.SaveChangesAsync(token).ConfigureAwait(false);
+                    if (Finals.Contains(row.Status) && row.Status is not ("sent" or "delivered"))
+                    {
+                        await Places.ReleaseAsync(context, [row.Id], token).ConfigureAwait(false);
+                    }
+
                     return (true, value);
                 },
                 finish.Token).ConfigureAwait(false);
@@ -1073,6 +1280,18 @@ internal sealed partial class DispatchPass : IDisposable
 
     [LoggerMessage(EventId = 45, EventName = "DeliveryQuiet", Level = LogLevel.Information, Message = "Delivery {Delivery} on {Channel} is held for quiet hours until {Due}.")]
     private static partial void QuietHeld(ILogger logger, Guid delivery, string channel, DateTimeOffset due);
+
+    [LoggerMessage(EventId = 46, EventName = "DeliveryLimitLockTimedOut", Level = LogLevel.Warning, Message = "The limit locks of delivery {Delivery} on {Channel} were not had in time; it is next due at {Due}.")]
+    private static partial void LimitLockHeld(ILogger logger, Guid delivery, string channel, DateTimeOffset due);
+
+    private enum LimitOutcome
+    {
+        Taken,
+        Limited,
+        KeyMissing,
+        NoTime,
+        Lost,
+    }
 
     private enum Lost
     {
