@@ -113,3 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sets whether they receive an optional category on a channel its kinds use, under the
   person's locks taken shared within `Dispatch:Timeout`; a delivery of a category the
   person turned off on its channel ends `optedout` when it is checked
+- Each email of an optional category carries a one-click unsubscribe address,
+  `PublicBaseAddress`, `/unsubscribe/` and a token signed under `tokenKeys` and dated
+  from the later of the send and its `NotBefore`, in its `List-Unsubscribe` and
+  `List-Unsubscribe-Post` headers and as the template value `unsubscribe`; the address
+  is stored protected with the delivery, and an essential category's email carries none

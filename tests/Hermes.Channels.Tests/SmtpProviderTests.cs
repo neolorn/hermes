@@ -351,6 +351,25 @@ public sealed class SmtpProviderTests
     }
 
     [Fact]
+    public async Task MSG_EMAIL_006_AC1_AMessageWithAnUnsubscribeAddressCarriesBothHeadersAndOneWithoutCarriesNeither()
+    {
+        using TestAuthority authority = TestAuthority.Create();
+        await using SmtpServerFake server = SmtpServerFake.Start(SmtpTls.Implicit, authority.Issue(SmtpHarness.Host, TimeSpan.FromDays(6)));
+        using IHost host = await SmtpHarness.StartAsync(SmtpHarness.Configuration(server.Port, SmtpTls.Implicit, authority));
+        Uri unsubscribe = new("https://notices.example.com/unsubscribe/AQAAAAEAAAAB");
+
+        await SmtpHarness.SendAsync(host, SmtpHarness.Message() with { Unsubscribe = unsubscribe });
+        await SmtpHarness.SendAsync(host, SmtpHarness.Message());
+
+        using MimeMessage optional = SmtpHarness.Read(server.Messages.ElementAt(0));
+        using MimeMessage essential = SmtpHarness.Read(server.Messages.ElementAt(1));
+        Assert.Equal("<" + unsubscribe.AbsoluteUri + ">", optional.Headers["List-Unsubscribe"]);
+        Assert.Equal("List-Unsubscribe=One-Click", optional.Headers["List-Unsubscribe-Post"]);
+        Assert.False(essential.Headers.Contains("List-Unsubscribe"));
+        Assert.False(essential.Headers.Contains("List-Unsubscribe-Post"));
+    }
+
+    [Fact]
     public async Task SendAsync_EachAttempt_DatesTheMessageAsItIsSubmitted()
     {
         using TestAuthority authority = TestAuthority.Create();

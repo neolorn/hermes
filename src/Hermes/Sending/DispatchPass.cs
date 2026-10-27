@@ -464,6 +464,7 @@ internal sealed partial class DispatchPass : IDisposable
         if (channel == Channel.Email)
         {
             yield return ("subject", row.Subject);
+            yield return ("unsubscribe", row.Unsubscribe);
         }
 
         yield return ("text", row.Text);
@@ -690,6 +691,7 @@ internal sealed partial class DispatchPass : IDisposable
             Subject = values["subject"]!,
             Text = values["text"]!,
             Html = values["html"],
+            Unsubscribe = values.GetValueOrDefault("unsubscribe") is { } unsubscribe ? new Uri(unsubscribe, UriKind.Absolute) : null,
             MessageId = string.Create(CultureInfo.InvariantCulture, $"{row.Id:D}@{from.Address[(from.Address.LastIndexOf('@') + 1)..]}"),
             Language = row.Language,
         };

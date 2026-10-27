@@ -43,6 +43,21 @@ public sealed class SuppressionTests(PostgresFixture postgres) : IClassFixture<P
     }
 
     [Fact]
+    public async Task MSG_SEND_012_AC1_AnEmailSuppressedForTheCategoryEndsSuppressedWhateverTheCaseOfItsDomain()
+    {
+        await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, configure: UnsubscribeLinkTests.Configure, declare: UnsubscribeLinkTests.Declare, templates: UnsubscribeLinkTests.Templates);
+        Assert.True((await AddAsync(engine.Host, Channel.Email, "someone@example.com", UnsubscribeLinkTests.News)).IsSuccess);
+        SendReceipt suppressed = (await engine.Host.SendAsync(UnsubscribeLinkTests.LetterTo("someone@EXAMPLE.com"))).Value!;
+        SendReceipt other = (await engine.Host.SendAsync(UnsubscribeLinkTests.LetterTo("other@example.com"))).Value!;
+
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal(DeliveryStatus.Suppressed, await StatusAsync(engine.Host, suppressed));
+        Assert.Equal(DeliveryStatus.Sent, await StatusAsync(engine.Host, other));
+        Assert.Equal("other@example.com", Assert.Single(engine.Email.Received).ToAddress);
+    }
+
+    [Fact]
     public async Task MSG_SEND_012_AC2_TheSuppressionTableHoldsNoDestinationInPlainText()
     {
         await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, declare: Declare);
