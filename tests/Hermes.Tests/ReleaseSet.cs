@@ -52,8 +52,6 @@ internal sealed class ReleaseSet
 
     internal const string Surface = "surface";
 
-    private const string Prefix = "/notifications";
-
     private static readonly JsonSerializerOptions Written = new() { WriteIndented = true };
 
     private readonly SortedDictionary<string, SortedSet<string>> sections = new(StringComparer.Ordinal);
@@ -70,7 +68,7 @@ internal sealed class ReleaseSet
     ];
 
     /// <summary>The request bodies an endpoint reads, whose members a caller sends.</summary>
-    internal static IReadOnlyList<Type> RequestBodies { get; } = [typeof(PreferenceChange), typeof(SubscriptionBody), typeof(RemovalBody)];
+    internal static IReadOnlyList<Type> RequestBodies { get; } = [.. MappedEndpoints.Requests.Values];
 
     /// <summary>The lines of <paramref name="section"/>, none where it holds none.</summary>
     internal IReadOnlySet<string> this[string section] => sections.TryGetValue(section, out SortedSet<string>? lines) ? lines : new SortedSet<string>(StringComparer.Ordinal);
@@ -193,43 +191,17 @@ internal sealed class ReleaseSet
 
     private static void AddRoutes(ReleaseSet set)
     {
-        Dictionary<string, string?> configuration = EngineHost.Configuration();
-        UnsubscribeLinkTests.Configure(configuration);
-        configuration["Hermes:Push:AllowedHosts:0"] = "push.example.com";
-        using IHost host = TestHost.Build(
-            configuration,
-            UnsubscribeLinkTests.Declare,
-            services =>
-            {
-                Endpoints.Identity(services);
-                services.AddSingleton<IPushProvider, RecordingPushProvider>();
-                services.AddSingleton<ISecretSource>(Secrets.Held().With("smsReportKey", Secrets.Bytes(16, 5)));
-            },
-            map: application =>
-            {
-                application.MapHermesPreferences(Prefix);
-                application.MapHermesUnsubscribe(Prefix);
-                application.MapHermesPushSubscriptions(Prefix);
-                application.MapHermesSmsReports(Prefix);
-            });
-        foreach (RouteEndpoint endpoint in ((IEndpointRouteBuilder)host).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>())
+        foreach ((string route, IReadOnlyList<IProducesResponseTypeMetadata> responses) in MappedEndpoints.Read())
         {
-            foreach (string method in endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? [])
-            {
-                string route = $"{method} {endpoint.RoutePattern.RawText}";
-                set.Add(Routes, [route]);
-                set.Add(Statuses, endpoint.Metadata.OfType<IProducesResponseTypeMetadata>().Select(produced => $"{route} {produced.StatusCode}"));
-            }
+            set.Add(Routes, [route]);
+            set.Add(Statuses, responses.Select(produced => $"{route} {produced.StatusCode}"));
         }
     }
 
     private static void AddBodies(ReleaseSet set)
     {
-        IEnumerable<Type> roots = typeof(EndpointJson).GetCustomAttributesData()
-            .Where(attribute => attribute.AttributeType == typeof(JsonSerializableAttribute))
-            .Select(attribute => (Type)attribute.ConstructorArguments[0].Value!);
         HashSet<Type> seen = [];
-        Queue<(Type Type, bool Request)> next = new(roots.Select(type => (type, RequestBodies.Contains(type))));
+        Queue<(Type Type, bool Request)> next = new(BodyMembers.Roots().Select(type => (type, RequestBodies.Contains(type))));
         while (next.TryDequeue(out (Type Type, bool Request) body))
         {
             if (!seen.Add(body.Type))
