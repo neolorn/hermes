@@ -39,6 +39,7 @@ internal sealed partial class DispatchPasses
         IOptionsMonitor<ChannelsOptions> channels,
         IServiceScopeFactory scopes,
         KeyedHashes hashes,
+        HeldKeys keys,
         Alerts alerts,
         Notices notices,
         MessagingMetrics metrics,
@@ -51,6 +52,7 @@ internal sealed partial class DispatchPasses
         Channels = channels;
         Scopes = scopes;
         Hashes = hashes;
+        Keys = keys;
         Alerts = alerts;
         Notices = notices;
         Metrics = metrics;
@@ -83,6 +85,8 @@ internal sealed partial class DispatchPasses
     internal IServiceScopeFactory Scopes { get; }
 
     internal KeyedHashes Hashes { get; }
+
+    internal HeldKeys Keys { get; }
 
     internal Alerts Alerts { get; }
 

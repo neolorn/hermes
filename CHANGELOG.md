@@ -150,3 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its answer is recorded, is held where no delivery holds its provider reference yet, and
   is counted as rejected where it names nothing, raising `sms-report-rejected` past the
   threshold; a failure report releases the delivery's per-destination places only
+- With `Hermes:Sms:ReportBaseAddress` set, each SMS carries its report address: that
+  address, `/sms/report/` and the `smsReportKey` write version's key, which the start then
+  needs where SMS is dispatched; a report whose key matches records when its version last
+  matched in the key table

@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Hermes.Channels;
 using Hermes.Content;
 using Hermes.Core;
+using Hermes.Endpoints;
 using Hermes.Operations;
 
 using Microsoft.EntityFrameworkCore;
@@ -1032,14 +1033,18 @@ internal sealed partial class DispatchPass : IDisposable
     {
         string text = values["text"]!;
         SmsMeasure measure = SmsText.Measure(text);
+        SmsChannelOptions sms = passes.Channels.CurrentValue.Sms;
         SmsMessage message = new()
         {
             ToNumber = values["destination"]!,
-            Sender = kind.Sms?.Sender ?? passes.Channels.CurrentValue.Sms.Sender!,
+            Sender = kind.Sms?.Sender ?? sms.Sender!,
             Text = text,
             DeliveryReference = reference,
             Encoding = measure.Encoding,
             Segments = measure.Segments,
+            ReportAddress = sms.ReportBaseAddress is { } baseAddress && passes.Keys.Find(KeyNeeds.SmsReportKey) is { } key
+                ? SmsReportEndpoints.Address(baseAddress, key)
+                : null,
         };
         return await services.GetRequiredService<ISmsProvider>().SendAsync(message, cancellationToken).ConfigureAwait(false);
     }

@@ -43,22 +43,31 @@ internal static class SmsReportEndpoints
             .Produces<ErrorBody>(StatusCodes.Status429TooManyRequests);
     }
 
-    /// <summary>Whether <paramref name="key"/> is the base64url of a held version of <c>smsReportKey</c>, each compared in constant time.</summary>
-    internal static bool Matches(HeldKeys keys, string key)
+    /// <summary>The held version of <c>smsReportKey</c> whose base64url <paramref name="key"/> is, every version compared in constant time; none where it is none of them.</summary>
+    internal static int? Matched(HeldKeys keys, string key)
     {
         if (keys.Find(KeyNeeds.SmsReportKey) is not { } held)
         {
-            return false;
+            return null;
         }
 
         byte[] given = Encoding.ASCII.GetBytes(key);
-        bool matches = false;
-        foreach (byte[] version in held.Versions.Values)
+        int? matched = null;
+        foreach ((int version, byte[] value) in held.Versions)
         {
-            matches |= CryptographicOperations.FixedTimeEquals(given, Encoding.ASCII.GetBytes(Base64Url.EncodeToString(version)));
+            if (CryptographicOperations.FixedTimeEquals(given, Encoding.ASCII.GetBytes(Base64Url.EncodeToString(value))))
+            {
+                matched = version;
+            }
         }
 
-        return matches;
+        return matched;
+    }
+
+    /// <summary>The report address under <paramref name="baseAddress"/>, the mapped group's absolute address: it, <c>/sms/report/</c> and the base64url of <paramref name="key"/>'s write version.</summary>
+    internal static Uri Address(Uri baseAddress, HeldKey key)
+    {
+        return new Uri(baseAddress.AbsoluteUri.TrimEnd('/') + "/sms/report/" + Base64Url.EncodeToString(key.Write), UriKind.Absolute);
     }
 
     private static async Task<Results<NotFound, Refusal, ReportAnswer>> ReportAsync(HttpContext context, string key)
@@ -66,7 +75,7 @@ internal static class SmsReportEndpoints
         IServiceProvider services = context.RequestServices;
         CancellationToken cancellationToken = context.RequestAborted;
         string source = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        if (!Matches(services.GetRequiredService<HeldKeys>(), key))
+        if (Matched(services.GetRequiredService<HeldKeys>(), key) is not { } version)
         {
             if (services.GetRequiredService<WrongKeyLimiter>().Take(source) is { } wait)
             {
@@ -77,6 +86,7 @@ internal static class SmsReportEndpoints
             return TypedResults.NotFound();
         }
 
+        await services.GetRequiredService<KeyTable>().MarkMadeAsync(KeyNeeds.SmsReportKey, version, cancellationToken).ConfigureAwait(false);
         if (await RequestBodies.ReadAsync(context.Request, cancellationToken).ConfigureAwait(false) is not { } body)
         {
             return RequestBodies.TooLarge();

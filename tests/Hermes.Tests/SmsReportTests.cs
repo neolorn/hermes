@@ -149,6 +149,33 @@ public sealed class SmsReportTests(PostgresFixture postgres) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task MSG_SMS_004_AC6_WithTheReportBaseAddressSetTheProviderReceivesEachSmsWithItsReportAddressAndWithoutItNone()
+    {
+        await using DispatchEngine addressed = await StartAsync(configuration => configuration["Hermes:Sms:ReportBaseAddress"] = "https://example.com/notifications/");
+        await SentAsync(addressed);
+        await using DispatchEngine plain = await StartAsync();
+        await SentAsync(plain);
+
+        Assert.Equal(new Uri("https://example.com/notifications/sms/report/" + Key), Assert.Single(addressed.Sms.Received).ReportAddress);
+        Assert.Null(Assert.Single(plain.Sms.Received).ReportAddress);
+    }
+
+    [Fact]
+    public async Task Report_WhoseKeyMatches_RecordsInTheKeyTableWhenItsVersionLastMatched()
+    {
+        await using DispatchEngine engine = await StartAsync();
+        using HttpClient client = engine.Host.Client();
+        engine.Host.Clock.Advance(TimeSpan.FromMinutes(3));
+
+        using HttpResponseMessage response = await ReportAsync(client, [new("nonsense", "1")]);
+
+        await using NpgsqlConnection database = new(engine.Host.Connection);
+        await database.OpenAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlCommand command = new("SELECT last_made_at FROM messaging.key_versions WHERE key = 'smsReportKey' AND version = 1", database);
+        Assert.Equal(engine.Host.Clock.GetUtcNow().UtcDateTime, (DateTime)(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken))!);
+    }
+
+    [Fact]
     public async Task MSG_SMS_004_AC7_ADeliveredReportOfAFirstAttemptKeptWhileTheSecondAttemptsCheck2EndsTheDeliveryExpiredEndsItDelivered()
     {
         await using DispatchEngine engine = await StartAsync(declare: declare =>
