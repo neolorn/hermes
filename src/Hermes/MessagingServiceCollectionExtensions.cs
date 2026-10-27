@@ -70,6 +70,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddScoped<IMessages, Messages>();
         services.AddSingleton<DispatchPasses>();
         services.AddSingleton<IDispatcher, Dispatcher>();
+        services.AddSingleton<NoticeDelivery>();
         services.TryAddSingleton<ChannelsUnderEngine>();
         services.AddHermesChannels(configuration);
 
@@ -78,6 +79,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<IHostedService, MessagingStartup>();
         services.AddSingleton<IHostedService, KeyTableTimer>();
         services.AddSingleton<IHostedService, HostedDispatcher>();
+        services.AddSingleton<IHostedService, ObserverJob>();
         return services;
     }
 }

@@ -92,3 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of each channel on each committed send's notification, every `Dispatch:Interval` and
   after each connection of its listening connection on `listenConnection` or
   `connection`, at most `Dispatch:MaxPasses` of a channel at once
+- The `observer` job, where `Dispatch:Enabled` is on: every `Dispatch:Interval` one
+  process tells the observer of each pending notice, in order for each delivery, up to
+  `Observer:MaxCalls` of different deliveries at once, each call bounded by
+  `Dispatch:Timeout`, and deletes a notice once the observer took it
