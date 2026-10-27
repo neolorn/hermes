@@ -290,6 +290,44 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task MSG_SEND_007_AC8_APushDeliveryWhosePassIsStoppedDuringTheFirstOfItsTwoCallsMakesNoSecondCallAndItsAttemptIsRecordedClaimlost()
+    {
+        await using DispatchEngine engine = await StartAsync();
+        Pusher push = new(engine);
+        await push.SubscribeAsync(Person, Endpoint);
+        await push.SubscribeAsync(Person, OtherEndpoint);
+        TaskCompletionSource calling = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        push.Provider.Answer = _ => new Attempt.Transient(AttemptReason.Temporary, 503, null);
+        push.Provider.Before = async (_, _) =>
+        {
+            calling.TrySetResult();
+            await release.Task;
+        };
+        SendReceipt receipt = (await push.Host.SendAsync(Code(Person))).Value!;
+        using System.Threading.CancellationTokenSource stop = new();
+
+        Task<int> pass = push.Host.DispatchAsync(stop.Token);
+        await calling.Task;
+        await stop.CancelAsync();
+        release.SetResult();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pass);
+        DeliveryRecord stopped = Assert.Single((await push.Host.ReadAsync(receipt.Send)).Deliveries);
+        int calls = push.Provider.Received.Count;
+        push.Provider.Before = null;
+        push.Provider.Answer = _ => new Attempt.Accepted(null);
+        push.Host.Clock.Advance(TimeSpan.FromHours(1));
+        await push.Host.DispatchAsync();
+
+        Assert.Equal(1, calls);
+        Assert.Equal(DeliveryStatus.Waiting, stopped.Status);
+        AttemptRecord attempt = Assert.Single(stopped.Attempts);
+        Assert.Equal(((AttemptClass?)AttemptClass.Transient, (AttemptReason?)AttemptReason.ClaimLost), (attempt.AnswerClass, attempt.Reason));
+        Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(push.Host, receipt));
+        Assert.Equal([Endpoint, OtherEndpoint], push.Provider.Received.Skip(1).Select(request => request.Endpoint).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
     public async Task MSG_PUSH_006_AC1_ASubscriptionWhoseExpirationTimeHasPassedReceivesNothingAndIsGoneAfterTheSubscriptionJobsNextRun()
     {
         await using DispatchEngine engine = await StartAsync(configuration =>

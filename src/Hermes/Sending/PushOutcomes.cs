@@ -17,9 +17,10 @@ internal static class PushOutcomes
     /// The subscriptions the attempt after <paramref name="lastAttempt"/> goes to, of the
     /// person's <paramref name="live"/> ones, judged over the delivery's recorded
     /// <paramref name="calls"/>, in order; where none is left, the status the delivery ends in
-    /// and its reason.
+    /// and its reason. An attempt <paramref name="lost"/>, its claim lost or its pass stopped
+    /// between its calls, is judged as one that made no call.
     /// </summary>
-    internal static (IReadOnlyList<Guid> Targets, string? Ends, AttemptReason? Reason) Targets(IReadOnlyList<PushCall> calls, int lastAttempt, IReadOnlyList<Guid> live)
+    internal static (IReadOnlyList<Guid> Targets, string? Ends, AttemptReason? Reason) Targets(IReadOnlyList<PushCall> calls, int lastAttempt, IReadOnlyList<Guid> live, bool lost = false)
     {
         if (lastAttempt == 0)
         {
@@ -27,7 +28,7 @@ internal static class PushOutcomes
         }
 
         List<PushCall> last = [.. calls.Where(call => call.Attempt == lastAttempt)];
-        if (last.Count == 0)
+        if (last.Count == 0 || lost)
         {
             // A lost claim, or a transient answer at a check: every live subscription not yet refused.
             HashSet<Guid> refused = [.. calls.Where(call => call.Class is AttemptClass.Permanent or AttemptClass.Gone && call.Subscription is not null).Select(call => call.Subscription!.Value)];

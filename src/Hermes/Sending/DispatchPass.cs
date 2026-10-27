@@ -980,7 +980,8 @@ internal sealed partial class DispatchPass : IDisposable
             return;
         }
 
-        (IReadOnlyList<Guid> targets, string? ends, AttemptReason? why) = PushOutcomes.Targets(await PushCallsAsync(row.Id).ConfigureAwait(false), row.Attempts, [.. opened.Select(subscription => subscription.Id)]);
+        (List<PushCall> calls, bool lost) = await PushCallsAsync(row.Id, row.Attempts).ConfigureAwait(false);
+        (IReadOnlyList<Guid> targets, string? ends, AttemptReason? why) = PushOutcomes.Targets(calls, row.Attempts, [.. opened.Select(subscription => subscription.Id)], lost);
         if (ends is not null)
         {
             await EndAsync(delivery, ends, why, giveBack: true).ConfigureAwait(false);
@@ -1006,6 +1007,19 @@ internal sealed partial class DispatchPass : IDisposable
         int made = 0;
         foreach (OpenedSubscription target in opened.Where(subscription => targets.Contains(subscription.Id)))
         {
+            if (made > 0 && stoppedAt is not null)
+            {
+                // A stopped pass lets the call in progress finish and makes no other: one accepted
+                // ends the delivery as it would have, and otherwise the attempt is lost.
+                if (answers.Any(answer => answer is Attempt.Accepted))
+                {
+                    break;
+                }
+
+                await LostAsync(delivery).ConfigureAwait(false);
+                return;
+            }
+
             (bool held, (bool Still, DateTimeOffset At) renewed) = await UnderClaimAsync(delivery, async (context, claimed, now) =>
             {
                 claimed.ClaimedAt = now;
@@ -1156,8 +1170,10 @@ internal sealed partial class DispatchPass : IDisposable
     }
 
     /// <summary>The delivery's recorded push calls, in the order made.</summary>
-    private async Task<List<PushCall>> PushCallsAsync(Guid delivery)
+    /// <summary>The delivery's recorded calls, and whether its attempt <paramref name="last"/> was recorded <c>claimlost</c>.</summary>
+    private async Task<(List<PushCall> Calls, bool Lost)> PushCallsAsync(Guid delivery, int last)
     {
+        string lost = Spellings.Of(AttemptReason.ClaimLost);
         MessagingContext context = passes.Database.Context();
         await using (context.ConfigureAwait(false))
         {
@@ -1167,7 +1183,9 @@ internal sealed partial class DispatchPass : IDisposable
                 .ThenBy(call => call.Number)
                 .Select(call => new { call.Attempt, call.SubscriptionId, call.Class, call.Reason })
                 .ToListAsync(finish.Token).ConfigureAwait(false);
-            return [.. rows.Select(call => new PushCall(call.Attempt, call.SubscriptionId, Spellings.Class(call.Class)!.Value, call.Reason is null ? null : Spellings.Reason(call.Reason)))];
+            bool wasLost = await context.Attempts.AsNoTracking()
+                .AnyAsync(attempt => attempt.DeliveryId == delivery && attempt.Number == last && attempt.Reason == lost, finish.Token).ConfigureAwait(false);
+            return ([.. rows.Select(call => new PushCall(call.Attempt, call.SubscriptionId, Spellings.Class(call.Class)!.Value, call.Reason is null ? null : Spellings.Reason(call.Reason)))], wasLost);
         }
     }
 

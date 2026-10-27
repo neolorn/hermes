@@ -46,6 +46,16 @@ public sealed class PushOutcomeTests
     }
 
     [Fact]
+    public void Targets_AfterAnAttemptLostBetweenItsCalls_GoToEveryLiveSubscriptionNotRefusedThoughSomeWereCalled()
+    {
+        List<PushCall> transient = [new(1, First, AttemptClass.Transient, AttemptReason.Temporary)];
+        List<PushCall> refused = [new(1, First, AttemptClass.Permanent, AttemptReason.BadRequest)];
+
+        Assert.Equal([First, Second], PushOutcomes.Targets(transient, 1, [First, Second], lost: true).Targets);
+        Assert.Equal([Second], PushOutcomes.Targets(refused, 1, [First, Second], lost: true).Targets);
+    }
+
+    [Fact]
     public void Of_OneAcceptedAmongOthers_IsAccepted()
     {
         Assert.Equal(AttemptClass.Accepted, PushOutcomes.Of([new Attempt.Accepted(null), new Attempt.Transient(AttemptReason.Temporary, 503, null)]).Class);

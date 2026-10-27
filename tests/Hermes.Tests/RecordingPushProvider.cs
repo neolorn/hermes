@@ -18,6 +18,9 @@ internal sealed class RecordingPushProvider : IPushProvider
 
     internal Func<PushRequest.WebPush, Attempt> Answer { get; set; } = _ => new Attempt.Accepted(null);
 
+    /// <summary>Runs once a request is recorded and before it is answered.</summary>
+    internal Func<PushRequest.WebPush, CancellationToken, Task>? Before { get; set; }
+
     internal IReadOnlyList<PushRequest.WebPush> Received
     {
         get
@@ -29,7 +32,7 @@ internal sealed class RecordingPushProvider : IPushProvider
         }
     }
 
-    public ValueTask<Attempt> SendAsync(PushRequest request, CancellationToken cancellationToken)
+    public async ValueTask<Attempt> SendAsync(PushRequest request, CancellationToken cancellationToken)
     {
         PushRequest.WebPush web = (PushRequest.WebPush)request;
         lock (gate)
@@ -37,6 +40,11 @@ internal sealed class RecordingPushProvider : IPushProvider
             received.Add(web);
         }
 
-        return ValueTask.FromResult(Answer(web));
+        if (Before is { } before)
+        {
+            await before(web, cancellationToken);
+        }
+
+        return Answer(web);
     }
 }

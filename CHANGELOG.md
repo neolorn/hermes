@@ -183,3 +183,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instant a process wrote has passed, and drops the SMS reports held past
   `Hermes:Sms:ReportHold`, which are never applied once lapsed
 - `push-auth-failing` carries the push service in its details
+- A push pass stopped during a delivery's call makes none of its other calls: an
+  acceptance among those made ends it `sent`, and otherwise its attempt is recorded
+  `claimlost` and the next goes to every live subscription not refused
