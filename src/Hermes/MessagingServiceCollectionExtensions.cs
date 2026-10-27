@@ -62,6 +62,12 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<TemplateParser>();
         services.AddSingleton<TemplateRenderer>();
         services.AddSingleton<Templates>();
+        services.AddSingleton<SendRenderer>();
+        services.AddSingleton<KeyedHashes>();
+        services.AddSingleton<HostSchemas>();
+        services.AddSingleton<Notices>();
+        services.AddSingleton<MessagingReady>();
+        services.AddScoped<IMessages, Messages>();
         services.TryAddSingleton<ChannelsUnderEngine>();
         services.AddHermesChannels(configuration);
 

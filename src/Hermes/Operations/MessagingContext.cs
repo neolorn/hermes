@@ -47,6 +47,12 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
         return new MessagingContext(new DbContextOptionsBuilder<MessagingContext>().UseNpgsql(connection, Provider).Options);
     }
 
+    /// <summary>A context on a host's open connection, which it neither opens nor closes (<c>01</c> MSG-SEND-004).</summary>
+    internal static MessagingContext On(NpgsqlConnection connection)
+    {
+        return new MessagingContext(new DbContextOptionsBuilder<MessagingContext>().UseNpgsql(connection, Provider).Options);
+    }
+
     /// <summary>The options of a context on the library's data source.</summary>
     internal static DbContextOptions<MessagingContext> Options(NpgsqlDataSource source)
     {

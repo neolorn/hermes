@@ -36,6 +36,7 @@ internal sealed class MessagingStartup(
     KeyTable table,
     TemplateParser parser,
     Templates templates,
+    MessagingReady ready,
     IHostEnvironment environment,
     IServiceProvider services) : IHostedLifecycleService
 {
@@ -108,6 +109,7 @@ internal sealed class MessagingStartup(
         }
 
         await table.StartAsync(cancellationToken).ConfigureAwait(false);
+        ready.Mark();
     }
 
     public Task StartAsync(CancellationToken cancellationToken)

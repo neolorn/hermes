@@ -77,3 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   outside its values
 - The keyed hash under each held `hashKeys` version, the advisory locks' keys and a
   send's canonical form, in the layouts two releases share
+- `IMessages.SendAsync`, which checks a send, renders it in its language and time zone,
+  protects its content and destination and records one delivery per channel, on the
+  host's transaction where one is given, waking the dispatchers when it commits; a send
+  with an idempotency key recorded once inside its window
+- `IMessages.CancelAsync`, which cancels a send's waiting deliveries, and
+  `IMessages.ReadAsync`, which answers a send's deliveries, attempts and calls

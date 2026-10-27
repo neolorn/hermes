@@ -16,8 +16,16 @@ internal sealed class ContentProtectorFake(string id) : IContentProtector
 {
     public string Id => id;
 
+    /// <summary>Whether protecting throws, as a vault that cannot be reached does.</summary>
+    internal bool Throws { get; init; }
+
     public ValueTask<byte[]> ProtectAsync(string person, ReadOnlyMemory<byte> plaintext, string context, CancellationToken cancellationToken)
     {
+        if (Throws)
+        {
+            throw new InvalidOperationException("The vault cannot be reached.");
+        }
+
         return ValueTask.FromResult(Head(person, context).Concat(plaintext.ToArray()).ToArray());
     }
 
