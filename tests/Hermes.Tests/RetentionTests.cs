@@ -340,6 +340,12 @@ public sealed class RetentionTests(PostgresFixture postgres) : IClassFixture<Pos
             });
         DateTimeOffset at = RetentionJob.Next(EngineHost.Start, new TimeOnly(4, 30), cairo);
 
+        // The host starts the job's loop on its own thread; its wait must be set before the clock moves.
+        for (int tries = 0; tries < 400 && !engine.Host.Clock.IsDue(at); tries++)
+        {
+            await Task.Delay(25, TestContext.Current.CancellationToken);
+        }
+
         engine.Host.Clock.Advance(at - EngineHost.Start - TimeSpan.FromSeconds(1));
         await Task.Delay(200, TestContext.Current.CancellationToken);
         DateTimeOffset? before = await StartedAsync(engine.Host);
