@@ -1048,6 +1048,36 @@ by rewriting a pushed commit).
 
 ---
 
+## M-019 — Phase 5's report: the endpoint contract placed, the sample host first, the gates paragraph brought to M-018
+
+**Date:** 2026-10-27 · **Status:** accepted · **Follows from:** M-018
+
+Phase 5's report found MSG-ENG-006 in no phase: phase 0 took all of `07` before any
+endpoint existed, and no later phase names it. It is built in a new phase 5a, beside the
+sample host, now that every endpoint group exists (phase 4) and the release gate reads
+the serializer contexts its criterion names (phase 5). The sample host moves to phase 5a
+from phase 6: it sends through `Hermes.Testing`'s in-memory providers and needs nothing
+of Janus, while phase 6's bridges wait on Janus's package and the reference of its API
+(the plan's "Waiting on inputs"), so building it now keeps the work moving. Phase 6
+keeps the bridges alone, and the sample host must still build and pass once they are in.
+Phase 5a works on `phase-05a` and reports in `docs/reports/phase-05a.md`.
+
+MSG-ENG-012's paragraph after its table still had the implementer run every gate script
+on the report's commit before the push, which M-018 removed from the working guide and
+the plan but not from the chapter, and a chapter wins over the working guide; phase 4 ran
+the whole integration set four times on that reading. The paragraph now says what M-018
+says: before a push, the fast checks, every unit test, the commit-message gate, the
+secret scan and the integration tests a change writes or touches; the pipeline's run on
+the last commit pushed is the gate of record. Each gate stays a script that gives the
+pipeline's result when run locally (criterion 2). *Rejected:* waiting for Janus's
+package before building the sample host (it does not use Janus); renumbering the later
+phases (every chapter's reference to phase 6, 7 and 8 would move).
+
+**Propagated to:** `07` MSG-ENG-012 (the paragraph after the table, criterion 2);
+`implementation-plan.md` (phase 0's row, phase 5a's row, phase 6's row).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1070,3 +1100,4 @@ by rewriting a pushed commit).
 | Phase 1's questions: lengths, the template folder, decimal factors, roles | M-016 |
 | Phase 2's question: MailKit 4.18.2 | M-017 |
 | The full gate runs in the pipeline, not on the implementer's machine | M-018 |
+| Phase 5's report: the endpoint contract placed, the sample host first, the gates paragraph brought to M-018 | M-019 |
