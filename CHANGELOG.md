@@ -98,3 +98,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Dispatch:Timeout`, and deletes a notice once the observer took it
 - Each control character of an email's subject and of a sender's or reply address's
   display name is replaced by a space, so no value starts a header of its own
+- The health check `hermes.dispatch`, where `Dispatch:Enabled` is on: unhealthy while
+  the oldest due delivery became due longer ago than `Dispatch:LagThreshold`

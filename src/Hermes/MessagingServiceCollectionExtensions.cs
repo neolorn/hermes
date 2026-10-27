@@ -80,6 +80,13 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<IHostedService, KeyTableTimer>();
         services.AddSingleton<IHostedService, HostedDispatcher>();
         services.AddSingleton<IHostedService, ObserverJob>();
+
+        // Dispatch:Enabled is read only at the start, so the configuration given here is the one the application runs under.
+        if (!bool.TryParse(configuration["Hermes:Dispatch:Enabled"], out bool dispatching) || dispatching)
+        {
+            services.AddHealthChecks().AddCheck<DispatchHealthCheck>(DispatchHealthCheck.Name);
+        }
+
         return services;
     }
 }
