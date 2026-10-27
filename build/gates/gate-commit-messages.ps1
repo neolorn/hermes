@@ -30,7 +30,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $types = 'feat|fix|refactor|perf|test|docs|build|ci|chore'
-$scopes = 'core|channels|engine|janus|testing|cli|sample'
+$scopes = 'core|channels|engine|testing|cli|sample'
 $headerPattern = "^(?<type>$types)(\((?<scope>$scopes)\))?(?<breaking>!)?: (?<description>\S(.*\S)?)$"
 $footerPattern = '^(Implements: MSG-[A-Z]+-\d{3}(, MSG-[A-Z]+-\d{3})*|BREAKING CHANGE: \S.*)$'
 $sectionTypes = 'Added|Changed|Deprecated|Removed|Fixed|Security'

@@ -67,6 +67,7 @@ public sealed class CommitMessageGateTests
     [InlineData("add the shared build settings", Header)]
     [InlineData("feature: add the shared build settings", Header)]
     [InlineData("build(api): add the shared build settings", Header)]
+    [InlineData("build(janus): add the shared build settings", Header)]
     [InlineData("build:add the shared build settings", Header)]
     [InlineData("build: Add the shared build settings", "the description does not begin with a lower-case letter")]
     [InlineData("build: SMTP settings", "the description does not begin with a lower-case letter")]
