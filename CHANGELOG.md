@@ -186,3 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A push pass stopped during a delivery's call makes none of its other calls: an
   acceptance among those made ends it `sent`, and otherwise its attempt is recorded
   `claimlost` and the next goes to every live subscription not refused
+- `ISubjects`: `EraseAsync` cancels the person's waiting and inflight deliveries, deletes
+  their preferences, subscriptions, idempotency rows and the limit places keyed by them,
+  and deletes the destination, content and person reference of every delivery for them,
+  all or nothing; `ExportAsync` answers what the library holds for them; both answer
+  `messaging.release.newer` where the database holds a migration the release does not know

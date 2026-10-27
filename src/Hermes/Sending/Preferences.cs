@@ -43,6 +43,12 @@ internal sealed class Preferences(
             options.CurrentValue,
             (context, token) => context.Preferences.AsNoTracking().Where(row => row.Person == person).ToListAsync(token),
             cancellationToken).ConfigureAwait(false);
+        return Of(declarations, rows);
+    }
+
+    /// <summary>Every declared category's preferences with the channels its kinds use, a channel on unless <paramref name="rows"/> turn it off.</summary>
+    internal static IReadOnlyList<CategoryPreferences> Of(Declarations declarations, IReadOnlyList<PreferenceRow> rows)
+    {
         return [.. declarations.Categories.Select(category => new CategoryPreferences
         {
             Category = category.Name,

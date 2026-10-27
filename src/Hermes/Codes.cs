@@ -33,6 +33,8 @@ internal static class Codes
 
     internal const string KeyUnavailable = "messaging.key.unavailable";
 
+    internal const string ReleaseNewer = "messaging.release.newer";
+
     internal const string PreferenceUnknown = "messaging.preference.unknown";
 
     internal const string PreferenceEssential = "messaging.preference.essential";

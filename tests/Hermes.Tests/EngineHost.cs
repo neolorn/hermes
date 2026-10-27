@@ -176,6 +176,15 @@ internal sealed class EngineHost : IAsyncDisposable
         }
     }
 
+    internal async Task<T> WithSubjectsAsync<T>(Func<ISubjects, Task<T>> use)
+    {
+        AsyncServiceScope scope = Services.CreateAsyncScope();
+        await using (scope)
+        {
+            return await use(scope.ServiceProvider.GetRequiredService<ISubjects>());
+        }
+    }
+
     /// <summary>The sends, deliveries and idempotency rows recorded, as one count each.</summary>
     internal async Task<(long Sends, long Deliveries, long Keys)> RecordedAsync()
     {

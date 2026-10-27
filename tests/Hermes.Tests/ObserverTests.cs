@@ -226,7 +226,7 @@ public sealed class ObserverTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     /// <summary>Moves the clock to the job's next run and waits for that run to complete.</summary>
-    private static async Task RunAsync(EngineHost host)
+    internal static async Task RunAsync(EngineHost host)
     {
         DateTimeOffset? before = await CompletedAsync(host);
         host.Clock.Advance(Interval);
