@@ -182,35 +182,47 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     [Fact]
     public async Task MSG_SEND_007_AC2_ADeliveryWhoseClaimExpiredWhileAnEarlierOneOfThePassWasSentIsNotSentByTheFirstHolderOnceAnotherTookIt()
     {
+        // Each call takes 19 seconds, within the 20 seconds of Dispatch:Timeout, so the fifth
+        // delivery's claim of 70 seconds expires during the fourth call, when the second takes it.
         string connection = await EngineHost.DatabaseAsync(postgres);
         ManualClock clock = new(EngineHost.Start);
-        await using Engine first = await StartAsync(connection: connection, clock: clock);
-        await using Engine second = await StartAsync(connection: connection, clock: clock);
-        SendReceipt a = (await first.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
-        clock.Advance(TimeSpan.FromSeconds(1));
-        SendReceipt b = (await first.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person("person-2")))).Value!;
-        TaskCompletionSource calling = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Action<Dictionary<string, string?>> configure = configuration =>
+        {
+            configuration["Hermes:Dispatch:ClaimTimeout"] = "00:01:10";
+            configuration["Hermes:Dispatch:Interval"] = "00:05:00";
+            configuration["Hermes:Dispatch:LagThreshold"] = "00:10:00";
+        };
+        await using Engine first = await StartAsync(configure: configure, connection: connection, clock: clock);
+        await using Engine second = await StartAsync(configure: configure, connection: connection, clock: clock);
+        List<SendReceipt> receipts = [];
+        for (int index = 0; index < 5; index++)
+        {
+            receipts.Add((await first.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person($"person-{index}")))).Value!);
+        }
+
+        int calls = 0;
+        int takenOver = 0;
         first.Sms.Before = async (_, _) =>
         {
-            calling.TrySetResult();
-            await release.Task;
+            clock.Advance(TimeSpan.FromSeconds(19));
+            if (++calls == 4)
+            {
+                takenOver = await second.Host.DispatchAsync();
+            }
         };
 
-        Task<int> held = first.Host.DispatchAsync();
-        await calling.Task;
-        clock.Advance(TimeSpan.FromMinutes(3));
-        int taken = await second.Host.DispatchAsync();
-        release.SetResult();
-        await held;
+        int taken = await first.Host.DispatchAsync();
 
-        Assert.Equal(2, taken);
-        Assert.Single(first.Sms.Received);
+        Assert.Equal((5, 1, 4), (taken, takenOver, calls));
+        Assert.Equal(4, first.Sms.Received.Count);
         Assert.Single(second.Sms.Received);
-        Assert.Equal(DeliveryStatus.Sent, (await first.Host.ReadAsync(b.Send)).Deliveries[0].Status);
-        DeliveryRecord earlier = (await first.Host.ReadAsync(a.Send)).Deliveries[0];
-        Assert.Equal((DeliveryStatus.Waiting, AttemptReason.ClaimLost), (earlier.Status, earlier.Reason!.Value));
-        Assert.Equal(AttemptReason.ClaimLost, Assert.Single(earlier.Attempts).Reason);
+        Assert.Equal(5, first.Sms.Received.Concat(second.Sms.Received).Select(message => message.DeliveryReference).Distinct().Count());
+        foreach (SendReceipt receipt in receipts)
+        {
+            DeliveryRecord delivery = (await first.Host.ReadAsync(receipt.Send)).Deliveries[0];
+            Assert.Equal(DeliveryStatus.Sent, delivery.Status);
+            Assert.Single(delivery.Attempts);
+        }
     }
 
     [Fact]
