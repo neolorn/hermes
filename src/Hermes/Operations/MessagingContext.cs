@@ -47,6 +47,10 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
     internal DbSet<PlaceRow> Places => Set<PlaceRow>();
 
+    internal DbSet<HeldReportRow> HeldReports => Set<HeldReportRow>();
+
+    internal DbSet<RejectedReportRow> RejectedReports => Set<RejectedReportRow>();
+
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
     {
@@ -109,6 +113,7 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
         SendTables(modelBuilder);
         JobTable(modelBuilder);
         ChoiceTables(modelBuilder);
+        ReportTables(modelBuilder);
     }
 
     /// <summary>The send's tables (<c>01</c> MSG-SEND-003 to MSG-SEND-009, MSG-SEND-014, MSG-SEND-017), each closed set checked by the database.</summary>
@@ -139,6 +144,7 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             delivery.HasIndex(row => new { row.Channel, row.Status, row.DueAt }).HasDatabaseName("ix_deliveries_due");
             delivery.HasIndex(row => row.ContentKeyVersion).HasDatabaseName("ix_deliveries_content_key_version");
             delivery.HasIndex(row => row.Person).HasDatabaseName("ix_deliveries_person");
+            delivery.HasIndex(row => row.ProviderReference).HasDatabaseName("ix_deliveries_provider_reference");
             delivery.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
             delivery.Property(row => row.SendId).HasColumnName("send_id");
             delivery.Property(row => row.Kind).HasColumnName("kind");
@@ -182,15 +188,18 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
                 table.HasCheckConstraint("ck_attempts_class", $"class IS NULL OR class IN ({InList(Spellings.AllClasses)})");
                 table.HasCheckConstraint("ck_attempts_reason", $"reason IS NULL OR reason IN ({InList(Spellings.AllReasons)})");
                 table.HasCheckConstraint("ck_attempts_number", "number >= 1");
+                table.HasCheckConstraint("ck_attempts_reported", "reported IS NULL OR reported IN ('delivered', 'failed')");
             });
             attempt.HasKey(row => new { row.DeliveryId, row.Number }).HasName("pk_attempts");
             attempt.HasOne<DeliveryRow>().WithMany().HasForeignKey(row => row.DeliveryId).HasConstraintName("fk_attempts_deliveries").OnDelete(DeleteBehavior.Cascade);
+            attempt.HasIndex(row => row.Reference).HasDatabaseName("ix_attempts_reference");
             attempt.Property(row => row.DeliveryId).HasColumnName("delivery_id");
             attempt.Property(row => row.Number).HasColumnName("number");
             attempt.Property(row => row.Reference).HasColumnName("reference");
             attempt.Property(row => row.At).HasColumnName("at");
             attempt.Property(row => row.Class).HasColumnName("class");
             attempt.Property(row => row.Reason).HasColumnName("reason");
+            attempt.Property(row => row.Reported).HasColumnName("reported");
         });
 
         modelBuilder.Entity<CallRow>(call =>
@@ -321,6 +330,37 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             place.Property(row => row.HashVersion).HasColumnName("hash_version");
             place.Property(row => row.TakenAt).HasColumnName("taken_at");
             place.Property(row => row.LapsesAt).HasColumnName("lapses_at");
+        });
+    }
+
+    /// <summary>The SMS delivery reports' tables (<c>02</c> MSG-SMS-004): those held, and the rejected counted per minute.</summary>
+    private static void ReportTables(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<HeldReportRow>(held =>
+        {
+            held.ToTable("held_reports", table =>
+            {
+                table.HasCheckConstraint("ck_held_reports_matched", "matched IN ('delivery', 'provider')");
+                table.HasCheckConstraint("ck_held_reports_outcome", "outcome IN ('delivered', 'failed')");
+            });
+            held.HasKey(row => row.Id).HasName("pk_held_reports");
+            held.HasIndex(row => row.Reference).HasDatabaseName("ix_held_reports_reference");
+            held.HasIndex(row => row.LapsesAt).HasDatabaseName("ix_held_reports_lapses_at");
+            held.Property(row => row.Id).HasColumnName("id").UseIdentityAlwaysColumn();
+            held.Property(row => row.Reference).HasColumnName("reference");
+            held.Property(row => row.Matched).HasColumnName("matched");
+            held.Property(row => row.Outcome).HasColumnName("outcome");
+            held.Property(row => row.Source).HasColumnName("source");
+            held.Property(row => row.HeldAt).HasColumnName("held_at");
+            held.Property(row => row.LapsesAt).HasColumnName("lapses_at");
+        });
+
+        modelBuilder.Entity<RejectedReportRow>(rejected =>
+        {
+            rejected.ToTable("rejected_reports", table => table.HasCheckConstraint("ck_rejected_reports_count", "count >= 1"));
+            rejected.HasKey(row => row.Minute).HasName("pk_rejected_reports");
+            rejected.Property(row => row.Minute).HasColumnName("minute");
+            rejected.Property(row => row.Count).HasColumnName("count");
         });
     }
 

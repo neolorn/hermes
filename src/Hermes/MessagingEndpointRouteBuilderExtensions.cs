@@ -52,6 +52,24 @@ public static class MessagingEndpointRouteBuilderExtensions
         return group;
     }
 
+    /// <summary>
+    /// Maps the report group: <c>GET</c> and <c>POST /sms/report/{key}</c>, which take the SMS
+    /// provider's delivery reports and answer each as the provider expects. The provider calls
+    /// it with no session, so it allows anonymous requests and takes no forgery protection; a
+    /// host adds neither to it, and redacts its path in its request logging, tracing and proxy.
+    /// </summary>
+    /// <param name="endpoints">The host's endpoints.</param>
+    /// <param name="prefix">The prefix the group's routes are under.</param>
+    /// <returns>The group's route group.</returns>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    /// <exception cref="InvalidOperationException"><c>AddHermes</c> is not registered, or the host has started.</exception>
+    public static RouteGroupBuilder MapHermesSmsReports(this IEndpointRouteBuilder endpoints, string prefix)
+    {
+        RouteGroupBuilder group = Group(endpoints, prefix, groups => groups.SmsReports = true);
+        SmsReportEndpoints.Map(group);
+        return group;
+    }
+
     private static RouteGroupBuilder Group(IEndpointRouteBuilder endpoints, string prefix, Action<EndpointGroups> record)
     {
         ArgumentNullException.ThrowIfNull(endpoints);

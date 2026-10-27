@@ -17,4 +17,7 @@ internal sealed class AttemptRow
     public string? Class { get; set; }
 
     public string? Reason { get; set; }
+
+    /// <summary>The final outcome a delivery report gave the attempt while its delivery was <c>inflight</c>, kept until the update that takes it out (<c>02</c> MSG-SMS-004).</summary>
+    public string? Reported { get; set; }
 }

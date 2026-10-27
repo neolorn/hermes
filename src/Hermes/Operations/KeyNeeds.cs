@@ -23,8 +23,9 @@ internal static class KeyNeeds
     /// The keys needed, in the order of <c>08</c> section 7: <c>hashKeys</c> by the engine;
     /// <c>contentKeys</c> where the application records sends, dispatches or runs the jobs;
     /// <c>tokenKeys</c> where it records sends and an optional category has an email kind, or
-    /// maps the unsubscribe group; <c>pushVapidKeys</c> where push is dispatched. The other
-    /// groups and the SMS report address need them too, with the items that build them.
+    /// maps the unsubscribe group; <c>smsReportKey</c> where the report group is mapped;
+    /// <c>pushVapidKeys</c> where push is dispatched. The push group and the SMS report
+    /// address need them too, with the items that build them.
     /// </summary>
     internal static IReadOnlyList<string> Needed(Declarations declarations, MessagingOptions options, EndpointGroups groups)
     {
@@ -38,6 +39,11 @@ internal static class KeyNeeds
         if ((options.Messages.Enabled && declarations.NeedsPublicBaseAddress) || groups.Unsubscribe)
         {
             needed.Add(TokenKeys);
+        }
+
+        if (groups.SmsReports)
+        {
+            needed.Add(SmsReportKey);
         }
 
         if (options.Dispatch.Enabled && declarations.Kinds.Any(kind => kind.Push is not null))

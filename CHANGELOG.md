@@ -143,3 +143,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no cookie, never redirects and answers every page with `no-store`, `no-referrer`,
   `nosniff` and a closed content security policy; a token naming a key version in use
   but not held is answered 503 and raises `key-unavailable`
+- The report group, `MapHermesSmsReports(prefix)`: `GET` and `POST /sms/report/{key}`
+  take the SMS provider's delivery reports, the key compared in constant time with every
+  held `smsReportKey` version and wrong keys limited per source address; a report can
+  only move an SMS delivery to `delivered` or `failed`, is kept on an `inflight` one until
+  its answer is recorded, is held where no delivery holds its provider reference yet, and
+  is counted as rejected where it names nothing, raising `sms-report-rejected` past the
+  threshold; a failure report releases the delivery's per-destination places only

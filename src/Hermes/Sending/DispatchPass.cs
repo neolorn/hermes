@@ -828,19 +828,29 @@ internal sealed partial class DispatchPass : IDisposable
     private async Task<Lost> LostAsync(ClaimedDelivery delivery)
     {
         KindDeclaration? kind = passes.Kind(delivery.Row.Kind);
-        (bool held, Lost lost) = await UnderClaimAsync(delivery, async (context, row, now) =>
-        {
-            AttemptRow? attempt = await context.Attempts.FindAsync([row.Id, row.Attempts], finish.Token).ConfigureAwait(false);
-            if (attempt is null || attempt.Class is not null)
+        string ended = "failed";
+        (bool held, Lost lost) = await UnderClaimAsync(
+            delivery,
+            async (context, row, now) =>
             {
-                return Lost.NotLost;
-            }
+                AttemptRow? attempt = await context.Attempts.FindAsync([row.Id, row.Attempts], finish.Token).ConfigureAwait(false);
+                if (attempt is null || attempt.Class is not null)
+                {
+                    return Lost.NotLost;
+                }
 
-            attempt.Class = Spellings.Of(AttemptClass.Transient);
-            attempt.Reason = Spellings.Of(AttemptReason.ClaimLost);
-            Retry(context, row, kind, row.Attempts, AttemptReason.ClaimLost, retryAfter: null, now);
-            return Finals.Contains(row.Status) ? Lost.Ended : Lost.Retried;
-        }).ConfigureAwait(false);
+                attempt.Class = Spellings.Of(AttemptClass.Transient);
+                attempt.Reason = Spellings.Of(AttemptReason.ClaimLost);
+                Retry(context, row, kind, row.Attempts, AttemptReason.ClaimLost, retryAfter: null, now);
+                if (channel == Channel.Sms)
+                {
+                    await ReportOutcomes.ApplyKeptAsync(context, row, now, current.Observer.Enabled, finish.Token).ConfigureAwait(false);
+                }
+
+                ended = row.Status;
+                return Finals.Contains(row.Status) ? Lost.Ended : Lost.Retried;
+            },
+            kept: false).ConfigureAwait(false);
         if (!held)
         {
             return Lost.Skipped;
@@ -854,7 +864,7 @@ internal sealed partial class DispatchPass : IDisposable
 
         if (lost == Lost.Ended)
         {
-            Ended(delivery.Row, "failed", AttemptReason.ClaimLost);
+            Ended(delivery.Row, ended, ended == "failed" ? AttemptReason.ClaimLost : null);
         }
 
         return lost;
@@ -1075,8 +1085,20 @@ internal sealed partial class DispatchPass : IDisposable
                     break;
             }
 
+            if (channel == Channel.Sms)
+            {
+                if (providerReference is not null)
+                {
+                    await ReportOutcomes.ApplyHeldAsync(context, row, providerReference, now, current.Observer.Enabled, finish.Token).ConfigureAwait(false);
+                }
+
+                await ReportOutcomes.ApplyKeptAsync(context, row, now, current.Observer.Enabled, finish.Token).ConfigureAwait(false);
+            }
+
             return (row.Status, row.DueAt);
-        }).ConfigureAwait(false);
+        },
+        channel == Channel.Sms ? providerReference : null,
+        kept: false).ConfigureAwait(false);
         if (!held)
         {
             return;
@@ -1085,7 +1107,7 @@ internal sealed partial class DispatchPass : IDisposable
         CountAttempt(answerClass, reason);
         if (Finals.Contains(moved.Status))
         {
-            Ended(delivery.Row, moved.Status, moved.Status == "failed" ? reason : null);
+            Ended(delivery.Row, moved.Status, moved.Status != "failed" ? null : answerClass == AttemptClass.Accepted ? AttemptReason.ReportedFailed : reason);
         }
         else
         {
@@ -1137,40 +1159,52 @@ internal sealed partial class DispatchPass : IDisposable
     /// <summary>Moves the row to the final <paramref name="status"/>, writing its notice where this application observes.</summary>
     private void End(MessagingContext context, DeliveryRow row, string status, AttemptReason? reason, DateTimeOffset now)
     {
-        row.Status = status;
-        row.Reason = reason is null ? null : Spellings.Of(reason.Value);
-        row.LastMovedAt = now;
-        DeliveryClaims.Release(row);
-        if (current.Observer.Enabled)
-        {
-            Notices.Add(context, row.Id, row.NextSequence, status, row.Reason, now);
-            row.NextSequence++;
-        }
+        DeliveryEnding.End(context, row, status, reason is null ? null : Spellings.Of(reason.Value), now, current.Observer.Enabled);
     }
 
     /// <summary>
     /// Runs <paramref name="change"/> on the delivery's row, locked, in one transaction under the
     /// pass's lock timeout, where the row is still under the pass's claim; answers whether it was.
+    /// The lock of <paramref name="reference"/>, a provider reference the update records, is
+    /// taken before the row's, as a delivery report takes them (<c>02</c> MSG-SMS-004). Where
+    /// <paramref name="kept"/>, an SMS delivery with a kept <c>delivered</c> ends
+    /// <c>delivered</c> instead of the change, counting no attempt, since its message arrived,
+    /// and the claim is answered as no longer the pass's.
     /// </summary>
-    private async Task<(bool Held, T Value)> UnderClaimAsync<T>(ClaimedDelivery delivery, Func<MessagingContext, DeliveryRow, DateTimeOffset, Task<T>> change)
+    private async Task<(bool Held, T Value)> UnderClaimAsync<T>(ClaimedDelivery delivery, Func<MessagingContext, DeliveryRow, DateTimeOffset, Task<T>> change, string? reference = null, bool kept = true)
     {
         if (LockTimeout() is not { } timeout)
         {
             return (false, default!);
         }
 
+        bool reported = false;
         try
         {
-            return await LibraryTransactions.RunAsync(
+            (bool Held, T Value) done = await LibraryTransactions.RunAsync(
                 passes.Database,
                 current,
                 async (context, token) =>
                 {
+                    reported = false;
                     await DeliveryClaims.LockTimeoutAsync(context, timeout, token).ConfigureAwait(false);
+                    if (reference is not null)
+                    {
+                        await AdvisoryLocks.TakeAsync(context, [AdvisoryLocks.Report(reference)], shared: false, token).ConfigureAwait(false);
+                    }
+
                     DeliveryRow? row = await DeliveryClaims.LockAsync(context, delivery.Row.Id, token).ConfigureAwait(false);
                     DateTimeOffset now = Clock.GetUtcNow();
                     if (row is null || !DeliveryClaims.IsHeld(row, holder, now))
                     {
+                        return (false, default(T)!);
+                    }
+
+                    if (kept && channel == Channel.Sms && await ReportOutcomes.DeliveredKeptAsync(context, row.Id, token).ConfigureAwait(false))
+                    {
+                        End(context, row, ReportOutcomes.Delivered, reason: null, now);
+                        await context.SaveChangesAsync(token).ConfigureAwait(false);
+                        reported = true;
                         return (false, default(T)!);
                     }
 
@@ -1184,6 +1218,12 @@ internal sealed partial class DispatchPass : IDisposable
                     return (true, value);
                 },
                 finish.Token).ConfigureAwait(false);
+            if (reported)
+            {
+                Ended(delivery.Row, ReportOutcomes.Delivered, reason: null);
+            }
+
+            return done;
         }
         catch (Exception failure) when (DispatchPasses.IsLockTimeout(failure))
         {

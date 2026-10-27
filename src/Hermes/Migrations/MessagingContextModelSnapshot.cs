@@ -186,8 +186,15 @@ namespace Hermes.Migrations
                         .HasColumnType("text")
                         .HasColumnName("reference");
 
+                    b.Property<string>("Reported")
+                        .HasColumnType("text")
+                        .HasColumnName("reported");
+
                     b.HasKey("DeliveryId", "Number")
                         .HasName("pk_attempts");
+
+                    b.HasIndex("Reference")
+                        .HasDatabaseName("ix_attempts_reference");
 
                     b.ToTable("attempts", "messaging", t =>
                         {
@@ -196,6 +203,8 @@ namespace Hermes.Migrations
                             t.HasCheckConstraint("ck_attempts_number", "number >= 1");
 
                             t.HasCheckConstraint("ck_attempts_reason", "reason IS NULL OR reason IN ('timeout', 'connectionfailed', 'tlsfailed', 'authfailed', 'senderrefused', 'recipientrefused', 'messagerefused', 'badrequest', 'ratelimited', 'temporary', 'permanent', 'gone', 'providerfault', 'keyunavailable', 'consentunavailable', 'reportedfailed', 'claimlost', 'serverrefused', 'destinationnotallowed', 'valuerejected')");
+
+                            t.HasCheckConstraint("ck_attempts_reported", "reported IS NULL OR reported IN ('delivered', 'failed')");
                         });
                 });
 
@@ -406,6 +415,9 @@ namespace Hermes.Migrations
                     b.HasIndex("Person")
                         .HasDatabaseName("ix_deliveries_person");
 
+                    b.HasIndex("ProviderReference")
+                        .HasDatabaseName("ix_deliveries_provider_reference");
+
                     b.HasIndex("SendId")
                         .HasDatabaseName("ix_deliveries_send_id");
 
@@ -423,6 +435,60 @@ namespace Hermes.Migrations
                             t.HasCheckConstraint("ck_deliveries_reason", "reason IS NULL OR reason IN ('timeout', 'connectionfailed', 'tlsfailed', 'authfailed', 'senderrefused', 'recipientrefused', 'messagerefused', 'badrequest', 'ratelimited', 'temporary', 'permanent', 'gone', 'providerfault', 'keyunavailable', 'consentunavailable', 'reportedfailed', 'claimlost', 'serverrefused', 'destinationnotallowed', 'valuerejected')");
 
                             t.HasCheckConstraint("ck_deliveries_status", "status IN ('waiting', 'inflight', 'sent', 'delivered', 'failed', 'cancelled', 'expired', 'suppressed', 'optedout', 'noconsent', 'limited', 'balancefloor', 'nosubscription')");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Sending.HeldReportRow", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("HeldAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("held_at");
+
+                    b.Property<DateTimeOffset>("LapsesAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lapses_at");
+
+                    b.Property<string>("Matched")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("matched");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("outcome");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reference");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("source");
+
+                    b.HasKey("Id")
+                        .HasName("pk_held_reports");
+
+                    b.HasIndex("LapsesAt")
+                        .HasDatabaseName("ix_held_reports_lapses_at");
+
+                    b.HasIndex("Reference")
+                        .HasDatabaseName("ix_held_reports_reference");
+
+                    b.ToTable("held_reports", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_held_reports_matched", "matched IN ('delivery', 'provider')");
+
+                            t.HasCheckConstraint("ck_held_reports_outcome", "outcome IN ('delivered', 'failed')");
                         });
                 });
 
@@ -657,6 +723,25 @@ namespace Hermes.Migrations
                             t.HasCheckConstraint("ck_rate_counters_channel", "channel IN ('email', 'sms', 'push')");
 
                             t.HasCheckConstraint("ck_rate_counters_count", "count >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Sending.RejectedReportRow", b =>
+                {
+                    b.Property<DateTimeOffset>("Minute")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("minute");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer")
+                        .HasColumnName("count");
+
+                    b.HasKey("Minute")
+                        .HasName("pk_rejected_reports");
+
+                    b.ToTable("rejected_reports", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_rejected_reports_count", "count >= 1");
                         });
                 });
 

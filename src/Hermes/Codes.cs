@@ -51,5 +51,7 @@ internal static class Codes
 
     internal const string RequestUnavailable = "messaging.request.unavailable";
 
+    internal const string RequestRateLimited = "messaging.request.ratelimited";
+
     internal const string UnsubscribeInvalid = "messaging.unsubscribe.invalid";
 }
