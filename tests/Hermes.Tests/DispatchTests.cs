@@ -537,6 +537,37 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task MSG_SEND_007_AC9_ASecondProcessDoesNotTakeOverAnEmailDeliveryDuringItsSeventyFiveSecondsOfChecksAndItIsSentOnce()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        ManualClock clock = new(EngineHost.Start);
+        ContentProtectorFake slow = new("vault");
+        ContentProtectorFake other = new("vault");
+        static void Configure(Dictionary<string, string?> configuration)
+        {
+            UnsubscribeLinkTests.Configure(configuration);
+            configuration["Hermes:Dispatch:ClaimTimeout"] = "00:01:10";
+        }
+
+        await using DispatchEngine first = await DispatchEngine.StartAsync(postgres, Configure, UnsubscribeLinkTests.Declare, UnsubscribeLinkTests.Templates, services => services.AddSingleton<IContentProtector>(slow), connection, clock);
+        await using DispatchEngine second = await DispatchEngine.StartAsync(postgres, Configure, UnsubscribeLinkTests.Declare, UnsubscribeLinkTests.Templates, services => services.AddSingleton<IContentProtector>(other), connection, clock);
+        await first.Host.SendAsync(UnsubscribeLinkTests.LetterTo("reader@example.com"));
+        int taken = 0;
+        slow.BeforeOpen = async () =>
+        {
+            clock.Advance(TimeSpan.FromSeconds(15));
+            taken += await second.Host.DispatchAsync();
+        };
+
+        int claimed = await first.Host.DispatchAsync();
+
+        Assert.Equal((1, 0), (claimed, taken));
+        Assert.Equal((5, 0), (slow.Opens, other.Opens));
+        Assert.Single(first.Email.Received);
+        Assert.Empty(second.Email.Received);
+    }
+
+    [Fact]
     public async Task MSG_SEND_007_AC11_AnEssentialDeliveryRecordedAfterOptionalOnesIsClaimedBeforeThem()
     {
         await using DispatchEngine engine = await StartAsync(
