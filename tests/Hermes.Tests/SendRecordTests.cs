@@ -58,6 +58,32 @@ public sealed class SendRecordTests(PostgresFixture postgres) : IClassFixture<Po
     }
 
     [Fact]
+    public async Task MSG_OPS_003_AC1_ASendInATransactionOnADataSourceTheHostBuiltCommitsWithTheHostsWrite()
+    {
+        await using EngineHost host = await EngineHost.StartAsync(await EngineHost.DatabaseAsync(postgres));
+        await using NpgsqlDataSource source = NpgsqlDataSource.Create(host.Connection);
+        await using (NpgsqlCommand create = source.CreateCommand("CREATE TABLE public.orders (id int PRIMARY KEY)"))
+        {
+            await create.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using NpgsqlConnection connection = await source.OpenConnectionAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlTransaction transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (NpgsqlCommand order = new("INSERT INTO public.orders (id) VALUES (1001)", connection, transaction))
+        {
+            await order.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        Result<SendReceipt> result = await InAsync(host, SendTests.Code(), transaction);
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal((1, 3, 0), await host.RecordedAsync());
+        await using NpgsqlCommand count = source.CreateCommand("SELECT count(*) FROM public.orders");
+        Assert.Equal(1L, await count.ExecuteScalarAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task Send_WithTheNotificationOff_NotifiesNone()
     {
         await using EngineHost host = await EngineHost.StartAsync(await EngineHost.DatabaseAsync(postgres), configure: configuration => configuration["Hermes:Dispatch:Notify"] = "false");

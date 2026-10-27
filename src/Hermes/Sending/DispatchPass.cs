@@ -43,6 +43,8 @@ internal sealed partial class DispatchPass : IDisposable
 
     private readonly CancellationToken stopping;
 
+    private readonly Action<int, int>? claimedNow;
+
     private readonly MessagingOptions current;
 
     private readonly Guid holder = Guid.CreateVersion7();
@@ -64,8 +66,9 @@ internal sealed partial class DispatchPass : IDisposable
 
     private IEmailSession? session;
 
-    internal DispatchPass(DispatchPasses passes, Channel channel, CancellationToken stopping)
+    internal DispatchPass(DispatchPasses passes, Channel channel, Action<int, int>? claimed, CancellationToken stopping)
     {
+        claimedNow = claimed;
         this.passes = passes;
         this.channel = channel;
         this.stopping = stopping;
@@ -82,6 +85,7 @@ internal sealed partial class DispatchPass : IDisposable
     {
         DateTimeOffset started = Clock.GetUtcNow();
         (List<DeliveryRow> rows, DateTimeOffset claimSecond, int limit) = await passes.ClaimAsync(channel, holder, current, CancellationToken.None).ConfigureAwait(false);
+        claimedNow?.Invoke(rows.Count, limit);
         if (rows.Count == 0)
         {
             return new PassOutcome(0, limit, HeldForKey: false, Stopped: stopping.IsCancellationRequested);

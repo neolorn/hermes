@@ -28,7 +28,7 @@ internal sealed partial class DispatchPasses
 
     private readonly IReadOnlyList<string> others;
 
-    private readonly Dictionary<string, KindDeclaration> kinds;
+    private readonly Dictionary<string, KindDeclaration> kinds = new(StringComparer.Ordinal);
 
     public DispatchPasses(
         MessagingDatabase database,
@@ -55,7 +55,11 @@ internal sealed partial class DispatchPasses
         HashSet<string> essentialCategories = [.. declarations.Categories.Where(category => category.Essential).Select(category => category.Name)];
         essential = [.. declarations.Kinds.Where(kind => essentialCategories.Contains(kind.Category)).Select(kind => kind.Name)];
         others = [.. declarations.Kinds.Where(kind => !essentialCategories.Contains(kind.Category)).Select(kind => kind.Name), .. declarations.Retired];
-        kinds = declarations.Kinds.ToDictionary(kind => kind.Name, StringComparer.Ordinal);
+        foreach (KindDeclaration kind in declarations.Kinds)
+        {
+            // A kind declared twice stops the start (MSG-SEND-001); this is built before that check runs.
+            kinds.TryAdd(kind.Name, kind);
+        }
     }
 
     /// <summary>The channels a pass runs on.</summary>
@@ -82,13 +86,19 @@ internal sealed partial class DispatchPasses
     /// <summary>Runs one pass of <paramref name="channel"/>; a token already cancelled claims nothing.</summary>
     internal Task<PassOutcome> RunAsync(Channel channel, CancellationToken stopping)
     {
-        stopping.ThrowIfCancellationRequested();
-        return RunPassAsync(channel, stopping);
+        return RunAsync(channel, claimed: null, stopping);
     }
 
-    private async Task<PassOutcome> RunPassAsync(Channel channel, CancellationToken stopping)
+    /// <summary>Runs one pass of <paramref name="channel"/>, telling <paramref name="claimed"/> what it took and its limit as soon as it has claimed.</summary>
+    internal Task<PassOutcome> RunAsync(Channel channel, Action<int, int>? claimed, CancellationToken stopping)
     {
-        using DispatchPass pass = new(this, channel, stopping);
+        stopping.ThrowIfCancellationRequested();
+        return RunPassAsync(channel, claimed, stopping);
+    }
+
+    private async Task<PassOutcome> RunPassAsync(Channel channel, Action<int, int>? claimed, CancellationToken stopping)
+    {
+        using DispatchPass pass = new(this, channel, claimed, stopping);
         return await pass.RunAsync().ConfigureAwait(false);
     }
 

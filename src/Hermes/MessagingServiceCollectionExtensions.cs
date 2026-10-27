@@ -77,6 +77,7 @@ public static class MessagingServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Singleton(provider => new CallTimeout(() => provider.GetRequiredService<IOptionsMonitor<MessagingOptions>>().CurrentValue.Dispatch.Timeout)));
         services.AddSingleton<IHostedService, MessagingStartup>();
         services.AddSingleton<IHostedService, KeyTableTimer>();
+        services.AddSingleton<IHostedService, HostedDispatcher>();
         return services;
     }
 }

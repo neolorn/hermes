@@ -18,6 +18,8 @@ internal static class SecretCheck
 {
     internal const string Connection = "connection";
 
+    internal const string ListenConnection = "listenConnection";
+
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     /// <summary>
@@ -26,7 +28,22 @@ internal static class SecretCheck
     /// </summary>
     internal static async Task<string> ConnectionAsync(ISecretSource secrets, CancellationToken cancellationToken)
     {
-        IReadOnlyList<SecretVersion> versions = await ReadAsync(secrets, Connection, cancellationToken).ConfigureAwait(false);
+        return Readable(Connection, await ReadAsync(secrets, Connection, cancellationToken).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// The listening connection string, the highest version of <c>listenConnection</c>, or none
+    /// where the deployment gives none; one that is not a connection string in UTF-8 stops the
+    /// start as invalid.
+    /// </summary>
+    internal static async Task<string?> ListenConnectionAsync(ISecretSource secrets, CancellationToken cancellationToken)
+    {
+        SecretVersions? read = await secrets.ReadAsync(ListenConnection, cancellationToken).ConfigureAwait(false);
+        return read is { Versions.Count: > 0 } ? Readable(ListenConnection, read.Versions) : null;
+    }
+
+    private static string Readable(string name, IReadOnlyList<SecretVersion> versions)
+    {
         SecretVersion highest = versions.MaxBy(version => version.Version)!;
         try
         {
@@ -36,7 +53,7 @@ internal static class SecretCheck
         }
         catch (Exception invalid) when (invalid is DecoderFallbackException or ArgumentException)
         {
-            throw MessagingStartup.Failure(Codes.SecretInvalid, ("key", Connection));
+            throw MessagingStartup.Failure(Codes.SecretInvalid, ("key", name));
         }
     }
 

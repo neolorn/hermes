@@ -91,6 +91,11 @@ internal sealed class MessagingStartup(
 
             ISecretSource secrets = scope.ServiceProvider.GetRequiredService<ISecretSource>();
             database.Open(await SecretCheck.ConnectionAsync(secrets, cancellationToken).ConfigureAwait(false));
+            if (current.Dispatch is { Enabled: true, Hosted: true })
+            {
+                database.Listen(await SecretCheck.ListenConnectionAsync(secrets, cancellationToken).ConfigureAwait(false));
+            }
+
             keys.Hold(await SecretCheck.KeysAsync(secrets, state.Section, KeyNeeds.Needed(declarations, current), cancellationToken).ConfigureAwait(false));
             if (use.ShippedPush && keys.Find(KeyNeeds.PushVapidKeys) is { } vapid)
             {

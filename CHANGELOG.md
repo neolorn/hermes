@@ -88,3 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   claim, calls the provider and records the answer, retrying a transient one with
   back-off until it is sent, its attempts are used up or it expires; a delivery whose
   value cannot open yet is held for a key, and a stop hands back what it has not begun
+- The hosted dispatcher, where `Dispatch:Enabled` and `Dispatch:Hosted` are on: passes
+  of each channel on each committed send's notification, every `Dispatch:Interval` and
+  after each connection of its listening connection on `listenConnection` or
+  `connection`, at most `Dispatch:MaxPasses` of a channel at once
