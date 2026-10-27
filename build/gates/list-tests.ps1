@@ -3,11 +3,12 @@
 .SYNOPSIS
     Builds the test projects of a repository and writes the tests each one lists (07 MSG-ENG-008).
 .DESCRIPTION
-    The test projects are every project under tests/ and each project under samples/ whose
-    name ends in .Tests. Each is built in locked mode, then asked for its tests through
-    Microsoft.Testing.Platform's listing, so a test is what the test framework runs, not a
-    name in the source. Writes one object per test: its project, its full name, its method
-    name and the values of its Category traits.
+    The test projects are every project under tests/. Each is built in locked mode, then asked
+    for its tests through Microsoft.Testing.Platform's listing, so a test is what the test
+    framework runs, not a name in the source. Writes one object per test: its project, its
+    full name, its method name and the values of its Category traits. The sample host's test
+    project is left out: it builds only from the packages packed from the commit, so only the
+    sample host's gate, gate-sample-host.ps1, builds and runs it (07 MSG-ENG-001).
 .PARAMETER Repository
     The repository whose test projects to list; by default, this one.
 #>
@@ -26,10 +27,7 @@ function Get-Projects([string] $folder, [string] $filter) {
     }
 }
 
-$projects = @(
-    Get-Projects (Join-Path $Repository 'tests') '*.csproj'
-    Get-Projects (Join-Path $Repository 'samples') '*.Tests.csproj'
-) | Sort-Object FullName
+$projects = @(Get-Projects (Join-Path $Repository 'tests') '*.csproj' | Sort-Object FullName)
 
 foreach ($project in $projects) {
     $build = dotnet build $project.FullName --configuration Release -p:RestoreLockedMode=true -nodeReuse:false 2>&1
