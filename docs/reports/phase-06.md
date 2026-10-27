@@ -33,6 +33,10 @@
 
 - `07` MSG-ENG-012 criteria 1 and 2: the `gates` job's run on this phase's pull request, whose result the message naming the pull request gives.
 
+## The pipeline's run
+
+The `gates` run 40595893496 on `36266ee` failed in `gate-tests`, every other gate passing: `PackTests.Pack_EachPackage_CarriesItsDescriptionAuthorsAndAddressAlone` (`07` MSG-ENG-011) finds that the descriptions of `Hermes.Janus` and `Hermes.Janus.Channels` are no cell of `00` section 2.2, since M-020 took their rows out of the table. The projects' removal, parked by open question 1, is what passes it; a description outside `00`, or a test that skips the two packages, would weaken the rule. The run on this phase fails the same way until that answer comes.
+
 ## Analyser suppressions
 
 The code suppresses no rule, and this phase changes no rule of `.editorconfig`.
@@ -52,7 +56,7 @@ This phase resolved nothing by rule.
    - Smallest fix for (b): the plan moves the removal to phase 8's release commit.
    - Smallest fix for (c): an M-entry that names the two files as exempt for this one removal, which the gate cannot express without a list of exempt paths.
 
-   Parked by it: the removal of the four projects and every row naming them. Nothing else depends on it.
+   Parked by it: the removal of the four projects and every row naming them, and with it the pipeline's green run (see above). Nothing else depends on it.
 
 ## Commit and checks
 
