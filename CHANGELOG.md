@@ -118,3 +118,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the later of the send and its `NotBefore`, in its `List-Unsubscribe` and
   `List-Unsubscribe-Post` headers and as the template value `unsubscribe`; the address
   is stored protected with the delivery, and an essential category's email carries none
+- Quiet hours: a delivery of a category they apply to, checked between
+  `QuietHours:Start` and `QuietHours:End` in the send's time zone, waits until they end
+  plus a random part of `QuietHours:Spread`, counting no attempt and giving its place in
+  the rate back
+- Consent: a delivery of a category that requires it asks the host's consent source at
+  dispatch, within `Dispatch:Timeout`, ending `noconsent` where it is not given and
+  retrying where the source cannot answer, then ending `failed` with
+  `consentunavailable`

@@ -282,7 +282,7 @@ internal sealed partial class DispatchPass : IDisposable
         }
 
         CategoryDeclaration? category = passes.Category(row.Category);
-        if (category is { Essential: false } && !await OptionalChecksAsync(delivery, kind, category, values).ConfigureAwait(false))
+        if (category is { Essential: false } && !await OptionalChecksAsync(delivery, kind, category, values, services).ConfigureAwait(false))
         {
             return;
         }
@@ -313,11 +313,12 @@ internal sealed partial class DispatchPass : IDisposable
     /// <summary>
     /// Runs the checks an optional category's delivery meets and an essential one's does not,
     /// each against the state at that moment: 3, the suppression of an email or SMS destination;
-    /// 4, the person's preference for the category on the channel.
+    /// 4, the person's preference for the category on the channel; 5, the quiet hours in the
+    /// send's time zone where they apply; and, past the rate of 6, 7, the recipient's consent.
     /// Answers whether the delivery goes on; a check that ends or holds it gives its place in the
     /// rate back.
     /// </summary>
-    private async Task<bool> OptionalChecksAsync(ClaimedDelivery delivery, KindDeclaration kind, CategoryDeclaration category, Dictionary<string, string?> values)
+    private async Task<bool> OptionalChecksAsync(ClaimedDelivery delivery, KindDeclaration kind, CategoryDeclaration category, Dictionary<string, string?> values, IServiceProvider services)
     {
         if (channel is Channel.Email or Channel.Sms && Suppressions.Value(channel, values["destination"]) is { } destination)
         {
@@ -365,7 +366,124 @@ internal sealed partial class DispatchPass : IDisposable
             }
         }
 
+        if (category.QuietHours ?? category.ConsentPurpose is not null)
+        {
+            TimeZoneInfo zone = TimeZoneInfo.FindSystemTimeZoneById(delivery.Row.TimeZone);
+            if (QuietHours.End(current.QuietHours, zone, Clock.GetUtcNow()) is { } end)
+            {
+                TimeSpan delay = current.QuietHours.Spread * (RandomNumberGenerator.GetInt32(int.MaxValue) / (double)int.MaxValue);
+                await QuietAsync(delivery, end + delay).ConfigureAwait(false);
+                return false;
+            }
+        }
+
+        if (category.ConsentPurpose is { } purpose)
+        {
+            if (!await ExtendAsync(delivery).ConfigureAwait(false))
+            {
+                return false;
+            }
+
+            ConsentAnswer? answer = await ConsentAsync(delivery, purpose, values, services).ConfigureAwait(false);
+            if (answer is null)
+            {
+                return false;
+            }
+
+            if (answer == ConsentAnswer.NotGiven)
+            {
+                await EndAsync(delivery, "noconsent", reason: null, giveBack: false).ConfigureAwait(false);
+                return false;
+            }
+
+            if (answer != ConsentAnswer.Given)
+            {
+                await TransientAtCheckAsync(delivery, kind, AttemptReason.ConsentUnavailable).ConfigureAwait(false);
+                return false;
+            }
+        }
+
         return true;
+    }
+
+    /// <summary>Holds the delivery for quiet hours: back to <c>waiting</c>, due at <paramref name="due"/>, no attempt counted, its place in the rate given back.</summary>
+    private async Task QuietAsync(ClaimedDelivery delivery, DateTimeOffset due)
+    {
+        (bool held, _) = await UnderClaimAsync(delivery, async (context, row, now) =>
+        {
+            row.Status = "waiting";
+            row.DueAt = due;
+            row.BecameDueAt = due;
+            DeliveryClaims.Release(row);
+            await DeliveryClaims.CountAsync(context, spelling, second, -1, finish.Token).ConfigureAwait(false);
+            return true;
+        }).ConfigureAwait(false);
+        if (held)
+        {
+            QuietHeld(Logger, delivery.Row.Id, spelling, due);
+        }
+    }
+
+    /// <summary>
+    /// Asks the host's consent source, bounded by the dispatch timeout and a stop's deadline;
+    /// a source that throws or does not answer in time answers <see cref="ConsentAnswer.Unavailable"/>,
+    /// and a stop answers none.
+    /// </summary>
+    private async Task<ConsentAnswer?> ConsentAsync(ClaimedDelivery delivery, string purpose, Dictionary<string, string?> values, IServiceProvider services)
+    {
+        DeliveryRow row = delivery.Row;
+        ConsentQuery query = new()
+        {
+            Recipient = row.Person is { } person ? new Recipient.Person(person) : new Recipient.Anonymous(),
+            Destination = channel == Channel.Push ? null : values["destination"],
+            Purpose = purpose,
+            Channel = channel,
+        };
+        try
+        {
+            IConsentSource source = services.GetRequiredService<IConsentSource>();
+            using CancellationTokenSource bound = new(current.Dispatch.Timeout, Clock);
+            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(bound.Token, finish.Token);
+            return await source.ConsentsAsync(query, linked.Token).AsTask().WaitAsync(current.Dispatch.Timeout, Clock, finish.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (finish.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (Exception failure) when (!finish.IsCancellationRequested)
+        {
+            SeamFailed(Logger, "consent source", failure.GetType().Name, row.Id);
+            return ConsentAnswer.Unavailable;
+        }
+    }
+
+    /// <summary>Counts an attempt answered transient at a check, with no call, and retries or ends the delivery as a transient answer does.</summary>
+    private async Task TransientAtCheckAsync(ClaimedDelivery delivery, KindDeclaration kind, AttemptReason reason)
+    {
+        (bool held, (string Status, DateTimeOffset Due) moved) = await UnderClaimAsync(delivery, (context, row, now) =>
+        {
+            row.Attempts++;
+            row.FirstHeldAt = null;
+            context.Attempts.Add(new AttemptRow { DeliveryId = row.Id, Number = row.Attempts, At = now, Class = Spellings.Of(AttemptClass.Transient), Reason = Spellings.Of(reason) });
+            Retry(context, row, kind, row.Attempts, reason, retryAfter: null, now);
+            return Task.FromResult((row.Status, row.DueAt));
+        }).ConfigureAwait(false);
+        if (!held)
+        {
+            return;
+        }
+
+        CountAttempt(AttemptClass.Transient, reason);
+        if (Finals.Contains(moved.Status))
+        {
+            Ended(delivery.Row, moved.Status, moved.Status == "failed" ? reason : null);
+        }
+        else
+        {
+            string answered = Spellings.Of(AttemptClass.Transient);
+            string why = Spellings.Of(reason);
+            Retried(Logger, delivery.Row.Id, spelling, answered, why, moved.Due);
+        }
     }
 
     /// <summary>Reads in a transaction of its own, under the pass's lock timeout; answers false where a stop left no time or a lock timed out.</summary>
@@ -952,6 +1070,9 @@ internal sealed partial class DispatchPass : IDisposable
 
     [LoggerMessage(EventId = 40, EventName = "PassHandBackFailed", Level = LogLevel.Warning, Message = "A pass of {Channel} could not hand its deliveries back ({Exception}); they wait for their claims to expire.")]
     private static partial void HandBackFailed(ILogger logger, string channel, string exception);
+
+    [LoggerMessage(EventId = 45, EventName = "DeliveryQuiet", Level = LogLevel.Information, Message = "Delivery {Delivery} on {Channel} is held for quiet hours until {Due}.")]
+    private static partial void QuietHeld(ILogger logger, Guid delivery, string channel, DateTimeOffset due);
 
     private enum Lost
     {
