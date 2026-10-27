@@ -95,6 +95,8 @@ public static class MessagingServiceCollectionExtensions
             services.AddSingleton<IHostedService, ObserverJob>();
             services.AddSingleton<IHostedService, BalanceJob>();
             services.AddSingleton<IHostedService, SubscriptionsJob>();
+            services.AddSingleton<RetentionJob>();
+            services.AddSingleton<IHostedService>(provider => provider.GetRequiredService<RetentionJob>());
             services.AddSingleton<IHostedService, WatchJob>();
         }
 

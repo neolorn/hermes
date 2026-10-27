@@ -191,3 +191,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and deletes the destination, content and person reference of every delivery for them,
   all or nothing; `ExportAsync` answers what the library holds for them; both answer
   `messaging.release.newer` where the database holds a migration the release does not know
+- The `retention` job: where `Hermes:Jobs:Enabled` is on, daily at
+  `Hermes:Jobs:RetentionAt` in `Hermes:TimeZone`, it deletes a final delivery's content,
+  destination and unsubscribe address after `Hermes:Retention:Content` and its record
+  after `Hermes:Retention:Record`, lapsed idempotency rows and limit places, suppressions
+  past their lifetime, idle subscriptions, old notices and counters, and the deliveries
+  this release or application does not know, in batches that skip rows held elsewhere
