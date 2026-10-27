@@ -108,7 +108,7 @@ internal static class ReportOutcomes
     internal static async Task<IReadOnlyList<ReportEffect>> ApplyHeldAsync(MessagingContext context, DeliveryRow row, string reference, DateTimeOffset now, bool observe, CancellationToken cancellationToken)
     {
         List<HeldReportRow> held = await context.HeldReports
-            .Where(report => report.Reference == reference && report.Matched == HeldReportRow.ByProvider)
+            .Where(report => report.Reference == reference && report.Matched == HeldReportRow.ByProvider && report.LapsesAt > now)
             .OrderBy(report => report.Id)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

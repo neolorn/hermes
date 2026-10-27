@@ -1300,7 +1300,7 @@ internal sealed partial class DispatchPass : IDisposable
         int count = await PushAuthFailures.CountAsync(passes.Database, current, service, Clock.GetUtcNow(), push.AuthFailWindow, CancellationToken.None).ConfigureAwait(false);
         if (count > push.AuthFailThreshold)
         {
-            await passes.Alerts.HoldingAsync("push-auth-failing", service, new Dictionary<string, string>(StringComparer.Ordinal) { ["count"] = count.ToString(CultureInfo.InvariantCulture) }, CancellationToken.None).ConfigureAwait(false);
+            await passes.Alerts.HoldingAsync("push-auth-failing", service, PushAuthFailures.Details(service, count), CancellationToken.None).ConfigureAwait(false);
         }
     }
 

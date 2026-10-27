@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -36,6 +39,19 @@ internal static class PushAuthFailures
                 return await SumAsync(context, service, now, window, token).ConfigureAwait(false);
             },
             cancellationToken);
+    }
+
+    /// <summary>The services with a row within <paramref name="window"/> before <paramref name="now"/>.</summary>
+    internal static Task<List<string>> ServicesAsync(MessagingContext context, DateTimeOffset now, TimeSpan window, CancellationToken cancellationToken)
+    {
+        DateTimeOffset after = now - window;
+        return context.PushAuthFailures.Where(row => row.Minute > after).Select(row => row.Service).Distinct().ToListAsync(cancellationToken);
+    }
+
+    /// <summary>The details of <c>push-auth-failing</c> (<c>08</c> section 5).</summary>
+    internal static Dictionary<string, string> Details(string service, int count)
+    {
+        return new Dictionary<string, string>(StringComparer.Ordinal) { ["service"] = service, ["count"] = count.ToString(CultureInfo.InvariantCulture) };
     }
 
     /// <summary>The sum of <paramref name="service"/>'s rows over <paramref name="window"/> before <paramref name="now"/>.</summary>

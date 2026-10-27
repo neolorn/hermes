@@ -55,6 +55,25 @@ public sealed class SmsReportTests(PostgresFixture postgres) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task MSG_SMS_004_AC1_AHeldReportIsDroppedByTheWatchJobOnceItLapsesLoggedAndUncounted()
+    {
+        using LogCapture logs = new();
+        await using DispatchEngine engine = await StartAsync(configuration => configuration["Hermes:Jobs:Enabled"] = "true", logs: logs);
+        using HttpClient client = engine.Host.Client();
+        using HttpResponseMessage held = await ReportAsync(client, [new("pid", "wx-lapsed"), new("status", "delivered")]);
+
+        await Watching.RunAsync(engine.Host);
+        (long Rejected, long Held) kept = await CountsAsync(engine.Host);
+        await LapseHeldAsync(engine.Host);
+        await Watching.RunAsync(engine.Host);
+
+        Assert.Equal(HttpStatusCode.OK, held.StatusCode);
+        Assert.Equal((0L, 1L), kept);
+        Assert.Equal((0L, 0L), await CountsAsync(engine.Host));
+        Assert.Single(logs.Entries, entry => entry.Message.Contains("held past Hermes:Sms:ReportHold", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task MSG_SMS_004_AC2_AReportOfDeliveryMovesASentDeliveryToDeliveredAFinalFailureToFailedAndAnIntermediateStateChangesNothingUncounted()
     {
         await using DispatchEngine engine = await StartAsync();
@@ -293,6 +312,23 @@ public sealed class SmsReportTests(PostgresFixture postgres) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task Report_HeldPastTheHoldWhenTheAnswerRecordsItsReference_IsNotApplied()
+    {
+        await using DispatchEngine engine = await StartAsync();
+        using HttpClient client = engine.Host.Client();
+        engine.Sms.Answer = _ => new Attempt.Accepted("wx-1");
+        using HttpResponseMessage held = await ReportAsync(client, [new("pid", "wx-1"), new("status", "delivered")]);
+        engine.Host.Clock.Advance(TimeSpan.FromMinutes(10));
+        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
+
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal(HttpStatusCode.OK, held.StatusCode);
+        Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(engine.Host, receipt));
+        Assert.Equal((0L, 1L), await CountsAsync(engine.Host));
+    }
+
+    [Fact]
     public async Task Report_OverTheHoldCap_IsDroppedAtOnceAndCountedAsRejected()
     {
         await using DispatchEngine engine = await StartAsync(configuration => configuration["Hermes:Sms:ReportHoldMax"] = "10");
@@ -381,6 +417,16 @@ public sealed class SmsReportTests(PostgresFixture postgres) : IClassFixture<Pos
         return receipt;
     }
 
+    /// <summary>Moves the held reports' lapse to the host's now, as <c>Hermes:Sms:ReportHold</c> passing would.</summary>
+    private static async Task LapseHeldAsync(EngineHost host)
+    {
+        await using NpgsqlConnection database = new(host.Connection);
+        await database.OpenAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlCommand command = new("UPDATE messaging.held_reports SET lapses_at = @now", database);
+        command.Parameters.AddWithValue("now", host.Clock.GetUtcNow());
+        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
     private static async Task<long> RejectedAsync(EngineHost host)
     {
         return (await CountsAsync(host)).Rejected;
@@ -436,7 +482,8 @@ public sealed class SmsReportTests(PostgresFixture postgres) : IClassFixture<Pos
     private async Task<DispatchEngine> StartAsync(
         Action<Dictionary<string, string?>>? configure = null,
         Action<DeclarationBuilder>? declare = null,
-        Action<IServiceCollection>? services = null)
+        Action<IServiceCollection>? services = null,
+        LogCapture? logs = null)
     {
         string connection = await EngineHost.DatabaseAsync(postgres);
         return await DispatchEngine.StartAsync(
@@ -444,6 +491,7 @@ public sealed class SmsReportTests(PostgresFixture postgres) : IClassFixture<Pos
             configure: configure,
             declare: declare,
             connection: connection,
+            logs: logs,
             services: collection =>
             {
                 collection.AddSingleton<ISecretSource>(Secrets.Held(connection).With("smsReportKey", Secrets.Bytes(16, 5)));

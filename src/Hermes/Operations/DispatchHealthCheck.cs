@@ -21,25 +21,18 @@ internal sealed class DispatchHealthCheck(MessagingDatabase database, Declaratio
 {
     internal const string Name = "hermes.dispatch";
 
-    private readonly string[] kinds = [.. declarations.Kinds.Select(kind => kind.Name).Concat(declarations.Retired).Distinct(StringComparer.Ordinal)];
+    private readonly string[] kinds = DueDeliveries.Kinds(declarations);
 
     public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {
         DateTimeOffset now = clock.GetUtcNow();
-        string[] channels = [.. Spellings.AllChannels];
-        string[] reasons = [.. Spellings.AllReasons];
         DateTimeOffset? oldest;
         try
         {
             MessagingContext messaging = database.Context();
             await using (messaging.ConfigureAwait(false))
             {
-                oldest = await messaging.Deliveries
-                    .Where(delivery => (delivery.Status == "waiting" || delivery.Status == "inflight")
-                        && delivery.BecameDueAt <= now
-                        && kinds.Contains(delivery.Kind)
-                        && channels.Contains(delivery.Channel)
-                        && (delivery.Reason == null || reasons.Contains(delivery.Reason)))
+                oldest = await DueDeliveries.Due(messaging.Deliveries, kinds, now)
                     .MinAsync(delivery => (DateTimeOffset?)delivery.BecameDueAt, cancellationToken)
                     .ConfigureAwait(false);
             }

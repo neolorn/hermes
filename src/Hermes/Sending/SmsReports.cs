@@ -40,6 +40,14 @@ internal sealed partial class SmsReports(
 
     private const string Sum = "SELECT coalesce(sum(count), 0)::integer AS \"Value\" FROM messaging.rejected_reports WHERE minute > @now - @window";
 
+    /// <summary>The reports rejected within <paramref name="window"/> before <paramref name="now"/>, summed over the minute rows.</summary>
+    internal static Task<int> RejectedWithinAsync(MessagingContext context, DateTimeOffset now, TimeSpan window, CancellationToken cancellationToken)
+    {
+        return context.Database
+            .SqlQueryRaw<int>(Sum, new NpgsqlParameter("now", now), new NpgsqlParameter("window", window))
+            .SingleAsync(cancellationToken);
+    }
+
     /// <summary>Applies the report <paramref name="reading"/> read, which came from <paramref name="source"/>, and answers what it did.</summary>
     internal async Task<ReportEffect> ApplyAsync(SmsReportReading reading, string source, CancellationToken cancellationToken)
     {
@@ -143,10 +151,7 @@ internal sealed partial class SmsReports(
             async (context, token) =>
             {
                 await context.Database.ExecuteSqlRawAsync(Count, [new NpgsqlParameter("minute", minute)], token).ConfigureAwait(false);
-                return await context.Database
-                    .SqlQueryRaw<int>(Sum, new NpgsqlParameter("now", now), new NpgsqlParameter("window", sms.ReportRejectWindow))
-                    .SingleAsync(token)
-                    .ConfigureAwait(false);
+                return await RejectedWithinAsync(context, now, sms.ReportRejectWindow, token).ConfigureAwait(false);
             },
             cancellationToken).ConfigureAwait(false);
         if (count > sms.ReportRejectThreshold)

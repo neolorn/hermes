@@ -175,3 +175,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Hermes:Push:AuthFailThreshold` within an hour raise `push-auth-failing`
 - The `subscriptions` job removes subscriptions past their expiration time every
   `Hermes:Jobs:SubscriptionsInterval`
+- The `watch` job: where `Hermes:Jobs:Enabled` is on, every `Hermes:Dispatch:Interval` it
+  raises and clears `dispatch-lag` per channel, recording `hermes.dispatch.oldest_due_age`,
+  `job-stalled` for each job a process has started, `observer-failing`,
+  `sms-report-rejected` and `push-auth-failing` by their counts; it clears
+  `newer-release`, `key-unavailable`, `content-key-limit` and `content-rejected` once the
+  instant a process wrote has passed, and drops the SMS reports held past
+  `Hermes:Sms:ReportHold`, which are never applied once lapsed
+- `push-auth-failing` carries the push service in its details
