@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 
 using Hermes.Core;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using Npgsql;
@@ -103,6 +104,25 @@ public sealed class QuietHoursTests(PostgresFixture postgres) : IClassFixture<Po
         Assert.Empty(delivery.Attempts);
         Assert.Empty(consent.Queries);
         Assert.Equal(0L, await PlacesAsync(engine.Host));
+    }
+
+    [Fact]
+    public async Task MSG_OPS_001_AC2_AQuietHoursStartChangedWhileRunningAppliesToTheNextDeliveryChecked()
+    {
+        TimeZoneInfo zone = TimeZoneInfo.FindSystemTimeZoneById(Cairo);
+        await using DispatchEngine engine = await StartAsync(new ManualClock(Local(zone, 23, 30)));
+        SendReceipt held = (await engine.Host.SendAsync(ConsentTests.PromotionTo("+201000000001") with { TimeZone = Cairo })).Value!;
+        await engine.Host.DispatchAsync();
+        IConfigurationRoot configuration = (IConfigurationRoot)engine.Host.Services.GetRequiredService<IConfiguration>();
+
+        configuration["Hermes:QuietHours:Start"] = "23:45";
+        configuration.Reload();
+        SendReceipt next = (await engine.Host.SendAsync(ConsentTests.PromotionTo("+201000000002") with { TimeZone = Cairo, Recipient = new Recipient.Person("person-2") })).Value!;
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal(DeliveryStatus.Waiting, await SuppressionTests.StatusAsync(engine.Host, held));
+        Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(engine.Host, next));
+        Assert.Single(engine.Sms.Received);
     }
 
     [Fact]

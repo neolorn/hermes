@@ -54,6 +54,28 @@ public sealed class PreferenceTests(PostgresFixture postgres) : IClassFixture<Po
     }
 
     [Fact]
+    public async Task MSG_SEND_002_AC1_EachKindsDeliveriesFollowItsOwnCategorysLimitAndPreferenceAndNotTheOthers()
+    {
+        await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, declare: declare =>
+        {
+            LimitTests.Declare(category => category.Limit(Channel.Sms, 1, TimeSpan.FromDays(1)))(declare);
+            declare.Category(SuppressionTests.Offers);
+            declare.Kind(SuppressionTests.Offer, SuppressionTests.Offers).Sms();
+        });
+        Assert.True((await SetAsync(engine.Host, Person, SuppressionTests.Offers, Channel.Sms, isOn: false)).IsSuccess);
+        SendReceipt first = (await engine.Host.SendAsync(LimitTests.ReminderTo("+201000000001"))).Value!;
+        SendReceipt second = (await engine.Host.SendAsync(LimitTests.ReminderTo("+201000000001"))).Value!;
+        SendReceipt offer = (await engine.Host.SendAsync(SuppressionTests.OfferTo("+201000000001"))).Value!;
+
+        await engine.Host.DispatchAsync();
+
+        DeliveryStatus[] reminders = [await SuppressionTests.StatusAsync(engine.Host, first), await SuppressionTests.StatusAsync(engine.Host, second)];
+        Assert.Equal([DeliveryStatus.Sent, DeliveryStatus.Limited], reminders.Order());
+        Assert.Equal(DeliveryStatus.OptedOut, await SuppressionTests.StatusAsync(engine.Host, offer));
+        Assert.Single(engine.Sms.Received);
+    }
+
+    [Fact]
     public async Task Set_ACategoryTurnedBackOn_LetsTheNextDeliveryGoOut()
     {
         await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, declare: SuppressionTests.Declare);

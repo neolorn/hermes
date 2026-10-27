@@ -12,6 +12,7 @@ using Hermes.Core;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 
 using Npgsql;
 
@@ -45,6 +46,45 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
         Assert.Equal(HttpStatusCode.NoContent, removed.StatusCode);
         Assert.Equal(DeliveryStatus.NoSubscription, await SuppressionTests.StatusAsync(push.Host, after));
         Assert.Equal(Endpoint, Assert.Single(push.Provider.Received).Endpoint);
+    }
+
+    [Fact]
+    public async Task MSG_SEND_003_AC3_ASendToAPersonWithASubscriptionAndNoChannelNamedIsSentOnEveryChannelPushIncluded()
+    {
+        await using DispatchEngine engine = await StartAsync();
+        Pusher push = new(engine);
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Person, Endpoint));
+
+        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(recipient: new Recipient.Person(Person)))).Value!;
+        await engine.Host.DispatchAsync();
+
+        SendRecord record = await engine.Host.ReadAsync(receipt.Send);
+        Assert.Equal([Channel.Email, Channel.Sms, Channel.Push], receipt.Deliveries.Select(delivery => delivery.Channel));
+        Assert.Equal(3, record.Deliveries.Count);
+        Assert.All(record.Deliveries, delivery => Assert.Equal(DeliveryStatus.Sent, delivery.Status));
+        Assert.Equal(Endpoint, Assert.Single(push.Provider.Received).Endpoint);
+    }
+
+    [Fact]
+    public async Task MSG_OPS_004_AC1_WithHostedOffAPassRunOnDemandDeliversPushThroughTheShippedProvider()
+    {
+        using PushServiceHandler service = new();
+        await using DispatchEngine engine = await StartAsync(
+            configure: configuration => configuration["Hermes:Dispatch:Hosted"] = "false",
+            services: collection => collection.PostConfigure<HttpClientFactoryOptions>("Hermes.Push", options => options.HttpMessageHandlerBuilderActions.Add(builder => builder.PrimaryHandler = service)),
+            shipped: true);
+        Pusher push = new(engine);
+        Assert.Equal(HttpStatusCode.NoContent, await push.SubscribeAsync(Person, Endpoint));
+        SendReceipt receipt = (await engine.Host.SendAsync(Code(Person))).Value!;
+
+        int before = service.Requests.Count;
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal(DeliveryStatus.Sent, await SuppressionTests.StatusAsync(engine.Host, receipt));
+        Assert.Equal(0, before);
+        (Uri? address, string? encoding) = Assert.Single(service.Requests);
+        Assert.Equal(new Uri(Endpoint), address);
+        Assert.Equal("aes128gcm", encoding);
     }
 
     [Fact]
@@ -506,7 +546,8 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
         Action<DeclarationBuilder>? declare = null,
         string? connection = null,
         int vapidWriteVersion = 1,
-        int versions = 2)
+        int versions = 2,
+        bool shipped = false)
     {
         string database = connection ?? await EngineHost.DatabaseAsync(postgres);
         SecretSourceFake secrets = Secrets.Held(database).With("pushVapidKeys", [.. new[] { Secrets.Bytes(32, 4), Secrets.Bytes(32, 7) }.Take(versions)]);
@@ -523,7 +564,11 @@ public sealed class PushTests(PostgresFixture postgres) : IClassFixture<Postgres
             {
                 Endpoints.Identity(collection);
                 collection.AddSingleton<ISecretSource>(secrets);
-                collection.AddSingleton<IPushProvider, RecordingPushProvider>();
+                if (!shipped)
+                {
+                    collection.AddSingleton<IPushProvider, RecordingPushProvider>();
+                }
+
                 services?.Invoke(collection);
             },
             connection: database,
