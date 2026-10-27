@@ -892,3 +892,5 @@ static Hermes.Core.CategoryPreferences.operator !=(Hermes.Core.CategoryPreferenc
 static Hermes.Core.CategoryPreferences.operator ==(Hermes.Core.CategoryPreferences? left, Hermes.Core.CategoryPreferences? right) -> bool
 static Hermes.Core.ChannelPreference.operator !=(Hermes.Core.ChannelPreference? left, Hermes.Core.ChannelPreference? right) -> bool
 static Hermes.Core.ChannelPreference.operator ==(Hermes.Core.ChannelPreference? left, Hermes.Core.ChannelPreference? right) -> bool
+Hermes.Core.IRecipientIdentity
+Hermes.Core.IRecipientIdentity.CurrentAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<string?>

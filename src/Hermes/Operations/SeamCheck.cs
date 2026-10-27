@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using Hermes.Core;
+using Hermes.Endpoints;
 using Hermes.Sending;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -22,11 +23,16 @@ internal static class SeamCheck
     /// The <c>details.key</c> of the first required seam not registered, in the order of
     /// MSG-LIB-005's table, or none.
     /// </summary>
-    internal static string? Missing(IServiceProviderIsService services, Declarations declarations, MessagingOptions options)
+    internal static string? Missing(IServiceProviderIsService services, Declarations declarations, MessagingOptions options, EndpointGroups groups)
     {
         if (!services.IsService(typeof(ISecretSource)))
         {
             return "secretSource";
+        }
+
+        if (groups.NeedIdentity && !services.IsService(typeof(IRecipientIdentity)))
+        {
+            return "recipientIdentity";
         }
 
         if (declarations.Categories.Any(category => category.ConsentPurpose is not null) && !services.IsService(typeof(IConsentSource)))

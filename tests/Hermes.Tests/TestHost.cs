@@ -3,6 +3,8 @@ using System.Collections.Generic;
 
 using Hermes.Core;
 
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -55,7 +57,8 @@ internal static class TestHost
     /// declares, the services <paramref name="services"/> registers before <c>AddHermes</c> and
     /// <paramref name="after"/> after it, logging to <paramref name="logs"/> where given, its content root
     /// <paramref name="contentRoot"/> where given; a template source answering every part the
-    /// declarations need is registered first, unless <paramref name="hostTemplates"/> is false.
+    /// declarations need is registered first, unless <paramref name="hostTemplates"/> is false;
+    /// a web application on a test server where <paramref name="map"/> is given, which maps its endpoints.
     /// </summary>
     internal static IHost Build(
         Dictionary<string, string?> configuration,
@@ -64,24 +67,50 @@ internal static class TestHost
         Action<IServiceCollection>? after = null,
         LogCapture? logs = null,
         string? contentRoot = null,
-        bool hostTemplates = true)
+        bool hostTemplates = true,
+        Action<WebApplication>? map = null)
     {
+        if (map is not null)
+        {
+            WebApplicationBuilder web = WebApplication.CreateEmptyBuilder(new WebApplicationOptions { EnvironmentName = Environments.Development, ContentRootPath = contentRoot });
+            web.WebHost.UseTestServer();
+            web.Services.AddRouting();
+            Register(web.Configuration, web.Logging, web.Services, configuration, declare, services, after, logs, hostTemplates);
+            WebApplication application = web.Build();
+            map(application);
+            return application;
+        }
+
         HostApplicationBuilder builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings { EnvironmentName = Environments.Development, ContentRootPath = contentRoot });
-        builder.Configuration.AddInMemoryCollection(configuration);
-        builder.Logging.ClearProviders();
+        Register(builder.Configuration, builder.Logging, builder.Services, configuration, declare, services, after, logs, hostTemplates);
+        return builder.Build();
+    }
+
+    private static void Register(
+        IConfigurationManager configurationManager,
+        ILoggingBuilder logging,
+        IServiceCollection collection,
+        Dictionary<string, string?> configuration,
+        Action<DeclarationBuilder>? declare,
+        Action<IServiceCollection>? services,
+        Action<IServiceCollection>? after,
+        LogCapture? logs,
+        bool hostTemplates)
+    {
+        configurationManager.AddInMemoryCollection(configuration);
+        logging.ClearProviders();
         if (logs is not null)
         {
-            builder.Logging.AddProvider(logs);
+            logging.AddProvider(logs);
         }
 
         if (hostTemplates)
         {
-            builder.Services.AddSingleton<ITemplateSource>(TemplateSourceFake.Every(declare));
+            collection.AddSingleton<ITemplateSource>(TemplateSourceFake.Every(declare));
         }
 
-        services?.Invoke(builder.Services);
-        builder.Services.AddHermes(builder.Configuration, declare ?? (_ => { }));
-        after?.Invoke(builder.Services);
-        return builder.Build();
+        services?.Invoke(collection);
+        collection.AddHermes(configurationManager, declare ?? (_ => { }));
+        after?.Invoke(collection);
     }
 }

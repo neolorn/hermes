@@ -131,3 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Dispatch:Timeout`, or ends `limited` where a window is full; a delivery that ends
   unsent gives its places back, and one on which a provider call is recorded gives back
   only its per-destination places
+- The preferences group, `MapHermesPreferences(prefix)`: `GET /preferences` and
+  `PUT /preferences/{category}/{channel}` for the person the host's `IRecipientIdentity`
+  answers, 401 where it answers none; JSON bodies read and written through the library's
+  own serializer context, only as `application/json` and at most 16 KiB; a person's locks
+  not had within `Dispatch:Timeout` answered 503 with `Retry-After`

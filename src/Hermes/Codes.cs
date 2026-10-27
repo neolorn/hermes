@@ -40,4 +40,14 @@ internal static class Codes
     internal const string SuppressionEssential = "messaging.suppression.essential";
 
     internal const string SuppressionInvalid = "messaging.suppression.invalid";
+
+    internal const string RequestMalformed = "messaging.request.malformed";
+
+    internal const string RequestUnauthenticated = "messaging.request.unauthenticated";
+
+    internal const string RequestTooLarge = "messaging.request.toolarge";
+
+    internal const string RequestMediaType = "messaging.request.mediatype";
+
+    internal const string RequestUnavailable = "messaging.request.unavailable";
 }

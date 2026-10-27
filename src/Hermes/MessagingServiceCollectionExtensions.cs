@@ -4,6 +4,7 @@ using System.Linq;
 using Hermes.Channels;
 using Hermes.Content;
 using Hermes.Core;
+using Hermes.Endpoints;
 using Hermes.Operations;
 using Hermes.Sending;
 
@@ -69,6 +70,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<HostSchemas>();
         services.AddSingleton<Notices>();
         services.AddSingleton<MessagingReady>();
+        services.AddSingleton<EndpointGroups>();
         services.AddScoped<IMessages, Messages>();
         services.AddScoped<ISuppressions, Suppressions>();
         services.AddScoped<IPreferences, Preferences>();

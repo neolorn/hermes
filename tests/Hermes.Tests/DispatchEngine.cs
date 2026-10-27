@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 
 using Hermes.Core;
 
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Hermes.Tests;
@@ -27,7 +28,8 @@ internal sealed class DispatchEngine : IAsyncDisposable
         Action<IServiceCollection>? services = null,
         string? connection = null,
         ManualClock? clock = null,
-        LogCapture? logs = null)
+        LogCapture? logs = null,
+        Action<WebApplication>? map = null)
     {
         DispatchEngine engine = new();
         RecordingEmailProvider email = engine.Email;
@@ -48,7 +50,8 @@ internal sealed class DispatchEngine : IAsyncDisposable
                 services?.Invoke(collection);
             },
             clock: clock,
-            logs: logs);
+            logs: logs,
+            map: map);
         return engine;
     }
 
