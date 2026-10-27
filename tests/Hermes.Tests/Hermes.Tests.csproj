@@ -15,6 +15,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- A kind's template read from this assembly by its path under the template folder (03 MSG-TPL-006). -->
+    <EmbeddedResource Include="order.placed.email.ar.subject.liquid" LogicalName="order.placed/email.ar.subject.liquid" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Hermes\Hermes.csproj" />
   </ItemGroup>
 

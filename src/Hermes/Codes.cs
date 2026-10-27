@@ -14,4 +14,22 @@ internal static class Codes
     internal const string SecretInvalid = "messaging.startup.secretinvalid";
 
     internal const string SchemaMismatch = "messaging.startup.schemamismatch";
+
+    internal const string TooLong = "messaging.send.toolong";
+
+    internal const string RenderLimit = "messaging.send.renderlimit";
+
+    internal const string RenderFailed = "messaging.send.renderfailed";
+
+    internal const string NoDestination = "messaging.send.nodestination";
+
+    internal const string DestinationInvalid = "messaging.send.destinationinvalid";
+
+    internal const string DestinationNotAllowed = "messaging.send.destinationnotallowed";
+
+    internal const string IdempotencyConflict = "messaging.send.idempotencyconflict";
+
+    internal const string SendUnknown = "messaging.send.unknown";
+
+    internal const string KeyUnavailable = "messaging.key.unavailable";
 }

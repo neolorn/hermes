@@ -61,3 +61,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or `STARTTLS`, authenticated with `emailSubmission`, the server's certificate validated
   by the library with each named revocation source read online, one connection per
   session opened again once it broke, every answer classed and none of its text kept
+- The send's types: `Send` and its values, `SendReceipt`, `SendRecord` with its
+  deliveries, attempts and calls, `Result` and `Failure`, and the `IMessages` and
+  `ITemplateSource` contracts, none of which prints a destination, a value or a person
+- Templates rendered strictly and within their bounds: the allowed tags and filters, the
+  library's `format_date` and `format_number`, HTML parts encoded, a render past its steps,
+  over its channel's limit or unable to compute refused with its code
+- Every kind's templates and the library's pages read when the host starts, from the
+  host's template source, the template folder and the assemblies passed to
+  `declare.Templates`, a part missing, not parsing or outside the allowed tags, filters,
+  arguments, ranges and nesting stopping the start and naming it; the unsubscribe pages
+  shipped in `en` and `ar`
+- The send's tables: sends, deliveries, attempts and their calls, idempotency keys, the
+  rate counters, notices and the job table, each closed set refused by the database
+  outside its values
+- The keyed hash under each held `hashKeys` version, the advisory locks' keys and a
+  send's canonical form, in the layouts two releases share
+- `IMessages.SendAsync`, which checks a send, renders it in its language and time zone,
+  protects its content and destination and records one delivery per channel, on the
+  host's transaction where one is given, waking the dispatchers when it commits; a send
+  with an idempotency key recorded once inside its window
+- `IMessages.CancelAsync`, which cancels a send's waiting deliveries, and
+  `IMessages.ReadAsync`, which answers a send's deliveries, attempts and calls
+- `IDispatcher.RunPassAsync`, which runs a pass of email and of SMS: each claims its due
+  deliveries within the second's rate, essential kinds first, checks each, renews its
+  claim, calls the provider and records the answer, retrying a transient one with
+  back-off until it is sent, its attempts are used up or it expires; a delivery whose
+  value cannot open yet is held for a key, and a stop hands back what it has not begun
+- The hosted dispatcher, where `Dispatch:Enabled` and `Dispatch:Hosted` are on: passes
+  of each channel on each committed send's notification, every `Dispatch:Interval` and
+  after each connection of its listening connection on `listenConnection` or
+  `connection`, at most `Dispatch:MaxPasses` of a channel at once
+- The `observer` job, where `Dispatch:Enabled` is on: every `Dispatch:Interval` one
+  process tells the observer of each pending notice, in order for each delivery, up to
+  `Observer:MaxCalls` of different deliveries at once, each call bounded by
+  `Dispatch:Timeout`, and deletes a notice once the observer took it
+- Each control character of an email's subject and of a sender's or reply address's
+  display name is replaced by a space, so no value starts a header of its own
+- The health check `hermes.dispatch`, where `Dispatch:Enabled` is on: unhealthy while
+  the oldest due delivery became due longer ago than `Dispatch:LagThreshold`
+- `Hermes.Testing`: in-memory email, SMS and push providers, fixed secrets, a dispatcher
+  run on demand, a test database's migration and `AddHermesTesting`, under which only a
+  test's passes dispatch and each delivers the pending notices
+- Each call to the alert sink is bounded by `Dispatch:Timeout`; a sink that does not
+  answer in time is logged and the alert stays recorded, so a pass or job never waits on it

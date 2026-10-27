@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 
 using Hermes.Channels;
+using Hermes.Content;
 using Hermes.Core;
 using Hermes.Operations;
 using Hermes.Sending;
@@ -58,6 +60,18 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<ContentKeyReservations>();
         services.AddSingleton<LibraryProtector>();
         services.AddScoped<ContentProtection>();
+        services.AddSingleton<TemplateParser>();
+        services.AddSingleton<TemplateRenderer>();
+        services.AddSingleton<Templates>();
+        services.AddSingleton<SendRenderer>();
+        services.AddSingleton<KeyedHashes>();
+        services.AddSingleton<HostSchemas>();
+        services.AddSingleton<Notices>();
+        services.AddSingleton<MessagingReady>();
+        services.AddScoped<IMessages, Messages>();
+        services.AddSingleton<DispatchPasses>();
+        services.AddSingleton<IDispatcher, Dispatcher>();
+        services.AddSingleton<NoticeDelivery>();
         services.TryAddSingleton<ChannelsUnderEngine>();
         services.AddHermesChannels(configuration);
 
@@ -65,6 +79,18 @@ public static class MessagingServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Singleton(provider => new CallTimeout(() => provider.GetRequiredService<IOptionsMonitor<MessagingOptions>>().CurrentValue.Dispatch.Timeout)));
         services.AddSingleton<IHostedService, MessagingStartup>();
         services.AddSingleton<IHostedService, KeyTableTimer>();
+        if (!services.Any(service => service.ServiceType == typeof(TestPasses)))
+        {
+            services.AddSingleton<IHostedService, HostedDispatcher>();
+            services.AddSingleton<IHostedService, ObserverJob>();
+        }
+
+        // Dispatch:Enabled is read only at the start, so the configuration given here is the one the application runs under.
+        if (!bool.TryParse(configuration["Hermes:Dispatch:Enabled"], out bool dispatching) || dispatching)
+        {
+            services.AddHealthChecks().AddCheck<DispatchHealthCheck>(DispatchHealthCheck.Name);
+        }
+
         return services;
     }
 }

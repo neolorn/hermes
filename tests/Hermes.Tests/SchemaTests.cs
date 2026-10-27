@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -101,6 +102,73 @@ public sealed class SchemaTests(PostgresFixture postgres) : IClassFixture<Postgr
         PostgresException refusal = await Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
 
         Assert.Equal(PostgresErrorCodes.CheckViolation, refusal.SqlState);
+    }
+
+    [Theory]
+    [InlineData("fax", "waiting", null)]
+    [InlineData("sms", "queued", null)]
+    [InlineData("sms", "failed", "unknown")]
+    public async Task MSG_ENG_005_AC1_AStatusOrChannelOutsideTheClosedSetIsRefusedByTheDatabase(string channel, string status, string? reason)
+    {
+        string connection = await postgres.NewDatabaseAsync();
+        Assert.Null(await SchemaMigration.ApplyAsync(connection, [], TestContext.Current.CancellationToken));
+        await using NpgsqlConnection database = new(connection);
+        await database.OpenAsync(TestContext.Current.CancellationToken);
+        await using (NpgsqlCommand send = new("INSERT INTO messaging.sends (id, kind, recorded_at) VALUES ('0192e0a0-0000-7000-8000-000000000001', 'sign.in', '2026-10-27T00:00:00Z')", database))
+        {
+            await send.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using NpgsqlCommand command = Delivery(database, channel, status, reason);
+
+        PostgresException refusal = await Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(PostgresErrorCodes.CheckViolation, refusal.SqlState);
+    }
+
+    [Fact]
+    public async Task Insert_DeliveryInsideTheClosedSets_IsTaken()
+    {
+        string connection = await postgres.NewDatabaseAsync();
+        Assert.Null(await SchemaMigration.ApplyAsync(connection, [], TestContext.Current.CancellationToken));
+        await using NpgsqlConnection database = new(connection);
+        await database.OpenAsync(TestContext.Current.CancellationToken);
+        await using (NpgsqlCommand send = new("INSERT INTO messaging.sends (id, kind, recorded_at) VALUES ('0192e0a0-0000-7000-8000-000000000001', 'sign.in', '2026-10-27T00:00:00Z')", database))
+        {
+            await send.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using NpgsqlCommand command = Delivery(database, "sms", "failed", "claimlost");
+
+        Assert.Equal(1, await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Insert_JobOutsideTheJobs_IsRefusedByTheDatabase()
+    {
+        string connection = await postgres.NewDatabaseAsync();
+        Assert.Null(await SchemaMigration.ApplyAsync(connection, [], TestContext.Current.CancellationToken));
+        await using NpgsqlConnection database = new(connection);
+        await database.OpenAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlCommand command = new("INSERT INTO messaging.jobs (name) VALUES ('dispatch')", database);
+
+        PostgresException refusal = await Assert.ThrowsAsync<PostgresException>(() => command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(PostgresErrorCodes.CheckViolation, refusal.SqlState);
+    }
+
+    private static NpgsqlCommand Delivery(NpgsqlConnection database, string channel, string status, string? reason)
+    {
+        const string Insert = """
+            INSERT INTO messaging.deliveries (id, send_id, kind, category, channel, status, reason, language, time_zone, recorded_at, due_at, became_due_at, last_moved_at, attempts, next_sequence)
+            VALUES ('0192e0a0-0000-7000-8000-000000000002', '0192e0a0-0000-7000-8000-000000000001', 'sign.in', 'security', @channel, @status, @reason, 'en', 'UTC',
+                    '2026-10-27T00:00:00Z', '2026-10-27T00:00:00Z', '2026-10-27T00:00:00Z', '2026-10-27T00:00:00Z', 0, 1)
+            """;
+        NpgsqlCommand command = new(Insert, database);
+        command.Parameters.AddWithValue("channel", channel);
+        command.Parameters.AddWithValue("status", status);
+        command.Parameters.AddWithValue("reason", (object?)reason ?? DBNull.Value);
+        return command;
     }
 
     private static IHost Host(string connection)

@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Hermes.Channels;
+using Hermes.Content;
 using Hermes.Core;
 using Hermes.Sending;
 
@@ -32,6 +34,9 @@ internal sealed class MessagingStartup(
     EmailSubmission submission,
     PushKeys pushKeys,
     KeyTable table,
+    TemplateParser parser,
+    Templates templates,
+    MessagingReady ready,
     IHostEnvironment environment,
     IServiceProvider services) : IHostedLifecycleService
 {
@@ -64,6 +69,16 @@ internal sealed class MessagingStartup(
                 throw Failure(Codes.DeclarationInvalid, ("declaration", declaration), ("field", field));
             }
 
+            Dictionary<TemplateKey, TemplatePart> loaded = [];
+            string folder = Path.GetFullPath(current.Templates.Path, Path.GetFullPath(environment.ContentRootPath));
+            TemplateSources sources = new(scope.ServiceProvider.GetService<ITemplateSource>(), folder, declarations.Assemblies);
+            if (await TemplateCheck.LoadAsync(declarations, current.Languages, current.Templates.MaxSteps, current.Templates.MaxRecursion, sources, parser, loaded, cancellationToken).ConfigureAwait(false) is var (template, part))
+            {
+                throw Failure(Codes.DeclarationInvalid, ("declaration", template), ("field", part));
+            }
+
+            templates.Hold(loaded);
+
             if (SeamCheck.Missing(services.GetRequiredService<IServiceProviderIsService>(), declarations, current) is { } seam)
             {
                 throw Failure(Codes.DeclarationMissing, ("key", seam));
@@ -76,6 +91,11 @@ internal sealed class MessagingStartup(
 
             ISecretSource secrets = scope.ServiceProvider.GetRequiredService<ISecretSource>();
             database.Open(await SecretCheck.ConnectionAsync(secrets, cancellationToken).ConfigureAwait(false));
+            if (current.Dispatch is { Enabled: true, Hosted: true })
+            {
+                database.Listen(await SecretCheck.ListenConnectionAsync(secrets, cancellationToken).ConfigureAwait(false));
+            }
+
             keys.Hold(await SecretCheck.KeysAsync(secrets, state.Section, KeyNeeds.Needed(declarations, current), cancellationToken).ConfigureAwait(false));
             if (use.ShippedPush && keys.Find(KeyNeeds.PushVapidKeys) is { } vapid)
             {
@@ -94,6 +114,7 @@ internal sealed class MessagingStartup(
         }
 
         await table.StartAsync(cancellationToken).ConfigureAwait(false);
+        ready.Mark();
     }
 
     public Task StartAsync(CancellationToken cancellationToken)

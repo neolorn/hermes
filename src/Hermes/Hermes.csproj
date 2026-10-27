@@ -18,6 +18,12 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Fluid.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The library's own pages, found as a host assembly's resource is, by their path under the template folder (03 MSG-TPL-006). -->
+    <EmbeddedResource Include="Content\*.liquid" LogicalName="pages/%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -28,6 +34,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Hermes.Tests" />
     <InternalsVisibleTo Include="Hermes.Cli" />
+    <InternalsVisibleTo Include="Hermes.Testing" />
   </ItemGroup>
 
 </Project>

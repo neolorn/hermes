@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace Hermes.Sending;
 
@@ -8,7 +9,8 @@ namespace Hermes.Sending;
 /// <param name="Kinds">The kinds.</param>
 /// <param name="Categories">The categories.</param>
 /// <param name="Retired">The names of the kinds retired.</param>
-internal sealed record Declarations(IReadOnlyList<KindDeclaration> Kinds, IReadOnlyList<CategoryDeclaration> Categories, IReadOnlyList<string> Retired)
+/// <param name="Assemblies">The assemblies whose embedded resources hold templates (<c>03</c> MSG-TPL-006).</param>
+internal sealed record Declarations(IReadOnlyList<KindDeclaration> Kinds, IReadOnlyList<CategoryDeclaration> Categories, IReadOnlyList<string> Retired, IReadOnlyList<Assembly> Assemblies)
 {
     /// <summary>
     /// Whether an optional category has a kind with email, which needs

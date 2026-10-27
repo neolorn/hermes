@@ -14,19 +14,39 @@ namespace Hermes.Tests;
 /// </summary>
 internal sealed class ContentProtectorFake(string id) : IContentProtector
 {
+    private int opens;
+
     public string Id => id;
+
+    /// <summary>Whether protecting throws, as a vault that cannot be reached does.</summary>
+    internal bool Throws { get; init; }
+
+    /// <summary>A step before each opening, where a test sets one.</summary>
+    internal Func<Task>? BeforeOpen { get; set; }
+
+    /// <summary>How many values it was asked to open.</summary>
+    internal int Opens => opens;
 
     public ValueTask<byte[]> ProtectAsync(string person, ReadOnlyMemory<byte> plaintext, string context, CancellationToken cancellationToken)
     {
+        if (Throws)
+        {
+            throw new InvalidOperationException("The vault cannot be reached.");
+        }
+
         return ValueTask.FromResult(Head(person, context).Concat(plaintext.ToArray()).ToArray());
     }
 
-    public ValueTask<UnprotectResult> UnprotectAsync(string person, ReadOnlyMemory<byte> protectedValue, string context, CancellationToken cancellationToken)
+    public async ValueTask<UnprotectResult> UnprotectAsync(string person, ReadOnlyMemory<byte> protectedValue, string context, CancellationToken cancellationToken)
     {
+        Interlocked.Increment(ref opens);
+        if (BeforeOpen is { } before)
+        {
+            await before();
+        }
+
         byte[] head = Head(person, context);
-        return ValueTask.FromResult<UnprotectResult>(protectedValue.Span.StartsWith(head)
-            ? new UnprotectResult.Opened(protectedValue[head.Length..])
-            : new UnprotectResult.Rejected());
+        return protectedValue.Span.StartsWith(head) ? new UnprotectResult.Opened(protectedValue[head.Length..]) : new UnprotectResult.Rejected();
     }
 
     private byte[] Head(string person, string context)

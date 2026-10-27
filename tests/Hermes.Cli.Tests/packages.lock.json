@@ -156,6 +156,11 @@
         "resolved": "10.0.3",
         "contentHash": "7nb5YzXuvWWJxB0J8DiyL3we+X4FOctZrt0fIBnucOIaIevFEEwGQVZKtiu9olXdlNAK1eNgqSral6r/jlhI4w=="
       },
+      "Parlot": {
+        "type": "Transitive",
+        "resolved": "1.5.2",
+        "contentHash": "idEOR6WU8WvnaDhFcj9PkWv8r/Actca8KfV9kw94//QEC0iQJVB9w/Z4ZLY8LxwSVMuNPuuLB649kCcVb+HrLw=="
+      },
       "SharpZipLib": {
         "type": "Transitive",
         "resolved": "1.4.2",
@@ -189,6 +194,11 @@
           "SSH.NET": "2026.0.0",
           "SharpZipLib": "1.4.2"
         }
+      },
+      "TimeZoneConverter": {
+        "type": "Transitive",
+        "resolved": "7.2.0",
+        "contentHash": "4Poqu79dTmacVETqUJ53g3x4U21V/cmWPSlehdsVE4Q00akavvlRq+SRjcg/CmfO9ibOCjRl6TeUV7hkC5RC4w=="
       },
       "xunit.analyzers": {
         "type": "Transitive",
@@ -261,6 +271,7 @@
       "hermes": {
         "type": "Project",
         "dependencies": {
+          "Fluid.Core": "[2.40.0, )",
           "Hermes.Channels": "[1.0.0, )",
           "Hermes.Core": "[1.0.0, )",
           "Microsoft.EntityFrameworkCore": "[10.0.14, )",
@@ -284,6 +295,16 @@
       },
       "hermes.core": {
         "type": "Project"
+      },
+      "Fluid.Core": {
+        "type": "CentralTransitive",
+        "requested": "[2.40.0, )",
+        "resolved": "2.40.0",
+        "contentHash": "bBI5NejSVAU4Ug1eSodIZXUfjtOWpSUC5pXxMW1jfdKZn3LgLZuVtBDpidl7odaVQL4oGE9nili+JFfs5q6BYQ==",
+        "dependencies": {
+          "Parlot": "1.5.2",
+          "TimeZoneConverter": "7.2.0"
+        }
       },
       "Lib.Net.Http.WebPush": {
         "type": "CentralTransitive",

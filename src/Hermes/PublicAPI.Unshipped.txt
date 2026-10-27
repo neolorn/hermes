@@ -10,6 +10,9 @@ Hermes.DeclarationBuilder
 Hermes.DeclarationBuilder.Category(string! name) -> Hermes.CategoryBuilder!
 Hermes.DeclarationBuilder.Kind(string! name, string! category) -> Hermes.KindBuilder!
 Hermes.DeclarationBuilder.Retire(string! name) -> Hermes.DeclarationBuilder!
+Hermes.DeclarationBuilder.Templates(System.Reflection.Assembly! assembly) -> Hermes.DeclarationBuilder!
+Hermes.IDispatcher
+Hermes.IDispatcher.RunPassAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<int>
 Hermes.KindBuilder
 Hermes.KindBuilder.Email(Hermes.Core.EmailAddress? from = null, Hermes.Core.EmailAddress? replyTo = null) -> Hermes.KindBuilder!
 Hermes.KindBuilder.ExpiresAfter(System.TimeSpan duration) -> Hermes.KindBuilder!
