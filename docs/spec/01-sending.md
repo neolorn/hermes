@@ -915,8 +915,8 @@ bytes, big-endian), a random 12-byte nonce, the AES-256-GCM ciphertext and its 1
 tag, its associated data being the context's UTF-8 bytes, a zero byte and the person
 reference's (empty for none), so a value opens only in its row and for its person; it is
 always registered for reading, so values it made stay readable after a host registers
-another protector (the Janus bridge does, with Janus's per-person keys, `04`
-MSG-LIB-007). A row holding values of the library's protector records their
+another protector (a host's own, over its identity system's per-person keys, say, `04`
+MSG-LIB-005). A row holding values of the library's protector records their
 `contentKeys` version in an indexed column (`06` MSG-OPS-008).
 
 At check 1, a value whose protector answers `Erased` (the person's key was erased) ends
@@ -930,7 +930,7 @@ registered, or in a format kept for a later release, holds the delivery for a ke
 delivery stores no hash of its destination: a lookup by destination computes the keyed
 hash from the opened value at that moment.
 
-*Source: M-005, M-007*
+*Source: M-005, M-007, M-020*
 
 **Acceptance criteria**
 1. No destination, unsubscribe address or rendered content is stored in plain text.
@@ -1033,14 +1033,15 @@ erasure, takes the person's locks shared, then reads the migration history as er
 does and the person's rows, and commits; it opens the values after, outside any
 transaction, so its protector calls hold no lock and no session idle; an erasure
 committed after its read leaves the export as it read, its values answering `Erased`
-only where the person's key was erased (`04` MSG-LIB-007).
+only where the person's key was erased (a host's protector over per-person keys, `04`
+MSG-LIB-005).
 
 *Falling back to another channel (designed for, not built).* A kind may later declare an
 ordered list of channels where the next is used when a delivery on one ends in a status
 the list names; the deliveries of a send already share its identifier, so a fallback is
 a new delivery of the same send and changes no table.
 
-*Source: M-004, M-005, M-007*
+*Source: M-004, M-005, M-007, M-020*
 
 **Acceptance criteria**
 1. After erasure, nothing the library holds names the person or holds a destination, an

@@ -15,8 +15,6 @@ project SHALL reference only what this item allows it.
 | `Hermes.Core` | The base class library only |
 | `Hermes.Channels` | `Hermes.Core`; MailKit; Lib.Net.Http.WebPush; the Microsoft.Extensions abstractions of `07` MSG-ENG-009 (its lifecycle services run the startup checks, since reading secrets is asynchronous) |
 | `Hermes` | `Hermes.Core`, `Hermes.Channels`; EF Core, its relational layer and the Npgsql provider; Fluid.Core; ASP.NET Core's shared framework |
-| `Hermes.Janus.Channels` | `Hermes.Core`, `Hermes.Channels`, Janus's main package |
-| `Hermes.Janus` | `Hermes.Core`, `Hermes`, `Hermes.Janus.Channels`, Janus's main package |
 | `Hermes.Testing` | `Hermes.Core`, `Hermes.Channels`, `Hermes` |
 | `Hermes.Cli` (a .NET tool, command `hermes`) | `Hermes` |
 | Any other test project | Its source project, `Hermes.Testing`, and the test packages of `07` MSG-ENG-009 |
@@ -29,16 +27,16 @@ packed project `MinVer`, both as build-only references; `Hermes` references
 A project that references ASP.NET Core's shared framework, or a project that does,
 references the framework itself (`FrameworkReference` `Microsoft.AspNetCore.App`), so no
 assembly the framework serves resolves as a package copy; `Hermes.Core` and
-`Hermes.Channels` never do. No package but the two `Hermes.Janus` packages names Janus
-or any other library of a host. The library's packages depend on one another at exactly
-the version packed (`[v]`, written as `07` MSG-ENG-011 gives), since they are released
-together and grant one another their internals (`07` MSG-ENG-001), which the release
-gate does not guard (MSG-LIB-006): NuGet then reports a host's mix of versions at its
-restore (NU1605 where a direct reference takes a lower version, NU1608 a higher one,
-NU1107 where two exact ranges meet), where a minimum version would let a higher one
-through unreported, to fail at run time. `Hermes.Conversations` is release 2's (`09`).
+`Hermes.Channels` never do. No package names any other library of a host (M-020). The
+library's packages depend on one another at exactly the version packed (`[v]`, written
+as `07` MSG-ENG-011 gives), since they are released together and grant one another their
+internals (`07` MSG-ENG-001), which the release gate does not guard (MSG-LIB-006): NuGet
+then reports a host's mix of versions at its restore (NU1605 where a direct reference
+takes a lower version, NU1608 a higher one, NU1107 where two exact ranges meet), where a
+minimum version would let a higher one through unreported, to fail at run time.
+`Hermes.Conversations` is release 2's (`09`).
 
-*Source: M-001, M-003, M-012, M-013, M-015*
+*Source: M-001, M-003, M-012, M-013, M-015, M-020*
 
 **Acceptance criteria**
 1. A test reads each project's references and fails on one this table does not allow.
@@ -129,14 +127,12 @@ data, and every case of `SendValue`, whose values are a template's content) over
 | | `CategoryBuilder` | `Essential()`, `RequiresConsent(string purpose)`, `QuietHours(bool apply)`, `Limit(Channel channel, int count, TimeSpan window)`, `DeploymentLimit(Channel channel, int count, TimeSpan window)`, `Label(string language, string text)`, each answering the builder (`01` MSG-SEND-002) |
 | | `MessagingEndpointRouteBuilderExtensions` | The four mapping methods of MSG-LIB-004 |
 | | `IDispatcher` | `RunPassAsync(...)` runs one pass of each channel and answers the number of deliveries they took, in an application with `Hermes:Dispatch:Enabled` on (where it is off, it throws `InvalidOperationException` before it claims anything); a pass whose token is cancelled stops as `01` MSG-SEND-007 gives and the call then throws `OperationCanceledException` (`01` MSG-SEND-007) |
-| `Hermes.Janus.Channels` | `MessagingJanusChannelsServiceCollectionExtensions` | `AddHermesJanusChannels(IServiceCollection, IConfiguration)` answers the `IServiceCollection` (MSG-LIB-007) |
-| `Hermes.Janus` | `MessagingJanusServiceCollectionExtensions` | `AddHermesJanus(IServiceCollection)` answers the `IServiceCollection` (MSG-LIB-007) |
 | `Hermes.Testing` | `InMemoryEmailProvider`, `InMemorySmsProvider`, `InMemoryPushProvider`, `FixedSecretSource`, `TestDispatcher`, `MessagingTestDatabase`, `MessagingTestingServiceCollectionExtensions` | The members of MSG-LIB-008 |
 
 Everything else is internal: the shipped providers, their options, the endpoints'
 request and response types (their wire shape is the contract, `05`), and the tables.
 
-*Source: M-004, M-005, M-008, M-012*
+*Source: M-004, M-005, M-008, M-012, M-020*
 
 **Acceptance criteria**
 1. The build fails when a public member is added or removed without its public API file
@@ -171,32 +167,29 @@ by registering its own before or after the call.
 
 A channel is **used** where a declared kind uses it, in an application that registers
 the providers alone where its configuration section (`Hermes:Email`, `Hermes:Sms`,
-`Hermes:Push`) is present, and in one that registers Janus's transports
-(`AddHermesJanusChannels`, MSG-LIB-007) where `Hermes:Janus:Transports` names it; the
-shipped provider of a channel is **used** where the channel is, the host registers no
-provider of its own for it, and the application dispatches (`Hermes:Dispatch:Enabled`
-on, whether or not its hosted dispatcher runs, `Hermes:Dispatch:Hosted`), registers the
-providers alone, or registers Janus's transport for that channel, whatever
+`Hermes:Push`) is present; the shipped provider of a channel is **used** where the
+channel is, the host registers no provider of its own for it, and the application
+dispatches (`Hermes:Dispatch:Enabled` on, whether or not its hosted dispatcher runs,
+`Hermes:Dispatch:Hosted`) or registers the providers alone, whatever
 `Hermes:Dispatch:Enabled` says; so an application that only records sends, and runs no
 such transport, reads no provider's secret. Where the report group is mapped
 (MSG-LIB-004) and the host registers no SMS provider of its own, the shipped SMS
 provider's `ReadReportAsync` is called there, which reads none of its keys or secrets,
 so neither is required for it. A channel is **dispatched** in an application where it is
-used and the application dispatches, registers the providers alone, or registers Janus's
-transport for it, so its passes, the hosted dispatcher's or those `RunPassAsync` runs
-(`01` MSG-SEND-007), or its providers can send on it; the keys those passes need are
-read where it is (`06` MSG-OPS-008). A channel's own keys (the sender, the rate, the
-allowed prefixes and hosts) are required where the channel is used; a shipped provider's
-keys and secrets (the SMTP server's keys and `emailSubmission`, `Push:Subject`,
-`Sms:We:BaseAddress` and `smsWe`) only where that shipped provider is used (`08` section
-4). `AddHermes` registers `IMessages`, `IPreferences`, `ISuppressions` and `ISubjects`
-as scoped services. An application **records sends** where `Hermes:Messages:Enabled` is
-on (the default); where it is off, `IMessages.SendAsync` throws
-`InvalidOperationException`, a fault of the calling code, so an application that only
-maps the unsubscribe or preferences group holds no key that opens content (`06`
-MSG-OPS-008).
+used and the application dispatches or registers the providers alone, so its passes, the
+hosted dispatcher's or those `RunPassAsync` runs (`01` MSG-SEND-007), or its providers
+can send on it; the keys those passes need are read where it is (`06` MSG-OPS-008). A
+channel's own keys (the sender, the rate, the allowed prefixes and hosts) are required
+where the channel is used; a shipped provider's keys and secrets (the SMTP server's keys
+and `emailSubmission`, `Push:Subject`, `Sms:We:BaseAddress` and `smsWe`) only where that
+shipped provider is used (`08` section 4). `AddHermes` registers `IMessages`,
+`IPreferences`, `ISuppressions` and `ISubjects` as scoped services. An application
+**records sends** where `Hermes:Messages:Enabled` is on (the default); where it is off,
+`IMessages.SendAsync` throws `InvalidOperationException`, a fault of the calling code,
+so an application that only maps the unsubscribe or preferences group holds no key that
+opens content (`06` MSG-OPS-008).
 
-*Source: M-005, M-007, M-012*
+*Source: M-005, M-007, M-012, M-020*
 
 **Acceptance criteria**
 1. A host with valid declarations and configuration starts with the one call.
@@ -204,10 +197,10 @@ MSG-OPS-008).
    key.
 3. An application whose kinds use only email, and that maps neither the report nor the
    push subscription group, starts with no SMS or push key and no SMS or push secret.
-4. An application with `Hermes:Dispatch:Enabled` off and no transport of MSG-LIB-007
-   starts with no `emailSubmission`, `smsWe`, `Email:Host`, `Sms:We:BaseAddress` or
-   `Push:Subject`; one that registers `AddHermesJanusChannels` with
-   `Hermes:Janus:Transports` naming `email` does not start without `emailSubmission`.
+4. An application with `Hermes:Dispatch:Enabled` off that registers the providers alone
+   for no channel starts with no `emailSubmission`, `smsWe`, `Email:Host`,
+   `Sms:We:BaseAddress` or `Push:Subject`; one that registers the providers alone with
+   `Hermes:Email` present does not start without `emailSubmission` (M-020).
 5. An application with `Hermes:Messages:Enabled` and `Hermes:Dispatch:Enabled` off,
    `Hermes:Jobs:Enabled` off and no push subscription group starts without
    `contentKeys`, and its `SendAsync` throws.
@@ -310,69 +303,11 @@ change or a removal, and a request member a caller must now send, are major.
 
 ---
 
-**MSG-LIB-007** — The two `Hermes.Janus` packages SHALL let a host that uses the Janus
-identity library connect the two, with neither library depending on the other.
-
-**Values (M-003, M-012).** `Hermes.Janus.Channels`, for an application that needs the
-providers, with or without the engine: `services.AddHermesJanusChannels(configuration)`
-registers, for each channel `Hermes:Janus:Transports` names, Janus's transport for it,
-and the shipped provider it goes over where the host registers none, as
-`AddHermesChannels` would (registering it does not make an application one that
-registers the providers alone, MSG-LIB-003): `IMailTransport` over this library's email
-provider, and `ISmsTransport` over its SMS provider, with Janus's report reading through
-the provider's `ReadReportAsync`, each channel then being used (MSG-LIB-003), so Janus's
-own messages (sign-in codes, links, alerts) go through the same provider configuration,
-while Janus keeps its own rules for when to send; a channel the key does not name gets
-no transport, and needs none of its keys or secrets unless the engine uses it. The SMS
-transport refuses a number outside `Hermes:Sms:AllowedPrefixes` without calling the
-provider, answering Janus as Janus's transport contract has it answer a refused number
-(named with the rest of Janus's API, plan, phase 6), since a sign-in route is where SMS
-pumping aims and narrowing the prefixes must stop it there too. Otherwise those messages
-do not pass through the engine: its checks, limits, balance floor, rates and alerts do
-not apply to them, so the provider account's own rate must carry both the engine's
-sends, which `Hermes:Sms:Rate` and `Hermes:Email:Rate` bound, and Janus's (`06`
-MSG-OPS-007).
-
-`Hermes.Janus`, for an application that uses the engine: `services.AddHermesJanus()`
-registers:
-- `IRecipientIdentity` over Janus's `IRequestAccess`, the person reference being the
-  subject identifier Janus gives;
-- `IContentProtector`, `Id` `janus`, over Janus's per-person field encryption
-  (`IPersonalFields`), under a type and encrypted fields the bridge declares to Janus
-  (named once the reference of Janus's API is in hand, plan, phase 6), so that Janus's
-  erasure of a person makes this library's copies of their messages unreadable; it joins
-  the unit of work the send runs in (`IMessages` resolves it from the scope it was
-  called in, `01` MSG-SEND-003), so a person made in the same transaction is protected
-  under their new key, and it binds the context by writing, at the head of the
-  plaintext, the context's UTF-8 length in 2 bytes, big-endian, then its UTF-8 bytes,
-  and checking them on reading, a layout two releases share (`08` section 8), since
-  Janus's own additional data names the subject, type and field only; it is called only
-  for a person, the engine protecting an anonymous recipient's values with its own
-  protector (`01` MSG-SEND-018);
-- a subscriber to Janus's subject events and an export contributor over `ISubjects`, so
-  a person's erasure in Janus erases here (`01` MSG-SEND-020) and their export includes
-  what is held here; where `EraseAsync` answers a failure, the subscriber fails the
-  event, so Janus delivers it again;
-- `IConsentSource` over the consent reading Janus gives a host, once Janus offers one
-  (`decision-log.md` M-003).
-
-How SMS delivery reports of both libraries reach the right one when they share WE's
-account is settled once WE's document shows how its report addresses are set (`02`
-MSG-SMS-004, M-008).
-
-*Source: M-003, M-008, M-012*
-
-**Acceptance criteria**
-1. With `Hermes.Janus.Channels` registered, a sign-in code Janus sends goes out through
-   this library's SMS provider.
-2. With `Hermes.Janus.Channels` registered and `Hermes:Janus:Transports` naming `email`
-   alone, an application whose kinds use SMS and with `Hermes:Dispatch:Enabled` off
-   starts with no SMS secret, and registers Janus's mail transport and no SMS transport.
-3. Janus's SMS transport refuses a number outside `Hermes:Sms:AllowedPrefixes` and calls
-   no provider.
-4. With `Hermes.Janus` registered, a send for a person made in the same unit of work is
-   protected under that person's key, and erasing the person in Janus leaves nothing
-   here naming them, while their export includes their deliveries still holding content.
+**MSG-LIB-007** — *Retired by M-020.* No package of this library knows another library.
+A host that uses an identity library beside this one connects the two in its own code:
+its identity library's messages handed to the providers alone (MSG-LIB-003), and the
+engine's seams (MSG-LIB-005: the recipient's identity, the content protector, the
+consent source) and `ISubjects` answered from the identity library's own surface.
 
 ---
 
