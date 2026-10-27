@@ -25,11 +25,15 @@ internal sealed class RecordingSmsProvider : ISmsProvider
 
     private readonly List<SmsReportRequest> reports = [];
 
+    private int balanceReads;
+
     internal Func<SmsMessage, Attempt> Answer { get; set; } = _ => new Attempt.Accepted(null);
 
     internal Func<SmsMessage, CancellationToken, Task>? Before { get; set; }
 
     internal Func<BalanceReading> Balance { get; set; } = () => new BalanceReading.NotSupported();
+
+    internal int BalanceReads => Volatile.Read(ref balanceReads);
 
     internal IReadOnlyList<SmsMessage> Received
     {
@@ -75,6 +79,7 @@ internal sealed class RecordingSmsProvider : ISmsProvider
 
     public ValueTask<BalanceReading> BalanceAsync(CancellationToken cancellationToken)
     {
+        Interlocked.Increment(ref balanceReads);
         return ValueTask.FromResult(Balance());
     }
 

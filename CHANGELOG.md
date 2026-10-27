@@ -154,3 +154,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   address, `/sms/report/` and the `smsReportKey` write version's key, which the start then
   needs where SMS is dispatched; a report whose key matches records when its version last
   matched in the key table
+- The `balance` job: where the application dispatches and SMS is used, whatever
+  `Hermes:Jobs:Enabled` says, it reads the SMS balance every `Hermes:Sms:BalancePoll` and
+  records each reading, raising `sms-balance` for a drain over `Hermes:Sms:DrainFactor` of
+  the baseline or a balance that would reach `Hermes:Sms:BalanceFloor` within
+  `Hermes:Sms:FloorWarning`, and `sms-balance-unreadable` once reads have failed for
+  `Hermes:Sms:BalanceUnreadableAfter`; below the floor an optional category's SMS ends
+  `balancefloor`, and a provider that reports no balance has no floor

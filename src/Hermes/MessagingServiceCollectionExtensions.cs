@@ -91,6 +91,7 @@ public static class MessagingServiceCollectionExtensions
         {
             services.AddSingleton<IHostedService, HostedDispatcher>();
             services.AddSingleton<IHostedService, ObserverJob>();
+            services.AddSingleton<IHostedService, BalanceJob>();
         }
 
         // Dispatch:Enabled is read only at the start, so the configuration given here is the one the application runs under.

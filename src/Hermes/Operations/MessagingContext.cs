@@ -51,6 +51,8 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
     internal DbSet<RejectedReportRow> RejectedReports => Set<RejectedReportRow>();
 
+    internal DbSet<BalanceRow> BalanceReadings => Set<BalanceRow>();
+
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
     {
@@ -114,6 +116,7 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
         JobTable(modelBuilder);
         ChoiceTables(modelBuilder);
         ReportTables(modelBuilder);
+        BalanceTable(modelBuilder);
     }
 
     /// <summary>The send's tables (<c>01</c> MSG-SEND-003 to MSG-SEND-009, MSG-SEND-014, MSG-SEND-017), each closed set checked by the database.</summary>
@@ -361,6 +364,18 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             rejected.HasKey(row => row.Minute).HasName("pk_rejected_reports");
             rejected.Property(row => row.Minute).HasColumnName("minute");
             rejected.Property(row => row.Count).HasColumnName("count");
+        });
+    }
+
+    /// <summary>The SMS balance's readings (<c>02</c> MSG-SMS-006), one per poll.</summary>
+    private static void BalanceTable(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<BalanceRow>(reading =>
+        {
+            reading.ToTable("balance_readings");
+            reading.HasKey(row => row.ReadAt).HasName("pk_balance_readings");
+            reading.Property(row => row.ReadAt).HasColumnName("read_at");
+            reading.Property(row => row.Units).HasColumnName("units");
         });
     }
 

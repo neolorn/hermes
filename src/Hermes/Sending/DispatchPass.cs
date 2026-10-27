@@ -66,6 +66,9 @@ internal sealed partial class DispatchPass : IDisposable
 
     private bool heldForKey;
 
+    /// <summary>The last balance recorded, read once a pass at the first optional SMS it checks; none until a first balance is recorded.</summary>
+    private Task<decimal?>? balance;
+
     private IEmailSession? session;
 
     internal DispatchPass(DispatchPasses passes, Channel channel, Action<int, int>? claimed, CancellationToken stopping)
@@ -296,6 +299,12 @@ internal sealed partial class DispatchPass : IDisposable
         if (channel == Channel.Sms && !SenderRule.Allows(passes.Channels.CurrentValue.Sms.AllowedPrefixes, values["destination"]!))
         {
             await EndAtCheckAsync(delivery, AttemptReason.DestinationNotAllowed).ConfigureAwait(false);
+            return;
+        }
+
+        if (channel == Channel.Sms && category is { Essential: false } && await (balance ??= LastBalanceAsync()).ConfigureAwait(false) < passes.Channels.CurrentValue.Sms.BalanceFloor)
+        {
+            await EndAsync(delivery, "balancefloor", reason: null, giveBack: true).ConfigureAwait(false);
             return;
         }
 
@@ -938,6 +947,21 @@ internal sealed partial class DispatchPass : IDisposable
         }
 
         return held;
+    }
+
+    /// <summary>The last balance the balance job recorded (<c>02</c> MSG-SMS-006), or none.</summary>
+    private async Task<decimal?> LastBalanceAsync()
+    {
+        MessagingContext context = passes.Database.Context();
+        await using (context.ConfigureAwait(false))
+        {
+            return await context.BalanceReadings.AsNoTracking()
+                .Where(row => row.Units != null)
+                .OrderByDescending(row => row.ReadAt)
+                .Select(row => row.Units)
+                .FirstOrDefaultAsync(finish.Token)
+                .ConfigureAwait(false);
+        }
     }
 
     /// <summary>Ends the delivery <c>failed</c> at the channel's own check, an attempt answered there with no call.</summary>

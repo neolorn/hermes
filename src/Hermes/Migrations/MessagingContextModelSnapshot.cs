@@ -208,6 +208,22 @@ namespace Hermes.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hermes.Sending.BalanceRow", b =>
+                {
+                    b.Property<DateTimeOffset>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<decimal?>("Units")
+                        .HasColumnType("numeric")
+                        .HasColumnName("units");
+
+                    b.HasKey("ReadAt")
+                        .HasName("pk_balance_readings");
+
+                    b.ToTable("balance_readings", "messaging");
+                });
+
             modelBuilder.Entity("Hermes.Sending.CallRow", b =>
                 {
                     b.Property<Guid>("DeliveryId")
