@@ -102,6 +102,22 @@ public sealed class SecretTests
     }
 
     [Fact]
+    public async Task MSG_OPS_008_AC1_TokenKeysMissingWhereTheUnsubscribeGroupIsMappedStopsTheStartNamingIt()
+    {
+        Dictionary<string, string?> configuration = TestHost.Languages();
+        configuration["Hermes:Messages:Enabled"] = "false";
+        using IHost host = TestHost.Build(
+            configuration,
+            Essential,
+            services => services.AddSingleton<ISecretSource>(Secrets.Held().Without("tokenKeys")),
+            map: application => application.MapHermesUnsubscribe("/notifications"));
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        AssertFailure(failure, "messaging.startup.secretunavailable", "tokenKeys");
+    }
+
+    [Fact]
     public async Task Start_TokenKeysWhereNoSendsAreRecorded_IsNotRead()
     {
         SecretSourceFake secrets = Secrets.Held().Without("tokenKeys");

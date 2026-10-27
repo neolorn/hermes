@@ -50,4 +50,6 @@ internal static class Codes
     internal const string RequestMediaType = "messaging.request.mediatype";
 
     internal const string RequestUnavailable = "messaging.request.unavailable";
+
+    internal const string UnsubscribeInvalid = "messaging.unsubscribe.invalid";
 }

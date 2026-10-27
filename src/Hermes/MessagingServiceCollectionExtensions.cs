@@ -65,6 +65,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddSingleton<TemplateRenderer>();
         services.AddSingleton<Templates>();
         services.AddSingleton<SendRenderer>();
+        services.AddSingleton<PageRenderer>();
         services.AddSingleton<KeyedHashes>();
         services.AddSingleton<UnsubscribeTokens>();
         services.AddSingleton<HostSchemas>();

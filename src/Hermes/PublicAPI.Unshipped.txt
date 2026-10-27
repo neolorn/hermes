@@ -22,3 +22,4 @@ Hermes.MessagingServiceCollectionExtensions
 static Hermes.MessagingServiceCollectionExtensions.AddHermes(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration, System.Action<Hermes.DeclarationBuilder!>! declare) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 Hermes.MessagingEndpointRouteBuilderExtensions
 static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesPreferences(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
+static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesUnsubscribe(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!

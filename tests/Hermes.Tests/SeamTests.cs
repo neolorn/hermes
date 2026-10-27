@@ -98,6 +98,18 @@ public sealed class SeamTests
     }
 
     [Fact]
+    public async Task MSG_LIB_005_AC1_RecipientIdentityIsNotRequiredWhereOnlyTheUnsubscribeGroupIsMapped()
+    {
+        using IHost host = TestHost.Build(
+            TestHost.Languages(),
+            Essential,
+            services => services.AddSingleton<ISecretSource>(new SecretSourceFake()),
+            map: application => application.MapHermesUnsubscribe(Endpoints.Prefix));
+
+        await StartStage.AssertPastTheSeams(host);
+    }
+
+    [Fact]
     public void Map_AfterTheHostStarted_Throws()
     {
         Assert.Throws<InvalidOperationException>(() => TestHost.Build(

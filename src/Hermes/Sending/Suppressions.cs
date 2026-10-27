@@ -11,6 +11,8 @@ using Hermes.Operations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
+using Npgsql;
+
 namespace Hermes.Sending;
 
 /// <summary>
@@ -27,6 +29,11 @@ internal sealed class Suppressions(
     Alerts alerts,
     TimeProvider clock) : ISuppressions
 {
+    private const string SuppressHash = """
+        INSERT INTO messaging.suppressions (channel, category, hash, hash_version, made_at) VALUES ('email', @category, @hash, @version, @now)
+        ON CONFLICT (channel, category, hash) DO NOTHING
+        """;
+
     public ValueTask<Result> AddAsync(Channel channel, string destination, string category, CancellationToken cancellationToken)
     {
         return ChangeAsync(channel, destination, category, add: true, cancellationToken);
@@ -51,6 +58,24 @@ internal sealed class Suppressions(
             Channel.Sms => Destinations.IsPhone(destination) ? Encoding.UTF8.GetBytes(destination) : null,
             _ => null,
         };
+    }
+
+    /// <summary>
+    /// Suppresses, for <paramref name="category"/>, the email address whose keyed hash under
+    /// <paramref name="version"/> is <paramref name="hash"/>, as an unsubscribe token names it
+    /// (<c>05</c> MSG-API-005); a hash already suppressed is left as it is.
+    /// </summary>
+    internal static Task<int> SuppressHashAsync(MessagingContext context, string category, byte[] hash, int version, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        return context.Database.ExecuteSqlRawAsync(
+            SuppressHash,
+            [
+                new NpgsqlParameter("category", category),
+                new NpgsqlParameter("hash", hash),
+                new NpgsqlParameter("version", version),
+                new NpgsqlParameter("now", now),
+            ],
+            cancellationToken);
     }
 
     /// <summary>The domain of <paramref name="channel"/>'s suppression hashes.</summary>

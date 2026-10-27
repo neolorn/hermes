@@ -98,7 +98,7 @@ internal sealed class MessagingStartup(
                 database.Listen(await SecretCheck.ListenConnectionAsync(secrets, cancellationToken).ConfigureAwait(false));
             }
 
-            keys.Hold(await SecretCheck.KeysAsync(secrets, state.Section, KeyNeeds.Needed(declarations, current), cancellationToken).ConfigureAwait(false));
+            keys.Hold(await SecretCheck.KeysAsync(secrets, state.Section, KeyNeeds.Needed(declarations, current, groups), cancellationToken).ConfigureAwait(false));
             if (use.ShippedPush && keys.Find(KeyNeeds.PushVapidKeys) is { } vapid)
             {
                 pushKeys.Hold(vapid.Versions);

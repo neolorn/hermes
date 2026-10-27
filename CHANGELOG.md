@@ -136,3 +136,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answers, 401 where it answers none; JSON bodies read and written through the library's
   own serializer context, only as `application/json` and at most 16 KiB; a person's locks
   not had within `Dispatch:Timeout` answered 503 with `Retry-After`
+- The unsubscribe group, `MapHermesUnsubscribe(prefix)`: RFC 8058's one-click
+  `POST /unsubscribe/{token}` suppresses the address the token names by hash for its
+  category, and `GET` shows the `unsubscribe` page in the token's language, which asks
+  before it does; the group allows anonymous requests, takes no forgery protection, sets
+  no cookie, never redirects and answers every page with `no-store`, `no-referrer`,
+  `nosniff` and a closed content security policy; a token naming a key version in use
+  but not held is answered 503 and raises `key-unavailable`

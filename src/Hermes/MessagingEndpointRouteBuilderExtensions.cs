@@ -34,6 +34,24 @@ public static class MessagingEndpointRouteBuilderExtensions
         return group;
     }
 
+    /// <summary>
+    /// Maps the unsubscribe group: RFC 8058's one-click <c>POST /unsubscribe/{token}</c> and
+    /// <c>GET /unsubscribe/{token}</c>, whose page asks before it unsubscribes. Mail providers
+    /// call it with no session, so it allows anonymous requests and takes no forgery
+    /// protection; a host adds neither to it.
+    /// </summary>
+    /// <param name="endpoints">The host's endpoints.</param>
+    /// <param name="prefix">The prefix the group's routes are under.</param>
+    /// <returns>The group's route group.</returns>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    /// <exception cref="InvalidOperationException"><c>AddHermes</c> is not registered, or the host has started.</exception>
+    public static RouteGroupBuilder MapHermesUnsubscribe(this IEndpointRouteBuilder endpoints, string prefix)
+    {
+        RouteGroupBuilder group = Group(endpoints, prefix, groups => groups.Unsubscribe = true);
+        UnsubscribeEndpoints.Map(group);
+        return group;
+    }
+
     private static RouteGroupBuilder Group(IEndpointRouteBuilder endpoints, string prefix, Action<EndpointGroups> record)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
