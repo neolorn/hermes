@@ -87,6 +87,48 @@ public sealed class HostedDispatchTests(PostgresFixture postgres) : IClassFixtur
     }
 
     [Fact]
+    public async Task MSG_SEND_007_AC13_WithFourPassesHeldByAHangingConsentSourceAnEssentialDeliveryRecordedAfterThemIsSentWithinIntervalAndOneTimeout()
+    {
+        RecordingSmsProvider sms = new();
+        int hanging = 0;
+        ConsentSourceFake consent = new()
+        {
+            Answer = async (_, cancellationToken) =>
+            {
+                Interlocked.Increment(ref hanging);
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+                return ConsentAnswer.Given;
+            },
+        };
+        await using EngineHost host = await StartAsync(
+            sms,
+            configuration =>
+            {
+                configuration["Hermes:Dispatch:MaxPasses"] = "4";
+                configuration["Hermes:Dispatch:BatchSize"] = "1";
+                configuration["Hermes:Dispatch:Timeout"] = "00:00:10";
+            },
+            declare: declare => ConsentTests.Declare(declare),
+            consent: consent);
+        await ListeningAsync(host);
+        for (int index = 0; index < 4; index++)
+        {
+            await host.SendAsync(ConsentTests.PromotionTo($"+20120000000{index}") with { Recipient = new Recipient.Person($"person-{index}") });
+        }
+
+        await UntilAsync(() => Volatile.Read(ref hanging) == 4);
+        await host.SendAsync(SendTests.Code(channels: [Channel.Sms]));
+        await Task.Delay(300, TestContext.Current.CancellationToken);
+        int before = sms.Received.Count;
+        host.Clock.Advance(TimeSpan.FromSeconds(10));
+
+        await UntilAsync(() => sms.Received.Count == 1);
+        Assert.Equal(0, before);
+        Assert.Equal(SendTests.Phone, Assert.Single(sms.Received).ToNumber);
+        Assert.Equal(4, consent.Queries.Count);
+    }
+
+    [Fact]
     public async Task MSG_OPS_004_AC1_WithHostedOffNoPassRunsUntilRunPassAsyncIsCalled()
     {
         RecordingSmsProvider sms = new();
@@ -137,10 +179,13 @@ public sealed class HostedDispatchTests(PostgresFixture postgres) : IClassFixtur
         RecordingSmsProvider sms,
         Action<Dictionary<string, string?>>? configure = null,
         string? connection = null,
-        SecretSourceFake? secrets = null)
+        SecretSourceFake? secrets = null,
+        Action<DeclarationBuilder>? declare = null,
+        IConsentSource? consent = null)
     {
         return await EngineHost.StartAsync(
             connection ?? await EngineHost.DatabaseAsync(postgres),
+            declare: declare,
             configure: configuration =>
             {
                 EngineHost.Dispatching(configuration);
@@ -151,6 +196,10 @@ public sealed class HostedDispatchTests(PostgresFixture postgres) : IClassFixtur
             {
                 services.AddSingleton<IEmailProvider>(new RecordingEmailProvider());
                 services.AddSingleton<ISmsProvider>(sms);
+                if (consent is not null)
+                {
+                    services.AddSingleton(consent);
+                }
             },
             secrets: secrets);
     }
