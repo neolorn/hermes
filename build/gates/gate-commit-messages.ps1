@@ -11,7 +11,8 @@
     feat, fix or perf, or marked as breaking, adds its line under the changelog's Unreleased
     section, under "Added" while no release is tagged. No commit changes or deletes an existing
     PublicAPI.Shipped.txt or build/gates/release-baseline.json; adding one, or moving one
-    unchanged, is no change.
+    unchanged, is no change, and a PublicAPI.Shipped.txt holding no entry may be deleted in
+    the commit that deletes the project file beside it.
 .PARAMETER Repository
     The repository to check; by default, this one.
 .PARAMETER Base
@@ -138,10 +139,25 @@ function Test-ReleasedFile([string] $path) {
     $path -ceq 'build/gates/release-baseline.json' -or ($path -split '/')[-1] -ceq 'PublicAPI.Shipped.txt'
 }
 
+# Whether $path is a PublicAPI.Shipped.txt that holds no entry in $parent (nothing but
+# #nullable enable and blank lines) and whose folder's project file $deleted holds (M-021).
+function Test-EntryFreeShippedFileGoingWithItsProject([string] $parent, [string] $path, [string[]] $deleted) {
+    if (($path -split '/')[-1] -cne 'PublicAPI.Shipped.txt') { return $false }
+
+    $folder = $path.Substring(0, [Math]::Max(0, $path.LastIndexOf('/')))
+    $projects = @($deleted | Where-Object { $_.EndsWith('.csproj', [StringComparison]::Ordinal) -and $_.Substring(0, [Math]::Max(0, $_.LastIndexOf('/'))) -ceq $folder })
+    if ($projects.Count -eq 0) { return $false }
+
+    $lines = @(Invoke-Git show "${parent}:$path")
+    return @($lines | Where-Object { ([string]$_).Trim() -cnotin '', '#nullable enable' }).Count -eq 0
+}
+
 # PublicAPI.Shipped.txt and the release baseline change only in a release commit, whose
-# exemption comes with the release step (plan, phase 8).
+# exemption comes with the release step (plan, phase 8); a PublicAPI.Shipped.txt holding no
+# entry may go in the commit that deletes the project file beside it (M-021).
 function Get-ReleasedFileProblems([string] $commit, [string] $parent) {
     $changes = @(Invoke-Git diff --name-status --find-renames=100% $parent $commit)
+    $deleted = @($changes | ForEach-Object { $fields = $_ -split "`t"; if ($fields[0] -eq 'D') { $fields[1] } })
     foreach ($change in $changes) {
         $fields = $change -split "`t"
         $status = $fields[0]
@@ -151,7 +167,7 @@ function Get-ReleasedFileProblems([string] $commit, [string] $parent) {
             $kept = $status -eq 'R100' -and ($moved -split '/')[-1] -ceq ($path -split '/')[-1] -and $path -cne 'build/gates/release-baseline.json'
             if ((Test-ReleasedFile $path) -and -not $kept) { "it deletes $path, which changes only in a release commit" }
         }
-        elseif ($status -eq 'D' -and (Test-ReleasedFile $path)) { "it deletes $path, which changes only in a release commit" }
+        elseif ($status -eq 'D' -and (Test-ReleasedFile $path) -and -not (Test-EntryFreeShippedFileGoingWithItsProject $parent $path $deleted)) { "it deletes $path, which changes only in a release commit" }
         elseif ($status -in 'M', 'T' -and (Test-ReleasedFile $path)) { "it changes $path, which changes only in a release commit" }
     }
 }
