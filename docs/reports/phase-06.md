@@ -4,16 +4,19 @@
 
 | Item | Tests |
 |---|---|
-| `07` MSG-ENG-011, the commit scopes without `janus` | `MSG_ENG_011_AC1_CommitMessageOutsideTheRuleFails` (the case `build(janus): ...`) |
-| `07` MSG-ENG-001, the grants of `Hermes.Channels` to `Hermes` and `Hermes.Testing` alone | `MSG_ENG_001_AC1_GrantOutsideTheRuleIsFound` (the grant to the channels bridge, now outside the rule), `MSG_ENG_001_AC1_GrantWithinTheRuleIsAccepted` |
+| The removal of `src/Hermes.Janus`, `src/Hermes.Janus.Channels`, `tests/Hermes.Janus.Tests` and `tests/Hermes.Janus.Channels.Tests` (`8460276`), with every row naming them: `04` MSG-LIB-001's two rows of the references test, MSG-LIB-002's two rows of public types, the packages of `07` MSG-ENG-001's layout and of the repository tests' references, and the mapping of `samples/nuget.config` | `MSG_LIB_001_AC1_ProjectReferencesFollowTheRule`, `MSG_ENG_001_AC1_ProjectFoldersFollowTheLayout`, `MSG_ENG_001_AC1_SamplePackageSourcesFollowTheRule`, `MSG_ENG_001_AC2_TheSampleHostBuildsFromThePackagesPackedFromThisCommitAndItsTestsPass`, `Pack_EachPackage_CarriesItsDescriptionAuthorsAndAddressAlone` |
+| `07` MSG-ENG-011 criterion 2 as M-021 amends it, in the commit gate | `MSG_ENG_011_AC2_ShippedFileHoldingNoEntryDeletedWithTheProjectFileBesideItPasses`, `MSG_ENG_011_AC2_ShippedFileHoldingNoEntryDeletedWhileTheProjectFileStaysFails`, `MSG_ENG_011_AC2_ShippedFileHoldingAnEntryDeletedWithTheProjectFileBesideItFails`, `MSG_ENG_011_AC2_CommitDeletingAReleasedFileFails` |
+| `07` MSG-ENG-011, the commit scopes without `janus` | `MSG_ENG_011_AC1_CommitMessageOutsideTheRuleFails` (the case `build(extra): ...`, a scope outside the list) |
+| `07` MSG-ENG-001, the grants of `Hermes.Channels` to `Hermes` and `Hermes.Testing` alone | `MSG_ENG_001_AC1_GrantOutsideTheRuleIsFound`, `MSG_ENG_001_AC1_GrantWithinTheRuleIsAccepted` |
 | `04` MSG-LIB-003 criterion 4 as M-020 has it, its email and push halves | `MSG_LIB_003_AC4_AnApplicationThatDoesNotDispatchAndRegistersNoProvidersAloneStartsWithNoEmailOrPushProviderKeyOrSecret`, `MSG_LIB_003_AC4_TheProvidersAloneWithTheEmailSectionPresentDoNotStartWithoutEmailSubmission` |
 | `07` MSG-ENG-009, the allow-list without the bridge's row | The rule's note no longer names a package to join it; the table the test holds never had the row |
+
+Where a test needs a grantee, a project or a scope outside the rules, it takes a made-up name (`Hermes.Extra`, `extra`), so no test names another library.
 
 ## Items not built, and criteria proven in a later phase
 
 | Item or criterion | Phase | Reason |
 |---|---|---|
-| The removal of `src/Hermes.Janus`, `src/Hermes.Janus.Channels`, `tests/Hermes.Janus.Tests` and `tests/Hermes.Janus.Channels.Tests`, with the rows naming them: `04` MSG-LIB-001's two rows and the public types of MSG-LIB-002, the packages of `07` MSG-ENG-001's layout, the mapping of `samples/nuget.config` | Parked | Open question 1 |
 | `00` MSG-OVR-001 criterion 1 | Each phase | Checked in review; see below |
 | `02` MSG-CHAN-001 criterion 4, the SMS half | 7 | The WE adapter, unchanged from phase 4 |
 | `04` MSG-LIB-003 criterion 4, the SMS half (`smsWe`, `Sms:We:BaseAddress`) | 7 | The WE adapter |
@@ -25,17 +28,18 @@
 | Criterion | How it was checked |
 |---|---|
 | `00` MSG-OVR-001 criterion 1 | We read every file this phase adds or changes: no identifier, text, default or fixture names a host product, company or application. |
-| `08` section 4, `Janus:Transports`; `08` section 8, the protector `Id` `janus` | No code reads the key or names the protector: the bridges' projects held no type. |
-| `07` MSG-ENG-008, a test with or before the code it proves | The scope and grant rules each failed their new case before the change that passes it; the criterion 4 tests prove behaviour phase 2 built. |
+| The plan's proof, that nothing names another library | `git grep -i janus` outside `docs/` finds nothing. |
+| `08` section 4, `Janus:Transports`; `08` section 8, the protector `Id` `janus` | No code read the key or named the protector: the bridges' projects held no type. |
+| `07` MSG-ENG-008, a test with or before the code it proves | The commit gate's three new cases, the scope case and the grant case each failed before the change that passes it; the criterion 4 tests prove behaviour phase 2 built; the removal is proven by the rules it changes. |
 | `07` MSG-ENG-009, the packages added | No package is added. |
 
 ## Criteria awaiting the pipeline's run
 
 - `07` MSG-ENG-012 criteria 1 and 2: the `gates` job's run on this phase's pull request, whose result the message naming the pull request gives.
 
-## The pipeline's run
+## The pipeline's earlier runs
 
-The `gates` run 40595893496 on `36266ee` failed in `gate-tests`, every other gate passing: `PackTests.Pack_EachPackage_CarriesItsDescriptionAuthorsAndAddressAlone` (`07` MSG-ENG-011) finds that the descriptions of `Hermes.Janus` and `Hermes.Janus.Channels` are no cell of `00` section 2.2, since M-020 took their rows out of the table. The projects' removal, parked by open question 1, is what passes it; a description outside `00`, or a test that skips the two packages, would weaken the rule. The run on this phase fails the same way until that answer comes.
+The `gates` runs 40595893496 on `36266ee` and 40597661836 on `25fa54b` failed in `gate-tests` alone, on `Pack_EachPackage_CarriesItsDescriptionAuthorsAndAddressAlone`: M-020 had taken the bridges' rows out of `00` section 2.2 while their projects, parked by open question 1, were still in. The removal passes it here.
 
 ## Analyser suppressions
 
@@ -47,29 +51,21 @@ This phase resolved nothing by rule.
 
 ## Open questions
 
-1. **`07` MSG-ENG-011 criterion 2 against the plan's phase 6 (Tier 2).**
-   - Item: phase 6 takes the two bridge projects out (M-020).
-   - What the code needs: deleting `src/Hermes.Janus/PublicAPI.Shipped.txt` and `src/Hermes.Janus.Channels/PublicAPI.Shipped.txt` with their projects. Each holds only `#nullable enable`, and no release tag exists.
-   - What the specification says: `07` MSG-ENG-011 criterion 2 fails a commit that deletes an existing `PublicAPI.Shipped.txt`, save the release commit, whose exemption comes with the release step (phase 8). Run on the removal, `gate-commit-messages` failed it twice, once for each file, so we took the commit back before any push.
-   - Readings: (a) the criterion governs only a file that holds released API, so a file holding no entry may go with its project; (b) the criterion holds as written, and the projects come out in the release commit of phase 8; (c) the criterion holds as written until the first release, and the projects wait for an amendment that names this removal.
-   - Smallest fix for (a): criterion 2 and its value in `07` add "a `PublicAPI.Shipped.txt` holding no entry, deleted with its project, is neither", and `gate-commit-messages.ps1` passes such a deletion.
-   - Smallest fix for (b): the plan moves the removal to phase 8's release commit.
-   - Smallest fix for (c): an M-entry that names the two files as exempt for this one removal, which the gate cannot express without a list of exempt paths.
-
-   Parked by it: the removal of the four projects and every row naming them, and with it the pipeline's green run (see above). Nothing else depends on it.
+1. **`07` MSG-ENG-011 criterion 2 against the plan's phase 6 (Tier 2).** The removal deleted two `PublicAPI.Shipped.txt` files holding only `#nullable enable`, which criterion 2 failed outside the release commit. Answered by M-021, reading (a): a `PublicAPI.Shipped.txt` that holds no entry, as the commit's parent holds it, may be deleted in the commit that deletes the project file beside it; the same deletion while that project file stays, and the deletion of a file holding an entry, still fail. The commit gate checks it (`bbb614e`), and the removal is built on it (`8460276`).
 
 ## Commit and checks
 
-The report names commit `9af8a69c726568f6e3dd605495141466b2b0539d`. On its tree, clean:
+The report names commit `aa7c1ccbb89bfc6624b6f3b3b8af6cb4594caefa`. On its tree, clean:
 
 | Check | Result |
 |---|---|
 | Fast checks: `dotnet format --verify-no-changes`, the build with warnings as errors and the analysers | Passed |
-| Every unit test | Passed: 1,138 (`Hermes.Tests` 504, `Hermes.Channels.Tests` 360, `Hermes.Repository.Tests` 201, `Hermes.Core.Tests` 41, `Hermes.Cli.Tests` 18, `Hermes.Testing.Tests` 14); the Janus test projects hold no test |
-| Every contract test | Passed: 72 (`Hermes.Repository.Tests` 54, `Hermes.Tests` 18) |
-| Integration tests this phase touches, run here by class | Passed: `CommitMessageGateTests` |
-| Commit message format, changelog line and released files (`gate-commit-messages`) | Passed: 5 commits after `main` |
-| Secret scanning of the whole history (`gate-secret-scan`) | Passed: 129 commits, no leaks |
+| Every unit test | Passed: 1,136 (`Hermes.Tests` 504, `Hermes.Channels.Tests` 360, `Hermes.Repository.Tests` 199, `Hermes.Core.Tests` 41, `Hermes.Cli.Tests` 18, `Hermes.Testing.Tests` 14) |
+| Every contract test | Passed: 58 (`Hermes.Repository.Tests` 40, `Hermes.Tests` 18); the repository's contract tests read the five packages left |
+| Integration tests this phase touches, run here by class | Passed: `CommitMessageGateTests`, `PackTests`, `SampleHostGateTests` |
+| Acceptance-criterion test names (`gate-test-names`) | Passed: 242 criteria |
+| Commit message format, changelog line and released files (`gate-commit-messages`) | Passed: 11 commits after `main`, the removal among them |
+| Secret scanning of the whole history (`gate-secret-scan`) | Passed: 135 commits, no leaks |
 
 The full integration set is the pipeline's (M-018). The gate of record is the pipeline's `gates` run on the report's own commit, whose identifier and result the message naming the pull request gives. The commit-message gate and the secret scan are run again on the report's commit before the push.
 
