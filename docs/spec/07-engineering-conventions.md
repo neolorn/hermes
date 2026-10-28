@@ -384,7 +384,9 @@ and MinVer SHALL derive the version from the tag.
   commit that is not pushed and that no other branch has merged MAY be amended or
   rebased to meet a gate; history that is pushed or merged is never rewritten.
   `PublicAPI.Shipped.txt` changes only in a release commit, as
-  `build/gates/release-baseline.json` does (`04` MSG-LIB-006).
+  `build/gates/release-baseline.json` does (`04` MSG-LIB-006), save that one holding no
+  entry (nothing but `#nullable enable` and blank lines) MAY be deleted in the commit
+  that deletes the project file beside it, since it records nothing released (M-021).
 - **Releases:** a release is a tag `v<major>.<minor>.<patch>` on the default branch,
   made by the implementer on the merged release commit when the owner's message says to
   release; the pipeline packs the packages from the tag and attaches them to the tag's
@@ -403,7 +405,7 @@ and MinVer SHALL derive the version from the tag.
   both are names inside NuGet's pack targets, not a documented setting, so `04`
   MSG-LIB-001's criterion 3 is what catches an SDK that changes them.
 
-*Source: M-012, M-014, M-015, M-020*
+*Source: M-012, M-014, M-015, M-020, M-021*
 
 **Acceptance criteria**
 1. A commit message outside the rule, and a behaviour-changing commit without a
@@ -411,7 +413,10 @@ and MinVer SHALL derive the version from the tag.
 2. A commit that changes the content of an existing `PublicAPI.Shipped.txt` or
    `build/gates/release-baseline.json`, or deletes one, fails a check, save the release
    commit, whose exemption comes with the release step (plan, phase 8); a file that
-   moves unchanged with its project (the rename of phase 8) is neither.
+   moves unchanged with its project (the rename of phase 8) is neither; nor is a
+   `PublicAPI.Shipped.txt` holding no entry deleted in the commit that deletes the
+   project file beside it (M-021). The same deletion while that project file stays, or
+   the deletion of a file that holds an entry, fails.
 
 ---
 

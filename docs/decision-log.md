@@ -1118,6 +1118,34 @@ waited on).
 
 ---
 
+## M-021 — Phase 6's question: an empty `PublicAPI.Shipped.txt` leaves with its project
+
+**Date:** 2026-10-28 · **Status:** accepted · **Follows from:** M-020
+
+Phase 6 removes the two bridge projects (M-020), and with them their
+`PublicAPI.Shipped.txt` files, each holding nothing but `#nullable enable`. MSG-ENG-011
+criterion 2 fails every commit that deletes such a file outside the release commit, so
+the commit gate refused the removal, and phase 6 parked it. The rule exists so that a
+released member never leaves the public surface without the release that records it
+(`04` MSG-LIB-006). A `PublicAPI.Shipped.txt` holding no entry records no released
+member, and deleting it in the commit that deletes the project file beside it removes
+nothing a host could have used.
+
+So such a file MAY be deleted with its project; every other deletion, and every change,
+still waits for the release commit. The commit gate tells the case apart from the file
+as the commit's parent holds it (nothing but `#nullable enable` and blank lines) and
+from the project file in the same folder deleted in the same commit. A project that has
+shipped a member keeps an entry, so the exception never reaches released surface.
+*Rejected:* taking the bridges out in phase 8's release commit (the release commit would
+carry an unrelated removal, and every run fails until then, since `00` no longer
+describes the two packages); an exemption naming the two paths (a list the gate would
+keep for a one-off).
+
+**Propagated to:** `07` MSG-ENG-011 (the history value, criterion 2);
+`implementation-plan.md` (phase 6's row).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1142,3 +1170,4 @@ waited on).
 | The full gate runs in the pipeline, not on the implementer's machine | M-018 |
 | Phase 5's report: the endpoint contract placed, the sample host first, the gates paragraph brought to M-018 | M-019 |
 | A standalone library: the Janus bridges come out, and the release does not wait for WE | M-020 |
+| Phase 6's question: an empty `PublicAPI.Shipped.txt` leaves with its project | M-021 |
