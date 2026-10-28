@@ -321,15 +321,14 @@ document, which the adapter's build needs in hand (plan, phase 7):
 - whether the report address is given with each request (then the adapter passes the
   message's `ReportAddress`, MSG-SMS-004, and `Hermes:Sms:ReportBaseAddress` is required
   where SMS is dispatched (`04` MSG-LIB-003) through the adapter in an engine
-  application, the bridge's reports being settled with the rest of WE's answers, `04`
-  MSG-LIB-007) or set once for the account;
+  application) or set once for the account;
 - whether WE can call an `https` address; where it can call only plain `http`, the
   deployment serves the report group on a listener of its own exempt from HTTPS
   redirection, and the key then travels in clear (`10` MSG-THR-001);
 - whether UCS-2 text is accepted under a registered sender name;
 - the balance's answer and its unit.
 
-*Source: M-008*
+*Source: M-008, M-020*
 
 **Acceptance criteria**
 1. A send's request and the report of it name the same delivery, by its delivery
@@ -396,13 +395,12 @@ provider sets, the key is the only bar to a forger (`10` MSG-THR-001), and a tim
 attempt, which answered no provider reference, cannot be matched, so its retry goes
 ahead.
 
-Where WE gives one report address per account and another library of the deployment
-sends through the same account (an identity library's sign-in codes, for example), the
-reports of both arrive at one address; which library holds which reference is then
-settled by the bridge (`04` MSG-LIB-007) once WE's document shows how its report
-addresses are set.
+Where WE gives one report address per account and other software of the host sends
+through the same account (an identity library's sign-in codes, for example), the reports
+of both arrive at one address; the host routes the reports that are not this library's,
+since it alone knows both senders (M-020).
 
-*Source: M-008*
+*Source: M-008, M-020*
 
 **Acceptance criteria**
 1. A report with the wrong key, and a report with the right key naming a guessed

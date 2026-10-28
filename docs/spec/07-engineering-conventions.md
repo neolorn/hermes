@@ -28,27 +28,25 @@ files at its root (which file goes in which folder is checked in review). A ship
 project's types are internal unless `04` MSG-LIB-002 makes them public, and its public
 types sit at its root, so each is in its package's namespace; a test project's test
 classes are public, since xUnit.net runs no other. `InternalsVisibleTo` is granted only
-from a source project to its own test project; from `Hermes.Channels` to `Hermes`,
-`Hermes.Janus.Channels` and `Hermes.Testing`, since the rules they need (the address and
-sender rules, the allowed hosts and prefixes; the segment count is public, `SmsText` of
-`Hermes.Core`) live in `Hermes.Channels`; and from `Hermes` to `Hermes.Cli`, which
-applies the migrations `Hermes` holds (`06` MSG-OPS-002), and to `Hermes.Testing`, which
-removes, or keeps from being registered, the engine's hosted dispatcher and `observer`
-job by their types and applies the migrations for a test (`04` MSG-LIB-008). The
-packages are released together (`04` MSG-LIB-001). The sample host has an invented
-domain naming no real product or company (checked in review), declares a few kinds in an
-essential and an optional category, sends through the in-memory providers of
-`Hermes.Testing`, maps every endpoint group, and runs in the gate (MSG-ENG-012) from
-packages packed from the same commit into `artifacts/packages/`, which `.gitignore`
-lists, at a version the gate passes it; it alone has no lockfile and no locked restore,
-since its packages change with every commit. The sample host and its test project are
-outside `Hermes.sln`, in `samples/Samples.sln`, and `samples/nuget.config` adds
-`artifacts/packages/` to the package sources for them alone, so no other restore needs
-the folder. Both `nuget.config` files carry `packageSourceMapping`: the library's own
-package identifiers from `artifacts/packages/` only (in `samples/nuget.config`), Janus's
-from its feed only (added with Janus's source in phase 6 of the plan), and every other
-identifier from nuget.org only, so no package is taken from a source it was not mapped
-to.
+from a source project to its own test project; from `Hermes.Channels` to `Hermes`, and
+`Hermes.Testing`, since the rules they need (the address and sender rules, the allowed
+hosts and prefixes; the segment count is public, `SmsText` of `Hermes.Core`) live in
+`Hermes.Channels`; and from `Hermes` to `Hermes.Cli`, which applies the migrations
+`Hermes` holds (`06` MSG-OPS-002), and to `Hermes.Testing`, which removes, or keeps from
+being registered, the engine's hosted dispatcher and `observer` job by their types and
+applies the migrations for a test (`04` MSG-LIB-008). The packages are released together
+(`04` MSG-LIB-001). The sample host has an invented domain naming no real product or
+company (checked in review), declares a few kinds in an essential and an optional
+category, sends through the in-memory providers of `Hermes.Testing`, maps every endpoint
+group, and runs in the gate (MSG-ENG-012) from packages packed from the same commit into
+`artifacts/packages/`, which `.gitignore` lists, at a version the gate passes it; it
+alone has no lockfile and no locked restore, since its packages change with every
+commit. The sample host and its test project are outside `Hermes.sln`, in
+`samples/Samples.sln`, and `samples/nuget.config` adds `artifacts/packages/` to the
+package sources for them alone, so no other restore needs the folder. Both
+`nuget.config` files carry `packageSourceMapping`: the library's own package identifiers
+from `artifacts/packages/` only (in `samples/nuget.config`), and every other identifier
+from nuget.org only, so no package is taken from a source it was not mapped to.
 
 The repository's other files: at its root the solution (`Hermes.sln`),
 `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `.editorconfig`,
@@ -81,7 +79,7 @@ scripts, and the pipeline runs on GitHub's `ubuntu-24.04` runner using no action
 latest release when the workflow is written and pinned by that release's full commit SHA
 (all checked in review).
 
-*Source: M-012, M-013, M-015*
+*Source: M-012, M-013, M-015, M-020*
 
 **Acceptance criteria**
 1. A test fails on a project outside this layout, a grant outside this rule, or an entry
@@ -325,7 +323,6 @@ the projects `04` MSG-LIB-001 allows.
 | Email | `MailKit` (bringing `MimeKit`) | MIT |
 | Browser push | `Lib.Net.Http.WebPush` (bringing `Lib.Net.Http.EncryptedContentEncoding`) | MIT |
 | Templates | `Fluid.Core` | MIT |
-| Bridge | Janus's main package | The owner's |
 | Public surface | `Microsoft.CodeAnalysis.PublicApiAnalyzers` (build-only) | MIT |
 | Versioning | `MinVer` (build-only) | Apache 2.0 |
 | Tests | `xunit.v3`, `Testcontainers.PostgreSql`, `Microsoft.AspNetCore.Mvc.Testing` | Apache 2.0, MIT, MIT |
@@ -340,7 +337,7 @@ stable release when added, the Microsoft packages at the release that matches th
 the rejected alternatives are M-002, M-013 and M-017. Adding a package is a decision-log
 entry.
 
-*Source: M-002, M-012, M-013, M-015, M-017*
+*Source: M-002, M-012, M-013, M-015, M-017, M-020*
 
 **Acceptance criteria**
 1. The set of direct package references is within this table, and the tool manifest
@@ -373,14 +370,13 @@ and MinVer SHALL derive the version from the tag.
 **Values (M-012, M-015).**
 - **Commit message:** a type of `feat`, `fix`, `refactor`, `perf`, `test`, `docs`,
   `build`, `ci`, `chore`; an optional scope naming the package's area (`core`,
-  `channels`, `engine`, `janus`, `testing`, `cli`, `sample`); a description in the
-  imperative (checked in review), beginning with a lower-case letter (a name it mentions
-  keeps its own spelling: `add the SMTP provider`), with no full stop, the first line at
-  most 72 characters; a body only where the diff cannot explain itself (checked in
-  review), as dash fragments of at most 72 characters, each a reason or a non-obvious
-  consequence; a footer carrying the items the commit implements
-  (`Implements: MSG-SEND-006`) and nothing else; `!` or `BREAKING CHANGE:` for a break
-  of `04` MSG-LIB-006.
+  `channels`, `engine`, `testing`, `cli`, `sample`); a description in the imperative
+  (checked in review), beginning with a lower-case letter (a name it mentions keeps its
+  own spelling: `add the SMTP provider`), with no full stop, the first line at most 72
+  characters; a body only where the diff cannot explain itself (checked in review), as
+  dash fragments of at most 72 characters, each a reason or a non-obvious consequence; a
+  footer carrying the items the commit implements (`Implements: MSG-SEND-006`) and
+  nothing else; `!` or `BREAKING CHANGE:` for a break of `04` MSG-LIB-006.
 - **Changelog:** every commit that changes behaviour, one of type `feat`, `fix` or
   `perf` or marked `!`, adds its line under `Unreleased` in the same commit (`Added`
   while nothing is released).
@@ -388,25 +384,28 @@ and MinVer SHALL derive the version from the tag.
   commit that is not pushed and that no other branch has merged MAY be amended or
   rebased to meet a gate; history that is pushed or merged is never rewritten.
   `PublicAPI.Shipped.txt` changes only in a release commit, as
-  `build/gates/release-baseline.json` does (`04` MSG-LIB-006).
+  `build/gates/release-baseline.json` does (`04` MSG-LIB-006), save that one holding no
+  entry (nothing but `#nullable enable` and blank lines) MAY be deleted in the commit
+  that deletes the project file beside it, since it records nothing released (M-021).
 - **Releases:** a release is a tag `v<major>.<minor>.<patch>` on the default branch,
   made by the implementer on the merged release commit when the owner's message says to
-  release; the pipeline packs the packages from the tag and publishes them to the feed
-  the owner names. Each package carries its identifier, its description (the text of its
-  "What it holds" cell in `00` section 2.2, without markup or references), as its
-  authors the name the owner's first message of phase 0 gives, and the repository's
-  address, and `Hermes.Cli` also `PackAsTool` and `ToolCommandName` (`hermes`); phase 0
-  sets them, in `Directory.Build.props` and the project files, and phase 1
-  `Hermes.Cli`'s two with its project, and every other package property is left unset. A
-  package's dependency on another of the library's packages is the exact version packed
-  (`[v]`, `04` MSG-LIB-001): `dotnet pack` writes a project reference as that version or
-  later, and the .NET 10 SDK has no setting for an exact one, so `Directory.Build.props`
-  holds one target, run after NuGet's `_GetProjectReferenceVersions`, that sets the
+  release; the pipeline packs the packages from the tag and attaches them to the tag's
+  release, and where the owner names a package feed, publishes them there too (M-020).
+  Each package carries its identifier, its description (the text of its "What it holds"
+  cell in `00` section 2.2, without markup or references), as its authors the name the
+  owner's first message of phase 0 gives, and the repository's address, and `Hermes.Cli`
+  also `PackAsTool` and `ToolCommandName` (`hermes`); phase 0 sets them, in
+  `Directory.Build.props` and the project files, and phase 1 `Hermes.Cli`'s two with its
+  project, and every other package property is left unset. A package's dependency on
+  another of the library's packages is the exact version packed (`[v]`, `04`
+  MSG-LIB-001): `dotnet pack` writes a project reference as that version or later, and
+  the .NET 10 SDK has no setting for an exact one, so `Directory.Build.props` holds one
+  target, run after NuGet's `_GetProjectReferenceVersions`, that sets the
   `ProjectVersion` of each of NuGet's `_ProjectReferencesWithVersions` items to `[v]`;
   both are names inside NuGet's pack targets, not a documented setting, so `04`
   MSG-LIB-001's criterion 3 is what catches an SDK that changes them.
 
-*Source: M-012, M-014, M-015*
+*Source: M-012, M-014, M-015, M-020, M-021*
 
 **Acceptance criteria**
 1. A commit message outside the rule, and a behaviour-changing commit without a
@@ -414,7 +413,10 @@ and MinVer SHALL derive the version from the tag.
 2. A commit that changes the content of an existing `PublicAPI.Shipped.txt` or
    `build/gates/release-baseline.json`, or deletes one, fails a check, save the release
    commit, whose exemption comes with the release step (plan, phase 8); a file that
-   moves unchanged with its project (the rename of phase 8) is neither.
+   moves unchanged with its project (the rename of phase 8) is neither; nor is a
+   `PublicAPI.Shipped.txt` holding no entry deleted in the commit that deletes the
+   project file beside it (M-021). The same deletion while that project file stays, or
+   the deletion of a file that holds an entry, fails.
 
 ---
 

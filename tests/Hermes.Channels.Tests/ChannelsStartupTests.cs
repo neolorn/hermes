@@ -465,6 +465,22 @@ public sealed class ChannelsStartupTests
     }
 
     [Fact]
+    public async Task MSG_LIB_003_AC4_TheProvidersAloneWithTheEmailSectionPresentDoNotStartWithoutEmailSubmission()
+    {
+        Dictionary<string, string?> configuration = new(StringComparer.Ordinal)
+        {
+            ["Hermes:Email:From:Address"] = ChannelsHost.FromAddress,
+            ["Hermes:Email:Host"] = ChannelsHost.SubmissionHost,
+        };
+        using IHost host = ChannelsHost.Build(configuration, services => services.AddSingleton<ISecretSource>(new SecretSourceFake()));
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("messaging.startup.secretunavailable", failure.Code);
+        Assert.Equal("emailSubmission", failure.Details["key"]);
+    }
+
+    [Fact]
     public async Task MSG_OPS_008_AC1_EmailSubmissionMissingWhereEmailIsSentStopsTheStartNamingIt()
     {
         SecretSourceFake secrets = new SecretSourceFake().WithVersions("pushVapidKeys", (1, PushHarness.Scalar()));

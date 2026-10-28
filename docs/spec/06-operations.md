@@ -279,9 +279,10 @@ release notes SHALL state it.
   push endpoint's path is its subscription (`02` MSG-CHAN-001).
 - **Allowed push hosts.** An entry the deployment adds to `Hermes:Push:AllowedHosts` is
   a push service it vouches for (`02` MSG-PUSH-004).
-- **Shared provider accounts.** Messages an identity library sends through the bridge's
-  transports pass none of the engine's limits and rates, the allowed prefixes alone
-  applying to them, so the provider account carries both (`04` MSG-LIB-007).
+- **Shared provider accounts.** Messages other software of the host hands to the
+  providers directly (`04` MSG-LIB-003, the providers alone) pass none of the engine's
+  limits and rates, the allowed prefixes alone applying to them, so the provider account
+  carries both (M-020).
 - **Clocks.** The processes' clocks agree as MSG-OPS-003 says.
 - **Write versions.** A key's write version is never set back to a lower one, a rollback
   included: an older release restarts with the current write versions; a version made
@@ -317,7 +318,7 @@ release notes SHALL state it.
   alert on its key-table timer, which reads the migration history (MSG-OPS-008), so a
   deployment rolls forward rather than back.
 
-*Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013*
+*Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020*
 
 **Acceptance criteria**
 1. The release notes of each release (`RELEASE-NOTES.md`, `07` MSG-ENG-001) state every

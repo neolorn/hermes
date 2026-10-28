@@ -17,11 +17,10 @@ change.
 Intended experience for a new project: **import → declare what it sends → send.**
 
 **Status:** specification. Everything needed to build is in documents 00 to 10, save
-WE's API document, which the WE adapter's build needs (`02` MSG-SMS-003), and the Janus
-identity library's package and API reference, which the bridges' build needs (`04`
-MSG-LIB-007; plan, phase 6). `decision-log.md` records why each choice was made and what
-was rejected; it is background and never required to build. Requirements cite their
-source decision so the reasoning is one lookup away.
+WE's API document, which the WE adapter's build needs (`02` MSG-SMS-003).
+`decision-log.md` records why each choice was made and what was rejected; it is
+background and never required to build. Requirements cite their source decision so the
+reasoning is one lookup away.
 
 ---
 
@@ -141,17 +140,16 @@ Versions are pinned in `07` MSG-ENG-009.
 | `Hermes.Core` | The public types and contracts every other package shares | Every other package |
 | `Hermes.Channels` | The channel providers: SMTP email, the WE SMS adapter, Web Push, and their registration. No database, no templates, no background work | An application that only hands a message to a provider |
 | `Hermes` | The sending engine: kinds, the outbox, the checks, dispatch, templates, the endpoints, the schema | An application that sends its own messages |
-| `Hermes.Janus.Channels` | Janus's mail and SMS transports over `Hermes.Channels` | A host whose Janus identity library sends through these providers |
-| `Hermes.Janus` | The engine's seams over Janus: identity, consent, content protection, subject events | A host that uses both libraries |
 | `Hermes.Testing` | In-memory providers, fixed secrets, an on-demand dispatcher and a test database's migration | A host's tests, and the sample host (`07` MSG-ENG-001) |
 | `Hermes.Cli` | A .NET tool, command `hermes`, that applies the migrations (`06` MSG-OPS-002) | A deployment's pipeline |
 | `Hermes.Conversations` | Conversations (`09`). **Release 2** | An application with support or staff chat |
 
 The engine depends on the channels and never the reverse, so an application that needs a
-provider alone never carries the engine. The two `Hermes.Janus` packages are the only
-ones that know another library; neither `Hermes` nor Janus depends on the other.
+provider alone never carries the engine. No package knows another library: a host that
+uses this library beside others (an identity library, say) connects them in its own
+code, through the seams of `04` MSG-LIB-005 and the providers of `02` (M-020).
 
-*Source: M-001, M-003*
+*Source: M-001, M-003, M-020*
 
 ---
 

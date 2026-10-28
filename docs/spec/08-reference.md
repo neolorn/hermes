@@ -99,7 +99,7 @@ Every key is under the configuration section `Hermes`. A key marked "start only"
 effect at the next start (`06` MSG-OPS-001). "Where email is used" means where the
 channel is used as `04` MSG-LIB-003 defines it; so for SMS and push, and for the WE
 adapter where its shipped provider is used. The keys of the engine, every key but those
-under `Email:`, `Sms:`, `Push:` and `Janus:` and `Dispatch:Timeout`, which the shipped
+under `Email:`, `Sms:` and `Push:` and `Dispatch:Timeout`, which the shipped
 providers read wherever they are used, are read and checked only where `AddHermes` is
 registered (`04` MSG-LIB-003). A key holding a list takes its default only where none of
 its items is configured. A number in a rule is a whole number unless the rule says a
@@ -196,7 +196,6 @@ characters is counted as `00` section 1.5 gives.
 | `Push:IdleRetention` | `180.00:00:00` | 7 days to 3 years |
 | `Push:AuthFailThreshold` | `20` | 1 to 10,000 |
 | `Push:AuthFailWindow` | `01:00:00` | 1 minute to 1 day |
-| `Janus:Transports` | none; required where `AddHermesJanusChannels` is registered | `email`, `sms` or both: the channels for which the bridge registers Janus's transport (`04` MSG-LIB-007), each used there; start only |
 
 ---
 
@@ -284,8 +283,7 @@ These names are stored, or shared by the processes of two releases, and never ch
 | `messaging` | The schema (`06` MSG-OPS-002) and the library protector's `Id` (`01` MSG-SEND-018) |
 | `messaging.__migrations_history` | The migration history table (`06` MSG-OPS-002) |
 | `messaging_dispatch` | The notification channel a send wakes the dispatchers on (`01` MSG-SEND-004) |
-| `janus` | The Janus bridge's protector `Id` (`04` MSG-LIB-007) |
-| `deliveries`, `subscriptions`; `destination`, `unsubscribe`, the part names of `03` MSG-TPL-001, `endpoint`, `p256dh`, `auth` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018), and the Janus bridge's head of plaintext, the context's UTF-8 length in 2 bytes, big-endian, then its bytes (`04` MSG-LIB-007) |
+| `deliveries`, `subscriptions`; `destination`, `unsubscribe`, the part names of `03` MSG-TPL-001, `endpoint`, `p256dh`, `auth` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018) |
 | `email`, `sms`, `push-endpoint`, `push-topic`, `person`, `idempotency` | The keyed hash's domains (`06` MSG-OPS-008) |
 | `sms-report`, `idempotency` | The texts that begin the unkeyed lock keys (`01` MSG-SEND-009; `02` MSG-SMS-004) |
 | `sms-report-hold` | The text of the lock the held reports are counted under (`02` MSG-SMS-004) |

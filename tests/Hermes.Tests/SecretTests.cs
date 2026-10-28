@@ -249,6 +249,19 @@ public sealed class SecretTests
     }
 
     [Fact]
+    public async Task MSG_LIB_003_AC4_AnApplicationThatDoesNotDispatchAndRegistersNoProvidersAloneStartsWithNoEmailOrPushProviderKeyOrSecret()
+    {
+        SecretSourceFake secrets = Secrets.Held().Without("emailSubmission");
+        Dictionary<string, string?> configuration = Addressed(Configuration(("Dispatch:Enabled", "false")));
+        configuration.Remove("Hermes:Email:Host");
+        configuration.Remove("Hermes:Push:Subject");
+
+        await AssertPastTheSecrets(secrets, configuration, Everything);
+
+        Assert.DoesNotContain("emailSubmission", secrets.Read);
+    }
+
+    [Fact]
     public async Task Start_HostEmailProvider_ReadsNeitherEmailHostNorEmailSubmission()
     {
         SecretSourceFake secrets = Secrets.Held().Without("emailSubmission");

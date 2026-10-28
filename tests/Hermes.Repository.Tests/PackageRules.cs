@@ -14,10 +14,7 @@ namespace Hermes.Repository.Tests;
 /// </summary>
 internal static class PackageRules
 {
-    /// <summary>
-    /// The packages of MSG-ENG-009's table. Janus's main package joins it with its source
-    /// (plan, phase 6).
-    /// </summary>
+    /// <summary>The packages of MSG-ENG-009's table.</summary>
     internal static IReadOnlyList<string> Allowed { get; } =
     [
         "Microsoft.EntityFrameworkCore",

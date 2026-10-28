@@ -22,6 +22,9 @@ public sealed class CommitMessageGateTests
 
     private const string Fragment = "is not a dash fragment, and the footer holds only Implements: and BREAKING CHANGE: lines";
 
+    /// <summary>A made-up project's folder, so no test names a project of the repository.</summary>
+    private const string ProjectFolder = "src/Hermes.Extra";
+
     [Fact]
     public async Task MSG_ENG_011_AC1_CommitsWithinTheRulePass()
     {
@@ -67,6 +70,7 @@ public sealed class CommitMessageGateTests
     [InlineData("add the shared build settings", Header)]
     [InlineData("feature: add the shared build settings", Header)]
     [InlineData("build(api): add the shared build settings", Header)]
+    [InlineData("build(extra): add the shared build settings", Header)]
     [InlineData("build:add the shared build settings", Header)]
     [InlineData("build: Add the shared build settings", "the description does not begin with a lower-case letter")]
     [InlineData("build: SMTP settings", "the description does not begin with a lower-case letter")]
@@ -231,6 +235,57 @@ public sealed class CommitMessageGateTests
         Assert.Contains($"it deletes {path}, which changes only in a release commit", gate.Output, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("#nullable enable\n")]
+    [InlineData("#nullable enable\n\n")]
+    [InlineData("\n#nullable enable\n\n\n")]
+    [InlineData("")]
+    public async Task MSG_ENG_011_AC2_ShippedFileHoldingNoEntryDeletedWithTheProjectFileBesideItPasses(string shipped)
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateWithProjectAsync(folder, shipped, cancellationToken);
+        await repository.GitAsync(cancellationToken, "rm", "--quiet", "-r", ProjectFolder);
+        await repository.CommitAsync("build: remove the extra project", cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.True(gate.ExitCode == 0, gate.Output);
+    }
+
+    [Fact]
+    public async Task MSG_ENG_011_AC2_ShippedFileHoldingNoEntryDeletedWhileTheProjectFileStaysFails()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateWithProjectAsync(folder, "#nullable enable\n", cancellationToken);
+        await repository.GitAsync(cancellationToken, "rm", "--quiet", ProjectFolder + "/PublicAPI.Shipped.txt", ProjectFolder + "/PublicAPI.Unshipped.txt");
+        await repository.CommitAsync("build: remove the extra project's lists", cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.NotEqual(0, gate.ExitCode);
+        Assert.Contains($"it deletes {ProjectFolder}/PublicAPI.Shipped.txt, which changes only in a release commit", gate.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("#nullable enable\nHermes.Extra.Send\n")]
+    [InlineData("Hermes.Extra.Send\n")]
+    [InlineData("#nullable enable\n// Hermes.Extra.Send\n")]
+    public async Task MSG_ENG_011_AC2_ShippedFileHoldingAnEntryDeletedWithTheProjectFileBesideItFails(string shipped)
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateWithProjectAsync(folder, shipped, cancellationToken);
+        await repository.GitAsync(cancellationToken, "rm", "--quiet", "-r", ProjectFolder);
+        await repository.CommitAsync("build: remove the extra project", cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.NotEqual(0, gate.ExitCode);
+        Assert.Contains($"it deletes {ProjectFolder}/PublicAPI.Shipped.txt, which changes only in a release commit", gate.Output, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task MSG_ENG_011_AC2_NewProjectsPublicApiFileAndAFileMovedUnchangedPass()
     {
@@ -296,6 +351,18 @@ public sealed class CommitMessageGateTests
         repository.Write("src/Hermes.Core/PublicAPI.Unshipped.txt", "#nullable enable\n");
         repository.Write("build/gates/release-baseline.json", "{}\n");
         string start = await repository.CommitAsync("docs: add the changelog and the released files", cancellationToken);
+        return (repository, start);
+    }
+
+    /// <summary>A repository holding a project at <see cref="ProjectFolder"/>, its shipped list holding <paramref name="shipped"/>.</summary>
+    private static async Task<(GitRepository Repository, string Start)> CreateWithProjectAsync(ScratchFolder folder, string shipped, CancellationToken cancellationToken)
+    {
+        GitRepository repository = await GitRepository.CreateAsync(folder, cancellationToken);
+        repository.Write("CHANGELOG.md", Changelog);
+        repository.Write(ProjectFolder + "/Hermes.Extra.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />\n");
+        repository.Write(ProjectFolder + "/PublicAPI.Shipped.txt", shipped);
+        repository.Write(ProjectFolder + "/PublicAPI.Unshipped.txt", "#nullable enable\n");
+        string start = await repository.CommitAsync("docs: add the changelog and the extra project", cancellationToken);
         return (repository, start);
     }
 

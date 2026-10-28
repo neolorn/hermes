@@ -96,7 +96,7 @@ once.
 
 **Values (M-011).** A company-wide conversation's members are the members of an
 organization, and a team's the members of a group, as the host's membership seam answers
-(the Janus bridge answers it from Janus's organizations and groups). A direct
+(a host answers it from its identity system's organizations and groups). A direct
 conversation has the participants who started it and those added. Mentions, replies to a
 message, editing and deleting one's own messages, muting, presence, and a push
 notification to a member who is away (a send of a kind the host declares) are part of
@@ -107,7 +107,7 @@ the database cannot search them. Search comes through a later seam that keeps an
 under the same protection; the model needs no change for it, and its design is made in
 the release that builds it.
 
-*Source: M-011*
+*Source: M-011, M-020*
 
 ---
 

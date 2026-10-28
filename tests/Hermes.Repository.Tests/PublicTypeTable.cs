@@ -56,8 +56,6 @@ internal static class PublicTypeTable
             "MessagingServiceCollectionExtensions", "DeclarationBuilder", "KindBuilder", "CategoryBuilder",
             "MessagingEndpointRouteBuilderExtensions", "IDispatcher",
         ],
-        [Packages.JanusChannels] = ["MessagingJanusChannelsServiceCollectionExtensions"],
-        [Packages.Janus] = ["MessagingJanusServiceCollectionExtensions"],
         [Packages.Testing] =
         [
             "InMemoryEmailProvider", "InMemorySmsProvider", "InMemoryPushProvider", "FixedSecretSource", "TestDispatcher",

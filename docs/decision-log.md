@@ -122,6 +122,8 @@ publishing changes made to it).
 
 ## M-003 — Bridges to the Janus identity library
 
+*Superseded by M-020: no package of this library knows another library.*
+
 **Date:** 2026-10-21 · **Status:** accepted
 
 Janus, the owner's identity library, takes its mail and SMS transports from this library
@@ -1078,6 +1080,72 @@ phases (every chapter's reference to phase 6, 7 and 8 would move).
 
 ---
 
+## M-020 — A standalone library: the Janus bridges come out, and the release does not wait for WE
+
+**Date:** 2026-10-28 · **Status:** accepted · **Supersedes:** M-003
+
+The owner's rule: this library, the identity library and every host are standalone, and
+none knows another; a host that uses two of them connects them in its own code, and its
+deployment (its server, its package feed, its gateways) is its own project. M-003's two
+bridge packages, `Hermes.Janus` and `Hermes.Janus.Channels`, broke that rule: they
+referenced the identity library and named it throughout `00`, `04`, `07` and `08`.
+
+They come out. MSG-LIB-007 is retired; every other mention of the identity library, its
+configuration key `Hermes:Janus:Transports`, its protector `Id`, its commit scope, its
+allow-list row and its package source are taken out of the chapters. Nothing the bridges
+did is lost to a host: an identity library's own messages reach the providers through
+`AddHermesChannels`, the providers alone (MSG-LIB-003); the recipient's identity, the
+content protector and the consent source are seams a host answers (MSG-LIB-005); and
+`ISubjects` takes a person's erasure and export from whatever tells the host of them.
+Where two senders share WE's report address, the host routes the reports that are not
+this library's, since only it knows both. Plan phase 6 becomes the removal of the two
+projects, their tests and every rule naming them.
+
+A package feed is a deployment's, so a release attaches its packages to the tag's release
+and publishes them to a feed only where the owner names one (`07` MSG-ENG-011). Release
+1.0.0 does not wait for WE's API document: where it is not in hand, phase 8 comes before
+phase 7, and the WE adapter follows in a minor release, since it adds a provider and
+changes nothing a host already uses. *Rejected:* keeping the bridges as packages a host
+may skip (the library would still name another library); moving them into a third
+package of the owner's (a fourth project that knows two others).
+
+**Propagated to:** `00` (status, package table and its note); `01` MSG-SEND-018,
+MSG-SEND-020; `02` MSG-SMS-003, MSG-SMS-004; `04` MSG-LIB-001, MSG-LIB-003, MSG-LIB-005,
+MSG-LIB-007 (retired); `06` (shared provider accounts); `07` MSG-ENG-001, MSG-ENG-009,
+MSG-ENG-011; `08` sections 4 and 8; `09` (company-wide conversations); the working
+guide (section 6 step 1); `implementation-plan.md` (phases 0, 6, 7 and 8, and the inputs
+waited on).
+
+---
+
+## M-021 — Phase 6's question: an empty `PublicAPI.Shipped.txt` leaves with its project
+
+**Date:** 2026-10-28 · **Status:** accepted · **Follows from:** M-020
+
+Phase 6 removes the two bridge projects (M-020), and with them their
+`PublicAPI.Shipped.txt` files, each holding nothing but `#nullable enable`. MSG-ENG-011
+criterion 2 fails every commit that deletes such a file outside the release commit, so
+the commit gate refused the removal, and phase 6 parked it. The rule exists so that a
+released member never leaves the public surface without the release that records it
+(`04` MSG-LIB-006). A `PublicAPI.Shipped.txt` holding no entry records no released
+member, and deleting it in the commit that deletes the project file beside it removes
+nothing a host could have used.
+
+So such a file MAY be deleted with its project; every other deletion, and every change,
+still waits for the release commit. The commit gate tells the case apart from the file
+as the commit's parent holds it (nothing but `#nullable enable` and blank lines) and
+from the project file in the same folder deleted in the same commit. A project that has
+shipped a member keeps an entry, so the exception never reaches released surface.
+*Rejected:* taking the bridges out in phase 8's release commit (the release commit would
+carry an unrelated removal, and every run fails until then, since `00` no longer
+describes the two packages); an exemption naming the two paths (a list the gate would
+keep for a one-off).
+
+**Propagated to:** `07` MSG-ENG-011 (the history value, criterion 2);
+`implementation-plan.md` (phase 6's row).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1101,3 +1169,5 @@ phases (every chapter's reference to phase 6, 7 and 8 would move).
 | Phase 2's question: MailKit 4.18.2 | M-017 |
 | The full gate runs in the pipeline, not on the implementer's machine | M-018 |
 | Phase 5's report: the endpoint contract placed, the sample host first, the gates paragraph brought to M-018 | M-019 |
+| A standalone library: the Janus bridges come out, and the release does not wait for WE | M-020 |
+| Phase 6's question: an empty `PublicAPI.Shipped.txt` leaves with its project | M-021 |
