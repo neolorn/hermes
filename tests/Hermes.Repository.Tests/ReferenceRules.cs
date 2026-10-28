@@ -44,23 +44,16 @@ internal static class ReferenceRules
         [Packages.Core] = [],
         [Packages.Channels] = [Packages.Core],
         [Packages.Engine] = [Packages.Core, Packages.Channels],
-        [Packages.JanusChannels] = [Packages.Core, Packages.Channels],
-        [Packages.Janus] = [Packages.Core, Packages.Engine, Packages.JanusChannels],
         [Packages.Testing] = [Packages.Core, Packages.Channels, Packages.Engine],
         [Packages.Cli] = [Packages.Engine],
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
-    /// <summary>
-    /// The packages each package's project may reference at run time. Janus's main package
-    /// joins the two <c>Hermes.Janus</c> rows with its source (plan, phase 6).
-    /// </summary>
+    /// <summary>The packages each package's project may reference at run time.</summary>
     private static readonly FrozenDictionary<string, IReadOnlyList<string>> AllowedPackages = new Dictionary<string, IReadOnlyList<string>>
     {
         [Packages.Core] = [],
         [Packages.Channels] = ["MailKit", "Lib.Net.Http.WebPush", .. HostingAbstractions],
         [Packages.Engine] = ["Microsoft.EntityFrameworkCore", "Microsoft.EntityFrameworkCore.Relational", "Npgsql.EntityFrameworkCore.PostgreSQL", "Fluid.Core"],
-        [Packages.JanusChannels] = [],
-        [Packages.Janus] = [],
         [Packages.Testing] = [],
         [Packages.Cli] = [],
     }.ToFrozenDictionary(StringComparer.Ordinal);

@@ -16,10 +16,6 @@ internal static class Packages
 
     internal const string Engine = "Hermes";
 
-    internal const string JanusChannels = "Hermes.Janus.Channels";
-
-    internal const string Janus = "Hermes.Janus";
-
     internal const string Testing = "Hermes.Testing";
 
     internal const string Cli = "Hermes.Cli";
@@ -33,7 +29,7 @@ internal static class Packages
     /// <summary>The test project over the whole repository, the one with no source project.</summary>
     internal const string RepositoryTests = "Hermes.Repository.Tests";
 
-    internal static IReadOnlyList<string> All { get; } = [Core, Channels, Engine, JanusChannels, Janus, Testing, Cli];
+    internal static IReadOnlyList<string> All { get; } = [Core, Channels, Engine, Testing, Cli];
 
     /// <summary>The folders a project may hold, by project (<c>07</c> MSG-ENG-001); every other project is flat.</summary>
     internal static FrozenDictionary<string, IReadOnlyList<string>> Folders { get; } = new Dictionary<string, IReadOnlyList<string>>

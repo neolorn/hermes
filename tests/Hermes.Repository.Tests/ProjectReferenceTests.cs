@@ -265,8 +265,7 @@ public sealed class ProjectReferenceTests
     [Theory]
     [InlineData(Packages.Core, Packages.Engine)]
     [InlineData(Packages.Core, Packages.Testing)]
-    [InlineData(Packages.Channels, Packages.Janus)]
-    [InlineData(Packages.Channels, Packages.JanusChannels)]
+    [InlineData(Packages.Channels, "Hermes.Extra")]
     [InlineData(Packages.Channels, Packages.Cli)]
     public void MSG_ENG_001_AC1_GrantOutsideTheRuleIsFound(string grantor, string grantee)
     {

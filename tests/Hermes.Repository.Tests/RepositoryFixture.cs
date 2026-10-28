@@ -141,8 +141,6 @@ internal sealed class RepositoryFixture : IDisposable
               <package pattern="Hermes" />
               <package pattern="Hermes.Core" />
               <package pattern="Hermes.Channels" />
-              <package pattern="Hermes.Janus.Channels" />
-              <package pattern="Hermes.Janus" />
               <package pattern="Hermes.Testing" />
               <package pattern="Hermes.Cli" />
             </packageSource>
