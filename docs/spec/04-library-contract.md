@@ -173,23 +173,22 @@ dispatches (`Hermes:Dispatch:Enabled` on, whether or not its hosted dispatcher r
 `Hermes:Dispatch:Hosted`) or registers the providers alone, whatever
 `Hermes:Dispatch:Enabled` says; so an application that only records sends, and runs no
 such transport, reads no provider's secret. Where the report group is mapped
-(MSG-LIB-004) and the host registers no SMS provider of its own, the shipped SMS
-provider's `ReadReportAsync` is called there, which reads none of its keys or secrets,
-so neither is required for it. A channel is **dispatched** in an application where it is
-used and the application dispatches or registers the providers alone, so its passes, the
-hosted dispatcher's or those `RunPassAsync` runs (`01` MSG-SEND-007), or its providers
-can send on it; the keys those passes need are read where it is (`06` MSG-OPS-008). A
-channel's own keys (the sender, the rate, the allowed prefixes and hosts) are required
-where the channel is used; a shipped provider's keys and secrets (the SMTP server's keys
-and `emailSubmission`, `Push:Subject`, `Sms:We:BaseAddress` and `smsWe`) only where that
-shipped provider is used (`08` section 4). `AddHermes` registers `IMessages`,
-`IPreferences`, `ISuppressions` and `ISubjects` as scoped services. An application
-**records sends** where `Hermes:Messages:Enabled` is on (the default); where it is off,
-`IMessages.SendAsync` throws `InvalidOperationException`, a fault of the calling code,
-so an application that only maps the unsubscribe or preferences group holds no key that
-opens content (`06` MSG-OPS-008).
+(MSG-LIB-004), the host's SMS provider's `ReadReportAsync` is called there
+(MSG-LIB-005). A channel is **dispatched** in an application where it is used and the
+application dispatches or registers the providers alone, so its passes, the hosted
+dispatcher's or those `RunPassAsync` runs (`01` MSG-SEND-007), or its providers can send
+on it; the keys those passes need are read where it is (`06` MSG-OPS-008). A channel's
+own keys (the sender, the rate, the allowed prefixes and hosts) are required where the
+channel is used; a shipped provider's keys and secrets (the SMTP server's keys and
+`emailSubmission`, and `Push:Subject`) only where that shipped provider is used (`08`
+section 4). `AddHermes` registers `IMessages`, `IPreferences`, `ISuppressions` and
+`ISubjects` as scoped services. An application **records sends** where
+`Hermes:Messages:Enabled` is on (the default); where it is off, `IMessages.SendAsync`
+throws `InvalidOperationException`, a fault of the calling code, so an application that
+only maps the unsubscribe or preferences group holds no key that opens content (`06`
+MSG-OPS-008).
 
-*Source: M-005, M-007, M-012, M-020*
+*Source: M-005, M-007, M-012, M-020, M-022*
 
 **Acceptance criteria**
 1. A host with valid declarations and configuration starts with the one call.
@@ -198,9 +197,9 @@ opens content (`06` MSG-OPS-008).
 3. An application whose kinds use only email, and that maps neither the report nor the
    push subscription group, starts with no SMS or push key and no SMS or push secret.
 4. An application with `Hermes:Dispatch:Enabled` off that registers the providers alone
-   for no channel starts with no `emailSubmission`, `smsWe`, `Email:Host`,
-   `Sms:We:BaseAddress` or `Push:Subject`; one that registers the providers alone with
-   `Hermes:Email` present does not start without `emailSubmission` (M-020).
+   for no channel starts with no `emailSubmission`, `Email:Host` or `Push:Subject`; one
+   that registers the providers alone with `Hermes:Email` present does not start without
+   `emailSubmission` (M-020).
 5. An application with `Hermes:Messages:Enabled` and `Hermes:Dispatch:Enabled` off,
    `Hermes:Jobs:Enabled` off and no push subscription group starts without
    `contentKeys`, and its `SendAsync` throws.
@@ -245,6 +244,7 @@ MSG-LIB-002, and the library SHALL refuse to start without a required one.
 | Seam | Required | `details.key` |
 |---|---|---|
 | `ISecretSource` | Always | `secretSource` |
+| `ISmsProvider` | Where SMS is used (MSG-LIB-003), or the report group is mapped: the library ships none (`02` MSG-CHAN-001) | `smsProvider` |
 | `IRecipientIdentity` | Where the preferences or push subscription group is mapped | `recipientIdentity` |
 | `IConsentSource` | Where a category requires consent (`01` MSG-SEND-011) | `consentSource` |
 | `IContentProtector` | No: the library's own is used, and always kept for reading values it made and for every anonymous recipient's values. A host MAY register several of its own: the last registered writes, a value is opened by the registered protector whose `Id` its envelope names, and two with one `Id` stop the start with `messaging.startup.declarationinvalid` | |
@@ -256,12 +256,16 @@ MSG-LIB-002, and the library SHALL refuse to start without a required one.
 A required seam missing stops the start with `messaging.startup.declarationmissing`, its
 `details.key` as above.
 
-*Source: M-005, M-006, M-007*
+*Source: M-005, M-006, M-007, M-022*
 
 **Acceptance criteria**
 1. Each required seam, missing where it is required, stops the start naming it.
 2. With two host protectors registered, values are written by the last and values of the
    first still open; two with one `Id` stop the start.
+3. With SMS used, or the report group mapped, and no `ISmsProvider` registered, the
+   start stops naming `smsProvider`, under `AddHermes` and `AddHermesChannels` alike; an
+   application whose kinds use only email, and that maps no report group, starts with no
+   SMS provider.
 
 ---
 
@@ -284,11 +288,13 @@ set as the contract tests read it (`07` MSG-ENG-006, MSG-ENG-007: the built asse
 the serializer contexts, and a test host's endpoint metadata and meter) and compares it
 with the baseline as the previous release tag holds it (on a pull request, as its base
 holds it), since the release commit rewrites the file to the release's own set; before
-the first release no tag holds one, so the baseline is empty. An addition (a route, a
-status, a response member, a code, a key, an enumeration value, a metric) is minor; a
-change or a removal, and a request member a caller must now send, are major.
+the first release no tag holds one, so the baseline is empty. Where a pull request
+changes the baseline, which only its release commit may (`07` MSG-ENG-011), the gate
+also checks that the baseline at its head is the set it reads there. An addition (a
+route, a status, a response member, a code, a key, an enumeration value, a metric) is
+minor; a change or a removal, and a request member a caller must now send, are major.
 
-*Source: M-012*
+*Source: M-012, M-023*
 
 **Acceptance criteria**
 1. The release gate compares the public surface, the endpoints and their wire shapes,
@@ -323,14 +329,14 @@ received.
 | `InMemoryEmailProvider` | An `IEmailProvider`; `IReadOnlyList<EmailMessage> Received`; `AnswerWith(Func<EmailMessage, Attempt> answer)`, by default every message `Accepted(null)` |
 | `InMemorySmsProvider` | An `ISmsProvider`; `IReadOnlyList<SmsMessage> Received`; `AnswerWith(Func<SmsMessage, Attempt> answer)`, by default every message `Accepted(null)`; `IsValidSender` applies `02` MSG-SMS-002's rule; `SetBalance(BalanceReading balance)`, by default `NotSupported()`; `ReadReportWith(Func<SmsReportRequest, SmsReportReading> reader)`, by default a reading that does not read, answered 200 with an empty body |
 | `InMemoryPushProvider` | An `IPushProvider` for `webpush`; `IReadOnlyList<PushRequest> Received`, the payload unencrypted; `AnswerWith(Func<PushRequest, Attempt> answer)`, by default every request `Accepted(null)` |
-| `FixedSecretSource` | An `ISecretSource` whose parameterless constructor answers version 1 of the five keys of `06` MSG-OPS-008, `emailSubmission` and `smsWe`, each in its form and derived at run time from the SHA-256 of its name, so no credential-shaped text is written in the repository, and answers neither connection secret; `SetSecret(string name, SecretVersions versions)` and `RemoveSecret(string name)` |
+| `FixedSecretSource` | An `ISecretSource` whose parameterless constructor answers version 1 of the five keys of `06` MSG-OPS-008 and `emailSubmission`, each in its form and derived at run time from the SHA-256 of its name, so no credential-shaped text is written in the repository, and answers neither connection secret; `SetSecret(string name, SecretVersions versions)` and `RemoveSecret(string name)` |
 | `TestDispatcher` | `TestDispatcher(IDispatcher dispatcher, TimeProvider timeProvider)`, the clock being the `TimeProvider` the library is registered with; `RunUntilIdleAsync(CancellationToken cancellationToken)` runs passes until a round of them, one of each channel, takes no delivery (so a channel whose rate the clock's current second has used up waits for the test to move the clock) and answers the number of deliveries taken, throwing `OperationCanceledException` once its token is cancelled, as `RunPassAsync` does |
 | `MessagingTestDatabase` | A static class; `MigrateAsync(string connection, CancellationToken cancellationToken)` answers `ValueTask` and applies the release's migrations to that database as `hermes migrate` does (`06` MSG-OPS-002), so a host's test, and the sample host's, brings its test database to the schema |
 | `MessagingTestingServiceCollectionExtensions` | `AddHermesTesting(IServiceCollection services, Action<FixedSecretSource>? configure = null)` answers the `IServiceCollection`; it registers each in-memory provider and one `FixedSecretSource` as singletons, each resolvable by its own type and by its contract, in place of the shipped providers and the host's secret source, `configure` running on that `FixedSecretSource` at once, so a test sets `connection` there before the host starts, and removes the hosted dispatcher and `observer` job, so only a test's passes dispatch, in either order of the two calls (`AddHermes` registers neither service where `AddHermesTesting` came first); a secret source the host registers after it replaces `FixedSecretSource`, as any later registration of a seam does; a test's pass delivers, after its deliveries, every pending notice in order, as the job does, so a report's move, a cancellation and an erasure reach the observer too (`01` MSG-SEND-007, MSG-SEND-017) |
 
 Nothing in it skips a check of `01`.
 
-*Source: M-012, M-013*
+*Source: M-012, M-013, M-022*
 
 **Acceptance criteria**
 1. A host test sends a kind and reads the rendered message from the in-memory provider.

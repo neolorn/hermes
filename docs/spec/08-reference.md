@@ -97,14 +97,13 @@ alone may move once more, by a provider's report or feedback, to `delivered` or 
 
 Every key is under the configuration section `Hermes`. A key marked "start only" takes
 effect at the next start (`06` MSG-OPS-001). "Where email is used" means where the
-channel is used as `04` MSG-LIB-003 defines it; so for SMS and push, and for the WE
-adapter where its shipped provider is used. The keys of the engine, every key but those
-under `Email:`, `Sms:` and `Push:` and `Dispatch:Timeout`, which the shipped
-providers read wherever they are used, are read and checked only where `AddHermes` is
-registered (`04` MSG-LIB-003). A key holding a list takes its default only where none of
-its items is configured. A number in a rule is a whole number unless the rule says a
-decimal number, which is read in the invariant culture, `.` its separator; a length in
-characters is counted as `00` section 1.5 gives.
+channel is used as `04` MSG-LIB-003 defines it; so for SMS and push. The keys of the
+engine, every key but those under `Email:`, `Sms:` and `Push:` and `Dispatch:Timeout`,
+which the shipped providers read wherever they are used, are read and checked only where
+`AddHermes` is registered (`04` MSG-LIB-003). A key holding a list takes its default
+only where none of its items is configured. A number in a rule is a whole number unless
+the rule says a decimal number, which is read in the invariant culture, `.` its
+separator; a length in characters is counted as `00` section 1.5 gives.
 
 | Key | Default | Rule |
 |---|---|---|
@@ -173,7 +172,7 @@ characters is counted as `00` section 1.5 gives.
 | `Sms:Sender` | none; required where SMS is used | A sender (`02` MSG-SMS-002) |
 | `Sms:AllowedPrefixes` | none; required where SMS is used | One or more of `+` followed by 0 to 6 digits; `+` alone allows every number |
 | `Sms:Rate` | `5` | Deliveries per second across the deployment, 1 to 1,000 |
-| `Sms:ReportBaseAddress` | none; where set, the engine fills each SMS's `ReportAddress` from it (`02` MSG-SMS-004); required where SMS is dispatched (`04` MSG-LIB-003) through the shipped WE adapter in an engine application, and the adapter gives the report address with each request (`02` MSG-SMS-003) | The absolute address of the mapped report group, its prefix included |
+| `Sms:ReportBaseAddress` | none; where set, the engine fills each SMS's `ReportAddress` from it, for a provider whose gateway takes a report address with each message (`02` MSG-SMS-004) | The absolute address of the mapped report group, its prefix included |
 | `Sms:WrongKeyRate` | `60` | Requests with a wrong key a minute per source address, per process, 1 to 10,000 |
 | `Sms:ReportRejectThreshold` | `20` | 1 to 10,000 |
 | `Sms:ReportRejectWindow` | `01:00:00` | 1 minute to 1 day |
@@ -188,7 +187,6 @@ characters is counted as `00` section 1.5 gives.
 | `Sms:DrainMinHistory` | `1.00:00:00` | At least `Sms:DrainWindow`, at most `Sms:DrainBaseline` |
 | `Sms:DrainMinSpend` | `10` | A decimal number, zero or more, in the provider's unit |
 | `Sms:BalanceUnreadableAfter` | `01:00:00` | 5 minutes to 1 day |
-| `Sms:We:BaseAddress` | none; required where the WE adapter is used to send | An absolute `https` address; start only |
 | `Push:Subject` | none; required where the shipped push provider is used | A `mailto:` or `https:` URI |
 | `Push:AllowedHosts` | `fcm.googleapis.com`, `*.push.services.mozilla.com`, `*.push.apple.com`, `*.notify.windows.com` | Host names; a leading `*.` matches any subdomain and covers at least three labels after its `*.` |
 | `Push:MaxSubscriptions` | `10` | Per person, 1 to 100 |
@@ -255,8 +253,8 @@ A delivery that ends `failed` after its last attempt carries that attempt's reas
 ## 7. Secrets
 
 `connection` · `listenConnection` · `contentKeys` · `hashKeys` · `tokenKeys` ·
-`smsReportKey` · `emailSubmission` · `smsWe` · `pushVapidKeys`. Their forms and uses are
-`06` MSG-OPS-008.
+`smsReportKey` · `emailSubmission` · `pushVapidKeys`. Their forms and uses are `06`
+MSG-OPS-008.
 
 ---
 
@@ -271,10 +269,10 @@ The meter is `Hermes`, with these instruments:
 | `hermes.dispatch.oldest_due_age` | Gauge | `s` | `channel` | How long ago the oldest delivery `waiting` or `inflight` whose became-due instant has passed became due, a synchronous `Gauge<double>` the watch job records each time it judges `dispatch-lag`, 0 where no such delivery is, only the process whose run judged it recording it, so the latest point across processes is the reading (`06` MSG-OPS-005; `01` MSG-SEND-007) |
 | `hermes.provider.duration` | Histogram | `s` | `channel`, `class` | Each provider call's duration |
 
-These names take the library's final name when it is renamed (`00`): the meter and its
-instruments, the solution file `Hermes.sln` (`07` MSG-ENG-001), the health check
-`hermes.dispatch` (`06` MSG-OPS-005), the named HTTP clients `Hermes.Sms` and
-`Hermes.Push` (`02` MSG-CHAN-001), the configuration section and the command `hermes`.
+These names carry the library's name (`00`): the meter and its instruments, the solution
+file `Hermes.sln` (`07` MSG-ENG-001), the health check `hermes.dispatch` (`06`
+MSG-OPS-005), the named HTTP client `Hermes.Push` (`02` MSG-CHAN-001), the configuration
+section and the command `hermes`.
 
 These names are stored, or shared by the processes of two releases, and never change:
 

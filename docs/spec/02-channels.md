@@ -24,24 +24,40 @@ reply code, an HTTP status) where it gave one. A provider never throws for an an
 received: a timeout, a refused connection and every reply are answers. An exception that
 escapes a provider is a fault of that provider: the dispatcher records it as
 `Transient(providerfault)` and logs the exception's type, never its message, which can
-carry a destination. `Hermes.Channels` ships one provider for each channel: SMTP
-(section 2), WE (section 3) and Web Push (section 4). The shipped SMS and push providers
-make their requests through the named clients `Hermes.Sms` and `Hermes.Push` of
-`IHttpClientFactory`, which follow no redirect and time out after
-`Hermes:Dispatch:Timeout`; the `Hermes.Push` client's handler chain carries the
-library's handler that replaces a response's content with an empty one unless its status
-is 2xx, since Lib.Net.Http.WebPush reads an error answer's body whole, with no token and
-no bound, and the library keeps no provider text. The two clients carry the library's
-handlers alone: their registration clears every additional handler a host's
-`ConfigureHttpClientDefaults` adds (`ConfigureAdditionalHttpMessageHandlers`, which runs
-after a host's defaults) and sets their primary handler itself, so no retry a host adds
-for its own clients posts an SMS again within one call, and no push service's
-`Retry-After` is waited out within one; and it removes the factory's own request logging
-(`RemoveAllLoggers()`), which writes a request's address, a push endpoint's path among
-it, so no log line holds one (`06` MSG-OPS-005); a test reaches a local listener by
-replacing a client's primary handler, which a deployment never needs to do.
+carry a destination. `Hermes.Channels` ships a provider for email (SMTP, section 2) and
+for push (Web Push, section 4), and none for SMS, since SMS gateways share no protocol
+(M-022): a host that uses SMS registers its own `ISmsProvider` (`04` MSG-LIB-005). The
+shipped push provider makes its requests through the named client `Hermes.Push` of
+`IHttpClientFactory`, which follows no redirect and times out after
+`Hermes:Dispatch:Timeout`; its handler chain carries the library's handler that replaces
+a response's content with an empty one unless its status is 2xx, since
+Lib.Net.Http.WebPush reads an error answer's body whole, with no token and no bound, and
+the library keeps no provider text. The client carries the library's handlers alone: its
+registration clears every additional handler a host's `ConfigureHttpClientDefaults` adds
+(`ConfigureAdditionalHttpMessageHandlers`, which runs after a host's defaults) and sets
+its primary handler itself, so no push service's `Retry-After` is waited out within one
+call; and it removes the factory's own request logging (`RemoveAllLoggers()`), which
+writes a request's address, a push endpoint's path among it, so no log line holds one
+(`06` MSG-OPS-005); a test reaches a local listener by replacing the client's primary
+handler, which a deployment never needs to do.
 
-*Source: M-002, M-005, M-012*
+**A host's SMS provider** makes one request to its gateway for each `SendAsync`, since
+the dispatcher retries (`01` MSG-SEND-007) and a retry within one call can send a text
+twice. It classes the gateway's answers as this item states: an answer the gateway may
+take later is `Transient(temporary)`, and a final refusal `Permanent`, with
+`recipientrefused`, `senderrefused` or `messagerefused` where the answer says which and
+`permanent` otherwise. Where the gateway's report names a message by the gateway's own
+identifier, `Accepted` carries that identifier, and `ReadReportAsync` answers it as the
+provider reference; where the gateway echoes the delivery reference, `ReadReportAsync`
+answers that (MSG-SMS-004). Where the gateway takes a report address with each message,
+the provider passes the message's `ReportAddress`; where it holds one address for the
+account, the deployment gives it the mapped report group's address with its key (`05`
+MSG-API-006). `IsValidSender` narrows the sender rule to the gateway's (MSG-SMS-002),
+and `BalanceAsync` answers the balance in the gateway's own unit, or that it reports
+none (MSG-SMS-006). The provider's credential and settings are its own, outside the
+library's configuration and secrets.
+
+*Source: M-002, M-005, M-012, M-022*
 
 **Acceptance criteria**
 1. A host-registered provider replaces the shipped one for its channel with no other
@@ -49,8 +65,8 @@ replacing a client's primary handler, which a deployment never needs to do.
 2. A provider that throws leaves its delivery waiting for its next attempt, and the log
    entry names the exception's type and holds nothing of its message.
 3. No attempt record and no log entry holds text a provider answered.
-4. Under a host's `ConfigureHttpClientDefaults` adding a retrying handler, a timed-out
-   SMS request is made once and a push service's 429 is answered at once.
+4. Under a host's `ConfigureHttpClientDefaults` adding a retrying handler, a push
+   service's 429 is answered at once.
 5. A push request through the shipped provider, under a host logging Information for
    every category, leaves no log line or scope holding its endpoint.
 
@@ -302,38 +318,8 @@ incident stops what is already queued, without a restart.
 
 ---
 
-**MSG-SMS-003** — The WE adapter SHALL send through WE's HTTP API, authenticated with
-the account's credential, so that WE's report of each message reaches its delivery.
-
-**Values (M-008).** What WE's documentation states, as the decision log records it: the
-credential is Basic authentication over the static string `username:password:accountid`,
-the secret `smsWe` (`06` MSG-OPS-008); a balance can be read; the delivery report is an
-unauthenticated GET over plain HTTP carrying `messageId` and `status` in its query
-string. The base address is `Hermes:Sms:We:BaseAddress`. These are taken from WE's API
-document, which the adapter's build needs in hand (plan, phase 7):
-- the request and answer fields, and which answers are temporary
-  (`Transient(temporary)`) and which final (`Permanent`, with `recipientrefused`,
-  `senderrefused` or `messagerefused` where the answer says which, otherwise
-  `permanent`);
-- whether a request can carry the delivery reference (`00` glossary) and the report echo
-  it; where it cannot, the identifier WE answers is recorded as the provider reference
-  and the report is matched by it (MSG-SMS-004);
-- whether the report address is given with each request (then the adapter passes the
-  message's `ReportAddress`, MSG-SMS-004, and `Hermes:Sms:ReportBaseAddress` is required
-  where SMS is dispatched (`04` MSG-LIB-003) through the adapter in an engine
-  application) or set once for the account;
-- whether WE can call an `https` address; where it can call only plain `http`, the
-  deployment serves the report group on a listener of its own exempt from HTTPS
-  redirection, and the key then travels in clear (`10` MSG-THR-001);
-- whether UCS-2 text is accepted under a registered sender name;
-- the balance's answer and its unit.
-
-*Source: M-008, M-020*
-
-**Acceptance criteria**
-1. A send's request and the report of it name the same delivery, by its delivery
-   reference or its provider reference.
-2. No credential appears in configuration files or in a log entry the library writes.
+**MSG-SMS-003** — *Retired by M-022.* The library ships no SMS provider; a host that
+uses SMS registers its own, as MSG-CHAN-001 describes (`04` MSG-LIB-005).
 
 ---
 
@@ -395,12 +381,15 @@ provider sets, the key is the only bar to a forger (`10` MSG-THR-001), and a tim
 attempt, which answered no provider reference, cannot be matched, so its retry goes
 ahead.
 
-Where WE gives one report address per account and other software of the host sends
-through the same account (an identity library's sign-in codes, for example), the reports
-of both arrive at one address; the host routes the reports that are not this library's,
-since it alone knows both senders (M-020).
+Where a gateway holds one report address for the account and other software of the host
+sends through the same account (an identity library's sign-in codes, for example), the
+reports of both arrive at one address; the host routes the reports that are not this
+library's, since it alone knows both senders (M-020). Where that address is the report
+group's, the host's provider does so in its `ReadReportAsync`: it hands such a report to
+the other software and answers it `notfinal`, which changes nothing here and is not
+counted.
 
-*Source: M-008, M-020*
+*Source: M-008, M-020, M-022*
 
 **Acceptance criteria**
 1. A report with the wrong key, and a report with the right key naming a guessed

@@ -297,11 +297,11 @@ other test `Method_Scenario_Outcome`. No mocking package. Providers are tested a
 servers that speak their protocol: a scripted SMTP listener in the test process,
 speaking SMTP over TLS with certificates from a test authority whose revocation list a
 listener in the test process serves, and answering each step as a test sets; an HTTP
-listener in the test process for the SMS and push providers, reached by replacing the
-named clients' primary handlers (`02` MSG-CHAN-001). Every criterion a test can decide
-has one; the rest are named in the phase report with how they were checked.
+listener in the test process for the push provider, reached by replacing the named
+client's primary handler (`02` MSG-CHAN-001). Every criterion a test can decide has one;
+the rest are named in the phase report with how they were checked.
 
-*Source: M-012, M-013, M-015*
+*Source: M-012, M-013, M-015, M-022*
 
 **Acceptance criteria**
 1. No mocking package is referenced.
@@ -387,36 +387,60 @@ and MinVer SHALL derive the version from the tag.
   `build/gates/release-baseline.json` does (`04` MSG-LIB-006), save that one holding no
   entry (nothing but `#nullable enable` and blank lines) MAY be deleted in the commit
   that deletes the project file beside it, since it records nothing released (M-021).
-- **Releases:** a release is a tag `v<major>.<minor>.<patch>` on the default branch,
-  made by the implementer on the merged release commit when the owner's message says to
-  release; the pipeline packs the packages from the tag and attaches them to the tag's
-  release, and where the owner names a package feed, publishes them there too (M-020).
-  Each package carries its identifier, its description (the text of its "What it holds"
-  cell in `00` section 2.2, without markup or references), as its authors the name the
-  owner's first message of phase 0 gives, and the repository's address, and `Hermes.Cli`
-  also `PackAsTool` and `ToolCommandName` (`hermes`); phase 0 sets them, in
-  `Directory.Build.props` and the project files, and phase 1 `Hermes.Cli`'s two with its
-  project, and every other package property is left unset. A package's dependency on
-  another of the library's packages is the exact version packed (`[v]`, `04`
-  MSG-LIB-001): `dotnet pack` writes a project reference as that version or later, and
-  the .NET 10 SDK has no setting for an exact one, so `Directory.Build.props` holds one
-  target, run after NuGet's `_GetProjectReferenceVersions`, that sets the
-  `ProjectVersion` of each of NuGet's `_ProjectReferencesWithVersions` items to `[v]`;
-  both are names inside NuGet's pack targets, not a documented setting, so `04`
-  MSG-LIB-001's criterion 3 is what catches an SDK that changes them.
+- **Release commit:** the commit that makes release `X.Y.Z` has the message
+  `chore: release X.Y.Z` and changes no file but these (M-023): each
+  `PublicAPI.Shipped.txt`, to its parent's entries and those of the
+  `PublicAPI.Unshipped.txt` beside it, less each entry that file marks `*REMOVED*`,
+  `#nullable enable` first and the rest in ordinal order; each
+  `PublicAPI.Unshipped.txt`, to nothing but `#nullable enable`;
+  `build/gates/release-baseline.json`, to the release's own set as the release gate
+  reads it at that commit (`04` MSG-LIB-006); `CHANGELOG.md`, whose `Unreleased` entries
+  move under a new heading `## [X.Y.Z] - YYYY-MM-DD`, the commit's date in UTC, below an
+  empty `## [Unreleased]`; and `RELEASE-NOTES.md`. In its pull request only `docs:`
+  commits that change nothing outside `docs/` follow it, so the tag on it carries
+  everything the pull request built.
+- **Releases:** a release is a tag `v<major>.<minor>.<patch>` on the release commit,
+  pushed by the implementer once the pull request's merge has brought that commit into
+  the default branch, when the owner's message says to release. The pipeline's release
+  job runs only for such a tag, after the gates job has passed on it, and is the one job
+  that can write to the repository's contents: it packs every package at the tag, each
+  at the tag's version, and creates the tag's release with the runner's GitHub CLI, its
+  notes the tag's `RELEASE-NOTES.md`, the packages attached; where the owner names a
+  package feed, it publishes them there too (M-020, M-023). Each package carries its
+  identifier, its description (the text of its "What it holds" cell in `00` section 2.2,
+  without markup or references), as its authors the name the owner's first message of
+  phase 0 gives, and the repository's address, and `Hermes.Cli` also `PackAsTool` and
+  `ToolCommandName` (`hermes`); phase 0 sets them, in `Directory.Build.props` and the
+  project files, and phase 1 `Hermes.Cli`'s two with its project, and every other
+  package property is left unset. A package's dependency on another of the library's
+  packages is the exact version packed (`[v]`, `04` MSG-LIB-001): `dotnet pack` writes a
+  project reference as that version or later, and the .NET 10 SDK has no setting for an
+  exact one, so `Directory.Build.props` holds one target, run after NuGet's
+  `_GetProjectReferenceVersions`, that sets the `ProjectVersion` of each of NuGet's
+  `_ProjectReferencesWithVersions` items to `[v]`; both are names inside NuGet's pack
+  targets, not a documented setting, so `04` MSG-LIB-001's criterion 3 is what catches
+  an SDK that changes them.
 
-*Source: M-012, M-014, M-015, M-020, M-021*
+*Source: M-012, M-014, M-015, M-020, M-021, M-022, M-023*
 
 **Acceptance criteria**
 1. A commit message outside the rule, and a behaviour-changing commit without a
    changelog line, fail a check.
 2. A commit that changes the content of an existing `PublicAPI.Shipped.txt` or
    `build/gates/release-baseline.json`, or deletes one, fails a check, save the release
-   commit, whose exemption comes with the release step (plan, phase 8); a file that
-   moves unchanged with its project (the rename of phase 8) is neither; nor is a
-   `PublicAPI.Shipped.txt` holding no entry deleted in the commit that deletes the
-   project file beside it (M-021). The same deletion while that project file stays, or
-   the deletion of a file that holds an entry, fails.
+   commit, which changes them as the release commit's value gives; a file that moves
+   unchanged with its project is neither; nor is a `PublicAPI.Shipped.txt` holding no
+   entry deleted in the commit that deletes the project file beside it (M-021). The same
+   deletion while that project file stays, or the deletion of a file that holds an
+   entry, fails.
+3. A commit `chore: release X.Y.Z` that changes a file outside the release commit's
+   value, or one of its files otherwise than the value gives, or that a commit other
+   than a `docs:` commit changing only `docs/` follows in its pull request, fails a
+   check; so does a pull request that changes the release baseline where the baseline at
+   its head differs from the set the release gate reads there.
+4. A release tag's run creates the tag's release, holding every package at the tag's
+   version, only once its gates have passed, and no other job of the pipeline can write
+   to the repository's contents.
 
 ---
 

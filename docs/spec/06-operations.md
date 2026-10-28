@@ -187,14 +187,14 @@ report route keeps under `Hermes:Sms:ReportHoldMax`. Besides the jobs, every pro
 that registers `AddHermes`, whether or not it runs jobs, keeps the key table current on
 a timer of its own (MSG-OPS-008).
 
-*Source: M-005, M-007, M-008, M-009, M-012*
+*Source: M-005, M-007, M-008, M-009, M-012, M-022*
 
 **Acceptance criteria**
 1. With `Hermes:Dispatch:Enabled` false, an application records sends, its hosted
    services dispatch none, and `IDispatcher.RunPassAsync` throws
    `InvalidOperationException`; with it on and `Hermes:Dispatch:Hosted` false, no pass
-   runs until `RunPassAsync` is called, which then dispatches through the shipped
-   providers, and the `observer` job tells the observer.
+   runs until `RunPassAsync` is called, which then dispatches through each channel's
+   provider, and the `observer` job tells the observer.
 2. Two processes running the retention job at once delete each row once, and two running
    the balance job, started some seconds apart, record one reading per poll.
 3. A process that dies holding a job's claim leaves it to another process after
@@ -275,8 +275,8 @@ release notes SHALL state it.
 - **The report key.** The host's request logging, tracing and reverse proxy redact the
   path of the SMS report route (`05` MSG-API-006).
 - **Outbound tracing.** Where the host traces its outbound HTTP requests, it redacts the
-  paths of the library's requests to the push services and the SMS provider, since a
-  push endpoint's path is its subscription (`02` MSG-CHAN-001).
+  paths of the library's requests to the push services, since a push endpoint's path is
+  its subscription (`02` MSG-CHAN-001).
 - **Allowed push hosts.** An entry the deployment adds to `Hermes:Push:AllowedHosts` is
   a push service it vouches for (`02` MSG-PUSH-004).
 - **Shared provider accounts.** Messages other software of the host hands to the
@@ -318,7 +318,7 @@ release notes SHALL state it.
   alert on its key-table timer, which reads the migration history (MSG-OPS-008), so a
   deployment rolls forward rather than back.
 
-*Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020*
+*Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020, M-022*
 
 **Acceptance criteria**
 1. The release notes of each release (`RELEASE-NOTES.md`, `07` MSG-ENG-001) state every
@@ -341,9 +341,8 @@ not hold.
 | `contentKeys` | Versions, each 32 bytes: the library protector's AES-256-GCM keys | `01` MSG-SEND-018 |
 | `hashKeys` | Versions, each at least 32 bytes: the keys of the keyed hash | `01` MSG-SEND-009, MSG-SEND-012, MSG-SEND-014; `02` MSG-PUSH-002, MSG-PUSH-003; `05` MSG-API-005 |
 | `tokenKeys` | Versions, each at least 32 bytes: the keys signing unsubscribe tokens | `02` MSG-EMAIL-006; `05` MSG-API-005 |
-| `smsReportKey` | Versions, each at least 16 bytes: the report route's key, written in the route as base64url | `02` MSG-SMS-003, MSG-SMS-004 |
+| `smsReportKey` | Versions, each at least 16 bytes: the report route's key, written in the route as base64url | `02` MSG-SMS-004 |
 | `emailSubmission` | The submission account, UTF-8 JSON `{ "userName", "password" }` | `02` MSG-EMAIL-001 |
-| `smsWe` | WE's credential string | `02` MSG-SMS-003 |
 | `pushVapidKeys` | Versions, each a P-256 private key as its 32-byte scalar | `02` MSG-PUSH-007 |
 
 The keys are needed by these parts: `hashKeys` by the engine (`AddHermes`);
@@ -365,8 +364,8 @@ MSG-LIB-003) that the source does not answer stops the start with
 scalar of P-256, JSON that does not read) with `messaging.startup.secretinvalid`; both
 name it in `details.key`. Secrets are held in byte arrays, never in strings where the
 API allows, and are not logged. The single-valued secrets (`connection`,
-`listenConnection`, `emailSubmission`, `smsWe`) are used at their highest version, and a
-password changed in place in them is an ordinary change.
+`listenConnection`, `emailSubmission`) are used at their highest version, and a password
+changed in place in them is an ordinary change.
 
 **The keyed hash** is HMAC-SHA-256 under a `hashKeys` version of a domain, a zero byte
 and the value, the domain keeping one kind of value from ever matching another: `email`,
@@ -488,7 +487,7 @@ answers `messaging.key.unavailable`, the push subscription route 503
 `messaging.request.unavailable` (`05` MSG-API-004), and the retention job leaves the
 values it would protect again under their version.
 
-*Source: M-005, M-007, M-009, M-012*
+*Source: M-005, M-007, M-009, M-012, M-022*
 
 **Acceptance criteria**
 1. Each secret, missing where its part is used, stops the start naming it.

@@ -5,19 +5,16 @@ browser push notifications) for any application that imports it, and that is des
 from the start to carry **conversations** (support chat with a queue and a shared inbox,
 and staff group and private chats) in a later release.
 
-`Hermes` is a working name, renamed before the first release
-(`docs/guide/implementation-plan.md`, phase 8). The rename changes the namespaces, the
-project and package identifiers, the solution file, the configuration section and its
-keys, the registration and mapping methods, the command of `Hermes.Cli`, and the public
-names `08` section 8 lists as changing with it. No type is named after the library (`07`
-MSG-ENG-007), and the names that are stored or shared by two releases (the schema, the
-protector's `Id`, the notification channel, the key-check text) are neutral and never
-change.
+`Hermes` is the library's name (M-022): its namespaces, its project and package
+identifiers, its solution file, its configuration section, its registration and mapping
+methods, the command of `Hermes.Cli` and the names `08` section 8 lists carry it. No
+type is named after the library (`07` MSG-ENG-007), and the names that are stored or
+shared by two releases (the schema, the protector's `Id`, the notification channel, the
+key-check text) are neutral and never change.
 
 Intended experience for a new project: **import → declare what it sends → send.**
 
-**Status:** specification. Everything needed to build is in documents 00 to 10, save
-WE's API document, which the WE adapter's build needs (`02` MSG-SMS-003).
+**Status:** specification. Everything needed to build is in documents 00 to 10.
 `decision-log.md` records why each choice was made and what was rejected; it is
 background and never required to build. Requirements cite their source decision so the
 reasoning is one lookup away.
@@ -125,20 +122,20 @@ process. It SHALL NOT read or write the host's tables.
 | Runtime | .NET 10 |
 | Database | PostgreSQL, through EF Core and the Npgsql provider |
 | Email | SMTP submission through MailKit |
-| SMS | An HTTP provider behind a contract; WE (Telecom Egypt) is the first adapter |
+| SMS | A gateway behind a contract, through the provider the host registers (`02` MSG-CHAN-001) |
 | Browser push | Web Push (RFC 8030, 8291, 8292) through Lib.Net.Http.WebPush |
 | Templates | Liquid, through Fluid |
 
 Versions are pinned in `07` MSG-ENG-009.
 
-*Source: M-001, M-002, M-013*
+*Source: M-001, M-002, M-013, M-022*
 
 ### 2.2 The parts
 
 | Package | What it holds | Who uses it |
 |---|---|---|
 | `Hermes.Core` | The public types and contracts every other package shares | Every other package |
-| `Hermes.Channels` | The channel providers: SMTP email, the WE SMS adapter, Web Push, and their registration. No database, no templates, no background work | An application that only hands a message to a provider |
+| `Hermes.Channels` | The channel providers (SMTP email and Web Push), the SMS channel's rules, and their registration. No database, no templates, no background work | An application that only hands a message to a provider |
 | `Hermes` | The sending engine: kinds, the outbox, the checks, dispatch, templates, the endpoints, the schema | An application that sends its own messages |
 | `Hermes.Testing` | In-memory providers, fixed secrets, an on-demand dispatcher and a test database's migration | A host's tests, and the sample host (`07` MSG-ENG-001) |
 | `Hermes.Cli` | A .NET tool, command `hermes`, that applies the migrations (`06` MSG-OPS-002) | A deployment's pipeline |
@@ -149,7 +146,7 @@ provider alone never carries the engine. No package knows another library: a hos
 uses this library beside others (an identity library, say) connects them in its own
 code, through the seams of `04` MSG-LIB-005 and the providers of `02` (M-020).
 
-*Source: M-001, M-003, M-020*
+*Source: M-001, M-003, M-020, M-022*
 
 ---
 
