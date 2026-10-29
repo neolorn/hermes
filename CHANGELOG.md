@@ -209,3 +209,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A sample host, a bakery that tells its customers of their orders by email and SMS
   and of its weekly offers by email and push, built from the packed packages alone,
   with tests that run it against PostgreSQL
+- The library ships no SMS provider: where SMS is used, or the report group is mapped,
+  a start with no `ISmsProvider` of the host's stops with
+  `messaging.startup.declarationmissing`, `key` `smsProvider`, under `AddHermes` and
+  `AddHermesChannels` alike

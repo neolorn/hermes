@@ -60,6 +60,9 @@ internal static class ChannelsHost
     internal static IHost Build(IConfiguration configuration, Action<IServiceCollection>? before = null, Action<IServiceCollection>? after = null)
     {
         HostApplicationBuilder builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings());
+
+        // The library ships no SMS provider, so a host using SMS registers its own; a test's own replaces this one.
+        builder.Services.AddSingleton<Core.ISmsProvider>(new AnySenderSmsProvider());
         before?.Invoke(builder.Services);
         builder.Services.AddHermesChannels(configuration);
         after?.Invoke(builder.Services);

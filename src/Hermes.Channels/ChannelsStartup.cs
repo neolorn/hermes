@@ -51,6 +51,12 @@ internal sealed class ChannelsStartup(ChannelsConfiguration state, EmailSubmissi
             ISecretSource? secrets = use.ShippedEmail || use.ShippedPush
                 ? scope.ServiceProvider.GetService<ISecretSource>() ?? throw StartupFailure.Of(ChannelCodes.DeclarationMissing, ("key", "secretSource"))
                 : null;
+
+            // The library ships no SMS provider (02 MSG-CHAN-001), so SMS used needs the host's.
+            if (use.Sms && sms is null)
+            {
+                throw StartupFailure.Of(ChannelCodes.DeclarationMissing, ("key", "smsProvider"));
+            }
             if (use.ShippedEmail)
             {
                 account.Hold(await EmailSubmission.ReadAsync(secrets!, cancellationToken).ConfigureAwait(false));
