@@ -26,6 +26,9 @@ public sealed class EndpointContractTests
         Assert.Contains("GET /notifications/unsubscribe/{token} 503 body code", given);
         Assert.DoesNotContain("GET /notifications/push/key 401", given);
         Assert.DoesNotContain("POST /notifications/unsubscribe/{token} 415", given);
+
+        // The inbox's group is checked by Hermes.Development.Tests, against the same section of 05.
+        Assert.DoesNotContain("GET /notifications/messages", given);
     }
 
     [Fact]

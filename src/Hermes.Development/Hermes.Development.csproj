@@ -19,6 +19,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The inbox's page, script and style, served from the package itself (02 MSG-DEV-004). -->
+    <EmbeddedResource Include="inbox.html" LogicalName="inbox.html" />
+    <EmbeddedResource Include="inbox.js" LogicalName="inbox.js" />
+    <EmbeddedResource Include="inbox.css" LogicalName="inbox.css" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Hermes.Development.Tests" />
   </ItemGroup>
 

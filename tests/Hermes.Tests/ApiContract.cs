@@ -26,6 +26,8 @@ internal static partial class ApiContract
 
     private const string NoneSignedIn = "Needs no signed-in person";
 
+    private const string InboxGroup = "(`MapHermesDevelopmentInbox`)";
+
     private static readonly int[] JsonRefusals = [400, 413, 415];
 
     /// <summary>The repository's <c>05</c> as lines, its routes under <see cref="Endpoints.Prefix"/>.</summary>
@@ -127,13 +129,18 @@ internal static partial class ApiContract
         ];
     }
 
-    /// <summary>Each section's text outside its tables, joined, and the cells of each row of its tables of routes.</summary>
+    /// <summary>
+    /// Each section's text outside its tables, joined, and the cells of each row of its tables of
+    /// routes; the inbox's section holds none here, since its group is in <c>Hermes.Development</c>,
+    /// which this project does not reference (<c>04</c> MSG-LIB-001), and its own tests check it.
+    /// </summary>
     private static List<(string Prose, List<string[]> Rows)> Sections(string text)
     {
         List<(string Prose, List<string[]> Rows)> sections = [];
         List<string> prose = [];
         List<string[]> rows = [];
         bool inTable = false;
+        bool inbox = false;
         foreach (string line in text.Split('\n').Select(line => line.TrimEnd('\r')))
         {
             if (line.StartsWith("## ", StringComparison.Ordinal))
@@ -141,6 +148,7 @@ internal static partial class ApiContract
                 sections.Add((string.Join(' ', prose), rows));
                 prose = [];
                 rows = [];
+                inbox = line.Contains(InboxGroup, StringComparison.Ordinal);
             }
 
             if (!line.StartsWith('|'))
@@ -152,7 +160,7 @@ internal static partial class ApiContract
             {
                 inTable = true;
             }
-            else if (inTable && !line.StartsWith("|---", StringComparison.Ordinal))
+            else if (inTable && !inbox && !line.StartsWith("|---", StringComparison.Ordinal))
             {
                 rows.Add([.. Cell().Split(line.Trim().Trim('|')).Select(cell => cell.Replace("\\|", "|", StringComparison.Ordinal).Trim())]);
             }

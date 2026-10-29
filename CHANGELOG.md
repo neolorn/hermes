@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   delivery's kind, category, language and person and the message's links, and an email's
   `.eml` beside it as the SMTP provider would submit it, in a folder its owner alone reads,
   cleaned as it grows past `Hermes:DevelopmentInbox:KeepFor` and `MaxMessages`
+- The development inbox's group, `MapHermesDevelopmentInbox`: a small JSON API over the
+  captured messages, `GET /messages/latest` able to wait for one, each email's `.eml` and its
+  HTML under a policy and sandbox that run no script, answered only to the machine itself
+  under a loopback host name unless `Hermes:DevelopmentInbox:AllowRemote` is on
 
 ## [1.0.0] - 2026-10-29
 
