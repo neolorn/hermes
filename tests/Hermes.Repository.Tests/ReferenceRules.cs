@@ -275,6 +275,12 @@ internal static class ReferenceRules
             return Packages.All;
         }
 
+        // The engine's tests map the inbox's group and read its part of the release set (M-025).
+        if (string.Equals(testProject, Packages.TestProject(Packages.Engine), StringComparison.Ordinal))
+        {
+            return [Packages.Engine, Packages.Testing, Packages.Development];
+        }
+
         string source = testProject.EndsWith(".Tests", StringComparison.Ordinal) ? testProject[..^".Tests".Length] : testProject;
         return [source, Packages.Testing];
     }
