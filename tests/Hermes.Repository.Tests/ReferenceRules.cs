@@ -46,6 +46,7 @@ internal static class ReferenceRules
         [Packages.Engine] = [Packages.Core, Packages.Channels],
         [Packages.Testing] = [Packages.Core, Packages.Channels, Packages.Engine],
         [Packages.Cli] = [Packages.Engine],
+        [Packages.Development] = [Packages.Core, Packages.Channels],
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>The packages each package's project may reference at run time.</summary>
@@ -56,6 +57,7 @@ internal static class ReferenceRules
         [Packages.Engine] = ["Microsoft.EntityFrameworkCore", "Microsoft.EntityFrameworkCore.Relational", "Npgsql.EntityFrameworkCore.PostgreSQL", "Fluid.Core"],
         [Packages.Testing] = [],
         [Packages.Cli] = [],
+        [Packages.Development] = [],
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>Answers each reference of a project of the repository at <paramref name="root"/> that MSG-LIB-001 does not allow.</summary>
@@ -258,7 +260,7 @@ internal static class ReferenceRules
 
         string[] allowed = name switch
         {
-            Packages.Channels => [Packages.Engine, Packages.Testing],
+            Packages.Channels => [Packages.Engine, Packages.Testing, Packages.Development],
             Packages.Engine => [Packages.Cli, Packages.Testing],
             _ => [],
         };
@@ -330,7 +332,7 @@ internal static class ReferenceRules
         }
 
         bool test = project.RelativePath.StartsWith("tests/", StringComparison.Ordinal) || (IsSample(project) && project.Name.EndsWith(".Tests", StringComparison.Ordinal));
-        bool allowed = string.Equals(project.Name, Packages.Engine, StringComparison.Ordinal) || needs
+        bool allowed = project.Name is Packages.Engine or Packages.Development || needs
             || (test && project.PackageReferences.Any(reference => string.Equals(ProjectFile.Include(reference), "Microsoft.AspNetCore.Mvc.Testing", StringComparison.Ordinal)));
         if (references && !allowed)
         {

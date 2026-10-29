@@ -206,6 +206,13 @@
       "hermes.core": {
         "type": "Project"
       },
+      "hermes.development": {
+        "type": "Project",
+        "dependencies": {
+          "Hermes.Channels": "[1.0.0, )",
+          "Hermes.Core": "[1.0.0, )"
+        }
+      },
       "hermes.testing": {
         "type": "Project",
         "dependencies": {
