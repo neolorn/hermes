@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   captured messages, `GET /messages/latest` able to wait for one, each email's `.eml` and its
   HTML under a policy and sandbox that run no script, answered only to the machine itself
   under a loopback host name unless `Hermes:DevelopmentInbox:AllowRemote` is on
+- The development inbox's page: every captured message, newest first and checked for new ones
+  every second, with filters, each email as it arrives in a sandboxed frame with its text,
+  headers and `.eml`, each SMS as a phone shows it and each push as a notification, every
+  link with Open and Copy, and Clear; one self-contained page that loads nothing from outside
 
 ## [1.0.0] - 2026-10-29
 
