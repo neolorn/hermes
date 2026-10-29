@@ -9,10 +9,19 @@
     line of at most 72 characters; a body, if any, of dash fragments of at most 72 characters;
     and a footer, if any, of "Implements:" and "BREAKING CHANGE:" lines alone. A commit of type
     feat, fix or perf, or marked as breaking, adds its line under the changelog's Unreleased
-    section, under "Added" while no release is tagged. No commit changes or deletes an existing
-    PublicAPI.Shipped.txt or build/gates/release-baseline.json; adding one, or moving one
-    unchanged, is no change, and a PublicAPI.Shipped.txt holding no entry may be deleted in
-    the commit that deletes the project file beside it.
+    section, under "Added" while no release is tagged. No commit but a release commit changes or
+    deletes an existing PublicAPI.Shipped.txt or build/gates/release-baseline.json; adding one,
+    or moving one unchanged, is no change, and a PublicAPI.Shipped.txt holding no entry may be
+    deleted in the commit that deletes the project file beside it.
+
+    A release commit, "chore: release X.Y.Z", changes no file but each PublicAPI.Shipped.txt, to
+    its parent's entries and those of the PublicAPI.Unshipped.txt beside it, less each one marked
+    *REMOVED*, under #nullable enable in ordinal order; each PublicAPI.Unshipped.txt, to
+    #nullable enable alone; the release baseline, whose content the release gate checks;
+    CHANGELOG.md, whose Unreleased entries move under "## [X.Y.Z] - YYYY-MM-DD", the commit's
+    date in UTC, below an empty "## [Unreleased]"; and RELEASE-NOTES.md, which it holds. In its
+    pull request, up to the platform's merge of it, only docs: commits that change nothing
+    outside docs/ follow it.
 .PARAMETER Repository
     The repository to check; by default, this one.
 .PARAMETER Base
@@ -36,6 +45,7 @@ $headerPattern = "^(?<type>$types)(\((?<scope>$scopes)\))?(?<breaking>!)?: (?<de
 $footerPattern = '^(Implements: MSG-[A-Z]+-\d{3}(, MSG-[A-Z]+-\d{3})*|BREAKING CHANGE: \S.*)$'
 $sectionTypes = 'Added|Changed|Deprecated|Removed|Fixed|Security'
 $releaseTagPattern = '^v\d+\.\d+\.\d+$'
+$releasePattern = '^chore: release (?<version>\d+\.\d+\.\d+)$'
 $platformCommitter = 'noreply@github.com'
 $emptyTree = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 
@@ -152,8 +162,8 @@ function Test-EntryFreeShippedFileGoingWithItsProject([string] $parent, [string]
     return @($lines | Where-Object { ([string]$_).Trim() -cnotin '', '#nullable enable' }).Count -eq 0
 }
 
-# PublicAPI.Shipped.txt and the release baseline change only in a release commit, whose
-# exemption comes with the release step (plan, phase 8); a PublicAPI.Shipped.txt holding no
+# PublicAPI.Shipped.txt and the release baseline change only in a release commit, which
+# Get-ReleaseCommitProblems checks in their place (M-023); a PublicAPI.Shipped.txt holding no
 # entry may go in the commit that deletes the project file beside it (M-021).
 function Get-ReleasedFileProblems([string] $commit, [string] $parent) {
     $changes = @(Invoke-Git diff --name-status --find-renames=100% $parent $commit)
@@ -172,10 +182,120 @@ function Get-ReleasedFileProblems([string] $commit, [string] $parent) {
     }
 }
 
+# The files a release commit changes (M-023).
+function Test-ReleaseCommitFile([string] $path) {
+    $path -cin 'build/gates/release-baseline.json', 'CHANGELOG.md', 'RELEASE-NOTES.md' -or ($path -split '/')[-1] -cin 'PublicAPI.Shipped.txt', 'PublicAPI.Unshipped.txt'
+}
+
+function Test-Present([string] $commit, [string] $path) {
+    & git -C $Repository cat-file -e "${commit}:$path" 2>$null
+    $LASTEXITCODE -eq 0
+}
+
+# The lines of $path at $commit, carriage returns and the blank lines at its end aside; none
+# where $commit holds no such file.
+function Get-Lines([string] $commit, [string] $path) {
+    if (-not (Test-Present $commit $path)) { return }
+    $lines = @(Invoke-Git show "${commit}:$path" | ForEach-Object { ([string]$_).TrimEnd("`r") })
+    while ($lines.Count -gt 0 -and $lines[-1] -eq '') { $lines = @($lines | Select-Object -SkipLast 1) }
+    $lines
+}
+
+# The PublicAPI.Shipped.txt the release commit writes in $folder: its parent's entries and those
+# of the PublicAPI.Unshipped.txt beside it, less each one marked *REMOVED*, under
+# #nullable enable in ordinal order.
+function Get-ReleasedShipped([string] $parent, [string] $prefix) {
+    $lines = @(Get-Lines $parent "${prefix}PublicAPI.Shipped.txt") + @(Get-Lines $parent "${prefix}PublicAPI.Unshipped.txt")
+    $removed = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($line in $lines) { if ($line.StartsWith('*REMOVED*', [StringComparison]::Ordinal)) { [void]$removed.Add($line.Substring(9)) } }
+    $entries = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($line in $lines) {
+        if ($line.Trim() -cin '', '#nullable enable' -or $line.StartsWith('*REMOVED*', [StringComparison]::Ordinal) -or $removed.Contains($line)) { continue }
+        [void]$entries.Add($line)
+    }
+    [string[]] $sorted = @($entries)
+    [Array]::Sort($sorted, [StringComparer]::Ordinal)
+    @('#nullable enable') + $sorted
+}
+
+# A release commit changes no file but its own, each as the release commit's value gives it
+# (07 MSG-ENG-011, M-023); the baseline's content is the release gate's to check, since only
+# a build reads the set it holds (04 MSG-LIB-006).
+function Get-ReleaseCommitProblems([string] $commit, [string] $parent, [string] $version) {
+    foreach ($change in @(Invoke-Git diff --name-status --no-renames $parent $commit)) {
+        $fields = $change -split "`t"
+        if ($fields[0] -eq 'D') { "it deletes $($fields[1]), which a release commit does not delete" }
+        elseif (-not (Test-ReleaseCommitFile $fields[1])) { "it changes $($fields[1]), which a release commit does not change" }
+    }
+
+    $lists = @(@(Invoke-Git ls-tree -r --name-only $parent) + @(Invoke-Git ls-tree -r --name-only $commit) | Where-Object { ($_ -split '/')[-1] -cin 'PublicAPI.Shipped.txt', 'PublicAPI.Unshipped.txt' })
+    $prefixes = @($lists | ForEach-Object { $_.Substring(0, $_.LastIndexOf('/') + 1) } | Sort-Object -Unique -CaseSensitive)
+    foreach ($prefix in $prefixes) {
+        $shipped = "${prefix}PublicAPI.Shipped.txt"
+        if ((Test-Present $commit $shipped) -and ((Get-Lines $commit $shipped) -join "`n") -cne ((Get-ReleasedShipped $parent $prefix) -join "`n")) {
+            "$shipped is not its parent's entries and those of the PublicAPI.Unshipped.txt beside it, less each one marked *REMOVED*, under #nullable enable in ordinal order"
+        }
+
+        $unshipped = "${prefix}PublicAPI.Unshipped.txt"
+        if ((Test-Present $commit $unshipped) -and ((Get-Lines $commit $unshipped) -join "`n") -cne '#nullable enable') {
+            "$unshipped holds more than #nullable enable"
+        }
+    }
+
+    # The commit's date in UTC: the author date, which a merge of its pull request keeps.
+    $seconds = [long](Invoke-Git log -1 --format=%at $commit)
+    $date = [DateTimeOffset]::FromUnixTimeSeconds($seconds).UtcDateTime.ToString('yyyy-MM-dd', [cultureinfo]::InvariantCulture)
+    $heading = "## [$version] - $date"
+    $expected = [System.Collections.Generic.List[string]]::new()
+    $moved = $false
+    foreach ($line in @(Get-Lines $parent 'CHANGELOG.md')) {
+        $expected.Add($line)
+        if (-not $moved -and $line -ceq '## [Unreleased]') { $expected.Add(''); $expected.Add($heading); $moved = $true }
+    }
+    if (-not $moved -or ((Get-Lines $commit 'CHANGELOG.md') -join "`n") -cne ($expected -join "`n")) {
+        "CHANGELOG.md does not move the Unreleased entries under $heading below an empty ## [Unreleased]"
+    }
+
+    if (-not (Test-Present $commit 'RELEASE-NOTES.md')) { 'it holds no RELEASE-NOTES.md' }
+}
+
+function Test-PlatformMerge([string] $commit) {
+    $fields = (Invoke-Git log -1 --format='%P%x09%ce' $commit) -split "`t"
+    @($fields[0] -split ' ' | Where-Object { $_ }).Count -gt 1 -and $fields[1] -ceq $platformCommitter
+}
+
+# In its pull request only docs: commits that change nothing outside docs/ follow a release
+# commit, so the tag on it carries everything the pull request built: its followers are the
+# commits after it up to Head, save the platform's merge of its pull request and what follows that.
+function Get-FollowerProblems([string] $release, [hashtable] $problems) {
+    $descendants = @(Invoke-Git rev-list --ancestry-path "$release..$Head")
+    $merges = @($descendants | Where-Object { Test-PlatformMerge $_ })
+    $later = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($merge in $merges) {
+        [void]$later.Add($merge)
+        foreach ($commit in @(Invoke-Git rev-list --ancestry-path "$merge..$Head")) { [void]$later.Add($commit) }
+    }
+
+    foreach ($commit in $descendants) {
+        if ($later.Contains($commit)) { continue }
+        $subject = [string](Invoke-Git log -1 --format=%s $commit)
+        $outside = @(Invoke-Git diff --name-only --no-renames "$commit^" $commit | Where-Object { -not $_.StartsWith('docs/', [StringComparison]::Ordinal) })
+        if ($subject -cnotmatch '^docs(\([a-z]+\))?: ' -or $outside.Count -gt 0) {
+            if (-not $problems.ContainsKey($commit)) { $problems[$commit] = [System.Collections.Generic.List[string]]::new() }
+            $problems[$commit].Add("it follows the release commit $($release.Substring(0, 12)) in its pull request and is not a docs: commit changing only docs/")
+        }
+    }
+}
+
 $range = if ($Base) { "$Base..$Head" } else { $Head }
 $commits = @(Invoke-Git rev-list --reverse $range)
 $failures = 0
 $checked = 0
+
+$followers = @{}
+foreach ($commit in $commits) {
+    if ([string](Invoke-Git log -1 --format=%s $commit) -cmatch $releasePattern) { Get-FollowerProblems $commit $followers }
+}
 
 foreach ($commit in $commits) {
     $fields = (Invoke-Git log -1 --format='%P%x09%ce' $commit) -split "`t"
@@ -191,9 +311,12 @@ foreach ($commit in $commits) {
     }
 
     $parent = if ($parents.Count -gt 0) { $parents[0] } else { $emptyTree }
-    $problems += @(Get-ReleasedFileProblems $commit $parent)
+    $subject = ($message -split "`n")[0].TrimEnd("`r")
+    $release = [regex]::Match($subject, $releasePattern)
+    if ($release.Success) { $problems += @(Get-ReleaseCommitProblems $commit $parent $release.Groups['version'].Value) }
+    else { $problems += @(Get-ReleasedFileProblems $commit $parent) }
+    if ($followers.ContainsKey($commit)) { $problems += @($followers[$commit]) }
 
-    $subject = ($message -split "`n")[0]
     foreach ($problem in $problems) {
         Write-Host "$($commit.Substring(0, 12)) ""$subject"": $problem."
         $failures++

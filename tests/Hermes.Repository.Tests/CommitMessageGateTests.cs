@@ -25,6 +25,23 @@ public sealed class CommitMessageGateTests
     /// <summary>A made-up project's folder, so no test names a project of the repository.</summary>
     private const string ProjectFolder = "src/Hermes.Extra";
 
+    /// <summary>The release commit's date, whose day in UTC is the day before its day where it was made.</summary>
+    private const string ReleaseDate = "2026-10-31T01:30:00+03:00";
+
+    private const string Entry = "\n- The send operation records a send.\n";
+
+    private const string ReleasedChangelog = "# Changelog\n\n## [Unreleased]\n\n## [1.0.0] - 2026-10-30\n\n### Added\n" + Entry;
+
+    private const string Shipped = "#nullable enable\nHermes.Extra.Old\nHermes.Extra.Gone\n";
+
+    private const string Unshipped = "#nullable enable\nabstract Hermes.Extra.Send.Name.get -> string!\nHermes.Extra.Send\nHermes.Extra.Added\n*REMOVED*Hermes.Extra.Gone\n";
+
+    private const string ReleasedShipped = "#nullable enable\nHermes.Extra.Added\nHermes.Extra.Old\nHermes.Extra.Send\nabstract Hermes.Extra.Send.Name.get -> string!\n";
+
+    private const string ShippedProblem = ProjectFolder + "/PublicAPI.Shipped.txt is not its parent's entries and those of the PublicAPI.Unshipped.txt beside it, less each one marked *REMOVED*, under #nullable enable in ordinal order";
+
+    private const string ChangelogProblem = "CHANGELOG.md does not move the Unreleased entries under ## [1.0.0] - 2026-10-30 below an empty ## [Unreleased]";
+
     [Fact]
     public async Task MSG_ENG_011_AC1_CommitsWithinTheRulePass()
     {
@@ -304,6 +321,124 @@ public sealed class CommitMessageGateTests
     }
 
     [Fact]
+    public async Task MSG_ENG_011_AC2_TheReleaseCommitChangingItsFilesAsTheValueGivesPasses()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateForReleaseAsync(folder, cancellationToken);
+        WriteRelease(repository);
+        await CommitReleaseAsync(repository, cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.True(gate.ExitCode == 0, gate.Output);
+        Assert.Contains("1 commit(s)", gate.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("src/Hermes.Extra/Send.cs")]
+    [InlineData("README.md")]
+    [InlineData("docs/reports/phase-08.md")]
+    public async Task MSG_ENG_011_AC3_AReleaseCommitChangingAFileOutsideItsValueFails(string path)
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateForReleaseAsync(folder, cancellationToken);
+        WriteRelease(repository);
+        repository.Write(path, "namespace Hermes.Extra;\n");
+        await CommitReleaseAsync(repository, cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.NotEqual(0, gate.ExitCode);
+        Assert.Contains($"it changes {path}, which a release commit does not change", gate.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(ProjectFolder + "/PublicAPI.Shipped.txt", "#nullable enable\nabstract Hermes.Extra.Send.Name.get -> string!\nHermes.Extra.Added\nHermes.Extra.Old\nHermes.Extra.Send\n", ShippedProblem)]
+    [InlineData(ProjectFolder + "/PublicAPI.Shipped.txt", "#nullable enable\nHermes.Extra.Added\nHermes.Extra.Gone\nHermes.Extra.Old\nHermes.Extra.Send\nabstract Hermes.Extra.Send.Name.get -> string!\n", ShippedProblem)]
+    [InlineData(ProjectFolder + "/PublicAPI.Shipped.txt", "#nullable enable\nHermes.Extra.Old\nHermes.Extra.Send\nabstract Hermes.Extra.Send.Name.get -> string!\n", ShippedProblem)]
+    [InlineData(ProjectFolder + "/PublicAPI.Shipped.txt", "Hermes.Extra.Added\nHermes.Extra.Old\nHermes.Extra.Send\nabstract Hermes.Extra.Send.Name.get -> string!\n", ShippedProblem)]
+    [InlineData(ProjectFolder + "/PublicAPI.Unshipped.txt", "#nullable enable\nHermes.Extra.Send\n", ProjectFolder + "/PublicAPI.Unshipped.txt holds more than #nullable enable")]
+    [InlineData("CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n\n## [1.0.0] - 2026-10-31\n\n### Added\n" + Entry, ChangelogProblem)]
+    [InlineData("CHANGELOG.md", Changelog + Entry + "\n## [1.0.0] - 2026-10-30\n", ChangelogProblem)]
+    public async Task MSG_ENG_011_AC3_AReleaseCommitChangingOneOfItsFilesOtherwiseThanTheValueGivesFails(string path, string content, string problem)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateForReleaseAsync(folder, cancellationToken);
+        WriteRelease(repository);
+        repository.Write(path, content);
+        await CommitReleaseAsync(repository, cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.NotEqual(0, gate.ExitCode);
+        Assert.Contains(problem, gate.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MSG_ENG_011_AC3_AReleaseCommitDeletingTheReleaseNotesFails()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateForReleaseAsync(folder, cancellationToken);
+        WriteRelease(repository);
+        await repository.GitAsync(cancellationToken, "rm", "--quiet", "RELEASE-NOTES.md");
+        await CommitReleaseAsync(repository, cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.NotEqual(0, gate.ExitCode);
+        Assert.Contains("it deletes RELEASE-NOTES.md, which a release commit does not delete", gate.Output, StringComparison.Ordinal);
+        Assert.Contains("it holds no RELEASE-NOTES.md", gate.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("docs: correct the report", "docs/reports/phase-08.md", true)]
+    [InlineData("docs: correct the readme", "README.md", false)]
+    [InlineData("test: correct the report", "docs/reports/phase-08.md", false)]
+    public async Task MSG_ENG_011_AC3_OnlyADocsCommitChangingOnlyDocsFollowsTheReleaseCommitInItsPullRequest(string message, string path, bool passes)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateForReleaseAsync(folder, cancellationToken);
+        WriteRelease(repository);
+        string release = await CommitReleaseAsync(repository, cancellationToken);
+        repository.Write(path, "# Phase 8\n");
+        await repository.CommitAsync(message, cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.True((gate.ExitCode == 0) == passes, gate.Output);
+        if (!passes)
+        {
+            Assert.Contains($"it follows the release commit {release[..12]} in its pull request and is not a docs: commit changing only docs/", gate.Output, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task MSG_ENG_011_AC3_ACommitAfterTheMergeOfTheReleaseCommitsPullRequestIsNotItsFollower()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateForReleaseAsync(folder, cancellationToken);
+        await repository.GitAsync(cancellationToken, "switch", "--quiet", "--create", "phase-08");
+        WriteRelease(repository);
+        await CommitReleaseAsync(repository, cancellationToken);
+        await repository.GitAsync(cancellationToken, "switch", "--quiet", "main");
+        await repository.GitAsync(cancellationToken, "-c", "user.name=GitHub", "-c", "user.email=noreply@github.com", "merge", "--quiet", "--no-ff", "--no-edit", "-m", "Merge pull request #9 from owner/phase-08", "phase-08");
+        await repository.CommitAsync("build: add the shared build settings", cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.True(gate.ExitCode == 0, gate.Output);
+        Assert.Contains("2 commit(s)", gate.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task PreviousReleaseTag_TagsOfOtherShapes_AreLeftOut()
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
@@ -364,6 +499,34 @@ public sealed class CommitMessageGateTests
         repository.Write(ProjectFolder + "/PublicAPI.Unshipped.txt", "#nullable enable\n");
         string start = await repository.CommitAsync("docs: add the changelog and the extra project", cancellationToken);
         return (repository, start);
+    }
+
+    /// <summary>A repository holding a project at <see cref="ProjectFolder"/> with entries to release, the baseline and the release notes.</summary>
+    private static async Task<(GitRepository Repository, string Start)> CreateForReleaseAsync(ScratchFolder folder, CancellationToken cancellationToken)
+    {
+        GitRepository repository = await GitRepository.CreateAsync(folder, cancellationToken);
+        repository.Write("CHANGELOG.md", Changelog + Entry);
+        repository.Write("RELEASE-NOTES.md", "# Hermes 1.0.0\n");
+        repository.Write(ProjectFolder + "/Hermes.Extra.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />\n");
+        repository.Write(ProjectFolder + "/PublicAPI.Shipped.txt", Shipped);
+        repository.Write(ProjectFolder + "/PublicAPI.Unshipped.txt", Unshipped);
+        repository.Write("build/gates/release-baseline.json", "{}\n");
+        string start = await repository.CommitAsync("docs: add the changelog, the release notes and the extra project", cancellationToken);
+        return (repository, start);
+    }
+
+    /// <summary>Writes the release commit's files as the release commit's value gives them for release 1.0.0.</summary>
+    private static void WriteRelease(GitRepository repository)
+    {
+        repository.Write("CHANGELOG.md", ReleasedChangelog);
+        repository.Write(ProjectFolder + "/PublicAPI.Shipped.txt", ReleasedShipped);
+        repository.Write(ProjectFolder + "/PublicAPI.Unshipped.txt", "#nullable enable\n");
+        repository.Write("build/gates/release-baseline.json", "{\n  \"codes\": [\n    \"messaging.send.unknown\"\n  ]\n}\n");
+    }
+
+    private static Task<string> CommitReleaseAsync(GitRepository repository, CancellationToken cancellationToken)
+    {
+        return repository.CommitAsync("chore: release 1.0.0", cancellationToken, "--date", ReleaseDate);
     }
 
     private static Task<ProcessResult> RunAsync(GitRepository repository, string start, CancellationToken cancellationToken)
