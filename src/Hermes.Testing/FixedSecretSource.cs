@@ -14,7 +14,7 @@ namespace Hermes.Testing;
 /// <summary>
 /// A secret source for tests (<c>04</c> MSG-LIB-008): it answers version 1 of
 /// <c>contentKeys</c>, <c>hashKeys</c>, <c>tokenKeys</c>, <c>smsReportKey</c>,
-/// <c>pushVapidKeys</c>, <c>emailSubmission</c> and <c>smsWe</c>, each in its form and derived at
+/// <c>pushVapidKeys</c> and <c>emailSubmission</c>, each in its form and derived at
 /// run time from the SHA-256 of its name, and neither connection secret, which a test sets.
 /// </summary>
 public sealed class FixedSecretSource : ISecretSource
@@ -39,7 +39,6 @@ public sealed class FixedSecretSource : ISecretSource
         }
 
         secrets[Submission] = First(Account());
-        secrets["smsWe"] = First(Encoding.UTF8.GetBytes(Convert.ToHexString(Derived("smsWe"))));
     }
 
     /// <summary>Answers <paramref name="versions"/> for the secret <paramref name="name"/>, in place of what it answered.</summary>

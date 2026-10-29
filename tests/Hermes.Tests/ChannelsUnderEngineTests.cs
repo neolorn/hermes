@@ -47,7 +47,7 @@ public sealed class ChannelsUnderEngineTests(PostgresFixture postgres) : IClassF
         await host.StartAsync(TestContext.Current.CancellationToken);
         await host.StopAsync(TestContext.Current.CancellationToken);
 
-        Assert.DoesNotContain(secrets.Read, name => name is "pushVapidKeys" or "smsReportKey" or "smsWe");
+        Assert.DoesNotContain(secrets.Read, name => name is "pushVapidKeys" or "smsReportKey");
     }
 
     [Fact]

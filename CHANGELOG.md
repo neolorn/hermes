@@ -213,3 +213,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a start with no `ISmsProvider` of the host's stops with
   `messaging.startup.declarationmissing`, `key` `smsProvider`, under `AddHermes` and
   `AddHermesChannels` alike
+- `FixedSecretSource` answers only the secrets the library reads: the five keys of the
+  key tables and `emailSubmission`
