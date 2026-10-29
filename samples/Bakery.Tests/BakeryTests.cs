@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 
 using Hermes.Core;
+using Hermes.Development;
 using Hermes.Testing;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +39,33 @@ public sealed class BakeryTests(PostgresFixture postgres) : IClassFixture<Postgr
             (email.ToAddress, email.Subject, email.Text));
         SmsMessage sms = Assert.Single(bakery.Services.GetRequiredService<InMemorySmsProvider>().Received);
         Assert.Equal(("+201000000001", "Bakery", "Your order of a rye loaf is in."), (sms.ToNumber, sms.Sender, sms.Text));
+    }
+
+    [Fact]
+    public async Task PlaceOrder_InTheTests_GoesThroughTheInMemoryProvidersAndLeavesTheDevelopmentInboxEmpty()
+    {
+        await using BakeryFactory bakery = await BakeryFactory.StartAsync(postgres);
+        using HttpClient customer = await bakery.SignInAsync("c-1");
+
+        using HttpResponseMessage ordered = await customer.PostAsJsonAsync("/orders", new { item = "a rye loaf" }, TestContext.Current.CancellationToken);
+        int delivered = await bakery.DispatchAsync();
+
+        Assert.Equal((HttpStatusCode.NoContent, 2), (ordered.StatusCode, delivered));
+        Assert.Single(bakery.Services.GetRequiredService<InMemoryEmailProvider>().Received);
+        Assert.Empty(await new DevelopmentInbox(bakery.InboxFolder).ListAsync(new InboxFilter(), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task DevelopmentInbox_AskedFromOutsideTheMachine_Is403()
+    {
+        await using BakeryFactory bakery = await BakeryFactory.StartAsync(postgres);
+        using HttpClient client = bakery.CreateClient();
+
+        using HttpResponseMessage answer = await client.GetAsync(Route("/dev/inbox/messages"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, answer.StatusCode);
+        using JsonDocument body = JsonDocument.Parse(await answer.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("messaging.inbox.notlocal", body.RootElement.GetProperty("code").GetString());
     }
 
     [Fact]

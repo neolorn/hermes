@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   link with Open and Copy, and Clear; one self-contained page that loads nothing from outside
 - `DevelopmentInbox`, for a .NET test or tool: it lists, reads the latest of and clears the
   captured messages, and waits for one captured after it was made, without HTTP
+- The sample host runs with the development inbox, its page at `/dev/inbox/`, while its tests
+  keep sending through the in-memory providers of `Hermes.Testing`
 
 ## [1.0.0] - 2026-10-29
 
