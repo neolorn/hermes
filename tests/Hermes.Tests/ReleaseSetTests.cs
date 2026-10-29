@@ -35,6 +35,23 @@ public sealed class ReleaseSetTests
     }
 
     [Fact]
+    public void MSG_LIB_006_AC1_TheCurrentSetHoldsTheDevelopmentInboxsRoutesBodiesCodesAndKeys()
+    {
+        ReleaseSet current = ReleaseSet.Current(ReleaseSet.Root());
+
+        Assert.Contains("GET /notifications/messages/latest", current[ReleaseSet.Routes]);
+        Assert.Contains("DELETE /notifications/messages", current[ReleaseSet.Routes]);
+        Assert.Contains("GET /notifications/messages/{id} 404", current[ReleaseSet.Statuses]);
+        Assert.Contains("ListBody.messages: SummaryBody[]", current[ReleaseSet.Bodies]);
+        Assert.Contains("NotificationBody.badge: string", current[ReleaseSet.Bodies]);
+        Assert.Contains("messaging.inbox.notfound", current[ReleaseSet.Codes]);
+        Assert.Contains("messaging.inbox.notlocal", current[ReleaseSet.Codes]);
+        Assert.Contains("Hermes:DevelopmentInbox:Folder", current[ReleaseSet.Keys]);
+        Assert.Contains("Hermes:DevelopmentInbox:AllowRemote", current[ReleaseSet.Keys]);
+        Assert.Contains(current[ReleaseSet.Surface], line => line.StartsWith("Hermes.Development: ", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void MSG_LIB_006_AC1_EveryPublicInterfaceOfTheContractsIsOneAHostImplementsOrOneTheLibraryDoes()
     {
         Type[] interfaces = [.. typeof(Channel).Assembly.GetExportedTypes().Where(type => type.IsInterface)];

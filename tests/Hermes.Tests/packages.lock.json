@@ -310,6 +310,13 @@
       "hermes.core": {
         "type": "Project"
       },
+      "hermes.development": {
+        "type": "Project",
+        "dependencies": {
+          "Hermes.Channels": "[1.0.0, )",
+          "Hermes.Core": "[1.0.0, )"
+        }
+      },
       "Fluid.Core": {
         "type": "CentralTransitive",
         "requested": "[2.40.0, )",
