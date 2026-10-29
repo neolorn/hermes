@@ -1,0 +1,406 @@
+/* The development inbox's page (02 MSG-DEV-004): the browser's light or dark scheme, no outside resource. */
+:root {
+  color-scheme: light dark;
+  --page: #f6f7f9;
+  --surface: #ffffff;
+  --sunken: #eef0f3;
+  --text: #1c1f24;
+  --muted: #5b6270;
+  --line: #d9dde3;
+  --accent: #2357c6;
+  --accent-text: #ffffff;
+  --selected: #e3ebfb;
+  --danger: #b3261e;
+  --bubble: #e9e9eb;
+  --email: #2357c6;
+  --sms: #1f7a43;
+  --push: #8a4baf;
+  --focus: #2357c6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #14161a;
+    --surface: #1c1f24;
+    --sunken: #23272e;
+    --text: #e8eaee;
+    --muted: #a0a7b4;
+    --line: #353a43;
+    --accent: #7ea6ff;
+    --accent-text: #0d1220;
+    --selected: #24324f;
+    --danger: #ff8a80;
+    --bubble: #2f333b;
+    --email: #7ea6ff;
+    --sms: #6fd39b;
+    --push: #d3a3f0;
+    --focus: #7ea6ff;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", sans-serif;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.2rem;
+  overflow-wrap: anywhere;
+}
+
+h3 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+button,
+.button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button,
+.button {
+  display: inline-block;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+button:hover,
+.button:hover {
+  border-color: var(--accent);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.bar > div {
+  flex: 1;
+}
+
+.hint,
+.meta,
+.status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.filters input,
+.filters select {
+  min-width: 12rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 26rem) 1fr;
+  min-height: calc(100vh - 9rem);
+}
+
+.messages {
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  text-align: start;
+}
+
+.entry[aria-current="true"] {
+  background: var(--selected);
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.row .to {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row time {
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  padding: 0 0.4rem;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge.email {
+  color: var(--email);
+}
+
+.badge.sms {
+  color: var(--sms);
+}
+
+.badge.push {
+  color: var(--push);
+}
+
+.empty {
+  padding: 1rem;
+  color: var(--muted);
+}
+
+.detail {
+  padding: 1rem 1.25rem;
+  min-width: 0;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 1rem;
+  margin: 0 0 1rem;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs [role="tab"] {
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+}
+
+.tabs [role="tab"][aria-selected="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.panel {
+  padding-top: 0.75rem;
+}
+
+.mail {
+  width: 100%;
+  height: 32rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.text {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: var(--sunken);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.headers {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.headers th,
+.headers td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.phone {
+  max-width: 22rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  background: var(--surface);
+}
+
+.sender {
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.bubble {
+  margin: 0 0 0.5rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 1rem;
+  background: var(--bubble);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.notification {
+  display: flex;
+  gap: 0.75rem;
+  max-width: 26rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
+}
+
+.notification p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.notification .title {
+  font-weight: 600;
+}
+
+.notification .opens {
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.links ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.links li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+}
+
+.link {
+  flex: 1;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .messages {
+    max-height: 45vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .filters input,
+  .filters select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .filters label {
+    flex: 1 1 10rem;
+  }
+}

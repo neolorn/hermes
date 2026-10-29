@@ -1046,7 +1046,7 @@ internal sealed partial class DispatchPass : IDisposable
 
             (string p256dh, string auth) = SubscriptionRule.Split(target.Keys);
             PushRequest request = new PushRequest.WebPush(target.Endpoint, p256dh, auth, target.VapidVersion, payload, ttl, urgency, row.PushTopic);
-            if (await CallPushAsync(provider, request).ConfigureAwait(false) is not { } answer)
+            if (await CallPushAsync(provider, request, row).ConfigureAwait(false) is not { } answer)
             {
                 return;
             }
@@ -1206,8 +1206,9 @@ internal sealed partial class DispatchPass : IDisposable
         return ttl < TimeSpan.FromSeconds(1) ? TimeSpan.FromSeconds(1) : ttl;
     }
 
-    private async Task<Attempt?> CallPushAsync(IPushProvider provider, PushRequest request)
+    private async Task<Attempt?> CallPushAsync(IPushProvider provider, PushRequest request, DeliveryRow row)
     {
+        using DispatchedDelivery.Scope dispatched = DispatchedDelivery.Enter(Dispatched(row));
         long started = Stopwatch.GetTimestamp();
         Attempt answer;
         using CancellationTokenSource bound = new(current.Dispatch.Timeout, Clock);
@@ -1397,10 +1398,17 @@ internal sealed partial class DispatchPass : IDisposable
         return held ? number : null;
     }
 
+    /// <summary>The delivery of <paramref name="row"/> as a provider that keeps the message records it (<c>02</c> MSG-DEV-003).</summary>
+    private static DispatchedDelivery Dispatched(DeliveryRow row)
+    {
+        return new DispatchedDelivery(row.Kind, row.Category, row.Language, row.Person);
+    }
+
     /// <summary>Calls the provider, bounded by the dispatch timeout and a stop's deadline; answers none where the stop left no time to record the answer.</summary>
     private async Task<Attempt?> CallAsync(ClaimedDelivery delivery, KindDeclaration kind, Dictionary<string, string?> values, string reference, IServiceProvider services)
     {
         DeliveryRow row = delivery.Row;
+        using DispatchedDelivery.Scope dispatched = DispatchedDelivery.Enter(Dispatched(row));
         long started = Stopwatch.GetTimestamp();
         Attempt answer;
         using CancellationTokenSource bound = new(current.Dispatch.Timeout, Clock);

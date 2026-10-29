@@ -66,8 +66,8 @@ internal sealed class SmtpSession(IOptionsMonitor<ChannelsOptions> options, Emai
             }
 
             step = Step.Send;
-            using MimeMessage mime = Mime(message);
-            await client!.SendAsync(FormatOptions.Default, mime, Mailbox(message.From), [new MailboxAddress(string.Empty, message.ToAddress)], limit.Token).ConfigureAwait(false);
+            using MimeMessage mime = EmailMime.Build(message, time.GetUtcNow());
+            await client!.SendAsync(FormatOptions.Default, mime, EmailMime.Mailbox(message.From), [new MailboxAddress(string.Empty, message.ToAddress)], limit.Token).ConfigureAwait(false);
             return new Attempt.Accepted(null);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -164,45 +164,6 @@ internal sealed class SmtpSession(IOptionsMonitor<ChannelsOptions> options, Emai
     private static bool IsConnectionFailure(Exception failure)
     {
         return failure is IOException or SocketException or OperationCanceledException or SmtpCommandException or SmtpProtocolException or ServiceNotConnectedException;
-    }
-
-    private static MailboxAddress Mailbox(EmailAddress address)
-    {
-        return new MailboxAddress(address.DisplayName ?? string.Empty, address.Address);
-    }
-
-    private static TextPart Part(TextFormat format, string text)
-    {
-        TextPart part = new(format);
-        part.SetText(Encoding.UTF8, text);
-        return part;
-    }
-
-    /// <summary>The MIME message of <paramref name="message"/> (MSG-EMAIL-003), dated now, as it is submitted.</summary>
-    private MimeMessage Mime(EmailMessage message)
-    {
-        MimeMessage mime = new();
-        mime.From.Add(Mailbox(message.From));
-        if (message.ReplyTo is { } replyTo)
-        {
-            mime.ReplyTo.Add(Mailbox(replyTo));
-        }
-
-        mime.To.Add(new MailboxAddress(string.Empty, message.ToAddress));
-        mime.Subject = message.Subject;
-        mime.MessageId = message.MessageId;
-        mime.Date = time.GetUtcNow();
-        mime.Headers.Add("Auto-Submitted", "auto-generated");
-        if (message.Unsubscribe is { } unsubscribe)
-        {
-            // RFC 8058: the address in angle brackets, and the one-click POST it takes.
-            mime.Headers.Add("List-Unsubscribe", "<" + unsubscribe.AbsoluteUri + ">");
-            mime.Headers.Add("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
-        }
-
-        TextPart text = Part(TextFormat.Plain, message.Text);
-        mime.Body = message.Html is { } html ? new MultipartAlternative { text, Part(TextFormat.Html, html) } : text;
-        return mime;
     }
 
     /// <summary>

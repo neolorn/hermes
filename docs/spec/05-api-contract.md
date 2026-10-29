@@ -202,3 +202,54 @@ redacts the report route's path in each of them (`06` MSG-OPS-007).
 3. Over `Hermes:Sms:WrongKeyRate` wrong-key requests a minute from one source address, a
    request is answered 429, and a report with the right key from that address is not.
 4. A body over 16 KiB is answered 413 and passed to no provider.
+
+---
+
+## 6. The development inbox (`MapHermesDevelopmentInbox`)
+
+**MSG-API-007** — The development inbox's group SHALL serve its page and answer, as
+JSON, the messages the inbox holds, in Development alone.
+
+| Method and route | Answers |
+|---|---|
+| `GET /` | **200** the page (`text/html`, `02` MSG-DEV-004) |
+| `GET /assets/inbox.js`, `GET /assets/inbox.css` | **200** the page's script and style |
+| `GET /messages` | **200** `{ "messages": [ <summary> ] }`, newest first; query `to`, `person`, `channel`, `app`, `kind`, `after`, `limit` |
+| `GET /messages/latest` | **200** `<message>`, the newest that matches; query as `GET /messages` without `limit`, and `wait`; **404** `messaging.inbox.notfound` where none matches once `wait` has passed |
+| `GET /messages/{id}` | **200** `<message>`; **404** `messaging.inbox.notfound` |
+| `GET /messages/{id}/eml` | **200** the email's `.eml` (`message/rfc822`, as an attachment named `<id>.eml`); **404** `messaging.inbox.notfound` for an id the inbox does not hold or that is not an email |
+| `GET /messages/{id}/html` | **200** the email's HTML as `02` MSG-DEV-005 serves it (`text/html`); **404** `messaging.inbox.notfound` where the inbox holds no such email or it has no HTML |
+| `DELETE /messages` | **204**, every record and `.eml` deleted; **400** `messaging.request.malformed`, `details.member` `X-Hermes-Inbox`, without the header `X-Hermes-Inbox: clear` |
+
+Every route also answers **403** `messaging.inbox.notlocal` as `02` MSG-DEV-005 gives,
+and a query parameter outside its rule **400** `messaging.request.malformed`,
+`details.member` naming it. The query parameters: `to`, an email address (matched in any
+case) or a phone number (matched exactly); `person`; `channel`, a channel's `08`
+spelling; `app`; `kind`; `after`, an instant in ISO 8601 with its offset, messages
+captured after it alone; `limit`, 1 to 1,000, default 100; `wait`, whole seconds from 0
+to 30, default 0, for which `GET /messages/latest` waits for a match before it answers
+404.
+
+| Shape | Members |
+|---|---|
+| `<summary>` | `{ "id", "channel", "app", "at", "to", "person", "kind", "category", "language", "summary" }` |
+| `<message>` | The summary's members, and `"text"`, `"links"` (an array of strings), `"email"`, `"sms"` and `"push"`, two of the last three `null` |
+| `email` | `{ "from": { "address", "displayName" }, "replyTo", "subject", "text", "html", "messageId", "unsubscribe", "headers": [ { "name", "value" } ] }`, `replyTo` as `from` or `null` |
+| `sms` | `{ "sender", "text", "encoding", "segments", "deliveryReference" }` |
+| `push` | `{ "service", "notification": { "title", "body", "url", "tag", "lang", "dir", "icon", "badge" }, "ttl", "urgency", "topic" }` |
+
+`id` is the record's 32 hexadecimal digits; `at` an instant in ISO 8601 UTC with
+milliseconds; `segments` and `ttl` (whole seconds) are numbers; `channel`, `encoding`,
+`service` and `urgency` are their `08` spellings; every member a message lacks is
+`null`. The members mean what `02` MSG-DEV-003 gives. The record a `<message>` is read
+from is the same JSON (`02` MSG-DEV-002).
+
+*Source: M-024*
+
+**Acceptance criteria**
+1. An email, an SMS and a push captured in Development are each answered by
+   `GET /messages/{id}` with their members, and listed by `GET /messages` newest first.
+2. `GET /messages/latest?to=...&wait=10`, asked before the message is sent, answers it
+   as soon as it is captured; with nothing sent it answers 404 once ten seconds have
+   passed.
+3. Outside Development the group answers no route.

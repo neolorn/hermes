@@ -756,3 +756,217 @@ provider sends only pre-approved templates (WhatsApp's) names the provider's tem
 the kind's declaration for that channel.
 
 *Source: M-004*
+
+---
+
+## 6. The development inbox
+
+What `Hermes.Development` does while a host is developed: every message the host would
+send is kept on the machine, and a person, a browser test, a setup tool or a .NET test
+reads it. Its routes are `05` MSG-API-007, its types `04` MSG-LIB-002.
+
+**MSG-DEV-001** — In an application whose environment is Development,
+`AddHermesDevelopmentInbox` SHALL capture every message instead of sending it; in any
+other environment it, and `MapHermesDevelopmentInbox`, SHALL do nothing.
+
+**Values (M-024).** The environment is the host's `IHostEnvironment`, so an application
+whose environment is not set, which .NET takes as Production, captures nothing, and a
+host writes both calls with no condition of its own. The inbox's providers take the
+place of the three channels' providers, the shipped ones and any the host registers,
+whatever the order of the registrations, so a host registers its real providers
+unconditionally and none of them is called; where `AddHermesTesting` (`04` MSG-LIB-008)
+is registered too, its in-memory providers are used instead and the inbox captures
+nothing, in either order, so a host's tests, which ASP.NET Core's test host runs in
+Development, read the in-memory providers as before. Each message a provider is handed
+is written to the inbox (MSG-DEV-002) and answered `Accepted(id)`, `id` the record's; no
+outside call is made. Everything before the hand-off runs as it does otherwise: the
+outbox, the checks, the templates, the limits, the retries and the statuses.
+
+- **Email:** the MIME message the shipped SMTP provider would submit for the same
+  `EmailMessage` (MSG-EMAIL-003), built by the same code, is kept as the record's
+  `.eml`; the shipped provider is not used, so its keys and secret are not needed (`04`
+  MSG-LIB-003).
+- **SMS:** the provider applies MSG-SMS-002's sender rule and narrows it no further, and
+  its `BalanceAsync` answers `NotSupported()`, so the floor and the balance alerts are
+  off (MSG-SMS-006); no report ever comes, so a captured SMS stays `sent`.
+- **Push:** each request the engine dispatches, one per subscription (MSG-PUSH-005), is
+  one message, so a push is captured only for a person with a subscription; a browser on
+  the developer's machine subscribes as it does otherwise (`05` MSG-API-004).
+
+Where the inbox acts, the start logs one line at the Information level naming the folder
+(MSG-DEV-002) and, where the group is mapped, its address, and nothing of any message
+(`06` MSG-OPS-005). Its keys are `Hermes:DevelopmentInbox:...` (`08` section 4), read
+and checked only where it acts.
+
+*Source: M-024*
+
+**Acceptance criteria**
+1. In Development, an email, an SMS and a push the engine dispatches, and an email
+   handed to the providers directly, are each written to the inbox and reach no server,
+   with the host's own providers registered before the call and after it.
+2. In Production, and with no environment set, the call registers nothing and the
+   mapping maps no route: the host's own providers are called.
+3. With `AddHermesTesting` registered before it or after it, the in-memory providers
+   receive every message and the inbox holds none.
+4. The start's line names the folder and holds no recipient and no content.
+
+---
+
+**MSG-DEV-002** — Each captured message SHALL be written to the inbox folder as a record
+a reader can take whole at any moment, and the folder SHALL be bounded and readable by
+its owner alone.
+
+**Values (M-024).** The folder is `Hermes:DevelopmentInbox:Folder`, or by default
+`hermes-inbox` in the operating system's temporary folder (`Path.GetTempPath()`), shared
+by every application the user runs on the machine. Where the library creates it on Linux
+or macOS, only its owner may read, write or enter it (mode `0700`); it is never inside
+the application's content root by default, so no record is committed by accident. A
+message's record is `<at>-<channel>-<id>.json`: `<at>` the instant it was captured, in
+UTC, as `yyyyMMddTHHmmssfffZ`; `<channel>` its `08` spelling; `<id>` 128 random bits as
+32 lower-case hexadecimal digits. An email's MIME message is beside it as
+`<at>-<channel>-<id>.eml`. Each file is written under its name followed by `.tmp` in the
+same folder and then renamed, the `.eml` before the `.json`, so a reader that lists the
+`.json` records never meets half a message; a reader ignores every other file. The
+record is the message of `05` MSG-API-007, in UTF-8 JSON. When a message is written, the
+records captured more than `Hermes:DevelopmentInbox:KeepFor` ago, and those beyond the
+newest `Hermes:DevelopmentInbox:MaxMessages`, are deleted with their `.eml`, and so is a
+`.tmp` file older than a minute; a file another process deleted first is no failure.
+
+*Source: M-024*
+
+**Acceptance criteria**
+1. A reader listing the folder while several processes write never reads a partial
+   record, and finds each email record's `.eml` beside it.
+2. Records older than `KeepFor`, and those beyond the newest `MaxMessages`, are deleted
+   when a message is written.
+3. On Linux, a folder the library creates has mode `0700`.
+4. An email's `.eml` reads to the same headers and parts as the message the SMTP
+   provider submits for the same `EmailMessage`, the MIME boundaries and `Date` aside.
+
+---
+
+**MSG-DEV-003** — Each record SHALL hold the message as its person would receive it, and
+SHALL say which application sent it and, where the engine dispatched it, its kind,
+category, language and person.
+
+**Values (M-024).** The record's members are `05` MSG-API-007's. `app` is the sending
+application's `IHostEnvironment.ApplicationName`. Where the engine dispatched the
+message, `kind`, `category` and `language` are its delivery's, and `person` the person
+the delivery notice names (`01` MSG-SEND-017); a message handed to the providers
+directly carries none of them, save an email's `language`, its `EmailMessage.Language`.
+`to` is the email address or the phone number, and none for a push. `summary` is an
+email's subject, an SMS's first 100 characters, or a push's title; `text` an email's
+plain-text part, an SMS's text, or a push's body. `links` holds every absolute `http`
+and `https` address the message carries, each once, in the order met: an email's `href`
+attributes of its HTML and the addresses in its text, an SMS's text, a push's `url`. A
+push record names its push service (`08` section 2), never its subscription's endpoint,
+whose path is the subscription itself (`06` MSG-OPS-007).
+
+*Source: M-024*
+
+**Acceptance criteria**
+1. A record of each channel holds its members; an email the engine dispatched holds its
+   kind, category, language and person, and one handed directly holds no kind.
+2. `links` holds each absolute link of the message once, in the order met, from the HTML
+   and the text alike.
+3. A push record holds no part of its subscription's endpoint.
+
+---
+
+**MSG-DEV-004** — The inbox page SHALL let a developer read every captured message as it
+would reach its person, as it arrives.
+
+**Values (M-024).** `GET /` of the group (`05` MSG-API-007) answers one page, with its
+own script and style, embedded in the package. It loads nothing from outside the
+application but a message's own images and icons, so it works offline, and it reads only
+the group's own routes.
+
+- **The list:** every captured message, newest first, of every channel and application,
+  checked for new ones every second (`GET /messages` with `after`); filters by
+  recipient, person, channel and application; each entry shows its application, its
+  time, and its kind, category and language, or that it was sent directly.
+- **An email** shows as it would arrive, in a frame that loads its HTML from
+  `GET /messages/{id}/html` (MSG-DEV-005), with tabs for its plain text and its headers
+  and a download of its `.eml`.
+- **An SMS** shows as a phone message: its sender, its text in the direction the text
+  gives (`dir="auto"`), its encoding and its number of parts.
+- **A push** shows as a notification: its title, body and icon, and where it opens, in
+  the notification's `lang` and `dir`.
+- **Links:** each link of the message has an Open button, which opens it in a new tab
+  (`rel="noopener noreferrer"`), and a Copy button.
+- **Clear** empties the inbox (`DELETE /messages`).
+- The page follows the browser's light or dark scheme, and every control is labelled and
+  reachable by keyboard.
+
+*Source: M-024*
+
+**Acceptance criteria**
+1. The page and its script and style reference no resource outside the application.
+2. The page's script writes every value of a message as text, never as markup (checked
+   in review; MSG-DEV-005 criterion 4 tests the HTML route).
+3. The page's script asks for new messages every second with `after` the newest instant
+   it holds (checked in review).
+
+---
+
+**MSG-DEV-005** — The inbox SHALL be readable only from the developer's own machine, and
+SHALL run nothing a message holds.
+
+**Values (M-024).** Every route of the group answers **403** `messaging.inbox.notlocal`
+to a request whose remote address is not a loopback address, or whose `Host` header
+names a host other than `localhost`, `127.0.0.1` or `[::1]`, whatever its port, so a
+page that rebinds its own name to the loopback address (DNS rebinding) reaches nothing;
+`Hermes:DevelopmentInbox:AllowRemote`, off by default, lifts both checks for an
+application run in a container. The group sends no `Access-Control-*` header, so no
+other origin reads an answer, and `DELETE /messages` needs the header
+`X-Hermes-Inbox: clear`. Every answer carries `Cache-Control: no-store`,
+`X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`. The page, its
+script and its style carry a `Content-Security-Policy` of `default-src 'none'`,
+`script-src 'self'`, `style-src 'self'`, `img-src 'self' data: http: https:`,
+`connect-src 'self'`, `frame-src 'self'`, `base-uri 'none'`, `form-action 'none'` and
+`frame-ancestors 'none'`, and the page writes every value as text. An email's HTML is
+served only from `GET /messages/{id}/html`, with `<base target="_blank">` put at the
+start of its `head` (or of the document, where it has none), so a link opens in a new
+tab, and with a `Content-Security-Policy` of `default-src 'none'`,
+`img-src data: http: https:`, `style-src 'unsafe-inline' http: https:`,
+`font-src data: http: https:`, `base-uri 'none'`, `form-action 'none'`,
+`frame-ancestors 'self'` and `sandbox allow-popups allow-popups-to-escape-sandbox`; the
+page frames it with `sandbox="allow-popups allow-popups-to-escape-sandbox"` and never
+with `allow-scripts` or `allow-same-origin`. The `.eml` and the record are never changed
+for the preview.
+
+*Source: M-024*
+
+**Acceptance criteria**
+1. A request from an address other than a loopback one, or with the `Host`
+   `attacker.example`, is answered 403 `messaging.inbox.notlocal` on every route; with
+   `AllowRemote` on, it is answered as from the machine.
+2. No answer carries an `Access-Control-Allow-Origin` header, and `DELETE /messages`
+   without its header is answered 400 and clears nothing.
+3. The page's, its script's and its style's answers, and the email HTML's, carry their
+   policies and headers as above.
+4. An email whose HTML holds a script is served from its HTML route under a policy that
+   allows no script and sandboxes the document, with `<base target="_blank">` added, and
+   its `.eml` is unchanged.
+
+---
+
+**MSG-DEV-006** — `DevelopmentInbox` SHALL let a .NET test or tool wait for, read and
+clear the captured messages without HTTP.
+
+**Values (M-024).** It reads the `.json` records of the folder it is given, or of the
+default folder (MSG-DEV-002), with the members of `04` MSG-LIB-002. A filter's `To`
+matches an email address in any case and a number exactly; `After` is exclusive;
+`WaitForAsync` looks every 100 milliseconds and answers the newest matching message as
+soon as there is one, captured after the filter's `After`, or after the instant the
+`DevelopmentInbox` was made where it has none, so a test that makes one before it starts
+a sign-in waits for that sign-in's message alone. `ClearAsync` deletes every record with
+its `.eml`.
+
+*Source: M-024*
+
+**Acceptance criteria**
+1. A test that makes a `DevelopmentInbox`, then sends an email holding a link, waits for
+   it and finds the link among its `Links`.
+2. A wait that no message matches throws `TimeoutException` once its timeout has passed.
+3. After `ClearAsync`, the folder holds no record and no `.eml`.

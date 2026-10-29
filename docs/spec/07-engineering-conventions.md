@@ -28,16 +28,20 @@ files at its root (which file goes in which folder is checked in review). A ship
 project's types are internal unless `04` MSG-LIB-002 makes them public, and its public
 types sit at its root, so each is in its package's namespace; a test project's test
 classes are public, since xUnit.net runs no other. `InternalsVisibleTo` is granted only
-from a source project to its own test project; from `Hermes.Channels` to `Hermes`, and
-`Hermes.Testing`, since the rules they need (the address and sender rules, the allowed
-hosts and prefixes; the segment count is public, `SmsText` of `Hermes.Core`) live in
-`Hermes.Channels`; and from `Hermes` to `Hermes.Cli`, which applies the migrations
-`Hermes` holds (`06` MSG-OPS-002), and to `Hermes.Testing`, which removes, or keeps from
-being registered, the engine's hosted dispatcher and `observer` job by their types and
-applies the migrations for a test (`04` MSG-LIB-008). The packages are released together
-(`04` MSG-LIB-001). The sample host has an invented domain naming no real product or
-company (checked in review), declares a few kinds in an essential and an optional
-category, sends through the in-memory providers of `Hermes.Testing`, maps every endpoint
+from a source project to its own test project; from `Hermes.Channels` to `Hermes`,
+`Hermes.Testing` and `Hermes.Development`, since the rules they need (the address and
+sender rules, the allowed hosts and prefixes; the segment count is public, `SmsText` of
+`Hermes.Core`) live in `Hermes.Channels`, and the development inbox builds an email as
+the SMTP provider does and takes the provider precedence and the dispatched delivery's
+kind, category, language and person from there (`02` MSG-DEV-001, MSG-DEV-003); and from
+`Hermes` to `Hermes.Cli`, which applies the migrations `Hermes` holds (`06`
+MSG-OPS-002), and to `Hermes.Testing`, which removes, or keeps from being registered,
+the engine's hosted dispatcher and `observer` job by their types and applies the
+migrations for a test (`04` MSG-LIB-008). The packages are released together (`04`
+MSG-LIB-001). The sample host has an invented domain naming no real product or company
+(checked in review), declares a few kinds in an essential and an optional category,
+captures its messages in the development inbox when it runs (`02` MSG-DEV-001) while its
+tests send through the in-memory providers of `Hermes.Testing`, maps every endpoint
 group, and runs in the gate (MSG-ENG-012) from packages packed from the same commit into
 `artifacts/packages/`, which `.gitignore` lists, at a version the gate passes it; it
 alone has no lockfile and no locked restore, since its packages change with every
@@ -79,7 +83,7 @@ scripts, and the pipeline runs on GitHub's `ubuntu-24.04` runner using no action
 latest release when the workflow is written and pinned by that release's full commit SHA
 (all checked in review).
 
-*Source: M-012, M-013, M-015, M-020*
+*Source: M-012, M-013, M-015, M-020, M-024*
 
 **Acceptance criteria**
 1. A test fails on a project outside this layout, a grant outside this rule, or an entry
@@ -240,13 +244,15 @@ are UUID version 7; a delivery reference (`00` glossary) is 128 bits from
 **MSG-ENG-006** — Endpoints SHALL be ASP.NET Core minimal APIs returning typed results,
 each declaring the responses `05` gives it.
 
-*Source: M-012*
+*Source: M-012, M-025*
 
 **Acceptance criteria**
-1. A contract test reads every mapped endpoint's metadata and finds exactly the routes,
-   methods and response statuses of `05`, and finds each request and response body's
-   members, read from the library's serializer contexts as the release gate reads them
-   (`04` MSG-LIB-006), to be those `05` gives.
+1. A contract test in `tests/Hermes.Tests`, which maps every group of `05`, the
+   development inbox's in a host whose environment is Development (M-025), reads every
+   mapped endpoint's metadata and finds exactly the routes, methods and response
+   statuses of `05`, and finds each request and response body's members, read from the
+   library's serializer contexts as the release gate reads them (`04` MSG-LIB-006), to
+   be those `05` gives.
 
 ---
 

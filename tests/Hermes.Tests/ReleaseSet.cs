@@ -10,6 +10,7 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
 using Hermes.Core;
+using Hermes.Development;
 using Hermes.Endpoints;
 using Hermes.Operations;
 
@@ -23,8 +24,9 @@ namespace Hermes.Tests;
 
 /// <summary>
 /// What the release gate compares (<c>04</c> MSG-LIB-006), read as the contract tests read it:
-/// the routes with their methods and statuses from a test host's endpoint metadata, each JSON
-/// body's members and types from the library's serializer context, the codes and the
+/// the routes with their methods and statuses from the test hosts' endpoint metadata, the
+/// development inbox's among them (M-025), each JSON body's members and types from the
+/// library's serializer contexts, the engine's and the inbox's, the codes and the
 /// configuration keys from the built assemblies, the spellings of the enumerations, statuses
 /// and alert conditions, the metric names and kinds from a test host's meter, the members a
 /// host must implement on its interfaces, and the public surface from the packages' public API
@@ -117,7 +119,7 @@ internal sealed class ReleaseSet
         ReleaseSet set = new();
         AddRoutes(set);
         AddBodies(set);
-        set.Add(Codes, CodesOf([typeof(Codes).Assembly, typeof(Channel).Assembly, typeof(Hermes.Channels.MessagingChannelsServiceCollectionExtensions).Assembly]));
+        set.Add(Codes, CodesOf([typeof(Codes).Assembly, typeof(Channel).Assembly, typeof(Hermes.Channels.MessagingChannelsServiceCollectionExtensions).Assembly, typeof(DevelopmentInbox).Assembly]));
         set.Add(Keys, KeysOf().Select(key => "Hermes:" + key));
         set.Add(Spelled, SpellingsOf());
         set.Add(Metrics, MetricsOf());
@@ -209,7 +211,7 @@ internal sealed class ReleaseSet
                 continue;
             }
 
-            JsonTypeInfo info = EndpointJson.Default.GetTypeInfo(body.Type)!;
+            JsonTypeInfo info = BodyMembers.Info(body.Type);
             foreach (JsonPropertyInfo property in info.Kind == JsonTypeInfoKind.Object ? info.Properties : [])
             {
                 set.Add(Bodies, [$"{body.Type.Name}.{property.Name}: {Named(property.PropertyType)}"]);
@@ -218,19 +220,12 @@ internal sealed class ReleaseSet
                     set.Add(Required, [$"{body.Type.Name}.{property.Name}"]);
                 }
 
-                foreach (Type inner in Inner(property.PropertyType).Where(type => type.Assembly == typeof(EndpointJson).Assembly))
+                foreach (Type inner in BodyMembers.Inner(property.PropertyType).Where(BodyMembers.IsBody))
                 {
                     next.Enqueue((inner, body.Request));
                 }
             }
         }
-    }
-
-    /// <summary>The library's own types <paramref name="type"/> carries, itself or as a collection's elements.</summary>
-    private static IEnumerable<Type> Inner(Type type)
-    {
-        Type plain = Nullable.GetUnderlyingType(type) ?? type;
-        return plain.IsGenericType ? plain.GetGenericArguments().SelectMany(Inner) : [plain];
     }
 
     /// <summary>A body member's type as the wire carries it.</summary>
@@ -281,12 +276,19 @@ internal sealed class ReleaseSet
 
     private static IEnumerable<string> KeysOf()
     {
-        Type channels = typeof(Hermes.Channels.MessagingChannelsServiceCollectionExtensions).Assembly.GetType("Hermes.Channels.ChannelKeys", throwOnError: true)!;
-        IEnumerable<object> channelKeys = (IEnumerable<object>)channels.GetProperty("Keys", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
         return ConfigurationRules.Paths
             .Concat(ConfigurationRules.WriteVersions)
             .Concat(["PublicBaseAddress", "Languages", "DefaultLanguage", "TimeZone"])
-            .Concat(channelKeys.Select(key => (string)key.GetType().GetProperty("Path", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!.GetValue(key)!));
+            .Concat(KeyPaths(typeof(Hermes.Channels.MessagingChannelsServiceCollectionExtensions).Assembly, "Hermes.Channels.ChannelKeys"))
+            .Concat(KeyPaths(typeof(DevelopmentInbox).Assembly, "Hermes.Development.InboxSettings"));
+    }
+
+    /// <summary>The paths of the keys the internal <paramref name="holder"/> of <paramref name="assembly"/> lists, a package that grants this project nothing.</summary>
+    private static IEnumerable<string> KeyPaths(Assembly assembly, string holder)
+    {
+        Type type = assembly.GetType(holder, throwOnError: true)!;
+        IEnumerable<object> keys = (IEnumerable<object>)type.GetProperty("Keys", BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null)!;
+        return keys.Select(key => (string)key.GetType().GetProperty("Path", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)!.GetValue(key)!);
     }
 
     private static IEnumerable<string> SpellingsOf()

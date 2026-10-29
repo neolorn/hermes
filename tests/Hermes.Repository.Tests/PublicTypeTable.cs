@@ -62,6 +62,10 @@ internal static class PublicTypeTable
             "MessagingTestDatabase", "MessagingTestingServiceCollectionExtensions",
         ],
         [Packages.Cli] = [],
+        [Packages.Development] =
+        [
+            "MessagingDevelopmentExtensions", "DevelopmentInbox", "InboxFilter", "InboxMessage", "InboxEmail", "InboxSms", "InboxPush", "InboxNotification",
+        ],
     }.ToFrozenDictionary(
         entry => entry.Key,
         entry => entry.Value.Select(type => entry.Key + "." + type).ToFrozenSet(StringComparer.Ordinal),

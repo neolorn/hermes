@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>The development inbox: in Development, every message kept on the machine instead of sent, with a page, a JSON API and a test helper to read it. It does nothing in any other environment</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hermes.Core\Hermes.Core.csproj" />
+    <ProjectReference Include="..\Hermes.Channels\Hermes.Channels.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The inbox's page, script and style, served from the package itself (02 MSG-DEV-004). -->
+    <EmbeddedResource Include="inbox.html" LogicalName="inbox.html" />
+    <EmbeddedResource Include="inbox.js" LogicalName="inbox.js" />
+    <EmbeddedResource Include="inbox.css" LogicalName="inbox.css" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hermes.Development.Tests" />
+  </ItemGroup>
+
+</Project>

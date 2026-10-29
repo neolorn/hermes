@@ -16,7 +16,9 @@ namespace Hermes.Tests;
 /// status naming a code answers the refusal body of MSG-API-001, and one written "as for
 /// <c>POST</c>" answers as that method's route does. MSG-API-001 adds 400, 413 and 415, each a
 /// refusal, to a route reading a JSON body; MSG-API-002 adds 401 to each route of a group whose
-/// text says its routes need a signed-in person, save one whose answers say it needs none.
+/// text says its routes need a signed-in person, save one whose answers say it needs none. The
+/// development inbox's section, written with shapes, is read by <see cref="InboxSection"/> and
+/// joined with the rest, so the whole of <c>05</c> is checked in one place (M-025).
 /// </summary>
 internal static partial class ApiContract
 {
@@ -112,6 +114,7 @@ internal static partial class ApiContract
             }
         }
 
+        lines.UnionWith(InboxSection.Read(text, prefix));
         return lines;
     }
 
@@ -127,13 +130,18 @@ internal static partial class ApiContract
         ];
     }
 
-    /// <summary>Each section's text outside its tables, joined, and the cells of each row of its tables of routes.</summary>
+    /// <summary>
+    /// Each section's text outside its tables, joined, and the cells of each row of its tables of
+    /// routes; the inbox's section holds none here, since <see cref="InboxSection"/> reads its
+    /// tables by their own rules.
+    /// </summary>
     private static List<(string Prose, List<string[]> Rows)> Sections(string text)
     {
         List<(string Prose, List<string[]> Rows)> sections = [];
         List<string> prose = [];
         List<string[]> rows = [];
         bool inTable = false;
+        bool inbox = false;
         foreach (string line in text.Split('\n').Select(line => line.TrimEnd('\r')))
         {
             if (line.StartsWith("## ", StringComparison.Ordinal))
@@ -141,6 +149,7 @@ internal static partial class ApiContract
                 sections.Add((string.Join(' ', prose), rows));
                 prose = [];
                 rows = [];
+                inbox = line.Contains(InboxSection.Heading, StringComparison.Ordinal);
             }
 
             if (!line.StartsWith('|'))
@@ -152,7 +161,7 @@ internal static partial class ApiContract
             {
                 inTable = true;
             }
-            else if (inTable && !line.StartsWith("|---", StringComparison.Ordinal))
+            else if (inTable && !inbox && !line.StartsWith("|---", StringComparison.Ordinal))
             {
                 rows.Add([.. Cell().Split(line.Trim().Trim('|')).Select(cell => cell.Replace("\\|", "|", StringComparison.Ordinal).Trim())]);
             }

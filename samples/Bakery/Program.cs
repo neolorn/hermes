@@ -6,6 +6,7 @@ using Bakery;
 
 using Hermes;
 using Hermes.Core;
+using Hermes.Development;
 using Hermes.Testing;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -15,15 +16,18 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 // A neighbourhood bakery's site: its customers' orders and the week's offer go out through the
-// library, sent here by the in-memory providers of Hermes.Testing, with every endpoint group
-// mapped under /notifications.
+// library, with every endpoint group mapped under /notifications. Run in Development, it keeps
+// every message in the development inbox instead of sending it, readable at /dev/inbox/; its
+// keys are the fixed ones of Hermes.Testing, which a deployment replaces with its own secret
+// source, as it registers the providers it sends through.
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 string connection = builder.Configuration.GetConnectionString("Bakery")
     ?? throw new InvalidOperationException("ConnectionStrings:Bakery names no database.");
 
-builder.Services.AddHermesTesting(secrets => secrets.SetSecret(
-    "connection",
-    new SecretVersions { Versions = [new SecretVersion { Version = 1, Value = Encoding.UTF8.GetBytes(connection) }] }));
+FixedSecretSource secrets = new();
+secrets.SetSecret("connection", new SecretVersions { Versions = [new SecretVersion { Version = 1, Value = Encoding.UTF8.GetBytes(connection) }] });
+builder.Services.AddSingleton<ISecretSource>(secrets);
+builder.AddHermesDevelopmentInbox();
 builder.Services.AddHermes(builder.Configuration, Notices.Declare);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IRecipientIdentity, CustomerIdentity>();
@@ -46,6 +50,7 @@ app.MapHermesPreferences("/notifications");
 app.MapHermesPushSubscriptions("/notifications");
 app.MapHermesUnsubscribe("/notifications");
 app.MapHermesSmsReports("/notifications");
+app.MapHermesDevelopmentInbox("/dev/inbox");
 
 await app.RunAsync().ConfigureAwait(false);
 

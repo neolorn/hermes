@@ -1,22 +1,27 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 using Hermes.Core;
+using Hermes.Development;
 using Hermes.Endpoints;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Hermes.Tests;
 
 /// <summary>
-/// Every endpoint group mapped under <see cref="Endpoints.Prefix"/> on a test host that is built
-/// and never started, read from its endpoint metadata (<c>07</c> MSG-ENG-006, <c>04</c>
+/// Every endpoint group of <c>05</c> mapped under <see cref="Endpoints.Prefix"/> on test hosts
+/// that are built and never started, the development inbox's on one whose environment is
+/// Development (M-025), read from their endpoint metadata (<c>07</c> MSG-ENG-006, <c>04</c>
 /// MSG-LIB-006): each route as <c>METHOD /prefix/route</c>, with the responses it declares.
 /// </summary>
 internal static class MappedEndpoints
@@ -56,17 +61,27 @@ internal static class MappedEndpoints
                 application.MapHermesSmsReports(Endpoints.Prefix);
             });
 
-        List<(string, IReadOnlyList<IProducesResponseTypeMetadata>)> routes = [];
+        // The development inbox maps its group only where the environment is Development (02 MSG-DEV-001).
+        WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { EnvironmentName = Environments.Development });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal) { ["Hermes:DevelopmentInbox:Folder"] = Path.Combine(Path.GetTempPath(), "hermes-tests", "inbox-contract") });
+        builder.Logging.ClearProviders();
+        builder.AddHermesDevelopmentInbox();
+        using WebApplication inbox = builder.Build();
+        inbox.MapHermesDevelopmentInbox(Endpoints.Prefix);
+
+        return [.. Routes(host), .. Routes(inbox)];
+    }
+
+    private static IEnumerable<(string Route, IReadOnlyList<IProducesResponseTypeMetadata> Responses)> Routes(IHost host)
+    {
         foreach (RouteEndpoint endpoint in ((IEndpointRouteBuilder)host).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>())
         {
             IProducesResponseTypeMetadata[] responses = [.. endpoint.Metadata.OfType<IProducesResponseTypeMetadata>()];
             foreach (string method in endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? [])
             {
-                routes.Add(($"{method} {endpoint.RoutePattern.RawText}", responses));
+                yield return ($"{method} {endpoint.RoutePattern.RawText}", responses);
             }
         }
-
-        return routes;
     }
 
     /// <summary>

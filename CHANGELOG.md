@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-29
+
+### Added
+
+- `AddHermesDevelopmentInbox`, of the new package `Hermes.Development`, which in Development
+  keeps every message on the machine instead of sending it, whatever the order of the host's
+  provider registrations, and does nothing in any other environment; `AddHermesTesting`'s
+  in-memory providers are still used where it is registered
+- The development inbox's records: one JSON record a message, with the application, the
+  delivery's kind, category, language and person and the message's links, and an email's
+  `.eml` beside it as the SMTP provider would submit it, in a folder its owner alone reads,
+  cleaned as it grows past `Hermes:DevelopmentInbox:KeepFor` and `MaxMessages`
+- The development inbox's group, `MapHermesDevelopmentInbox`: a small JSON API over the
+  captured messages, `GET /messages/latest` able to wait for one, each email's `.eml` and its
+  HTML under a policy and sandbox that run no script, answered only to the machine itself
+  under a loopback host name unless `Hermes:DevelopmentInbox:AllowRemote` is on
+- The development inbox's page: every captured message, newest first and checked for new ones
+  every second, with filters, each email as it arrives in a sandboxed frame with its text,
+  headers and `.eml`, each SMS as a phone shows it and each push as a notification, every
+  link with Open and Copy, and Clear; one self-contained page that loads nothing from outside
+- `DevelopmentInbox`, for a .NET test or tool: it lists, reads the latest of and clears the
+  captured messages, and waits for one captured after it was made, without HTTP
+- The sample host runs with the development inbox, its page at `/dev/inbox/`, while its tests
+  keep sending through the in-memory providers of `Hermes.Testing`
+
 ## [1.0.0] - 2026-10-29
 
 ### Added

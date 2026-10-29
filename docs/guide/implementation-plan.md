@@ -46,12 +46,13 @@ default and status, and `05-api-contract` for every route and wire shape.
 | 6 | Standalone | The `Hermes.Janus` and `Hermes.Janus.Channels` projects, their tests and every reference, key, scope and rule naming them or another library taken out, as M-020 gives: `04` MSG-LIB-001, MSG-LIB-003 and MSG-LIB-005 as they now read, MSG-LIB-007 retired; `07` MSG-ENG-001, MSG-ENG-009 and MSG-ENG-011, its criterion 2 as M-021 amends it built in the commit gate before the removal; `08` section 4 | No project, package, reference, configuration key, commit scope or test names another library; every gate passes and the sample host still builds and passes |
 | 7 | *Retired by M-022* | The library ships no SMS provider: a host registers its own (`02` MSG-CHAN-001) | |
 | 8 | M-022 and release 1.0.0 | M-022 first: the secret `smsWe` and every source, test, fixture and package description naming an SMS gateway taken out; `02` MSG-CHAN-001 (criterion 4 as it now reads); `04` MSG-LIB-003 (criterion 4 as it now reads) and MSG-LIB-005 (the seam `ISmsProvider` and criterion 3); `06` MSG-OPS-004 criterion 1, its SMS half through a host's provider; `10` MSG-THR-001 as it now reads. Then the release step M-023 gives: `07` MSG-ENG-011 (the release commit's checks, criteria 2 and 3; the release job, criterion 4) and `04` MSG-LIB-006 (the baseline's check at a pull request's head); `07` MSG-ENG-001 and `06` MSG-OPS-007 (`RELEASE-NOTES.md`). The release commit comes in the same pull request once the review has passed, on the owner's message, and the tag after its merge | No source, test or package description names an SMS gateway, and an application where SMS is used with no provider does not start; a release commit outside its rule fails the gate; version 1.0.0 of every package on the tag's release, with its changelog and release notes |
+| 9 | The development inbox and release 1.1.0 | M-024: `02` MSG-DEV-001 to MSG-DEV-006; `05` MSG-API-007; `04` MSG-LIB-001, MSG-LIB-002, MSG-LIB-003, MSG-LIB-004 and MSG-LIB-008 as they now read (the package `Hermes.Development`, its types, its registration and mapping, the in-memory providers' precedence); `07` MSG-ENG-001 (the project, its test project, the grant, the sample host running with the inbox and testing with the in-memory providers); `08` the codes and keys; `10` the threats; `06` MSG-OPS-007 and `RELEASE-NOTES.md` for 1.1.0. The release commit comes in the same pull request once the review has passed, on the owner's message, and the tag `v1.1.0` after its merge | In Development every message is captured and read through the page, the API and `DevelopmentInbox`, and in any other environment nothing changes; version 1.1.0 of every package, `Hermes.Development` among them, on the tag's release |
 
 **Waiting on inputs.**
-- Phase 8's release commit and tag: the owner's message to release, after the review
-  (`07` MSG-ENG-011). The name is `Hermes` (M-022). A package feed is the host
-  deployment's: the release attaches its packages to the tag's release, and publishes
-  them to a feed only where the owner names one (M-020).
+- Phase 9's release commit and tag: the owner's message to release, after the review
+  (`07` MSG-ENG-011). A package feed is the host deployment's: the release attaches its
+  packages to the tag's release, and publishes them to a feed only where the owner names
+  one (M-020).
 
 ## 4. Release 2: conversations
 

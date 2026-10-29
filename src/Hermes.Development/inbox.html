@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:,">
+<title>Development inbox</title>
+<link rel="stylesheet" href="{{root}}/assets/inbox.css">
+<script src="{{root}}/assets/inbox.js" defer></script>
+</head>
+<body data-root="{{root}}">
+<header class="bar">
+  <div>
+    <h1>Development inbox</h1>
+    <p class="hint">Every message the application sends in Development is kept here instead of sent.</p>
+  </div>
+  <p id="status" class="status" role="status" aria-live="polite"></p>
+  <button type="button" id="clear" class="danger">Clear</button>
+</header>
+<form id="filters" class="filters" role="search" aria-label="Filter the messages">
+  <label>Recipient <input id="filter-to" type="search" autocomplete="off" spellcheck="false" placeholder="Address or number"></label>
+  <label>Person <input id="filter-person" type="search" autocomplete="off" spellcheck="false"></label>
+  <label>Channel
+    <select id="filter-channel">
+      <option value="">Every channel</option>
+      <option value="email">Email</option>
+      <option value="sms">SMS</option>
+      <option value="push">Push</option>
+    </select>
+  </label>
+  <label>Application
+    <select id="filter-app">
+      <option value="">Every application</option>
+    </select>
+  </label>
+</form>
+<div class="layout">
+  <nav class="messages" aria-label="Captured messages">
+    <ul id="list" class="list"></ul>
+    <p id="empty" class="empty">No message yet. Each message the application sends appears here as it is captured.</p>
+  </nav>
+  <main id="detail" class="detail" tabindex="-1" aria-label="The message">
+    <p class="empty">Choose a message to read it.</p>
+  </main>
+</div>
+</body>
+</html>
