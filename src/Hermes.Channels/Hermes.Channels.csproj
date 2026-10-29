@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>The channel providers: SMTP email, the WE SMS adapter, Web Push, and their registration. No database, no templates, no background work</Description>
+    <Description>The channel providers (SMTP email and Web Push), the SMS channel's rules, and their registration. No database, no templates, no background work</Description>
   </PropertyGroup>
 
   <ItemGroup>
