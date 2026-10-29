@@ -1,1 +1,975 @@
 #nullable enable
+Hermes.Core.Attempt
+Hermes.Core.Attempt.Accepted
+Hermes.Core.Attempt.Accepted.Accepted(string? ProviderReference) -> void
+Hermes.Core.Attempt.Accepted.Deconstruct(out string? ProviderReference) -> void
+Hermes.Core.Attempt.Accepted.Equals(Hermes.Core.Attempt.Accepted? other) -> bool
+Hermes.Core.Attempt.Accepted.ProviderReference.get -> string?
+Hermes.Core.Attempt.Accepted.ProviderReference.init -> void
+Hermes.Core.Attempt.Attempt(Hermes.Core.Attempt! original) -> void
+Hermes.Core.Attempt.Gone
+Hermes.Core.Attempt.Gone.Deconstruct(out Hermes.Core.AttemptReason Reason, out int? Status) -> void
+Hermes.Core.Attempt.Gone.Equals(Hermes.Core.Attempt.Gone? other) -> bool
+Hermes.Core.Attempt.Gone.Gone(Hermes.Core.AttemptReason Reason, int? Status) -> void
+Hermes.Core.Attempt.Gone.Reason.get -> Hermes.Core.AttemptReason
+Hermes.Core.Attempt.Gone.Reason.init -> void
+Hermes.Core.Attempt.Gone.Status.get -> int?
+Hermes.Core.Attempt.Gone.Status.init -> void
+Hermes.Core.Attempt.Permanent
+Hermes.Core.Attempt.Permanent.Deconstruct(out Hermes.Core.AttemptReason Reason, out int? Status) -> void
+Hermes.Core.Attempt.Permanent.Equals(Hermes.Core.Attempt.Permanent? other) -> bool
+Hermes.Core.Attempt.Permanent.Permanent(Hermes.Core.AttemptReason Reason, int? Status) -> void
+Hermes.Core.Attempt.Permanent.Reason.get -> Hermes.Core.AttemptReason
+Hermes.Core.Attempt.Permanent.Reason.init -> void
+Hermes.Core.Attempt.Permanent.Status.get -> int?
+Hermes.Core.Attempt.Permanent.Status.init -> void
+Hermes.Core.Attempt.Transient
+Hermes.Core.Attempt.Transient.Deconstruct(out Hermes.Core.AttemptReason Reason, out int? Status, out System.TimeSpan? RetryAfter) -> void
+Hermes.Core.Attempt.Transient.Equals(Hermes.Core.Attempt.Transient? other) -> bool
+Hermes.Core.Attempt.Transient.Reason.get -> Hermes.Core.AttemptReason
+Hermes.Core.Attempt.Transient.Reason.init -> void
+Hermes.Core.Attempt.Transient.RetryAfter.get -> System.TimeSpan?
+Hermes.Core.Attempt.Transient.RetryAfter.init -> void
+Hermes.Core.Attempt.Transient.Status.get -> int?
+Hermes.Core.Attempt.Transient.Status.init -> void
+Hermes.Core.Attempt.Transient.Transient(Hermes.Core.AttemptReason Reason, int? Status, System.TimeSpan? RetryAfter) -> void
+Hermes.Core.AttemptClass
+Hermes.Core.AttemptClass.Accepted = 0 -> Hermes.Core.AttemptClass
+Hermes.Core.AttemptClass.Gone = 3 -> Hermes.Core.AttemptClass
+Hermes.Core.AttemptClass.Permanent = 2 -> Hermes.Core.AttemptClass
+Hermes.Core.AttemptClass.Transient = 1 -> Hermes.Core.AttemptClass
+Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.AuthFailed = 3 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.BadRequest = 7 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.ClaimLost = 16 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.ConnectionFailed = 1 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.ConsentUnavailable = 14 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.DestinationNotAllowed = 18 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.Gone = 11 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.KeyUnavailable = 13 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.MessageRefused = 6 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.Permanent = 10 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.ProviderFault = 12 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.RateLimited = 8 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.RecipientRefused = 5 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.ReportedFailed = 15 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.SenderRefused = 4 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.ServerRefused = 17 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.Temporary = 9 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.Timeout = 0 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.TlsFailed = 2 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptReason.ValueRejected = 19 -> Hermes.Core.AttemptReason
+Hermes.Core.AttemptRecord
+Hermes.Core.AttemptRecord.<Clone>$() -> Hermes.Core.AttemptRecord!
+Hermes.Core.AttemptRecord.AnswerClass.get -> Hermes.Core.AttemptClass?
+Hermes.Core.AttemptRecord.AnswerClass.init -> void
+Hermes.Core.AttemptRecord.At.get -> System.DateTimeOffset
+Hermes.Core.AttemptRecord.At.init -> void
+Hermes.Core.AttemptRecord.AttemptRecord() -> void
+Hermes.Core.AttemptRecord.Calls.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.CallRecord!>!
+Hermes.Core.AttemptRecord.Calls.init -> void
+Hermes.Core.AttemptRecord.Equals(Hermes.Core.AttemptRecord? other) -> bool
+Hermes.Core.AttemptRecord.Number.get -> int
+Hermes.Core.AttemptRecord.Number.init -> void
+Hermes.Core.AttemptRecord.Reason.get -> Hermes.Core.AttemptReason?
+Hermes.Core.AttemptRecord.Reason.init -> void
+Hermes.Core.BalanceReading
+Hermes.Core.BalanceReading.Balance
+Hermes.Core.BalanceReading.Balance.Balance(decimal Units) -> void
+Hermes.Core.BalanceReading.Balance.Deconstruct(out decimal Units) -> void
+Hermes.Core.BalanceReading.Balance.Equals(Hermes.Core.BalanceReading.Balance? other) -> bool
+Hermes.Core.BalanceReading.Balance.Units.get -> decimal
+Hermes.Core.BalanceReading.Balance.Units.init -> void
+Hermes.Core.BalanceReading.BalanceReading(Hermes.Core.BalanceReading! original) -> void
+Hermes.Core.BalanceReading.Failed
+Hermes.Core.BalanceReading.Failed.Deconstruct(out Hermes.Core.AttemptReason Reason) -> void
+Hermes.Core.BalanceReading.Failed.Equals(Hermes.Core.BalanceReading.Failed? other) -> bool
+Hermes.Core.BalanceReading.Failed.Failed(Hermes.Core.AttemptReason Reason) -> void
+Hermes.Core.BalanceReading.Failed.Reason.get -> Hermes.Core.AttemptReason
+Hermes.Core.BalanceReading.Failed.Reason.init -> void
+Hermes.Core.BalanceReading.NotSupported
+Hermes.Core.BalanceReading.NotSupported.Equals(Hermes.Core.BalanceReading.NotSupported? other) -> bool
+Hermes.Core.BalanceReading.NotSupported.NotSupported() -> void
+Hermes.Core.CallRecord
+Hermes.Core.CallRecord.<Clone>$() -> Hermes.Core.CallRecord!
+Hermes.Core.CallRecord.AnswerClass.get -> Hermes.Core.AttemptClass?
+Hermes.Core.CallRecord.AnswerClass.init -> void
+Hermes.Core.CallRecord.CallRecord() -> void
+Hermes.Core.CallRecord.Equals(Hermes.Core.CallRecord? other) -> bool
+Hermes.Core.CallRecord.Reason.get -> Hermes.Core.AttemptReason?
+Hermes.Core.CallRecord.Reason.init -> void
+Hermes.Core.CallRecord.Service.get -> Hermes.Core.PushService?
+Hermes.Core.CallRecord.Service.init -> void
+Hermes.Core.CallRecord.Status.get -> int?
+Hermes.Core.CallRecord.Status.init -> void
+Hermes.Core.CategoryPreferences
+Hermes.Core.CategoryPreferences.<Clone>$() -> Hermes.Core.CategoryPreferences!
+Hermes.Core.CategoryPreferences.Category.get -> string!
+Hermes.Core.CategoryPreferences.Category.init -> void
+Hermes.Core.CategoryPreferences.CategoryPreferences() -> void
+Hermes.Core.CategoryPreferences.Channels.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.ChannelPreference!>!
+Hermes.Core.CategoryPreferences.Channels.init -> void
+Hermes.Core.CategoryPreferences.Equals(Hermes.Core.CategoryPreferences? other) -> bool
+Hermes.Core.CategoryPreferences.Essential.get -> bool
+Hermes.Core.CategoryPreferences.Essential.init -> void
+Hermes.Core.Channel
+Hermes.Core.Channel.Email = 0 -> Hermes.Core.Channel
+Hermes.Core.Channel.Push = 2 -> Hermes.Core.Channel
+Hermes.Core.Channel.Sms = 1 -> Hermes.Core.Channel
+Hermes.Core.ChannelPreference
+Hermes.Core.ChannelPreference.<Clone>$() -> Hermes.Core.ChannelPreference!
+Hermes.Core.ChannelPreference.Channel.get -> Hermes.Core.Channel
+Hermes.Core.ChannelPreference.Channel.init -> void
+Hermes.Core.ChannelPreference.ChannelPreference() -> void
+Hermes.Core.ChannelPreference.Equals(Hermes.Core.ChannelPreference? other) -> bool
+Hermes.Core.ChannelPreference.On.get -> bool
+Hermes.Core.ChannelPreference.On.init -> void
+Hermes.Core.ConsentAnswer
+Hermes.Core.ConsentAnswer.Given = 0 -> Hermes.Core.ConsentAnswer
+Hermes.Core.ConsentAnswer.NotGiven = 1 -> Hermes.Core.ConsentAnswer
+Hermes.Core.ConsentAnswer.Unavailable = 2 -> Hermes.Core.ConsentAnswer
+Hermes.Core.ConsentQuery
+Hermes.Core.ConsentQuery.<Clone>$() -> Hermes.Core.ConsentQuery!
+Hermes.Core.ConsentQuery.Channel.get -> Hermes.Core.Channel
+Hermes.Core.ConsentQuery.Channel.init -> void
+Hermes.Core.ConsentQuery.ConsentQuery() -> void
+Hermes.Core.ConsentQuery.Destination.get -> string?
+Hermes.Core.ConsentQuery.Destination.init -> void
+Hermes.Core.ConsentQuery.Equals(Hermes.Core.ConsentQuery? other) -> bool
+Hermes.Core.ConsentQuery.Purpose.get -> string!
+Hermes.Core.ConsentQuery.Purpose.init -> void
+Hermes.Core.ConsentQuery.Recipient.get -> Hermes.Core.Recipient!
+Hermes.Core.ConsentQuery.Recipient.init -> void
+Hermes.Core.DeliveryExport
+Hermes.Core.DeliveryExport.<Clone>$() -> Hermes.Core.DeliveryExport!
+Hermes.Core.DeliveryExport.Channel.get -> Hermes.Core.Channel
+Hermes.Core.DeliveryExport.Channel.init -> void
+Hermes.Core.DeliveryExport.Content.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Hermes.Core.DeliveryExport.Content.init -> void
+Hermes.Core.DeliveryExport.ContentDeleted.get -> bool
+Hermes.Core.DeliveryExport.ContentDeleted.init -> void
+Hermes.Core.DeliveryExport.DeliveryExport() -> void
+Hermes.Core.DeliveryExport.Destination.get -> string?
+Hermes.Core.DeliveryExport.Destination.init -> void
+Hermes.Core.DeliveryExport.Equals(Hermes.Core.DeliveryExport? other) -> bool
+Hermes.Core.DeliveryExport.Erased.get -> bool
+Hermes.Core.DeliveryExport.Erased.init -> void
+Hermes.Core.DeliveryExport.Kind.get -> string!
+Hermes.Core.DeliveryExport.Kind.init -> void
+Hermes.Core.DeliveryExport.LastMovedAt.get -> System.DateTimeOffset
+Hermes.Core.DeliveryExport.LastMovedAt.init -> void
+Hermes.Core.DeliveryExport.RecordedAt.get -> System.DateTimeOffset
+Hermes.Core.DeliveryExport.RecordedAt.init -> void
+Hermes.Core.DeliveryExport.Rejected.get -> bool
+Hermes.Core.DeliveryExport.Rejected.init -> void
+Hermes.Core.DeliveryExport.Status.get -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryExport.Status.init -> void
+Hermes.Core.DeliveryId
+Hermes.Core.DeliveryId.Deconstruct(out System.Guid Value) -> void
+Hermes.Core.DeliveryId.DeliveryId() -> void
+Hermes.Core.DeliveryId.DeliveryId(System.Guid Value) -> void
+Hermes.Core.DeliveryId.Equals(Hermes.Core.DeliveryId other) -> bool
+Hermes.Core.DeliveryId.Value.get -> System.Guid
+Hermes.Core.DeliveryId.Value.init -> void
+Hermes.Core.DeliveryNotice
+Hermes.Core.DeliveryNotice.<Clone>$() -> Hermes.Core.DeliveryNotice!
+Hermes.Core.DeliveryNotice.At.get -> System.DateTimeOffset
+Hermes.Core.DeliveryNotice.At.init -> void
+Hermes.Core.DeliveryNotice.Category.get -> string!
+Hermes.Core.DeliveryNotice.Category.init -> void
+Hermes.Core.DeliveryNotice.Channel.get -> Hermes.Core.Channel
+Hermes.Core.DeliveryNotice.Channel.init -> void
+Hermes.Core.DeliveryNotice.Delivery.get -> Hermes.Core.DeliveryId
+Hermes.Core.DeliveryNotice.Delivery.init -> void
+Hermes.Core.DeliveryNotice.DeliveryNotice() -> void
+Hermes.Core.DeliveryNotice.Equals(Hermes.Core.DeliveryNotice? other) -> bool
+Hermes.Core.DeliveryNotice.Kind.get -> string!
+Hermes.Core.DeliveryNotice.Kind.init -> void
+Hermes.Core.DeliveryNotice.Person.get -> string?
+Hermes.Core.DeliveryNotice.Person.init -> void
+Hermes.Core.DeliveryNotice.Reason.get -> Hermes.Core.AttemptReason?
+Hermes.Core.DeliveryNotice.Reason.init -> void
+Hermes.Core.DeliveryNotice.Send.get -> Hermes.Core.SendId
+Hermes.Core.DeliveryNotice.Send.init -> void
+Hermes.Core.DeliveryNotice.Status.get -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryNotice.Status.init -> void
+Hermes.Core.DeliveryReceipt
+Hermes.Core.DeliveryReceipt.<Clone>$() -> Hermes.Core.DeliveryReceipt!
+Hermes.Core.DeliveryReceipt.Channel.get -> Hermes.Core.Channel
+Hermes.Core.DeliveryReceipt.Channel.init -> void
+Hermes.Core.DeliveryReceipt.Delivery.get -> Hermes.Core.DeliveryId
+Hermes.Core.DeliveryReceipt.Delivery.init -> void
+Hermes.Core.DeliveryReceipt.DeliveryReceipt() -> void
+Hermes.Core.DeliveryReceipt.Equals(Hermes.Core.DeliveryReceipt? other) -> bool
+Hermes.Core.DeliveryRecord
+Hermes.Core.DeliveryRecord.<Clone>$() -> Hermes.Core.DeliveryRecord!
+Hermes.Core.DeliveryRecord.Attempts.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.AttemptRecord!>!
+Hermes.Core.DeliveryRecord.Attempts.init -> void
+Hermes.Core.DeliveryRecord.Channel.get -> Hermes.Core.Channel
+Hermes.Core.DeliveryRecord.Channel.init -> void
+Hermes.Core.DeliveryRecord.Delivery.get -> Hermes.Core.DeliveryId
+Hermes.Core.DeliveryRecord.Delivery.init -> void
+Hermes.Core.DeliveryRecord.DeliveryRecord() -> void
+Hermes.Core.DeliveryRecord.Equals(Hermes.Core.DeliveryRecord? other) -> bool
+Hermes.Core.DeliveryRecord.LastMovedAt.get -> System.DateTimeOffset
+Hermes.Core.DeliveryRecord.LastMovedAt.init -> void
+Hermes.Core.DeliveryRecord.Reason.get -> Hermes.Core.AttemptReason?
+Hermes.Core.DeliveryRecord.Reason.init -> void
+Hermes.Core.DeliveryRecord.RecordedAt.get -> System.DateTimeOffset
+Hermes.Core.DeliveryRecord.RecordedAt.init -> void
+Hermes.Core.DeliveryRecord.Status.get -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryRecord.Status.init -> void
+Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.BalanceFloor = 11 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.Cancelled = 5 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.Delivered = 3 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.Expired = 6 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.Failed = 4 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.InFlight = 1 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.Limited = 10 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.NoConsent = 9 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.NoSubscription = 12 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.OptedOut = 8 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.Sent = 2 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.Suppressed = 7 -> Hermes.Core.DeliveryStatus
+Hermes.Core.DeliveryStatus.Waiting = 0 -> Hermes.Core.DeliveryStatus
+Hermes.Core.EmailAddress
+Hermes.Core.EmailAddress.<Clone>$() -> Hermes.Core.EmailAddress!
+Hermes.Core.EmailAddress.Address.get -> string!
+Hermes.Core.EmailAddress.Address.init -> void
+Hermes.Core.EmailAddress.DisplayName.get -> string?
+Hermes.Core.EmailAddress.DisplayName.init -> void
+Hermes.Core.EmailAddress.EmailAddress() -> void
+Hermes.Core.EmailAddress.Equals(Hermes.Core.EmailAddress? other) -> bool
+Hermes.Core.EmailMessage
+Hermes.Core.EmailMessage.<Clone>$() -> Hermes.Core.EmailMessage!
+Hermes.Core.EmailMessage.EmailMessage() -> void
+Hermes.Core.EmailMessage.Equals(Hermes.Core.EmailMessage? other) -> bool
+Hermes.Core.EmailMessage.From.get -> Hermes.Core.EmailAddress!
+Hermes.Core.EmailMessage.From.init -> void
+Hermes.Core.EmailMessage.Html.get -> string?
+Hermes.Core.EmailMessage.Html.init -> void
+Hermes.Core.EmailMessage.Language.get -> string!
+Hermes.Core.EmailMessage.Language.init -> void
+Hermes.Core.EmailMessage.MessageId.get -> string!
+Hermes.Core.EmailMessage.MessageId.init -> void
+Hermes.Core.EmailMessage.ReplyTo.get -> Hermes.Core.EmailAddress?
+Hermes.Core.EmailMessage.ReplyTo.init -> void
+Hermes.Core.EmailMessage.Subject.get -> string!
+Hermes.Core.EmailMessage.Subject.init -> void
+Hermes.Core.EmailMessage.Text.get -> string!
+Hermes.Core.EmailMessage.Text.init -> void
+Hermes.Core.EmailMessage.ToAddress.get -> string!
+Hermes.Core.EmailMessage.ToAddress.init -> void
+Hermes.Core.EmailMessage.Unsubscribe.get -> System.Uri?
+Hermes.Core.EmailMessage.Unsubscribe.init -> void
+Hermes.Core.Failure
+Hermes.Core.Failure.<Clone>$() -> Hermes.Core.Failure!
+Hermes.Core.Failure.Code.get -> string!
+Hermes.Core.Failure.Code.init -> void
+Hermes.Core.Failure.Details.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Hermes.Core.Failure.Details.init -> void
+Hermes.Core.Failure.Equals(Hermes.Core.Failure? other) -> bool
+Hermes.Core.Failure.Failure() -> void
+Hermes.Core.IAlertSink
+Hermes.Core.IAlertSink.ClearAsync(string! condition, string? scope, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Hermes.Core.IAlertSink.RaiseAsync(string! condition, string? scope, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! details, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Hermes.Core.IConsentSource
+Hermes.Core.IConsentSource.ConsentsAsync(Hermes.Core.ConsentQuery! query, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.ConsentAnswer>
+Hermes.Core.IContentProtector
+Hermes.Core.IContentProtector.Id.get -> string!
+Hermes.Core.IContentProtector.ProtectAsync(string! person, System.ReadOnlyMemory<byte> plaintext, string! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<byte[]!>
+Hermes.Core.IContentProtector.UnprotectAsync(string! person, System.ReadOnlyMemory<byte> protectedValue, string! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.UnprotectResult!>
+Hermes.Core.IDeliveryObserver
+Hermes.Core.IDeliveryObserver.ObserveAsync(Hermes.Core.DeliveryNotice! notice, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Hermes.Core.IEmailProvider
+Hermes.Core.IEmailProvider.OpenAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.IEmailSession!>
+Hermes.Core.IEmailSession
+Hermes.Core.IEmailSession.SendAsync(Hermes.Core.EmailMessage! message, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Attempt!>
+Hermes.Core.IMessages
+Hermes.Core.IMessages.CancelAsync(Hermes.Core.SendId send, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<System.Collections.Generic.IReadOnlyList<Hermes.Core.DeliveryId>!>!>
+Hermes.Core.IMessages.ReadAsync(Hermes.Core.SendId send, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.SendRecord!>!>
+Hermes.Core.IMessages.SendAsync(Hermes.Core.Send! send, System.Data.Common.DbTransaction! transaction, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.SendReceipt!>!>
+Hermes.Core.IMessages.SendAsync(Hermes.Core.Send! send, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.SendReceipt!>!>
+Hermes.Core.IPreferences
+Hermes.Core.IPreferences.ReadAsync(string! person, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Hermes.Core.CategoryPreferences!>!>
+Hermes.Core.IPreferences.SetAsync(string! person, string! category, Hermes.Core.Channel channel, bool isOn, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.IPushProvider
+Hermes.Core.IPushProvider.Platform.get -> Hermes.Core.PushPlatform
+Hermes.Core.IPushProvider.SendAsync(Hermes.Core.PushRequest! request, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Attempt!>
+Hermes.Core.IRecipientIdentity
+Hermes.Core.IRecipientIdentity.CurrentAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<string?>
+Hermes.Core.ISecretSource
+Hermes.Core.ISecretSource.ReadAsync(string! name, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.SecretVersions?>
+Hermes.Core.ISmsProvider
+Hermes.Core.ISmsProvider.BalanceAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.BalanceReading!>
+Hermes.Core.ISmsProvider.IsValidSender(string! sender) -> bool
+Hermes.Core.ISmsProvider.ReadReportAsync(Hermes.Core.SmsReportRequest! request, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.SmsReportReading!>
+Hermes.Core.ISmsProvider.SendAsync(Hermes.Core.SmsMessage! message, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Attempt!>
+Hermes.Core.ISubjects
+Hermes.Core.ISubjects.EraseAsync(string! person, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.ISubjects.ExportAsync(string! person, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.SubjectExport!>!>
+Hermes.Core.ISuppressions
+Hermes.Core.ISuppressions.AddAsync(Hermes.Core.Channel channel, string! destination, string! category, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.ISuppressions.RemoveAsync(Hermes.Core.Channel channel, string! destination, string! category, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.ITemplateSource
+Hermes.Core.ITemplateSource.ReadAsync(Hermes.Core.TemplateKey! key, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<string?>
+Hermes.Core.IdempotencyKeyExport
+Hermes.Core.IdempotencyKeyExport.<Clone>$() -> Hermes.Core.IdempotencyKeyExport!
+Hermes.Core.IdempotencyKeyExport.Equals(Hermes.Core.IdempotencyKeyExport? other) -> bool
+Hermes.Core.IdempotencyKeyExport.IdempotencyKeyExport() -> void
+Hermes.Core.IdempotencyKeyExport.Key.get -> string!
+Hermes.Core.IdempotencyKeyExport.Key.init -> void
+Hermes.Core.IdempotencyKeyExport.Kind.get -> string!
+Hermes.Core.IdempotencyKeyExport.Kind.init -> void
+Hermes.Core.IdempotencyKeyExport.RecordedAt.get -> System.DateTimeOffset
+Hermes.Core.IdempotencyKeyExport.RecordedAt.init -> void
+Hermes.Core.MessagingStartupException
+Hermes.Core.MessagingStartupException.Code.get -> string!
+Hermes.Core.MessagingStartupException.Details.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Hermes.Core.MessagingStartupException.MessagingStartupException(string! code, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! details) -> void
+Hermes.Core.PushPlatform
+Hermes.Core.PushPlatform.WebPush = 0 -> Hermes.Core.PushPlatform
+Hermes.Core.PushRequest
+Hermes.Core.PushRequest.PushRequest(Hermes.Core.PushRequest! original) -> void
+Hermes.Core.PushRequest.WebPush
+Hermes.Core.PushRequest.WebPush.Auth.get -> string!
+Hermes.Core.PushRequest.WebPush.Auth.init -> void
+Hermes.Core.PushRequest.WebPush.Deconstruct(out string! Endpoint, out string! P256dh, out string! Auth, out int KeyVersion, out System.ReadOnlyMemory<byte> Payload, out System.TimeSpan Ttl, out Hermes.Core.PushUrgency Urgency, out string? Topic) -> void
+Hermes.Core.PushRequest.WebPush.Endpoint.get -> string!
+Hermes.Core.PushRequest.WebPush.Endpoint.init -> void
+Hermes.Core.PushRequest.WebPush.Equals(Hermes.Core.PushRequest.WebPush? other) -> bool
+Hermes.Core.PushRequest.WebPush.KeyVersion.get -> int
+Hermes.Core.PushRequest.WebPush.KeyVersion.init -> void
+Hermes.Core.PushRequest.WebPush.P256dh.get -> string!
+Hermes.Core.PushRequest.WebPush.P256dh.init -> void
+Hermes.Core.PushRequest.WebPush.Payload.get -> System.ReadOnlyMemory<byte>
+Hermes.Core.PushRequest.WebPush.Payload.init -> void
+Hermes.Core.PushRequest.WebPush.Topic.get -> string?
+Hermes.Core.PushRequest.WebPush.Topic.init -> void
+Hermes.Core.PushRequest.WebPush.Ttl.get -> System.TimeSpan
+Hermes.Core.PushRequest.WebPush.Ttl.init -> void
+Hermes.Core.PushRequest.WebPush.Urgency.get -> Hermes.Core.PushUrgency
+Hermes.Core.PushRequest.WebPush.Urgency.init -> void
+Hermes.Core.PushRequest.WebPush.WebPush(string! Endpoint, string! P256dh, string! Auth, int KeyVersion, System.ReadOnlyMemory<byte> Payload, System.TimeSpan Ttl, Hermes.Core.PushUrgency Urgency, string? Topic) -> void
+Hermes.Core.PushService
+Hermes.Core.PushService.Apple = 2 -> Hermes.Core.PushService
+Hermes.Core.PushService.Fcm = 0 -> Hermes.Core.PushService
+Hermes.Core.PushService.Mozilla = 1 -> Hermes.Core.PushService
+Hermes.Core.PushService.Other = 4 -> Hermes.Core.PushService
+Hermes.Core.PushService.Windows = 3 -> Hermes.Core.PushService
+Hermes.Core.PushUrgency
+Hermes.Core.PushUrgency.High = 3 -> Hermes.Core.PushUrgency
+Hermes.Core.PushUrgency.Low = 1 -> Hermes.Core.PushUrgency
+Hermes.Core.PushUrgency.Normal = 2 -> Hermes.Core.PushUrgency
+Hermes.Core.PushUrgency.VeryLow = 0 -> Hermes.Core.PushUrgency
+Hermes.Core.Recipient
+Hermes.Core.Recipient.Anonymous
+Hermes.Core.Recipient.Anonymous.Anonymous() -> void
+Hermes.Core.Recipient.Anonymous.Equals(Hermes.Core.Recipient.Anonymous? other) -> bool
+Hermes.Core.Recipient.Person
+Hermes.Core.Recipient.Person.Deconstruct(out string! Reference) -> void
+Hermes.Core.Recipient.Person.Equals(Hermes.Core.Recipient.Person? other) -> bool
+Hermes.Core.Recipient.Person.Person(string! Reference) -> void
+Hermes.Core.Recipient.Person.Reference.get -> string!
+Hermes.Core.Recipient.Person.Reference.init -> void
+Hermes.Core.Recipient.Recipient(Hermes.Core.Recipient! original) -> void
+Hermes.Core.Result
+Hermes.Core.Result.<Clone>$() -> Hermes.Core.Result!
+Hermes.Core.Result.Equals(Hermes.Core.Result? other) -> bool
+Hermes.Core.Result.Failure.get -> Hermes.Core.Failure?
+Hermes.Core.Result.Failure.init -> void
+Hermes.Core.Result.IsSuccess.get -> bool
+Hermes.Core.Result.IsSuccess.init -> void
+Hermes.Core.Result.Result() -> void
+Hermes.Core.Result<T>
+Hermes.Core.Result<T>.<Clone>$() -> Hermes.Core.Result<T>!
+Hermes.Core.Result<T>.Equals(Hermes.Core.Result<T>? other) -> bool
+Hermes.Core.Result<T>.Failure.get -> Hermes.Core.Failure?
+Hermes.Core.Result<T>.Failure.init -> void
+Hermes.Core.Result<T>.IsSuccess.get -> bool
+Hermes.Core.Result<T>.IsSuccess.init -> void
+Hermes.Core.Result<T>.Result() -> void
+Hermes.Core.Result<T>.Value.get -> T?
+Hermes.Core.Result<T>.Value.init -> void
+Hermes.Core.SecretVersion
+Hermes.Core.SecretVersion.<Clone>$() -> Hermes.Core.SecretVersion!
+Hermes.Core.SecretVersion.Equals(Hermes.Core.SecretVersion? other) -> bool
+Hermes.Core.SecretVersion.SecretVersion() -> void
+Hermes.Core.SecretVersion.Value.get -> System.ReadOnlyMemory<byte>
+Hermes.Core.SecretVersion.Value.init -> void
+Hermes.Core.SecretVersion.Version.get -> int
+Hermes.Core.SecretVersion.Version.init -> void
+Hermes.Core.SecretVersions
+Hermes.Core.SecretVersions.<Clone>$() -> Hermes.Core.SecretVersions!
+Hermes.Core.SecretVersions.Equals(Hermes.Core.SecretVersions? other) -> bool
+Hermes.Core.SecretVersions.SecretVersions() -> void
+Hermes.Core.SecretVersions.Versions.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.SecretVersion!>!
+Hermes.Core.SecretVersions.Versions.init -> void
+Hermes.Core.Send
+Hermes.Core.Send.<Clone>$() -> Hermes.Core.Send!
+Hermes.Core.Send.Channels.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.Channel>?
+Hermes.Core.Send.Channels.init -> void
+Hermes.Core.Send.Email.get -> string?
+Hermes.Core.Send.Email.init -> void
+Hermes.Core.Send.Equals(Hermes.Core.Send? other) -> bool
+Hermes.Core.Send.IdempotencyKey.get -> string?
+Hermes.Core.Send.IdempotencyKey.init -> void
+Hermes.Core.Send.Kind.get -> string!
+Hermes.Core.Send.Kind.init -> void
+Hermes.Core.Send.Language.get -> string?
+Hermes.Core.Send.Language.init -> void
+Hermes.Core.Send.NotBefore.get -> System.DateTimeOffset?
+Hermes.Core.Send.NotBefore.init -> void
+Hermes.Core.Send.Phone.get -> string?
+Hermes.Core.Send.Phone.init -> void
+Hermes.Core.Send.PushTopic.get -> string?
+Hermes.Core.Send.PushTopic.init -> void
+Hermes.Core.Send.Recipient.get -> Hermes.Core.Recipient!
+Hermes.Core.Send.Recipient.init -> void
+Hermes.Core.Send.Send() -> void
+Hermes.Core.Send.TimeZone.get -> string?
+Hermes.Core.Send.TimeZone.init -> void
+Hermes.Core.Send.Values.get -> System.Collections.Generic.IReadOnlyDictionary<string!, Hermes.Core.SendValue!>!
+Hermes.Core.Send.Values.init -> void
+Hermes.Core.SendId
+Hermes.Core.SendId.Deconstruct(out System.Guid Value) -> void
+Hermes.Core.SendId.Equals(Hermes.Core.SendId other) -> bool
+Hermes.Core.SendId.SendId() -> void
+Hermes.Core.SendId.SendId(System.Guid Value) -> void
+Hermes.Core.SendId.Value.get -> System.Guid
+Hermes.Core.SendId.Value.init -> void
+Hermes.Core.SendReceipt
+Hermes.Core.SendReceipt.<Clone>$() -> Hermes.Core.SendReceipt!
+Hermes.Core.SendReceipt.Deliveries.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.DeliveryReceipt!>!
+Hermes.Core.SendReceipt.Deliveries.init -> void
+Hermes.Core.SendReceipt.Equals(Hermes.Core.SendReceipt? other) -> bool
+Hermes.Core.SendReceipt.Send.get -> Hermes.Core.SendId
+Hermes.Core.SendReceipt.Send.init -> void
+Hermes.Core.SendReceipt.SendReceipt() -> void
+Hermes.Core.SendRecord
+Hermes.Core.SendRecord.<Clone>$() -> Hermes.Core.SendRecord!
+Hermes.Core.SendRecord.Deliveries.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.DeliveryRecord!>!
+Hermes.Core.SendRecord.Deliveries.init -> void
+Hermes.Core.SendRecord.Equals(Hermes.Core.SendRecord? other) -> bool
+Hermes.Core.SendRecord.Kind.get -> string!
+Hermes.Core.SendRecord.Kind.init -> void
+Hermes.Core.SendRecord.Send.get -> Hermes.Core.SendId
+Hermes.Core.SendRecord.Send.init -> void
+Hermes.Core.SendRecord.SendRecord() -> void
+Hermes.Core.SendValue
+Hermes.Core.SendValue.DecimalNumber
+Hermes.Core.SendValue.DecimalNumber.DecimalNumber(decimal Value) -> void
+Hermes.Core.SendValue.DecimalNumber.Deconstruct(out decimal Value) -> void
+Hermes.Core.SendValue.DecimalNumber.Equals(Hermes.Core.SendValue.DecimalNumber? other) -> bool
+Hermes.Core.SendValue.DecimalNumber.Value.get -> decimal
+Hermes.Core.SendValue.DecimalNumber.Value.init -> void
+Hermes.Core.SendValue.Flag
+Hermes.Core.SendValue.Flag.Deconstruct(out bool Value) -> void
+Hermes.Core.SendValue.Flag.Equals(Hermes.Core.SendValue.Flag? other) -> bool
+Hermes.Core.SendValue.Flag.Flag(bool Value) -> void
+Hermes.Core.SendValue.Flag.Value.get -> bool
+Hermes.Core.SendValue.Flag.Value.init -> void
+Hermes.Core.SendValue.Instant
+Hermes.Core.SendValue.Instant.Deconstruct(out System.DateTimeOffset Value) -> void
+Hermes.Core.SendValue.Instant.Equals(Hermes.Core.SendValue.Instant? other) -> bool
+Hermes.Core.SendValue.Instant.Instant(System.DateTimeOffset Value) -> void
+Hermes.Core.SendValue.Instant.Value.get -> System.DateTimeOffset
+Hermes.Core.SendValue.Instant.Value.init -> void
+Hermes.Core.SendValue.List
+Hermes.Core.SendValue.List.Deconstruct(out System.Collections.Generic.IReadOnlyList<System.Collections.Generic.IReadOnlyDictionary<string!, Hermes.Core.SendValue!>!>! Items) -> void
+Hermes.Core.SendValue.List.Equals(Hermes.Core.SendValue.List? other) -> bool
+Hermes.Core.SendValue.List.Items.get -> System.Collections.Generic.IReadOnlyList<System.Collections.Generic.IReadOnlyDictionary<string!, Hermes.Core.SendValue!>!>!
+Hermes.Core.SendValue.List.Items.init -> void
+Hermes.Core.SendValue.List.List(System.Collections.Generic.IReadOnlyList<System.Collections.Generic.IReadOnlyDictionary<string!, Hermes.Core.SendValue!>!>! Items) -> void
+Hermes.Core.SendValue.PlainText
+Hermes.Core.SendValue.PlainText.Deconstruct(out string! Value) -> void
+Hermes.Core.SendValue.PlainText.Equals(Hermes.Core.SendValue.PlainText? other) -> bool
+Hermes.Core.SendValue.PlainText.PlainText(string! Value) -> void
+Hermes.Core.SendValue.PlainText.Value.get -> string!
+Hermes.Core.SendValue.PlainText.Value.init -> void
+Hermes.Core.SendValue.SendValue(Hermes.Core.SendValue! original) -> void
+Hermes.Core.SendValue.WholeNumber
+Hermes.Core.SendValue.WholeNumber.Deconstruct(out long Value) -> void
+Hermes.Core.SendValue.WholeNumber.Equals(Hermes.Core.SendValue.WholeNumber? other) -> bool
+Hermes.Core.SendValue.WholeNumber.Value.get -> long
+Hermes.Core.SendValue.WholeNumber.Value.init -> void
+Hermes.Core.SendValue.WholeNumber.WholeNumber(long Value) -> void
+Hermes.Core.SmsEncoding
+Hermes.Core.SmsEncoding.Gsm7 = 0 -> Hermes.Core.SmsEncoding
+Hermes.Core.SmsEncoding.Ucs2 = 1 -> Hermes.Core.SmsEncoding
+Hermes.Core.SmsMeasure
+Hermes.Core.SmsMeasure.<Clone>$() -> Hermes.Core.SmsMeasure!
+Hermes.Core.SmsMeasure.Encoding.get -> Hermes.Core.SmsEncoding
+Hermes.Core.SmsMeasure.Encoding.init -> void
+Hermes.Core.SmsMeasure.Equals(Hermes.Core.SmsMeasure? other) -> bool
+Hermes.Core.SmsMeasure.Segments.get -> int
+Hermes.Core.SmsMeasure.Segments.init -> void
+Hermes.Core.SmsMeasure.SmsMeasure() -> void
+Hermes.Core.SmsMessage
+Hermes.Core.SmsMessage.<Clone>$() -> Hermes.Core.SmsMessage!
+Hermes.Core.SmsMessage.DeliveryReference.get -> string!
+Hermes.Core.SmsMessage.DeliveryReference.init -> void
+Hermes.Core.SmsMessage.Encoding.get -> Hermes.Core.SmsEncoding
+Hermes.Core.SmsMessage.Encoding.init -> void
+Hermes.Core.SmsMessage.Equals(Hermes.Core.SmsMessage? other) -> bool
+Hermes.Core.SmsMessage.ReportAddress.get -> System.Uri?
+Hermes.Core.SmsMessage.ReportAddress.init -> void
+Hermes.Core.SmsMessage.Segments.get -> int
+Hermes.Core.SmsMessage.Segments.init -> void
+Hermes.Core.SmsMessage.Sender.get -> string!
+Hermes.Core.SmsMessage.Sender.init -> void
+Hermes.Core.SmsMessage.SmsMessage() -> void
+Hermes.Core.SmsMessage.Text.get -> string!
+Hermes.Core.SmsMessage.Text.init -> void
+Hermes.Core.SmsMessage.ToNumber.get -> string!
+Hermes.Core.SmsMessage.ToNumber.init -> void
+Hermes.Core.SmsReportOutcome
+Hermes.Core.SmsReportOutcome.Delivered = 0 -> Hermes.Core.SmsReportOutcome
+Hermes.Core.SmsReportOutcome.Failed = 1 -> Hermes.Core.SmsReportOutcome
+Hermes.Core.SmsReportOutcome.NotFinal = 2 -> Hermes.Core.SmsReportOutcome
+Hermes.Core.SmsReportReading
+Hermes.Core.SmsReportReading.<Clone>$() -> Hermes.Core.SmsReportReading!
+Hermes.Core.SmsReportReading.DeliveryReference.get -> string?
+Hermes.Core.SmsReportReading.DeliveryReference.init -> void
+Hermes.Core.SmsReportReading.Equals(Hermes.Core.SmsReportReading? other) -> bool
+Hermes.Core.SmsReportReading.Outcome.get -> Hermes.Core.SmsReportOutcome?
+Hermes.Core.SmsReportReading.Outcome.init -> void
+Hermes.Core.SmsReportReading.ProviderReference.get -> string?
+Hermes.Core.SmsReportReading.ProviderReference.init -> void
+Hermes.Core.SmsReportReading.Reads.get -> bool
+Hermes.Core.SmsReportReading.Reads.init -> void
+Hermes.Core.SmsReportReading.Response.get -> Hermes.Core.SmsReportResponse!
+Hermes.Core.SmsReportReading.Response.init -> void
+Hermes.Core.SmsReportReading.SmsReportReading() -> void
+Hermes.Core.SmsReportRequest
+Hermes.Core.SmsReportRequest.<Clone>$() -> Hermes.Core.SmsReportRequest!
+Hermes.Core.SmsReportRequest.Body.get -> System.ReadOnlyMemory<byte>
+Hermes.Core.SmsReportRequest.Body.init -> void
+Hermes.Core.SmsReportRequest.ContentType.get -> string?
+Hermes.Core.SmsReportRequest.ContentType.init -> void
+Hermes.Core.SmsReportRequest.Equals(Hermes.Core.SmsReportRequest? other) -> bool
+Hermes.Core.SmsReportRequest.Form.get -> System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string!, string!>>!
+Hermes.Core.SmsReportRequest.Form.init -> void
+Hermes.Core.SmsReportRequest.Headers.get -> System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string!, string!>>!
+Hermes.Core.SmsReportRequest.Headers.init -> void
+Hermes.Core.SmsReportRequest.Method.get -> string!
+Hermes.Core.SmsReportRequest.Method.init -> void
+Hermes.Core.SmsReportRequest.Query.get -> System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string!, string!>>!
+Hermes.Core.SmsReportRequest.Query.init -> void
+Hermes.Core.SmsReportRequest.SmsReportRequest() -> void
+Hermes.Core.SmsReportResponse
+Hermes.Core.SmsReportResponse.<Clone>$() -> Hermes.Core.SmsReportResponse!
+Hermes.Core.SmsReportResponse.Body.get -> System.ReadOnlyMemory<byte>
+Hermes.Core.SmsReportResponse.Body.init -> void
+Hermes.Core.SmsReportResponse.ContentType.get -> string?
+Hermes.Core.SmsReportResponse.ContentType.init -> void
+Hermes.Core.SmsReportResponse.Equals(Hermes.Core.SmsReportResponse? other) -> bool
+Hermes.Core.SmsReportResponse.SmsReportResponse() -> void
+Hermes.Core.SmsReportResponse.Status.get -> int
+Hermes.Core.SmsReportResponse.Status.init -> void
+Hermes.Core.SmsText
+Hermes.Core.SubjectExport
+Hermes.Core.SubjectExport.<Clone>$() -> Hermes.Core.SubjectExport!
+Hermes.Core.SubjectExport.Deliveries.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.DeliveryExport!>!
+Hermes.Core.SubjectExport.Deliveries.init -> void
+Hermes.Core.SubjectExport.Equals(Hermes.Core.SubjectExport? other) -> bool
+Hermes.Core.SubjectExport.IdempotencyKeys.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.IdempotencyKeyExport!>!
+Hermes.Core.SubjectExport.IdempotencyKeys.init -> void
+Hermes.Core.SubjectExport.Preferences.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.CategoryPreferences!>!
+Hermes.Core.SubjectExport.Preferences.init -> void
+Hermes.Core.SubjectExport.SubjectExport() -> void
+Hermes.Core.SubjectExport.Subscriptions.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.SubscriptionExport!>!
+Hermes.Core.SubjectExport.Subscriptions.init -> void
+Hermes.Core.SubscriptionExport
+Hermes.Core.SubscriptionExport.<Clone>$() -> Hermes.Core.SubscriptionExport!
+Hermes.Core.SubscriptionExport.Equals(Hermes.Core.SubscriptionExport? other) -> bool
+Hermes.Core.SubscriptionExport.LastAcceptedAt.get -> System.DateTimeOffset?
+Hermes.Core.SubscriptionExport.LastAcceptedAt.init -> void
+Hermes.Core.SubscriptionExport.MadeAt.get -> System.DateTimeOffset
+Hermes.Core.SubscriptionExport.MadeAt.init -> void
+Hermes.Core.SubscriptionExport.Service.get -> Hermes.Core.PushService
+Hermes.Core.SubscriptionExport.Service.init -> void
+Hermes.Core.SubscriptionExport.SubscriptionExport() -> void
+Hermes.Core.TemplateKey
+Hermes.Core.TemplateKey.<Clone>$() -> Hermes.Core.TemplateKey!
+Hermes.Core.TemplateKey.Channel.get -> Hermes.Core.Channel?
+Hermes.Core.TemplateKey.Channel.init -> void
+Hermes.Core.TemplateKey.Equals(Hermes.Core.TemplateKey? other) -> bool
+Hermes.Core.TemplateKey.Kind.get -> string?
+Hermes.Core.TemplateKey.Kind.init -> void
+Hermes.Core.TemplateKey.Language.get -> string!
+Hermes.Core.TemplateKey.Language.init -> void
+Hermes.Core.TemplateKey.Page.get -> string?
+Hermes.Core.TemplateKey.Page.init -> void
+Hermes.Core.TemplateKey.Part.get -> string!
+Hermes.Core.TemplateKey.Part.init -> void
+Hermes.Core.TemplateKey.TemplateKey() -> void
+Hermes.Core.UnprotectResult
+Hermes.Core.UnprotectResult.Erased
+Hermes.Core.UnprotectResult.Erased.Equals(Hermes.Core.UnprotectResult.Erased? other) -> bool
+Hermes.Core.UnprotectResult.Erased.Erased() -> void
+Hermes.Core.UnprotectResult.KeyUnavailable
+Hermes.Core.UnprotectResult.KeyUnavailable.Equals(Hermes.Core.UnprotectResult.KeyUnavailable? other) -> bool
+Hermes.Core.UnprotectResult.KeyUnavailable.KeyUnavailable() -> void
+Hermes.Core.UnprotectResult.Opened
+Hermes.Core.UnprotectResult.Opened.Deconstruct(out System.ReadOnlyMemory<byte> Plaintext) -> void
+Hermes.Core.UnprotectResult.Opened.Equals(Hermes.Core.UnprotectResult.Opened? other) -> bool
+Hermes.Core.UnprotectResult.Opened.Opened(System.ReadOnlyMemory<byte> Plaintext) -> void
+Hermes.Core.UnprotectResult.Opened.Plaintext.get -> System.ReadOnlyMemory<byte>
+Hermes.Core.UnprotectResult.Opened.Plaintext.init -> void
+Hermes.Core.UnprotectResult.Rejected
+Hermes.Core.UnprotectResult.Rejected.Equals(Hermes.Core.UnprotectResult.Rejected? other) -> bool
+Hermes.Core.UnprotectResult.Rejected.Rejected() -> void
+Hermes.Core.UnprotectResult.UnprotectResult(Hermes.Core.UnprotectResult! original) -> void
+abstract Hermes.Core.Attempt.<Clone>$() -> Hermes.Core.Attempt!
+abstract Hermes.Core.BalanceReading.<Clone>$() -> Hermes.Core.BalanceReading!
+abstract Hermes.Core.PushRequest.<Clone>$() -> Hermes.Core.PushRequest!
+abstract Hermes.Core.PushRequest.Platform.get -> Hermes.Core.PushPlatform
+abstract Hermes.Core.Recipient.<Clone>$() -> Hermes.Core.Recipient!
+abstract Hermes.Core.SendValue.<Clone>$() -> Hermes.Core.SendValue!
+abstract Hermes.Core.UnprotectResult.<Clone>$() -> Hermes.Core.UnprotectResult!
+override Hermes.Core.Attempt.Accepted.<Clone>$() -> Hermes.Core.Attempt.Accepted!
+override Hermes.Core.Attempt.Accepted.Equals(object? obj) -> bool
+override Hermes.Core.Attempt.Accepted.GetHashCode() -> int
+override Hermes.Core.Attempt.Accepted.ToString() -> string!
+override Hermes.Core.Attempt.Equals(object? obj) -> bool
+override Hermes.Core.Attempt.GetHashCode() -> int
+override Hermes.Core.Attempt.Gone.<Clone>$() -> Hermes.Core.Attempt.Gone!
+override Hermes.Core.Attempt.Gone.Equals(object? obj) -> bool
+override Hermes.Core.Attempt.Gone.GetHashCode() -> int
+override Hermes.Core.Attempt.Gone.ToString() -> string!
+override Hermes.Core.Attempt.Permanent.<Clone>$() -> Hermes.Core.Attempt.Permanent!
+override Hermes.Core.Attempt.Permanent.Equals(object? obj) -> bool
+override Hermes.Core.Attempt.Permanent.GetHashCode() -> int
+override Hermes.Core.Attempt.Permanent.ToString() -> string!
+override Hermes.Core.Attempt.ToString() -> string!
+override Hermes.Core.Attempt.Transient.<Clone>$() -> Hermes.Core.Attempt.Transient!
+override Hermes.Core.Attempt.Transient.Equals(object? obj) -> bool
+override Hermes.Core.Attempt.Transient.GetHashCode() -> int
+override Hermes.Core.Attempt.Transient.ToString() -> string!
+override Hermes.Core.AttemptRecord.Equals(object? obj) -> bool
+override Hermes.Core.AttemptRecord.GetHashCode() -> int
+override Hermes.Core.AttemptRecord.ToString() -> string!
+override Hermes.Core.BalanceReading.Balance.<Clone>$() -> Hermes.Core.BalanceReading.Balance!
+override Hermes.Core.BalanceReading.Balance.Equals(object? obj) -> bool
+override Hermes.Core.BalanceReading.Balance.GetHashCode() -> int
+override Hermes.Core.BalanceReading.Balance.ToString() -> string!
+override Hermes.Core.BalanceReading.Equals(object? obj) -> bool
+override Hermes.Core.BalanceReading.Failed.<Clone>$() -> Hermes.Core.BalanceReading.Failed!
+override Hermes.Core.BalanceReading.Failed.Equals(object? obj) -> bool
+override Hermes.Core.BalanceReading.Failed.GetHashCode() -> int
+override Hermes.Core.BalanceReading.Failed.ToString() -> string!
+override Hermes.Core.BalanceReading.GetHashCode() -> int
+override Hermes.Core.BalanceReading.NotSupported.<Clone>$() -> Hermes.Core.BalanceReading.NotSupported!
+override Hermes.Core.BalanceReading.NotSupported.Equals(object? obj) -> bool
+override Hermes.Core.BalanceReading.NotSupported.GetHashCode() -> int
+override Hermes.Core.BalanceReading.NotSupported.ToString() -> string!
+override Hermes.Core.BalanceReading.ToString() -> string!
+override Hermes.Core.CallRecord.Equals(object? obj) -> bool
+override Hermes.Core.CallRecord.GetHashCode() -> int
+override Hermes.Core.CallRecord.ToString() -> string!
+override Hermes.Core.CategoryPreferences.Equals(object? obj) -> bool
+override Hermes.Core.CategoryPreferences.GetHashCode() -> int
+override Hermes.Core.CategoryPreferences.ToString() -> string!
+override Hermes.Core.ChannelPreference.Equals(object? obj) -> bool
+override Hermes.Core.ChannelPreference.GetHashCode() -> int
+override Hermes.Core.ChannelPreference.ToString() -> string!
+override Hermes.Core.ConsentQuery.Equals(object? obj) -> bool
+override Hermes.Core.ConsentQuery.GetHashCode() -> int
+override Hermes.Core.ConsentQuery.ToString() -> string!
+override Hermes.Core.DeliveryExport.Equals(object? obj) -> bool
+override Hermes.Core.DeliveryExport.GetHashCode() -> int
+override Hermes.Core.DeliveryExport.ToString() -> string!
+override Hermes.Core.DeliveryId.GetHashCode() -> int
+override Hermes.Core.DeliveryNotice.Equals(object? obj) -> bool
+override Hermes.Core.DeliveryNotice.GetHashCode() -> int
+override Hermes.Core.DeliveryNotice.ToString() -> string!
+override Hermes.Core.DeliveryReceipt.Equals(object? obj) -> bool
+override Hermes.Core.DeliveryReceipt.GetHashCode() -> int
+override Hermes.Core.DeliveryReceipt.ToString() -> string!
+override Hermes.Core.DeliveryRecord.Equals(object? obj) -> bool
+override Hermes.Core.DeliveryRecord.GetHashCode() -> int
+override Hermes.Core.DeliveryRecord.ToString() -> string!
+override Hermes.Core.EmailAddress.Equals(object? obj) -> bool
+override Hermes.Core.EmailAddress.GetHashCode() -> int
+override Hermes.Core.EmailAddress.ToString() -> string!
+override Hermes.Core.EmailMessage.Equals(object? obj) -> bool
+override Hermes.Core.EmailMessage.GetHashCode() -> int
+override Hermes.Core.EmailMessage.ToString() -> string!
+override Hermes.Core.Failure.Equals(object? obj) -> bool
+override Hermes.Core.Failure.GetHashCode() -> int
+override Hermes.Core.Failure.ToString() -> string!
+override Hermes.Core.IdempotencyKeyExport.Equals(object? obj) -> bool
+override Hermes.Core.IdempotencyKeyExport.GetHashCode() -> int
+override Hermes.Core.IdempotencyKeyExport.ToString() -> string!
+override Hermes.Core.PushRequest.Equals(object? obj) -> bool
+override Hermes.Core.PushRequest.GetHashCode() -> int
+override Hermes.Core.PushRequest.ToString() -> string!
+override Hermes.Core.PushRequest.WebPush.<Clone>$() -> Hermes.Core.PushRequest.WebPush!
+override Hermes.Core.PushRequest.WebPush.Equals(object? obj) -> bool
+override Hermes.Core.PushRequest.WebPush.GetHashCode() -> int
+override Hermes.Core.PushRequest.WebPush.Platform.get -> Hermes.Core.PushPlatform
+override Hermes.Core.PushRequest.WebPush.ToString() -> string!
+override Hermes.Core.Recipient.Anonymous.<Clone>$() -> Hermes.Core.Recipient.Anonymous!
+override Hermes.Core.Recipient.Anonymous.Equals(object? obj) -> bool
+override Hermes.Core.Recipient.Anonymous.GetHashCode() -> int
+override Hermes.Core.Recipient.Anonymous.ToString() -> string!
+override Hermes.Core.Recipient.Equals(object? obj) -> bool
+override Hermes.Core.Recipient.GetHashCode() -> int
+override Hermes.Core.Recipient.Person.<Clone>$() -> Hermes.Core.Recipient.Person!
+override Hermes.Core.Recipient.Person.Equals(object? obj) -> bool
+override Hermes.Core.Recipient.Person.GetHashCode() -> int
+override Hermes.Core.Recipient.Person.ToString() -> string!
+override Hermes.Core.Recipient.ToString() -> string!
+override Hermes.Core.Result.Equals(object? obj) -> bool
+override Hermes.Core.Result.GetHashCode() -> int
+override Hermes.Core.Result.ToString() -> string!
+override Hermes.Core.Result<T>.Equals(object? obj) -> bool
+override Hermes.Core.Result<T>.GetHashCode() -> int
+override Hermes.Core.Result<T>.ToString() -> string!
+override Hermes.Core.SecretVersion.Equals(object? obj) -> bool
+override Hermes.Core.SecretVersion.GetHashCode() -> int
+override Hermes.Core.SecretVersion.ToString() -> string!
+override Hermes.Core.SecretVersions.Equals(object? obj) -> bool
+override Hermes.Core.SecretVersions.GetHashCode() -> int
+override Hermes.Core.SecretVersions.ToString() -> string!
+override Hermes.Core.Send.Equals(object? obj) -> bool
+override Hermes.Core.Send.GetHashCode() -> int
+override Hermes.Core.Send.ToString() -> string!
+override Hermes.Core.SendId.GetHashCode() -> int
+override Hermes.Core.SendReceipt.Equals(object? obj) -> bool
+override Hermes.Core.SendReceipt.GetHashCode() -> int
+override Hermes.Core.SendReceipt.ToString() -> string!
+override Hermes.Core.SendRecord.Equals(object? obj) -> bool
+override Hermes.Core.SendRecord.GetHashCode() -> int
+override Hermes.Core.SendRecord.ToString() -> string!
+override Hermes.Core.SendValue.DecimalNumber.<Clone>$() -> Hermes.Core.SendValue.DecimalNumber!
+override Hermes.Core.SendValue.DecimalNumber.Equals(object? obj) -> bool
+override Hermes.Core.SendValue.DecimalNumber.GetHashCode() -> int
+override Hermes.Core.SendValue.DecimalNumber.ToString() -> string!
+override Hermes.Core.SendValue.Equals(object? obj) -> bool
+override Hermes.Core.SendValue.Flag.<Clone>$() -> Hermes.Core.SendValue.Flag!
+override Hermes.Core.SendValue.Flag.Equals(object? obj) -> bool
+override Hermes.Core.SendValue.Flag.GetHashCode() -> int
+override Hermes.Core.SendValue.Flag.ToString() -> string!
+override Hermes.Core.SendValue.GetHashCode() -> int
+override Hermes.Core.SendValue.Instant.<Clone>$() -> Hermes.Core.SendValue.Instant!
+override Hermes.Core.SendValue.Instant.Equals(object? obj) -> bool
+override Hermes.Core.SendValue.Instant.GetHashCode() -> int
+override Hermes.Core.SendValue.Instant.ToString() -> string!
+override Hermes.Core.SendValue.List.<Clone>$() -> Hermes.Core.SendValue.List!
+override Hermes.Core.SendValue.List.Equals(object? obj) -> bool
+override Hermes.Core.SendValue.List.GetHashCode() -> int
+override Hermes.Core.SendValue.List.ToString() -> string!
+override Hermes.Core.SendValue.PlainText.<Clone>$() -> Hermes.Core.SendValue.PlainText!
+override Hermes.Core.SendValue.PlainText.Equals(object? obj) -> bool
+override Hermes.Core.SendValue.PlainText.GetHashCode() -> int
+override Hermes.Core.SendValue.PlainText.ToString() -> string!
+override Hermes.Core.SendValue.ToString() -> string!
+override Hermes.Core.SendValue.WholeNumber.<Clone>$() -> Hermes.Core.SendValue.WholeNumber!
+override Hermes.Core.SendValue.WholeNumber.Equals(object? obj) -> bool
+override Hermes.Core.SendValue.WholeNumber.GetHashCode() -> int
+override Hermes.Core.SendValue.WholeNumber.ToString() -> string!
+override Hermes.Core.SmsMeasure.Equals(object? obj) -> bool
+override Hermes.Core.SmsMeasure.GetHashCode() -> int
+override Hermes.Core.SmsMeasure.ToString() -> string!
+override Hermes.Core.SmsMessage.Equals(object? obj) -> bool
+override Hermes.Core.SmsMessage.GetHashCode() -> int
+override Hermes.Core.SmsMessage.ToString() -> string!
+override Hermes.Core.SmsReportReading.Equals(object? obj) -> bool
+override Hermes.Core.SmsReportReading.GetHashCode() -> int
+override Hermes.Core.SmsReportReading.ToString() -> string!
+override Hermes.Core.SmsReportRequest.Equals(object? obj) -> bool
+override Hermes.Core.SmsReportRequest.GetHashCode() -> int
+override Hermes.Core.SmsReportRequest.ToString() -> string!
+override Hermes.Core.SmsReportResponse.Equals(object? obj) -> bool
+override Hermes.Core.SmsReportResponse.GetHashCode() -> int
+override Hermes.Core.SmsReportResponse.ToString() -> string!
+override Hermes.Core.SubjectExport.Equals(object? obj) -> bool
+override Hermes.Core.SubjectExport.GetHashCode() -> int
+override Hermes.Core.SubjectExport.ToString() -> string!
+override Hermes.Core.SubscriptionExport.Equals(object? obj) -> bool
+override Hermes.Core.SubscriptionExport.GetHashCode() -> int
+override Hermes.Core.SubscriptionExport.ToString() -> string!
+override Hermes.Core.TemplateKey.Equals(object? obj) -> bool
+override Hermes.Core.TemplateKey.GetHashCode() -> int
+override Hermes.Core.TemplateKey.ToString() -> string!
+override Hermes.Core.UnprotectResult.Equals(object? obj) -> bool
+override Hermes.Core.UnprotectResult.Erased.<Clone>$() -> Hermes.Core.UnprotectResult.Erased!
+override Hermes.Core.UnprotectResult.Erased.Equals(object? obj) -> bool
+override Hermes.Core.UnprotectResult.Erased.GetHashCode() -> int
+override Hermes.Core.UnprotectResult.Erased.ToString() -> string!
+override Hermes.Core.UnprotectResult.GetHashCode() -> int
+override Hermes.Core.UnprotectResult.KeyUnavailable.<Clone>$() -> Hermes.Core.UnprotectResult.KeyUnavailable!
+override Hermes.Core.UnprotectResult.KeyUnavailable.Equals(object? obj) -> bool
+override Hermes.Core.UnprotectResult.KeyUnavailable.GetHashCode() -> int
+override Hermes.Core.UnprotectResult.KeyUnavailable.ToString() -> string!
+override Hermes.Core.UnprotectResult.Opened.<Clone>$() -> Hermes.Core.UnprotectResult.Opened!
+override Hermes.Core.UnprotectResult.Opened.Equals(object? obj) -> bool
+override Hermes.Core.UnprotectResult.Opened.GetHashCode() -> int
+override Hermes.Core.UnprotectResult.Opened.ToString() -> string!
+override Hermes.Core.UnprotectResult.Rejected.<Clone>$() -> Hermes.Core.UnprotectResult.Rejected!
+override Hermes.Core.UnprotectResult.Rejected.Equals(object? obj) -> bool
+override Hermes.Core.UnprotectResult.Rejected.GetHashCode() -> int
+override Hermes.Core.UnprotectResult.Rejected.ToString() -> string!
+override Hermes.Core.UnprotectResult.ToString() -> string!
+override sealed Hermes.Core.Attempt.Accepted.Equals(Hermes.Core.Attempt? other) -> bool
+override sealed Hermes.Core.Attempt.Gone.Equals(Hermes.Core.Attempt? other) -> bool
+override sealed Hermes.Core.Attempt.Permanent.Equals(Hermes.Core.Attempt? other) -> bool
+override sealed Hermes.Core.Attempt.Transient.Equals(Hermes.Core.Attempt? other) -> bool
+override sealed Hermes.Core.BalanceReading.Balance.Equals(Hermes.Core.BalanceReading? other) -> bool
+override sealed Hermes.Core.BalanceReading.Failed.Equals(Hermes.Core.BalanceReading? other) -> bool
+override sealed Hermes.Core.BalanceReading.NotSupported.Equals(Hermes.Core.BalanceReading? other) -> bool
+override sealed Hermes.Core.PushRequest.WebPush.Equals(Hermes.Core.PushRequest? other) -> bool
+override sealed Hermes.Core.Recipient.Anonymous.Equals(Hermes.Core.Recipient? other) -> bool
+override sealed Hermes.Core.Recipient.Person.Equals(Hermes.Core.Recipient? other) -> bool
+override sealed Hermes.Core.SendValue.DecimalNumber.Equals(Hermes.Core.SendValue? other) -> bool
+override sealed Hermes.Core.SendValue.Flag.Equals(Hermes.Core.SendValue? other) -> bool
+override sealed Hermes.Core.SendValue.Instant.Equals(Hermes.Core.SendValue? other) -> bool
+override sealed Hermes.Core.SendValue.List.Equals(Hermes.Core.SendValue? other) -> bool
+override sealed Hermes.Core.SendValue.PlainText.Equals(Hermes.Core.SendValue? other) -> bool
+override sealed Hermes.Core.SendValue.WholeNumber.Equals(Hermes.Core.SendValue? other) -> bool
+override sealed Hermes.Core.UnprotectResult.Erased.Equals(Hermes.Core.UnprotectResult? other) -> bool
+override sealed Hermes.Core.UnprotectResult.KeyUnavailable.Equals(Hermes.Core.UnprotectResult? other) -> bool
+override sealed Hermes.Core.UnprotectResult.Opened.Equals(Hermes.Core.UnprotectResult? other) -> bool
+override sealed Hermes.Core.UnprotectResult.Rejected.Equals(Hermes.Core.UnprotectResult? other) -> bool
+static Hermes.Core.Attempt.Accepted.operator !=(Hermes.Core.Attempt.Accepted? left, Hermes.Core.Attempt.Accepted? right) -> bool
+static Hermes.Core.Attempt.Accepted.operator ==(Hermes.Core.Attempt.Accepted? left, Hermes.Core.Attempt.Accepted? right) -> bool
+static Hermes.Core.Attempt.Gone.operator !=(Hermes.Core.Attempt.Gone? left, Hermes.Core.Attempt.Gone? right) -> bool
+static Hermes.Core.Attempt.Gone.operator ==(Hermes.Core.Attempt.Gone? left, Hermes.Core.Attempt.Gone? right) -> bool
+static Hermes.Core.Attempt.Permanent.operator !=(Hermes.Core.Attempt.Permanent? left, Hermes.Core.Attempt.Permanent? right) -> bool
+static Hermes.Core.Attempt.Permanent.operator ==(Hermes.Core.Attempt.Permanent? left, Hermes.Core.Attempt.Permanent? right) -> bool
+static Hermes.Core.Attempt.Transient.operator !=(Hermes.Core.Attempt.Transient? left, Hermes.Core.Attempt.Transient? right) -> bool
+static Hermes.Core.Attempt.Transient.operator ==(Hermes.Core.Attempt.Transient? left, Hermes.Core.Attempt.Transient? right) -> bool
+static Hermes.Core.Attempt.operator !=(Hermes.Core.Attempt? left, Hermes.Core.Attempt? right) -> bool
+static Hermes.Core.Attempt.operator ==(Hermes.Core.Attempt? left, Hermes.Core.Attempt? right) -> bool
+static Hermes.Core.AttemptRecord.operator !=(Hermes.Core.AttemptRecord? left, Hermes.Core.AttemptRecord? right) -> bool
+static Hermes.Core.AttemptRecord.operator ==(Hermes.Core.AttemptRecord? left, Hermes.Core.AttemptRecord? right) -> bool
+static Hermes.Core.BalanceReading.Balance.operator !=(Hermes.Core.BalanceReading.Balance? left, Hermes.Core.BalanceReading.Balance? right) -> bool
+static Hermes.Core.BalanceReading.Balance.operator ==(Hermes.Core.BalanceReading.Balance? left, Hermes.Core.BalanceReading.Balance? right) -> bool
+static Hermes.Core.BalanceReading.Failed.operator !=(Hermes.Core.BalanceReading.Failed? left, Hermes.Core.BalanceReading.Failed? right) -> bool
+static Hermes.Core.BalanceReading.Failed.operator ==(Hermes.Core.BalanceReading.Failed? left, Hermes.Core.BalanceReading.Failed? right) -> bool
+static Hermes.Core.BalanceReading.NotSupported.operator !=(Hermes.Core.BalanceReading.NotSupported? left, Hermes.Core.BalanceReading.NotSupported? right) -> bool
+static Hermes.Core.BalanceReading.NotSupported.operator ==(Hermes.Core.BalanceReading.NotSupported? left, Hermes.Core.BalanceReading.NotSupported? right) -> bool
+static Hermes.Core.BalanceReading.operator !=(Hermes.Core.BalanceReading? left, Hermes.Core.BalanceReading? right) -> bool
+static Hermes.Core.BalanceReading.operator ==(Hermes.Core.BalanceReading? left, Hermes.Core.BalanceReading? right) -> bool
+static Hermes.Core.CallRecord.operator !=(Hermes.Core.CallRecord? left, Hermes.Core.CallRecord? right) -> bool
+static Hermes.Core.CallRecord.operator ==(Hermes.Core.CallRecord? left, Hermes.Core.CallRecord? right) -> bool
+static Hermes.Core.CategoryPreferences.operator !=(Hermes.Core.CategoryPreferences? left, Hermes.Core.CategoryPreferences? right) -> bool
+static Hermes.Core.CategoryPreferences.operator ==(Hermes.Core.CategoryPreferences? left, Hermes.Core.CategoryPreferences? right) -> bool
+static Hermes.Core.ChannelPreference.operator !=(Hermes.Core.ChannelPreference? left, Hermes.Core.ChannelPreference? right) -> bool
+static Hermes.Core.ChannelPreference.operator ==(Hermes.Core.ChannelPreference? left, Hermes.Core.ChannelPreference? right) -> bool
+static Hermes.Core.ConsentQuery.operator !=(Hermes.Core.ConsentQuery? left, Hermes.Core.ConsentQuery? right) -> bool
+static Hermes.Core.ConsentQuery.operator ==(Hermes.Core.ConsentQuery? left, Hermes.Core.ConsentQuery? right) -> bool
+static Hermes.Core.DeliveryExport.operator !=(Hermes.Core.DeliveryExport? left, Hermes.Core.DeliveryExport? right) -> bool
+static Hermes.Core.DeliveryExport.operator ==(Hermes.Core.DeliveryExport? left, Hermes.Core.DeliveryExport? right) -> bool
+static Hermes.Core.DeliveryId.operator !=(Hermes.Core.DeliveryId left, Hermes.Core.DeliveryId right) -> bool
+static Hermes.Core.DeliveryId.operator ==(Hermes.Core.DeliveryId left, Hermes.Core.DeliveryId right) -> bool
+static Hermes.Core.DeliveryNotice.operator !=(Hermes.Core.DeliveryNotice? left, Hermes.Core.DeliveryNotice? right) -> bool
+static Hermes.Core.DeliveryNotice.operator ==(Hermes.Core.DeliveryNotice? left, Hermes.Core.DeliveryNotice? right) -> bool
+static Hermes.Core.DeliveryReceipt.operator !=(Hermes.Core.DeliveryReceipt? left, Hermes.Core.DeliveryReceipt? right) -> bool
+static Hermes.Core.DeliveryReceipt.operator ==(Hermes.Core.DeliveryReceipt? left, Hermes.Core.DeliveryReceipt? right) -> bool
+static Hermes.Core.DeliveryRecord.operator !=(Hermes.Core.DeliveryRecord? left, Hermes.Core.DeliveryRecord? right) -> bool
+static Hermes.Core.DeliveryRecord.operator ==(Hermes.Core.DeliveryRecord? left, Hermes.Core.DeliveryRecord? right) -> bool
+static Hermes.Core.EmailAddress.operator !=(Hermes.Core.EmailAddress? left, Hermes.Core.EmailAddress? right) -> bool
+static Hermes.Core.EmailAddress.operator ==(Hermes.Core.EmailAddress? left, Hermes.Core.EmailAddress? right) -> bool
+static Hermes.Core.EmailMessage.operator !=(Hermes.Core.EmailMessage? left, Hermes.Core.EmailMessage? right) -> bool
+static Hermes.Core.EmailMessage.operator ==(Hermes.Core.EmailMessage? left, Hermes.Core.EmailMessage? right) -> bool
+static Hermes.Core.Failure.operator !=(Hermes.Core.Failure? left, Hermes.Core.Failure? right) -> bool
+static Hermes.Core.Failure.operator ==(Hermes.Core.Failure? left, Hermes.Core.Failure? right) -> bool
+static Hermes.Core.IdempotencyKeyExport.operator !=(Hermes.Core.IdempotencyKeyExport? left, Hermes.Core.IdempotencyKeyExport? right) -> bool
+static Hermes.Core.IdempotencyKeyExport.operator ==(Hermes.Core.IdempotencyKeyExport? left, Hermes.Core.IdempotencyKeyExport? right) -> bool
+static Hermes.Core.PushRequest.WebPush.operator !=(Hermes.Core.PushRequest.WebPush? left, Hermes.Core.PushRequest.WebPush? right) -> bool
+static Hermes.Core.PushRequest.WebPush.operator ==(Hermes.Core.PushRequest.WebPush? left, Hermes.Core.PushRequest.WebPush? right) -> bool
+static Hermes.Core.PushRequest.operator !=(Hermes.Core.PushRequest? left, Hermes.Core.PushRequest? right) -> bool
+static Hermes.Core.PushRequest.operator ==(Hermes.Core.PushRequest? left, Hermes.Core.PushRequest? right) -> bool
+static Hermes.Core.Recipient.Anonymous.operator !=(Hermes.Core.Recipient.Anonymous? left, Hermes.Core.Recipient.Anonymous? right) -> bool
+static Hermes.Core.Recipient.Anonymous.operator ==(Hermes.Core.Recipient.Anonymous? left, Hermes.Core.Recipient.Anonymous? right) -> bool
+static Hermes.Core.Recipient.Person.operator !=(Hermes.Core.Recipient.Person? left, Hermes.Core.Recipient.Person? right) -> bool
+static Hermes.Core.Recipient.Person.operator ==(Hermes.Core.Recipient.Person? left, Hermes.Core.Recipient.Person? right) -> bool
+static Hermes.Core.Recipient.operator !=(Hermes.Core.Recipient? left, Hermes.Core.Recipient? right) -> bool
+static Hermes.Core.Recipient.operator ==(Hermes.Core.Recipient? left, Hermes.Core.Recipient? right) -> bool
+static Hermes.Core.Result.Fail(Hermes.Core.Failure! failure) -> Hermes.Core.Result!
+static Hermes.Core.Result.Fail<T>(Hermes.Core.Failure! failure) -> Hermes.Core.Result<T>!
+static Hermes.Core.Result.Success() -> Hermes.Core.Result!
+static Hermes.Core.Result.Success<T>(T value) -> Hermes.Core.Result<T>!
+static Hermes.Core.Result.operator !=(Hermes.Core.Result? left, Hermes.Core.Result? right) -> bool
+static Hermes.Core.Result.operator ==(Hermes.Core.Result? left, Hermes.Core.Result? right) -> bool
+static Hermes.Core.Result<T>.operator !=(Hermes.Core.Result<T>? left, Hermes.Core.Result<T>? right) -> bool
+static Hermes.Core.Result<T>.operator ==(Hermes.Core.Result<T>? left, Hermes.Core.Result<T>? right) -> bool
+static Hermes.Core.SecretVersion.operator !=(Hermes.Core.SecretVersion? left, Hermes.Core.SecretVersion? right) -> bool
+static Hermes.Core.SecretVersion.operator ==(Hermes.Core.SecretVersion? left, Hermes.Core.SecretVersion? right) -> bool
+static Hermes.Core.SecretVersions.operator !=(Hermes.Core.SecretVersions? left, Hermes.Core.SecretVersions? right) -> bool
+static Hermes.Core.SecretVersions.operator ==(Hermes.Core.SecretVersions? left, Hermes.Core.SecretVersions? right) -> bool
+static Hermes.Core.Send.operator !=(Hermes.Core.Send? left, Hermes.Core.Send? right) -> bool
+static Hermes.Core.Send.operator ==(Hermes.Core.Send? left, Hermes.Core.Send? right) -> bool
+static Hermes.Core.SendId.operator !=(Hermes.Core.SendId left, Hermes.Core.SendId right) -> bool
+static Hermes.Core.SendId.operator ==(Hermes.Core.SendId left, Hermes.Core.SendId right) -> bool
+static Hermes.Core.SendReceipt.operator !=(Hermes.Core.SendReceipt? left, Hermes.Core.SendReceipt? right) -> bool
+static Hermes.Core.SendReceipt.operator ==(Hermes.Core.SendReceipt? left, Hermes.Core.SendReceipt? right) -> bool
+static Hermes.Core.SendRecord.operator !=(Hermes.Core.SendRecord? left, Hermes.Core.SendRecord? right) -> bool
+static Hermes.Core.SendRecord.operator ==(Hermes.Core.SendRecord? left, Hermes.Core.SendRecord? right) -> bool
+static Hermes.Core.SendValue.DecimalNumber.operator !=(Hermes.Core.SendValue.DecimalNumber? left, Hermes.Core.SendValue.DecimalNumber? right) -> bool
+static Hermes.Core.SendValue.DecimalNumber.operator ==(Hermes.Core.SendValue.DecimalNumber? left, Hermes.Core.SendValue.DecimalNumber? right) -> bool
+static Hermes.Core.SendValue.Flag.operator !=(Hermes.Core.SendValue.Flag? left, Hermes.Core.SendValue.Flag? right) -> bool
+static Hermes.Core.SendValue.Flag.operator ==(Hermes.Core.SendValue.Flag? left, Hermes.Core.SendValue.Flag? right) -> bool
+static Hermes.Core.SendValue.Instant.operator !=(Hermes.Core.SendValue.Instant? left, Hermes.Core.SendValue.Instant? right) -> bool
+static Hermes.Core.SendValue.Instant.operator ==(Hermes.Core.SendValue.Instant? left, Hermes.Core.SendValue.Instant? right) -> bool
+static Hermes.Core.SendValue.List.operator !=(Hermes.Core.SendValue.List? left, Hermes.Core.SendValue.List? right) -> bool
+static Hermes.Core.SendValue.List.operator ==(Hermes.Core.SendValue.List? left, Hermes.Core.SendValue.List? right) -> bool
+static Hermes.Core.SendValue.PlainText.operator !=(Hermes.Core.SendValue.PlainText? left, Hermes.Core.SendValue.PlainText? right) -> bool
+static Hermes.Core.SendValue.PlainText.operator ==(Hermes.Core.SendValue.PlainText? left, Hermes.Core.SendValue.PlainText? right) -> bool
+static Hermes.Core.SendValue.WholeNumber.operator !=(Hermes.Core.SendValue.WholeNumber? left, Hermes.Core.SendValue.WholeNumber? right) -> bool
+static Hermes.Core.SendValue.WholeNumber.operator ==(Hermes.Core.SendValue.WholeNumber? left, Hermes.Core.SendValue.WholeNumber? right) -> bool
+static Hermes.Core.SendValue.operator !=(Hermes.Core.SendValue? left, Hermes.Core.SendValue? right) -> bool
+static Hermes.Core.SendValue.operator ==(Hermes.Core.SendValue? left, Hermes.Core.SendValue? right) -> bool
+static Hermes.Core.SmsMeasure.operator !=(Hermes.Core.SmsMeasure? left, Hermes.Core.SmsMeasure? right) -> bool
+static Hermes.Core.SmsMeasure.operator ==(Hermes.Core.SmsMeasure? left, Hermes.Core.SmsMeasure? right) -> bool
+static Hermes.Core.SmsMessage.operator !=(Hermes.Core.SmsMessage? left, Hermes.Core.SmsMessage? right) -> bool
+static Hermes.Core.SmsMessage.operator ==(Hermes.Core.SmsMessage? left, Hermes.Core.SmsMessage? right) -> bool
+static Hermes.Core.SmsReportReading.operator !=(Hermes.Core.SmsReportReading? left, Hermes.Core.SmsReportReading? right) -> bool
+static Hermes.Core.SmsReportReading.operator ==(Hermes.Core.SmsReportReading? left, Hermes.Core.SmsReportReading? right) -> bool
+static Hermes.Core.SmsReportRequest.operator !=(Hermes.Core.SmsReportRequest? left, Hermes.Core.SmsReportRequest? right) -> bool
+static Hermes.Core.SmsReportRequest.operator ==(Hermes.Core.SmsReportRequest? left, Hermes.Core.SmsReportRequest? right) -> bool
+static Hermes.Core.SmsReportResponse.operator !=(Hermes.Core.SmsReportResponse? left, Hermes.Core.SmsReportResponse? right) -> bool
+static Hermes.Core.SmsReportResponse.operator ==(Hermes.Core.SmsReportResponse? left, Hermes.Core.SmsReportResponse? right) -> bool
+static Hermes.Core.SmsText.Measure(string! text) -> Hermes.Core.SmsMeasure!
+static Hermes.Core.SubjectExport.operator !=(Hermes.Core.SubjectExport? left, Hermes.Core.SubjectExport? right) -> bool
+static Hermes.Core.SubjectExport.operator ==(Hermes.Core.SubjectExport? left, Hermes.Core.SubjectExport? right) -> bool
+static Hermes.Core.SubscriptionExport.operator !=(Hermes.Core.SubscriptionExport? left, Hermes.Core.SubscriptionExport? right) -> bool
+static Hermes.Core.SubscriptionExport.operator ==(Hermes.Core.SubscriptionExport? left, Hermes.Core.SubscriptionExport? right) -> bool
+static Hermes.Core.TemplateKey.operator !=(Hermes.Core.TemplateKey? left, Hermes.Core.TemplateKey? right) -> bool
+static Hermes.Core.TemplateKey.operator ==(Hermes.Core.TemplateKey? left, Hermes.Core.TemplateKey? right) -> bool
+static Hermes.Core.UnprotectResult.Erased.operator !=(Hermes.Core.UnprotectResult.Erased? left, Hermes.Core.UnprotectResult.Erased? right) -> bool
+static Hermes.Core.UnprotectResult.Erased.operator ==(Hermes.Core.UnprotectResult.Erased? left, Hermes.Core.UnprotectResult.Erased? right) -> bool
+static Hermes.Core.UnprotectResult.KeyUnavailable.operator !=(Hermes.Core.UnprotectResult.KeyUnavailable? left, Hermes.Core.UnprotectResult.KeyUnavailable? right) -> bool
+static Hermes.Core.UnprotectResult.KeyUnavailable.operator ==(Hermes.Core.UnprotectResult.KeyUnavailable? left, Hermes.Core.UnprotectResult.KeyUnavailable? right) -> bool
+static Hermes.Core.UnprotectResult.Opened.operator !=(Hermes.Core.UnprotectResult.Opened? left, Hermes.Core.UnprotectResult.Opened? right) -> bool
+static Hermes.Core.UnprotectResult.Opened.operator ==(Hermes.Core.UnprotectResult.Opened? left, Hermes.Core.UnprotectResult.Opened? right) -> bool
+static Hermes.Core.UnprotectResult.Rejected.operator !=(Hermes.Core.UnprotectResult.Rejected? left, Hermes.Core.UnprotectResult.Rejected? right) -> bool
+static Hermes.Core.UnprotectResult.Rejected.operator ==(Hermes.Core.UnprotectResult.Rejected? left, Hermes.Core.UnprotectResult.Rejected? right) -> bool
+static Hermes.Core.UnprotectResult.operator !=(Hermes.Core.UnprotectResult? left, Hermes.Core.UnprotectResult? right) -> bool
+static Hermes.Core.UnprotectResult.operator ==(Hermes.Core.UnprotectResult? left, Hermes.Core.UnprotectResult? right) -> bool
+virtual Hermes.Core.Attempt.EqualityContract.get -> System.Type!
+virtual Hermes.Core.Attempt.Equals(Hermes.Core.Attempt? other) -> bool
+virtual Hermes.Core.Attempt.PrintMembers(System.Text.StringBuilder! builder) -> bool
+virtual Hermes.Core.BalanceReading.EqualityContract.get -> System.Type!
+virtual Hermes.Core.BalanceReading.Equals(Hermes.Core.BalanceReading? other) -> bool
+virtual Hermes.Core.BalanceReading.PrintMembers(System.Text.StringBuilder! builder) -> bool
+virtual Hermes.Core.PushRequest.EqualityContract.get -> System.Type!
+virtual Hermes.Core.PushRequest.Equals(Hermes.Core.PushRequest? other) -> bool
+virtual Hermes.Core.PushRequest.PrintMembers(System.Text.StringBuilder! builder) -> bool
+virtual Hermes.Core.Recipient.EqualityContract.get -> System.Type!
+virtual Hermes.Core.Recipient.Equals(Hermes.Core.Recipient? other) -> bool
+virtual Hermes.Core.Recipient.PrintMembers(System.Text.StringBuilder! builder) -> bool
+virtual Hermes.Core.SendValue.EqualityContract.get -> System.Type!
+virtual Hermes.Core.SendValue.Equals(Hermes.Core.SendValue? other) -> bool
+virtual Hermes.Core.SendValue.PrintMembers(System.Text.StringBuilder! builder) -> bool
+virtual Hermes.Core.UnprotectResult.EqualityContract.get -> System.Type!
+virtual Hermes.Core.UnprotectResult.Equals(Hermes.Core.UnprotectResult? other) -> bool
+virtual Hermes.Core.UnprotectResult.PrintMembers(System.Text.StringBuilder! builder) -> bool
+~override Hermes.Core.DeliveryId.Equals(object obj) -> bool
+~override Hermes.Core.DeliveryId.ToString() -> string
+~override Hermes.Core.SendId.Equals(object obj) -> bool
+~override Hermes.Core.SendId.ToString() -> string
