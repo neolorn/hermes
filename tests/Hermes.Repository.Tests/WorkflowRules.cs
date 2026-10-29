@@ -62,6 +62,14 @@ internal static class WorkflowRules
             yield return "the release job's permissions are not contents: write alone";
         }
 
+        // The job's token can write to the contents, so no checkout leaves it in .git/config
+        // while the restore and the build run code of other parties.
+        int checkouts = release.Count(line => line.TrimStart().StartsWith("uses: actions/checkout@", StringComparison.Ordinal));
+        if (checkouts == 0 || release.Count(line => line == "          persist-credentials: false") != checkouts)
+        {
+            yield return "the release job's checkout leaves its token in the repository's configuration";
+        }
+
         if (!release.Any(line => line.TrimStart().StartsWith("dotnet pack Hermes.sln ", StringComparison.Ordinal)))
         {
             yield return "the release job does not pack every package";

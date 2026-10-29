@@ -26,6 +26,8 @@ public sealed class WorkflowTests
     [InlineData("    if: github.ref_type == 'tag'\n", "", "the release job does not run only for a release tag")]
     [InlineData("      contents: write\n", "      contents: write\n      packages: write\n", "the release job's permissions are not contents: write alone")]
     [InlineData("dotnet pack Hermes.sln ", "dotnet pack src/Hermes/Hermes.csproj ", "the release job does not pack every package")]
+    [InlineData("          persist-credentials: false\n", "", "the release job's checkout leaves its token in the repository's configuration")]
+    [InlineData("          persist-credentials: false\n", "          persist-credentials: true\n", "the release job's checkout leaves its token in the repository's configuration")]
     [InlineData(" --notes-file RELEASE-NOTES.md ", " --generate-notes ", "the release job does not create the tag's release with RELEASE-NOTES.md as its notes")]
     [InlineData("  release:\n", "  publish:\n", "no release job releases a release tag")]
     public void MSG_ENG_011_AC4_AWorkflowOutsideTheReleaseRuleFails(string text, string replacement, string violation)
