@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Hermes.Core;
 
 using Microsoft.Extensions.Logging;
+
+using Xunit;
 
 namespace Hermes.Development.Tests;
 
@@ -128,6 +131,18 @@ internal sealed class LogSink : ILoggerProvider
     private readonly ConcurrentQueue<(LogLevel Level, string Category, string Text)> lines = new();
 
     internal IReadOnlyCollection<(LogLevel Level, string Category, string Text)> Lines => lines;
+
+    /// <summary>
+    /// Fails where a library line holds a destination, a content value or a person reference
+    /// of <see cref="Captured.Used"/>, which no line may (<c>06</c> MSG-OPS-005).
+    /// </summary>
+    internal void Check()
+    {
+        List<string> logged = [.. lines
+            .Where(line => line.Category.StartsWith("Hermes.", StringComparison.Ordinal))
+            .SelectMany(line => Captured.Used.Where(value => line.Text.Contains(value, StringComparison.Ordinal)).Select(value => $"{line.Category}: '{value}' in \"{line.Text}\""))];
+        Assert.True(logged.Count == 0, "A library log line holds a destination, content or person reference the test used: " + string.Join("; ", logged));
+    }
 
     public ILogger CreateLogger(string categoryName)
     {

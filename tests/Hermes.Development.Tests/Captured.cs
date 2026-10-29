@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Hermes.Channels;
@@ -10,6 +11,7 @@ using Hermes.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 using Xunit;
 
@@ -18,6 +20,13 @@ namespace Hermes.Development.Tests;
 /// <summary>Reads what an inbox folder holds, and makes hosts that hand messages to the providers directly.</summary>
 internal static class Captured
 {
+    /// <summary>The destinations, content values and person references the tests use, which no library log line may hold (<c>06</c> MSG-OPS-005).</summary>
+    internal static IReadOnlyList<string> Used { get; } =
+    [
+        "someone@example.com", "other@example.com", "earlier@example.com", "+201000000001", "person-1", "4521",
+        "Your receipt", "Your order", "Your code", "رمز الدخول", "bakery.example/receipts", "bakery.example/sign-in",
+    ];
+
     /// <summary>The messages <paramref name="folder"/> holds, newest first.</summary>
     internal static IReadOnlyList<InboxMessage> In(string folder)
     {
@@ -69,7 +78,13 @@ internal static class Captured
             register(builder.Services);
         }
 
-        return builder.Build();
+        return Checked(builder);
+    }
+
+    /// <summary>The host <paramref name="builder"/> builds, its log lines checked against <see cref="Used"/> when it is disposed.</summary>
+    internal static IHost Checked(HostApplicationBuilder builder)
+    {
+        return new CheckedHost(builder);
     }
 
     /// <summary>An email to <c>someone@example.com</c> holding a link, as a host hands it to the provider.</summary>
@@ -106,5 +121,39 @@ internal static class Captured
     {
         byte[] payload = """{"title":"Your order","body":"It is ready.","url":"https://bakery.example/orders/7","lang":"en","dir":"ltr"}"""u8.ToArray();
         return new PushRequest.WebPush(endpoint, "p256dh", "auth", 1, payload, TimeSpan.FromHours(1), PushUrgency.High, "order-7");
+    }
+}
+
+/// <summary>A host whose library log lines are checked when it is disposed (<c>06</c> MSG-OPS-005).</summary>
+internal sealed class CheckedHost : IHost
+{
+    private readonly LogSink logs = new();
+
+    private readonly IHost host;
+
+    internal CheckedHost(HostApplicationBuilder builder)
+    {
+        builder.Logging.ClearProviders();
+        builder.Logging.AddProvider(logs);
+        host = builder.Build();
+    }
+
+    public IServiceProvider Services => host.Services;
+
+    public Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        return host.StartAsync(cancellationToken);
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        return host.StopAsync(cancellationToken);
+    }
+
+    public void Dispose()
+    {
+        host.Dispose();
+        logs.Dispose();
+        logs.Check();
     }
 }

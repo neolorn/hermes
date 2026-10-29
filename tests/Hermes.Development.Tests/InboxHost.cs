@@ -177,6 +177,7 @@ internal sealed class InboxHost : IAsyncDisposable
         Client.Dispose();
         await App.StopAsync(TestContext.Current.CancellationToken);
         await App.DisposeAsync();
+        Logs.Check();
     }
 
     /// <summary>Registers the host's own providers of the three channels, each by its contract.</summary>

@@ -148,7 +148,7 @@ public sealed class RecordTests(PostgresFixture postgres) : IClassFixture<Postgr
         builder.Services.AddHermesChannels(builder.Configuration);
         builder.Services.AddSingleton<ISecretSource>(new FixedSecretSource());
         builder.AddHermesDevelopmentInbox();
-        using IHost host = builder.Build();
+        using IHost host = Captured.Checked(builder);
         await host.StartAsync(TestContext.Current.CancellationToken);
         IEmailSession session = await host.Services.GetRequiredService<IEmailProvider>().OpenAsync(TestContext.Current.CancellationToken);
         await using (session)
