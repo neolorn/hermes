@@ -129,22 +129,24 @@ internal sealed class InboxHost : IAsyncDisposable
         return new InboxHost(app, providers, logs);
     }
 
-    /// <summary>Subscribes the signed-in person to push from an endpoint of FCM, as a browser does.</summary>
-    internal async Task SubscribeAsync()
+    /// <summary>Subscribes the signed-in person to push from an endpoint of FCM, as a browser does, and answers the endpoint.</summary>
+    internal async Task<string> SubscribeAsync()
     {
         JsonObject key = (await Client.GetFromJsonAsync<JsonObject>("/notifications/push/key", TestContext.Current.CancellationToken))!;
         using ECDiffieHellman browser = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
         ECParameters point = browser.ExportParameters(includePrivateParameters: false);
         byte[] p256dh = [0x04, .. point.Q.X!, .. point.Q.Y!];
+        string endpoint = "https://fcm.googleapis.com/fcm/send/" + Guid.NewGuid().ToString("N");
         JsonObject body = new()
         {
-            ["endpoint"] = "https://fcm.googleapis.com/fcm/send/" + Guid.NewGuid().ToString("N"),
+            ["endpoint"] = endpoint,
             ["expirationTime"] = null,
             ["keys"] = new JsonObject { ["p256dh"] = Base64Url.EncodeToString(p256dh), ["auth"] = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(16)) },
             ["applicationServerKey"] = key["publicKey"]!.GetValue<string>(),
         };
         using HttpResponseMessage answer = await Client.PostAsJsonAsync("/notifications/push/subscriptions", body, TestContext.Current.CancellationToken);
         Assert.True(answer.IsSuccessStatusCode, await answer.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        return endpoint;
     }
 
     /// <summary>Sends the kind <c>order.ready</c> on <paramref name="channels"/> to <c>person-1</c>, in <paramref name="language"/>.</summary>

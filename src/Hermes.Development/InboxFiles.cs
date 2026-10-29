@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 using Hermes.Core;
 
@@ -22,6 +23,12 @@ internal static partial class InboxFiles
 
     /// <summary>The instant in a record, in ISO 8601 UTC with milliseconds.</summary>
     internal const string Instant = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+
+    /// <summary>How many times a record another process holds is read.</summary>
+    private const int HeldReads = 5;
+
+    /// <summary>How long a read waits before it reads a held record again.</summary>
+    private static readonly TimeSpan HeldWait = TimeSpan.FromMilliseconds(10);
 
     /// <summary>The records of <paramref name="folder"/>, newest first.</summary>
     internal static List<RecordFile> Records(string folder)
@@ -97,17 +104,28 @@ internal static partial class InboxFiles
             && (filter.After is null || Parse(body) > filter.After);
     }
 
-    /// <summary>The record at <paramref name="path"/>, none where it is gone or does not read.</summary>
+    /// <summary>
+    /// The record at <paramref name="path"/>, none where it is gone or does not read. A record
+    /// another process holds for a moment, as Windows holds a file it renames, is read again
+    /// after a few milliseconds, a few times.
+    /// </summary>
     internal static MessageBody? Read(string path)
     {
-        try
+        for (int attempt = 1; ; attempt++)
         {
-            using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            return JsonSerializer.Deserialize(stream, InboxJson.Default.MessageBody);
-        }
-        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or JsonException)
-        {
-            return null;
+            try
+            {
+                using FileStream stream = new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                return JsonSerializer.Deserialize(stream, InboxJson.Default.MessageBody);
+            }
+            catch (IOException failure) when (attempt < HeldReads && failure is not (FileNotFoundException or DirectoryNotFoundException))
+            {
+                Thread.Sleep(HeldWait);
+            }
+            catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or JsonException)
+            {
+                return null;
+            }
         }
     }
 

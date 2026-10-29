@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keeps every message on the machine instead of sending it, whatever the order of the host's
   provider registrations, and does nothing in any other environment; `AddHermesTesting`'s
   in-memory providers are still used where it is registered
+- The development inbox's records: one JSON record a message, with the application, the
+  delivery's kind, category, language and person and the message's links, and an email's
+  `.eml` beside it as the SMTP provider would submit it, in a folder its owner alone reads,
+  cleaned as it grows past `Hermes:DevelopmentInbox:KeepFor` and `MaxMessages`
 
 ## [1.0.0] - 2026-10-29
 
