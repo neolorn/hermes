@@ -1,9 +1,11 @@
 using System;
 
+using Hermes.Channels;
 using Hermes.Core;
 using Hermes.Sending;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace Hermes.Testing;
@@ -18,7 +20,8 @@ public static class MessagingTestingServiceCollectionExtensions
     /// removes the hosted dispatcher and the <c>observer</c> job, or keeps <c>AddHermes</c> from
     /// registering them, so only a test's passes dispatch and each delivers the pending notices
     /// after its deliveries. A secret source the host registers after this call replaces
-    /// <see cref="FixedSecretSource"/>.
+    /// <see cref="FixedSecretSource"/>. The in-memory providers are used in place of the
+    /// development inbox's too, whichever of the two calls comes first.
     /// </summary>
     /// <param name="services">The host's services.</param>
     /// <param name="configure">Sets the source's secrets, as a test sets <c>connection</c> before the host starts.</param>
@@ -42,6 +45,7 @@ public static class MessagingTestingServiceCollectionExtensions
         services.AddSingleton(secrets);
         services.AddSingleton<ISecretSource>(secrets);
 
+        services.TryAddSingleton<TestProviders>();
         services.AddSingleton<TestPasses>();
         for (int index = services.Count - 1; index >= 0; index--)
         {

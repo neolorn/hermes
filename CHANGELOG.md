@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `AddHermesDevelopmentInbox`, of the new package `Hermes.Development`, which in Development
+  keeps every message on the machine instead of sending it, whatever the order of the host's
+  provider registrations, and does nothing in any other environment; `AddHermesTesting`'s
+  in-memory providers are still used where it is registered
+
 ## [1.0.0] - 2026-10-29
 
 ### Added
