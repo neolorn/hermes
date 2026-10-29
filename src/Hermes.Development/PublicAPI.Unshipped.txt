@@ -1,4 +1,13 @@
 #nullable enable
+Hermes.Development.DevelopmentInbox
+Hermes.Development.DevelopmentInbox.ClearAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Hermes.Development.DevelopmentInbox.DevelopmentInbox() -> void
+Hermes.Development.DevelopmentInbox.DevelopmentInbox(string! folder) -> void
+Hermes.Development.DevelopmentInbox.Folder.get -> string!
+Hermes.Development.DevelopmentInbox.LatestAsync(Hermes.Development.InboxFilter! filter, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Development.InboxMessage?>
+Hermes.Development.DevelopmentInbox.ListAsync(Hermes.Development.InboxFilter! filter, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Hermes.Development.InboxMessage!>!>
+Hermes.Development.DevelopmentInbox.MadeAt.get -> System.DateTimeOffset
+Hermes.Development.DevelopmentInbox.WaitForAsync(Hermes.Development.InboxFilter! filter, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Development.InboxMessage!>
 Hermes.Development.InboxEmail
 Hermes.Development.InboxEmail.<Clone>$() -> Hermes.Development.InboxEmail!
 Hermes.Development.InboxEmail.EmlPath.get -> string!

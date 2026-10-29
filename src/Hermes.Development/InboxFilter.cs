@@ -5,7 +5,7 @@ using Hermes.Core;
 namespace Hermes.Development;
 
 /// <summary>
-/// Which captured messages a <c>DevelopmentInbox</c> reads (<c>02</c> MSG-DEV-006);
+/// Which captured messages a <see cref="DevelopmentInbox"/> reads (<c>02</c> MSG-DEV-006);
 /// a member left none matches every message.
 /// </summary>
 public sealed record InboxFilter

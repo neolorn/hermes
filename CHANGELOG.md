@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every second, with filters, each email as it arrives in a sandboxed frame with its text,
   headers and `.eml`, each SMS as a phone shows it and each push as a notification, every
   link with Open and Copy, and Clear; one self-contained page that loads nothing from outside
+- `DevelopmentInbox`, for a .NET test or tool: it lists, reads the latest of and clears the
+  captured messages, and waits for one captured after it was made, without HTTP
 
 ## [1.0.0] - 2026-10-29
 
