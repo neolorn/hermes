@@ -1290,6 +1290,31 @@ and 8; `10` MSG-THR-001; `implementation-plan.md` (phase 9, and the inputs waite
 
 ---
 
+## M-025 — Phase 9's question: the release set reads the development inbox too
+
+**Date:** 2026-10-29 · **Status:** accepted · **Follows from:** M-023, M-024
+
+The release gate reads its set (the routes, the bodies, the codes, the keys) through
+`tests/Hermes.Tests`, which `04` MSG-LIB-001 let reference only `Hermes` and
+`Hermes.Testing`. So the development inbox's group, its codes and its keys would be
+missing from the baseline release 1.1.0 writes, and a later change to them would pass
+the gate unseen; phase 9 tested the group against `05` in `Hermes.Development.Tests`
+instead, and asked.
+
+`tests/Hermes.Tests` may reference `Hermes.Development` too, so one contract test maps
+every group of `05`, the inbox's in a host whose environment is Development, and the
+release set holds the inbox's routes, bodies, codes and keys with the engine's. A test
+project's reference reaches no package a host takes, so nothing a host depends on
+changes. It is built in phase 9's pull request before its release commit, whose baseline
+then holds them. *Rejected:* the release gate reading a second set from
+`Hermes.Development.Tests` and joining the two (two builds and a join in the gate, for
+what one reference does); leaving the inbox out of the set (its contract would be
+guarded by no release).
+
+**Propagated to:** `04` MSG-LIB-001 (the table); `07` MSG-ENG-006 (criterion 1).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1318,3 +1343,4 @@ and 8; `10` MSG-THR-001; `implementation-plan.md` (phase 9, and the inputs waite
 | The library ships no SMS gateway, and `Hermes` is the final name | M-022 |
 | The release step: the release commit, its checks, and the release job | M-023 |
 | The development inbox | M-024 |
+| Phase 9's question: the release set reads the development inbox too | M-025 |

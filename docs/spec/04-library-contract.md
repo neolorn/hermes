@@ -18,6 +18,7 @@ project SHALL reference only what this item allows it.
 | `Hermes.Testing` | `Hermes.Core`, `Hermes.Channels`, `Hermes` |
 | `Hermes.Cli` (a .NET tool, command `hermes`) | `Hermes` |
 | `Hermes.Development` | `Hermes.Core`, `Hermes.Channels` (and MimeKit through it, for the email it keeps and the links it reads); ASP.NET Core's shared framework |
+| `tests/Hermes.Tests` | `Hermes`, `Hermes.Testing` and `Hermes.Development`, whose group its endpoint contract test maps and whose routes, bodies, codes and keys the release set reads with the engine's (MSG-LIB-006; `07` MSG-ENG-006), and the test packages of `07` MSG-ENG-009 |
 | Any other test project | Its source project, `Hermes.Testing`, and the test packages of `07` MSG-ENG-009 |
 | `tests/Hermes.Repository.Tests` | Every shipped project, whose built assemblies its contract tests read (`07` MSG-ENG-004), and the test packages of `07` MSG-ENG-009 |
 | The sample host and its test project | The packed packages above, and for its tests the test packages of `07` MSG-ENG-009 |
@@ -37,7 +38,7 @@ takes a lower version, NU1608 a higher one, NU1107 where two exact ranges meet),
 minimum version would let a higher one through unreported, to fail at run time.
 `Hermes.Conversations` is release 2's (`09`).
 
-*Source: M-001, M-003, M-012, M-013, M-015, M-020, M-024*
+*Source: M-001, M-003, M-012, M-013, M-015, M-020, M-024, M-025*
 
 **Acceptance criteria**
 1. A test reads each project's references and fails on one this table does not allow.

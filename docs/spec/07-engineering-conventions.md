@@ -244,13 +244,15 @@ are UUID version 7; a delivery reference (`00` glossary) is 128 bits from
 **MSG-ENG-006** — Endpoints SHALL be ASP.NET Core minimal APIs returning typed results,
 each declaring the responses `05` gives it.
 
-*Source: M-012*
+*Source: M-012, M-025*
 
 **Acceptance criteria**
-1. A contract test reads every mapped endpoint's metadata and finds exactly the routes,
-   methods and response statuses of `05`, and finds each request and response body's
-   members, read from the library's serializer contexts as the release gate reads them
-   (`04` MSG-LIB-006), to be those `05` gives.
+1. A contract test in `tests/Hermes.Tests`, which maps every group of `05`, the
+   development inbox's in a host whose environment is Development (M-025), reads every
+   mapped endpoint's metadata and finds exactly the routes, methods and response
+   statuses of `05`, and finds each request and response body's members, read from the
+   library's serializer contexts as the release gate reads them (`04` MSG-LIB-006), to
+   be those `05` gives.
 
 ---
 
