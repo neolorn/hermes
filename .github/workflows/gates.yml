@@ -53,3 +53,53 @@ jobs:
             $head = $env:PUSH_AFTER
           }
           ./build/gates/run-gates.ps1 -Base $base -Head $head
+
+  # A release tag's run alone releases, once the gates job has passed on it, and this job alone
+  # can write to the repository's contents (07 MSG-ENG-011).
+  release:
+    needs: gates
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the whole history at the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Set up the SDK of global.json
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # MinVer takes the version from the tag, so each package is packed at the tag's version.
+      - name: Pack every package at the tag's version
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          dotnet pack Hermes.sln --configuration Release --output artifacts/packages -p:RestoreLockedMode=true
+          if ($LASTEXITCODE -ne 0) { throw "The pack failed with exit code $LASTEXITCODE." }
+          $version = $env:TAG.Substring(1)
+          $projects = @(Get-ChildItem -Path src -Filter '*.csproj' -Recurse -File)
+          foreach ($project in $projects) {
+            if (-not (Test-Path (Join-Path 'artifacts' 'packages' "$($project.BaseName).$version.nupkg"))) {
+              throw "The pack left no $($project.BaseName) package at $version."
+            }
+          }
+          $packed = @(Get-ChildItem -Path artifacts/packages -Filter '*.nupkg' -File)
+          if ($packed.Count -ne $projects.Count) {
+            throw "The pack left $($packed.Count) package(s), not the $($projects.Count) of src/."
+          }
+
+      - name: Create the tag's release with its notes and packages
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $packages = @(Get-ChildItem -Path artifacts/packages -Filter '*.nupkg' -File | ForEach-Object { $_.FullName })
+          gh release create $env:TAG --verify-tag --title $env:TAG --notes-file RELEASE-NOTES.md @packages
+          if ($LASTEXITCODE -ne 0) { throw "gh release create failed with exit code $LASTEXITCODE." }
