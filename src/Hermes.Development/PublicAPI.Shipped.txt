@@ -1,1 +1,163 @@
 #nullable enable
+Hermes.Development.DevelopmentInbox
+Hermes.Development.DevelopmentInbox.ClearAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Hermes.Development.DevelopmentInbox.DevelopmentInbox() -> void
+Hermes.Development.DevelopmentInbox.DevelopmentInbox(string! folder) -> void
+Hermes.Development.DevelopmentInbox.Folder.get -> string!
+Hermes.Development.DevelopmentInbox.LatestAsync(Hermes.Development.InboxFilter! filter, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Development.InboxMessage?>
+Hermes.Development.DevelopmentInbox.ListAsync(Hermes.Development.InboxFilter! filter, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Hermes.Development.InboxMessage!>!>
+Hermes.Development.DevelopmentInbox.MadeAt.get -> System.DateTimeOffset
+Hermes.Development.DevelopmentInbox.WaitForAsync(Hermes.Development.InboxFilter! filter, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Development.InboxMessage!>
+Hermes.Development.InboxEmail
+Hermes.Development.InboxEmail.<Clone>$() -> Hermes.Development.InboxEmail!
+Hermes.Development.InboxEmail.EmlPath.get -> string!
+Hermes.Development.InboxEmail.EmlPath.init -> void
+Hermes.Development.InboxEmail.Equals(Hermes.Development.InboxEmail? other) -> bool
+Hermes.Development.InboxEmail.From.get -> Hermes.Core.EmailAddress!
+Hermes.Development.InboxEmail.From.init -> void
+Hermes.Development.InboxEmail.Headers.get -> System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string!, string!>>!
+Hermes.Development.InboxEmail.Headers.init -> void
+Hermes.Development.InboxEmail.Html.get -> string?
+Hermes.Development.InboxEmail.Html.init -> void
+Hermes.Development.InboxEmail.InboxEmail() -> void
+Hermes.Development.InboxEmail.MessageId.get -> string!
+Hermes.Development.InboxEmail.MessageId.init -> void
+Hermes.Development.InboxEmail.ReplyTo.get -> Hermes.Core.EmailAddress?
+Hermes.Development.InboxEmail.ReplyTo.init -> void
+Hermes.Development.InboxEmail.Subject.get -> string!
+Hermes.Development.InboxEmail.Subject.init -> void
+Hermes.Development.InboxEmail.Text.get -> string!
+Hermes.Development.InboxEmail.Text.init -> void
+Hermes.Development.InboxEmail.Unsubscribe.get -> System.Uri?
+Hermes.Development.InboxEmail.Unsubscribe.init -> void
+Hermes.Development.InboxFilter
+Hermes.Development.InboxFilter.<Clone>$() -> Hermes.Development.InboxFilter!
+Hermes.Development.InboxFilter.After.get -> System.DateTimeOffset?
+Hermes.Development.InboxFilter.After.init -> void
+Hermes.Development.InboxFilter.App.get -> string?
+Hermes.Development.InboxFilter.App.init -> void
+Hermes.Development.InboxFilter.Channel.get -> Hermes.Core.Channel?
+Hermes.Development.InboxFilter.Channel.init -> void
+Hermes.Development.InboxFilter.Equals(Hermes.Development.InboxFilter? other) -> bool
+Hermes.Development.InboxFilter.InboxFilter() -> void
+Hermes.Development.InboxFilter.Kind.get -> string?
+Hermes.Development.InboxFilter.Kind.init -> void
+Hermes.Development.InboxFilter.Person.get -> string?
+Hermes.Development.InboxFilter.Person.init -> void
+Hermes.Development.InboxFilter.To.get -> string?
+Hermes.Development.InboxFilter.To.init -> void
+Hermes.Development.InboxMessage
+Hermes.Development.InboxMessage.<Clone>$() -> Hermes.Development.InboxMessage!
+Hermes.Development.InboxMessage.App.get -> string!
+Hermes.Development.InboxMessage.App.init -> void
+Hermes.Development.InboxMessage.At.get -> System.DateTimeOffset
+Hermes.Development.InboxMessage.At.init -> void
+Hermes.Development.InboxMessage.Category.get -> string?
+Hermes.Development.InboxMessage.Category.init -> void
+Hermes.Development.InboxMessage.Channel.get -> Hermes.Core.Channel
+Hermes.Development.InboxMessage.Channel.init -> void
+Hermes.Development.InboxMessage.Email.get -> Hermes.Development.InboxEmail?
+Hermes.Development.InboxMessage.Email.init -> void
+Hermes.Development.InboxMessage.Equals(Hermes.Development.InboxMessage? other) -> bool
+Hermes.Development.InboxMessage.Id.get -> string!
+Hermes.Development.InboxMessage.Id.init -> void
+Hermes.Development.InboxMessage.InboxMessage() -> void
+Hermes.Development.InboxMessage.Kind.get -> string?
+Hermes.Development.InboxMessage.Kind.init -> void
+Hermes.Development.InboxMessage.Language.get -> string?
+Hermes.Development.InboxMessage.Language.init -> void
+Hermes.Development.InboxMessage.Links.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Hermes.Development.InboxMessage.Links.init -> void
+Hermes.Development.InboxMessage.Person.get -> string?
+Hermes.Development.InboxMessage.Person.init -> void
+Hermes.Development.InboxMessage.Push.get -> Hermes.Development.InboxPush?
+Hermes.Development.InboxMessage.Push.init -> void
+Hermes.Development.InboxMessage.Sms.get -> Hermes.Development.InboxSms?
+Hermes.Development.InboxMessage.Sms.init -> void
+Hermes.Development.InboxMessage.Summary.get -> string!
+Hermes.Development.InboxMessage.Summary.init -> void
+Hermes.Development.InboxMessage.Text.get -> string!
+Hermes.Development.InboxMessage.Text.init -> void
+Hermes.Development.InboxMessage.To.get -> string?
+Hermes.Development.InboxMessage.To.init -> void
+Hermes.Development.InboxNotification
+Hermes.Development.InboxNotification.<Clone>$() -> Hermes.Development.InboxNotification!
+Hermes.Development.InboxNotification.Badge.get -> string?
+Hermes.Development.InboxNotification.Badge.init -> void
+Hermes.Development.InboxNotification.Body.get -> string!
+Hermes.Development.InboxNotification.Body.init -> void
+Hermes.Development.InboxNotification.Dir.get -> string?
+Hermes.Development.InboxNotification.Dir.init -> void
+Hermes.Development.InboxNotification.Equals(Hermes.Development.InboxNotification? other) -> bool
+Hermes.Development.InboxNotification.Icon.get -> string?
+Hermes.Development.InboxNotification.Icon.init -> void
+Hermes.Development.InboxNotification.InboxNotification() -> void
+Hermes.Development.InboxNotification.Lang.get -> string?
+Hermes.Development.InboxNotification.Lang.init -> void
+Hermes.Development.InboxNotification.Tag.get -> string?
+Hermes.Development.InboxNotification.Tag.init -> void
+Hermes.Development.InboxNotification.Title.get -> string!
+Hermes.Development.InboxNotification.Title.init -> void
+Hermes.Development.InboxNotification.Url.get -> string?
+Hermes.Development.InboxNotification.Url.init -> void
+Hermes.Development.InboxPush
+Hermes.Development.InboxPush.<Clone>$() -> Hermes.Development.InboxPush!
+Hermes.Development.InboxPush.Equals(Hermes.Development.InboxPush? other) -> bool
+Hermes.Development.InboxPush.InboxPush() -> void
+Hermes.Development.InboxPush.Notification.get -> Hermes.Development.InboxNotification!
+Hermes.Development.InboxPush.Notification.init -> void
+Hermes.Development.InboxPush.Service.get -> Hermes.Core.PushService
+Hermes.Development.InboxPush.Service.init -> void
+Hermes.Development.InboxPush.Topic.get -> string?
+Hermes.Development.InboxPush.Topic.init -> void
+Hermes.Development.InboxPush.Ttl.get -> System.TimeSpan
+Hermes.Development.InboxPush.Ttl.init -> void
+Hermes.Development.InboxPush.Urgency.get -> Hermes.Core.PushUrgency
+Hermes.Development.InboxPush.Urgency.init -> void
+Hermes.Development.InboxSms
+Hermes.Development.InboxSms.<Clone>$() -> Hermes.Development.InboxSms!
+Hermes.Development.InboxSms.DeliveryReference.get -> string!
+Hermes.Development.InboxSms.DeliveryReference.init -> void
+Hermes.Development.InboxSms.Encoding.get -> Hermes.Core.SmsEncoding
+Hermes.Development.InboxSms.Encoding.init -> void
+Hermes.Development.InboxSms.Equals(Hermes.Development.InboxSms? other) -> bool
+Hermes.Development.InboxSms.InboxSms() -> void
+Hermes.Development.InboxSms.Segments.get -> int
+Hermes.Development.InboxSms.Segments.init -> void
+Hermes.Development.InboxSms.Sender.get -> string!
+Hermes.Development.InboxSms.Sender.init -> void
+Hermes.Development.InboxSms.Text.get -> string!
+Hermes.Development.InboxSms.Text.init -> void
+Hermes.Development.MessagingDevelopmentExtensions
+override Hermes.Development.InboxEmail.Equals(object? obj) -> bool
+override Hermes.Development.InboxEmail.GetHashCode() -> int
+override Hermes.Development.InboxEmail.ToString() -> string!
+override Hermes.Development.InboxFilter.Equals(object? obj) -> bool
+override Hermes.Development.InboxFilter.GetHashCode() -> int
+override Hermes.Development.InboxFilter.ToString() -> string!
+override Hermes.Development.InboxMessage.Equals(object? obj) -> bool
+override Hermes.Development.InboxMessage.GetHashCode() -> int
+override Hermes.Development.InboxMessage.ToString() -> string!
+override Hermes.Development.InboxNotification.Equals(object? obj) -> bool
+override Hermes.Development.InboxNotification.GetHashCode() -> int
+override Hermes.Development.InboxNotification.ToString() -> string!
+override Hermes.Development.InboxPush.Equals(object? obj) -> bool
+override Hermes.Development.InboxPush.GetHashCode() -> int
+override Hermes.Development.InboxPush.ToString() -> string!
+override Hermes.Development.InboxSms.Equals(object? obj) -> bool
+override Hermes.Development.InboxSms.GetHashCode() -> int
+override Hermes.Development.InboxSms.ToString() -> string!
+static Hermes.Development.InboxEmail.operator !=(Hermes.Development.InboxEmail? left, Hermes.Development.InboxEmail? right) -> bool
+static Hermes.Development.InboxEmail.operator ==(Hermes.Development.InboxEmail? left, Hermes.Development.InboxEmail? right) -> bool
+static Hermes.Development.InboxFilter.operator !=(Hermes.Development.InboxFilter? left, Hermes.Development.InboxFilter? right) -> bool
+static Hermes.Development.InboxFilter.operator ==(Hermes.Development.InboxFilter? left, Hermes.Development.InboxFilter? right) -> bool
+static Hermes.Development.InboxMessage.operator !=(Hermes.Development.InboxMessage? left, Hermes.Development.InboxMessage? right) -> bool
+static Hermes.Development.InboxMessage.operator ==(Hermes.Development.InboxMessage? left, Hermes.Development.InboxMessage? right) -> bool
+static Hermes.Development.InboxNotification.operator !=(Hermes.Development.InboxNotification? left, Hermes.Development.InboxNotification? right) -> bool
+static Hermes.Development.InboxNotification.operator ==(Hermes.Development.InboxNotification? left, Hermes.Development.InboxNotification? right) -> bool
+static Hermes.Development.InboxPush.operator !=(Hermes.Development.InboxPush? left, Hermes.Development.InboxPush? right) -> bool
+static Hermes.Development.InboxPush.operator ==(Hermes.Development.InboxPush? left, Hermes.Development.InboxPush? right) -> bool
+static Hermes.Development.InboxSms.operator !=(Hermes.Development.InboxSms? left, Hermes.Development.InboxSms? right) -> bool
+static Hermes.Development.InboxSms.operator ==(Hermes.Development.InboxSms? left, Hermes.Development.InboxSms? right) -> bool
+static Hermes.Development.MessagingDevelopmentExtensions.AddHermesDevelopmentInbox(this Microsoft.Extensions.Hosting.IHostApplicationBuilder! builder) -> Microsoft.Extensions.Hosting.IHostApplicationBuilder!
+static Hermes.Development.MessagingDevelopmentExtensions.MapHermesDevelopmentInbox(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
