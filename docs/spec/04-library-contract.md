@@ -17,6 +17,7 @@ project SHALL reference only what this item allows it.
 | `Hermes` | `Hermes.Core`, `Hermes.Channels`; EF Core, its relational layer and the Npgsql provider; Fluid.Core; ASP.NET Core's shared framework |
 | `Hermes.Testing` | `Hermes.Core`, `Hermes.Channels`, `Hermes` |
 | `Hermes.Cli` (a .NET tool, command `hermes`) | `Hermes` |
+| `Hermes.Development` | `Hermes.Core`, `Hermes.Channels` (and MimeKit through it, for the email it keeps and the links it reads); ASP.NET Core's shared framework |
 | Any other test project | Its source project, `Hermes.Testing`, and the test packages of `07` MSG-ENG-009 |
 | `tests/Hermes.Repository.Tests` | Every shipped project, whose built assemblies its contract tests read (`07` MSG-ENG-004), and the test packages of `07` MSG-ENG-009 |
 | The sample host and its test project | The packed packages above, and for its tests the test packages of `07` MSG-ENG-009 |
@@ -36,7 +37,7 @@ takes a lower version, NU1608 a higher one, NU1107 where two exact ranges meet),
 minimum version would let a higher one through unreported, to fail at run time.
 `Hermes.Conversations` is release 2's (`09`).
 
-*Source: M-001, M-003, M-012, M-013, M-015, M-020*
+*Source: M-001, M-003, M-012, M-013, M-015, M-020, M-024*
 
 **Acceptance criteria**
 1. A test reads each project's references and fails on one this table does not allow.
@@ -64,7 +65,8 @@ a log entry) it writes that spelling. A record that carries a destination, conte
 token, a key, an endpoint or a person reference (`Send`, `EmailMessage`, `SmsMessage`,
 `PushRequest.WebPush`, `ConsentQuery`, `DeliveryExport`, `Recipient.Person`,
 `DeliveryNotice`, `IdempotencyKeyExport`, whose `Key` a host may build from a person's
-data, and every case of `SendValue`, whose values are a template's content) overrides
+data, every case of `SendValue`, whose values are a template's content, and
+`InboxMessage`, `InboxEmail`, `InboxSms`, `InboxPush` and `InboxNotification`) overrides
 `PrintMembers` to print none of them, so a log line that formats one writes none.
 
 **Values and identifiers** (`Hermes.Core`):
@@ -128,11 +130,16 @@ data, and every case of `SendValue`, whose values are a template's content) over
 | | `MessagingEndpointRouteBuilderExtensions` | The four mapping methods of MSG-LIB-004 |
 | | `IDispatcher` | `RunPassAsync(...)` runs one pass of each channel and answers the number of deliveries they took, in an application with `Hermes:Dispatch:Enabled` on (where it is off, it throws `InvalidOperationException` before it claims anything); a pass whose token is cancelled stops as `01` MSG-SEND-007 gives and the call then throws `OperationCanceledException` (`01` MSG-SEND-007) |
 | `Hermes.Testing` | `InMemoryEmailProvider`, `InMemorySmsProvider`, `InMemoryPushProvider`, `FixedSecretSource`, `TestDispatcher`, `MessagingTestDatabase`, `MessagingTestingServiceCollectionExtensions` | The members of MSG-LIB-008 |
+| `Hermes.Development` | `MessagingDevelopmentExtensions` | `AddHermesDevelopmentInbox(IHostApplicationBuilder)` answers the builder; `MapHermesDevelopmentInbox(IEndpointRouteBuilder, string prefix)` answers the group's `RouteGroupBuilder`, which holds no endpoint outside Development (`02` MSG-DEV-001; `05` MSG-API-007) |
+| | `DevelopmentInbox` | `DevelopmentInbox()` reads the default folder and `DevelopmentInbox(string folder)` the one given; `string Folder`; `DateTimeOffset MadeAt`; `ListAsync(InboxFilter filter, ...)` answers `IReadOnlyList<InboxMessage>`, newest first; `LatestAsync(InboxFilter filter, ...)` answers `InboxMessage?`; `WaitForAsync(InboxFilter filter, TimeSpan timeout, ...)` answers an `InboxMessage` and throws `TimeoutException` once `timeout` has passed with none; `ClearAsync(...)` answers `ValueTask` (`02` MSG-DEV-006) |
+| | `InboxFilter` | `string? To`, `string? Person`, `Channel? Channel`, `string? App`, `string? Kind`, `DateTimeOffset? After` |
+| | `InboxMessage` | `string Id`, `Channel Channel`, `string App`, `DateTimeOffset At`, `string? To`, `string? Person`, `string? Kind`, `string? Category`, `string? Language`, `string Summary`, `string Text`, `IReadOnlyList<string> Links`, `InboxEmail? Email`, `InboxSms? Sms`, `InboxPush? Push` (`02` MSG-DEV-003; `05` MSG-API-007) |
+| | `InboxEmail`, `InboxSms`, `InboxPush`, `InboxNotification` | `InboxEmail`: `EmailAddress From`, `EmailAddress? ReplyTo`, `string Subject`, `string Text`, `string? Html`, `string MessageId`, `Uri? Unsubscribe`, `IReadOnlyList<KeyValuePair<string, string>> Headers`, `string EmlPath` (the `.eml` beside the record). `InboxSms`: `string Sender`, `string Text`, `SmsEncoding Encoding`, `int Segments`, `string DeliveryReference`. `InboxPush`: `PushService Service`, `InboxNotification Notification`, `TimeSpan Ttl`, `PushUrgency Urgency`, `string? Topic`. `InboxNotification`: `string Title`, `string Body`, `string? Url`, `string? Tag`, `string? Lang`, `string? Dir`, `string? Icon`, `string? Badge` |
 
 Everything else is internal: the shipped providers, their options, the endpoints'
 request and response types (their wire shape is the contract, `05`), and the tables.
 
-*Source: M-004, M-005, M-008, M-012, M-020*
+*Source: M-004, M-005, M-008, M-012, M-020, M-024*
 
 **Acceptance criteria**
 1. The build fails when a public member is added or removed without its public API file
@@ -168,8 +175,9 @@ by registering its own before or after the call.
 A channel is **used** where a declared kind uses it, in an application that registers
 the providers alone where its configuration section (`Hermes:Email`, `Hermes:Sms`,
 `Hermes:Push`) is present; the shipped provider of a channel is **used** where the
-channel is, the host registers no provider of its own for it, and the application
-dispatches (`Hermes:Dispatch:Enabled` on, whether or not its hosted dispatcher runs,
+channel is, the host registers no provider of its own for it (the development inbox's
+count as the host's own, `02` MSG-DEV-001), and the application dispatches
+(`Hermes:Dispatch:Enabled` on, whether or not its hosted dispatcher runs,
 `Hermes:Dispatch:Hosted`) or registers the providers alone, whatever
 `Hermes:Dispatch:Enabled` says; so an application that only records sends, and runs no
 such transport, reads no provider's secret. Where the report group is mapped
@@ -188,7 +196,7 @@ throws `InvalidOperationException`, a fault of the calling code, so an applicati
 only maps the unsubscribe or preferences group holds no key that opens content (`06`
 MSG-OPS-008).
 
-*Source: M-005, M-007, M-012, M-020, M-022*
+*Source: M-005, M-007, M-012, M-020, M-022, M-024*
 
 **Acceptance criteria**
 1. A host with valid declarations and configuration starts with the one call.
@@ -212,9 +220,10 @@ MSG-OPS-008).
 the prefix the host chooses, so a host mounts each where it wants and leaves out the
 rest.
 
-**Values (M-001).** `MapHermesPreferences`, `MapHermesPushSubscriptions`,
-`MapHermesUnsubscribe` and `MapHermesSmsReports`, each an extension of
-`IEndpointRouteBuilder` taking the prefix and answering the group's `RouteGroupBuilder`:
+**Values (M-001, M-024).** `MapHermesPreferences`, `MapHermesPushSubscriptions`,
+`MapHermesUnsubscribe`, `MapHermesSmsReports` and `MapHermesDevelopmentInbox`, each an
+extension of `IEndpointRouteBuilder` taking the prefix and answering the group's
+`RouteGroupBuilder`:
 - the preferences and push subscription groups need the identity seam (MSG-LIB-005),
   read JSON bodies only as `application/json` (so a cross-site form cannot reach them),
   and a host MAY add its own requirements (authorisation, rate limiting, request-forgery
@@ -224,9 +233,12 @@ rest.
   which hold no session: they call `AllowAnonymous()` and `DisableAntiforgery()` and
   read their forms themselves, and a host adds no authorisation and no forgery
   protection to them, which would refuse RFC 8058's one-click `POST` and the provider's
-  reports.
+  reports;
+- `MapHermesDevelopmentInbox` of `Hermes.Development` maps the development inbox's group
+  (`05` MSG-API-007) in Development alone: it calls `AllowAnonymous()`, since a
+  developer's tools hold no session, and is guarded as `02` MSG-DEV-005 gives.
 
-*Source: M-001*
+*Source: M-001, M-024*
 
 **Acceptance criteria**
 1. Each group works mapped alone in an application with none of the others.
@@ -332,11 +344,11 @@ received.
 | `FixedSecretSource` | An `ISecretSource` whose parameterless constructor answers version 1 of the five keys of `06` MSG-OPS-008 and `emailSubmission`, each in its form and derived at run time from the SHA-256 of its name, so no credential-shaped text is written in the repository, and answers neither connection secret; `SetSecret(string name, SecretVersions versions)` and `RemoveSecret(string name)` |
 | `TestDispatcher` | `TestDispatcher(IDispatcher dispatcher, TimeProvider timeProvider)`, the clock being the `TimeProvider` the library is registered with; `RunUntilIdleAsync(CancellationToken cancellationToken)` runs passes until a round of them, one of each channel, takes no delivery (so a channel whose rate the clock's current second has used up waits for the test to move the clock) and answers the number of deliveries taken, throwing `OperationCanceledException` once its token is cancelled, as `RunPassAsync` does |
 | `MessagingTestDatabase` | A static class; `MigrateAsync(string connection, CancellationToken cancellationToken)` answers `ValueTask` and applies the release's migrations to that database as `hermes migrate` does (`06` MSG-OPS-002), so a host's test, and the sample host's, brings its test database to the schema |
-| `MessagingTestingServiceCollectionExtensions` | `AddHermesTesting(IServiceCollection services, Action<FixedSecretSource>? configure = null)` answers the `IServiceCollection`; it registers each in-memory provider and one `FixedSecretSource` as singletons, each resolvable by its own type and by its contract, in place of the shipped providers and the host's secret source, `configure` running on that `FixedSecretSource` at once, so a test sets `connection` there before the host starts, and removes the hosted dispatcher and `observer` job, so only a test's passes dispatch, in either order of the two calls (`AddHermes` registers neither service where `AddHermesTesting` came first); a secret source the host registers after it replaces `FixedSecretSource`, as any later registration of a seam does; a test's pass delivers, after its deliveries, every pending notice in order, as the job does, so a report's move, a cancellation and an erasure reach the observer too (`01` MSG-SEND-007, MSG-SEND-017) |
+| `MessagingTestingServiceCollectionExtensions` | `AddHermesTesting(IServiceCollection services, Action<FixedSecretSource>? configure = null)` answers the `IServiceCollection`; it registers each in-memory provider and one `FixedSecretSource` as singletons, each resolvable by its own type and by its contract, in place of the shipped providers and the host's secret source, `configure` running on that `FixedSecretSource` at once, so a test sets `connection` there before the host starts, and removes the hosted dispatcher and `observer` job, so only a test's passes dispatch, in either order of the two calls (`AddHermes` registers neither service where `AddHermesTesting` came first); its in-memory providers are used in place of the development inbox's wherever both are registered, in either order (`02` MSG-DEV-001); a secret source the host registers after it replaces `FixedSecretSource`, as any later registration of a seam does; a test's pass delivers, after its deliveries, every pending notice in order, as the job does, so a report's move, a cancellation and an erasure reach the observer too (`01` MSG-SEND-007, MSG-SEND-017) |
 
 Nothing in it skips a check of `01`.
 
-*Source: M-012, M-013, M-022*
+*Source: M-012, M-013, M-022, M-024*
 
 **Acceptance criteria**
 1. A host test sends a kind and reads the rendered message from the in-memory provider.

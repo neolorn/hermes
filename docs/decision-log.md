@@ -1237,6 +1237,59 @@ values, criteria 2 to 4); `implementation-plan.md` (phase 8, and the inputs wait
 
 ---
 
+## M-024 — The development inbox
+
+**Date:** 2026-10-29 · **Status:** accepted · **Follows from:** M-001, M-012
+
+A host building on the library asked for a way to read, while it is developed, what the
+library sends: a person signing in needs the code, a browser test and a setup tool need
+it from another process, and the in-memory providers serve tests in one process alone.
+Every host has the need, and a host's own provider would have to rebuild an email the
+library builds internally, so the library ships it, in release 1.1.0, as additions only
+(`04` MSG-LIB-006).
+
+- **A sixth package, `Hermes.Development`.** The application itself references it, so it
+  is not `Hermes.Testing`, which a production build should not carry; its page and API
+  need ASP.NET Core, which `Hermes.Channels` keeps out; and an application that uses the
+  providers alone has no engine to put it in.
+- **Development alone, without a condition in the host.** Both calls act only where the
+  host's environment is Development and do nothing elsewhere, so a host writes them
+  unconditionally and an unset environment, Production in .NET, captures nothing. A
+  refusal to start elsewhere was weighed: it is no safer, since a deployment wrongly set
+  to Development passes it too, and it makes every host write the condition.
+- **The inbox wins over the host's providers in either order, and the in-memory
+  providers win over the inbox.** A host registering its real SMS gateway after the call
+  must not send real texts from a developer's machine; and a host's tests, which ASP.NET
+  Core's test host runs in Development, must keep reading the in-memory providers.
+- **Files are the store.** One folder per user and machine is the one thing every
+  process of a developer reaches, an application that uses the providers alone has no
+  database, and an email's `.eml` opens in any mail client. A file written under a
+  temporary name and renamed, the record last, is never read half written.
+- **The page, the API and the helper read the files.** A person opens the page; a
+  browser test or a setup tool asks `GET /messages/latest` with `wait`, one call
+  (Mailpit's `latest` convention); a .NET test waits on `DevelopmentInbox`. Each message
+  comes with its links taken out, so no host parses HTML.
+- **Safety.** The records hold codes in plain text, so: the inbox acts in Development
+  alone; it answers only the machine itself and only under a loopback host name, the
+  `Host` check being webpack-dev-server's answer to DNS rebinding; it sends no CORS
+  headers; an email's HTML is shown from its own route under a policy and a sandbox with
+  no script, links opening in a new tab, as mail clients show untrusted mail; the folder
+  is its owner's alone, outside the application, and cleaned.
+
+*Rejected:* an outside mail catcher (email only, and the SMTP provider's validated TLS
+makes it awkward to reach); the messages in the library's database (an application with
+the providers alone has none); a separate inbox program (one more process to start,
+nothing gained); detecting codes in a message's text (each host's texts differ, and a
+test matches its own pattern); real delivery to a browser in development, and SMS
+delivery reports there.
+
+**Propagated to:** `00` (the document set, the package table); `02` section 6,
+MSG-DEV-001 to MSG-DEV-006; `04` MSG-LIB-001, MSG-LIB-002, MSG-LIB-003, MSG-LIB-004,
+MSG-LIB-008; `05` MSG-API-007; `06` MSG-OPS-007; `07` MSG-ENG-001; `08` sections 1, 4
+and 8; `10` MSG-THR-001; `implementation-plan.md` (phase 9, and the inputs waited on).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1264,3 +1317,4 @@ values, criteria 2 to 4); `implementation-plan.md` (phase 8, and the inputs wait
 | Phase 6's question: an empty `PublicAPI.Shipped.txt` leaves with its project | M-021 |
 | The library ships no SMS gateway, and `Hermes` is the final name | M-022 |
 | The release step: the release commit, its checks, and the release job | M-023 |
+| The development inbox | M-024 |

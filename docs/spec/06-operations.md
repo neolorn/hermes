@@ -284,6 +284,9 @@ release notes SHALL state it.
   limits and rates, the allowed prefixes alone applying to them, so the provider account
   carries both (M-020).
 - **Clocks.** The processes' clocks agree as MSG-OPS-003 says.
+- **Environment.** Every application that must send runs in an environment other than
+  Development, since the development inbox captures every message where the environment
+  is Development (`02` MSG-DEV-001).
 - **Write versions.** A key's write version is never set back to a lower one, a rollback
   included: an older release restarts with the current write versions; a version made
   wrongly is replaced by a new, higher one (MSG-OPS-008).
@@ -318,7 +321,7 @@ release notes SHALL state it.
   alert on its key-table timer, which reads the migration history (MSG-OPS-008), so a
   deployment rolls forward rather than back.
 
-*Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020, M-022*
+*Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020, M-022, M-024*
 
 **Acceptance criteria**
 1. The release notes of each release (`RELEASE-NOTES.md`, `07` MSG-ENG-001) state every

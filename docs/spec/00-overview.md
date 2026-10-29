@@ -29,7 +29,7 @@ reasoning is one lookup away.
 |---|---|
 | **00-overview** | This document: what the library is, its parts, what is in and out of the first release, glossary |
 | **01-sending** | Kinds and categories, the send operation, the checks at dispatch, preferences, consent, suppressions, quiet hours, limits, dispatch, retries, statuses, retention and erasure |
-| **02-channels** | Email, SMS and browser push: what each channel does and how its provider is called |
+| **02-channels** | Email, SMS and browser push: what each channel does and how its provider is called; the development inbox |
 | **03-content** | Templates, languages, values, escaping, bounds and the checks made at startup |
 | **04-library-contract** | Packages, the public surface and its signatures, registration, the seams a host supplies, versioning |
 | **05-api-contract** | The endpoints the library ships and a host mounts |
@@ -139,6 +139,7 @@ Versions are pinned in `07` MSG-ENG-009.
 | `Hermes` | The sending engine: kinds, the outbox, the checks, dispatch, templates, the endpoints, the schema | An application that sends its own messages |
 | `Hermes.Testing` | In-memory providers, fixed secrets, an on-demand dispatcher and a test database's migration | A host's tests, and the sample host (`07` MSG-ENG-001) |
 | `Hermes.Cli` | A .NET tool, command `hermes`, that applies the migrations (`06` MSG-OPS-002) | A deployment's pipeline |
+| `Hermes.Development` | The development inbox: in Development, every message kept on the machine instead of sent, with a page, a JSON API and a test helper to read it. It does nothing in any other environment | An application while it is developed, and its tests and tools (`02` MSG-DEV-001) |
 | `Hermes.Conversations` | Conversations (`09`). **Release 2** | An application with support or staff chat |
 
 The engine depends on the channels and never the reverse, so an application that needs a
@@ -146,7 +147,7 @@ provider alone never carries the engine. No package knows another library: a hos
 uses this library beside others (an identity library, say) connects them in its own
 code, through the seams of `04` MSG-LIB-005 and the providers of `02` (M-020).
 
-*Source: M-001, M-003, M-020, M-022*
+*Source: M-001, M-003, M-020, M-022, M-024*
 
 ---
 

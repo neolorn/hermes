@@ -38,7 +38,9 @@ MSG-OPS-002).
 | `messaging.push.keyunknown` | 422 | A subscription posted with a key whose VAPID version is retired, held or not, or that no version has (`02` MSG-PUSH-007; `05` MSG-API-004) | |
 | `messaging.push.endpointnotallowed` | 422 | A subscription endpoint outside the allowed push services (`02` MSG-PUSH-004) | |
 | `messaging.unsubscribe.invalid` | 404 | An unsubscribe token that does not verify (`05` MSG-API-005) | |
-| `messaging.request.malformed` | 400 | A body that does not read (`05` MSG-API-001) | `member` |
+| `messaging.inbox.notfound` | 404 | A message the development inbox does not hold, or none that matches (`05` MSG-API-007) | |
+| `messaging.inbox.notlocal` | 403 | A request to the development inbox from another machine or under another host name (`02` MSG-DEV-005) | |
+| `messaging.request.malformed` | 400 | A body, a query parameter or a header that does not read (`05` MSG-API-001, MSG-API-007) | `member` |
 | `messaging.request.unauthenticated` | 401 | No signed-in person where one is needed (`05` MSG-API-002) | |
 | `messaging.request.toolarge` | 413 | A body over 16 KiB (`05` MSG-API-001, MSG-API-005, MSG-API-006) | |
 | `messaging.request.mediatype` | 415 | A JSON route's body not sent as `application/json` (`05` MSG-API-001) | |
@@ -100,9 +102,10 @@ effect at the next start (`06` MSG-OPS-001). "Where email is used" means where t
 channel is used as `04` MSG-LIB-003 defines it; so for SMS and push. The keys of the
 engine, every key but those under `Email:`, `Sms:` and `Push:` and `Dispatch:Timeout`,
 which the shipped providers read wherever they are used, are read and checked only where
-`AddHermes` is registered (`04` MSG-LIB-003). A key holding a list takes its default
-only where none of its items is configured. A number in a rule is a whole number unless
-the rule says a decimal number, which is read in the invariant culture, `.` its
+`AddHermes` is registered (`04` MSG-LIB-003); the keys under `DevelopmentInbox:` only
+where the development inbox acts (`02` MSG-DEV-001). A key holding a list takes its
+default only where none of its items is configured. A number in a rule is a whole number
+unless the rule says a decimal number, which is read in the invariant culture, `.` its
 separator; a length in characters is counted as `00` section 1.5 gives.
 
 | Key | Default | Rule |
@@ -194,6 +197,10 @@ separator; a length in characters is counted as `00` section 1.5 gives.
 | `Push:IdleRetention` | `180.00:00:00` | 7 days to 3 years |
 | `Push:AuthFailThreshold` | `20` | 1 to 10,000 |
 | `Push:AuthFailWindow` | `01:00:00` | 1 minute to 1 day |
+| `DevelopmentInbox:Folder` | `hermes-inbox` in the operating system's temporary folder | An absolute path (`02` MSG-DEV-002); start only |
+| `DevelopmentInbox:KeepFor` | `7.00:00:00` | 1 hour to 90 days; start only |
+| `DevelopmentInbox:MaxMessages` | `1000` | 10 to 100,000; start only |
+| `DevelopmentInbox:AllowRemote` | `false` | Whether the inbox's group answers requests from other machines and under other host names (`02` MSG-DEV-005); start only |
 
 ---
 
@@ -272,7 +279,8 @@ The meter is `Hermes`, with these instruments:
 These names carry the library's name (`00`): the meter and its instruments, the solution
 file `Hermes.sln` (`07` MSG-ENG-001), the health check `hermes.dispatch` (`06`
 MSG-OPS-005), the named HTTP client `Hermes.Push` (`02` MSG-CHAN-001), the configuration
-section and the command `hermes`.
+section, the command `hermes`, and the development inbox's default folder `hermes-inbox`
+and header `X-Hermes-Inbox` (`02` MSG-DEV-002, MSG-DEV-005).
 
 These names are stored, or shared by the processes of two releases, and never change:
 

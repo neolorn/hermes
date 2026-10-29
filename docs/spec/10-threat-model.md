@@ -49,8 +49,12 @@ control SHALL have the test its requirement gives.
 | A process deployed without a key version, or without the protector another process writes with, loses the messages it claims | A delivery held for a key is never counted as an attempt and waits for a process that holds it, with `key-unavailable` raised, for a run of holds of up to `Hermes:Dispatch:MaxHold` (`01` MSG-SEND-006; `06` MSG-OPS-008) |
 | An older release running beside a newer one retires a key version the newer one's rows still need, or reports an erasure done that it could not finish | A process whose database holds a migration its release does not know marks no version retired and answers erasure and export `messaging.release.newer` (`06` MSG-OPS-008; `01` MSG-SEND-020) |
 | A key changed in place, or removed while in use, silently breaks suppressions, tokens or subscriptions | Check values recorded per version of the five keys; a version still in use cannot be removed, and only the retention job marks one retired, never sooner than `Hermes:Secrets:RetireAfter` after values were last made under it; a write version must be chosen where several versions are held (`06` MSG-OPS-008) |
+| The development inbox captures, instead of sending, in a deployment, or is reached there | It acts only where the host's environment is Development, and in any other neither call registers or maps anything (`02` MSG-DEV-001) |
+| A site the developer visits reads captured codes through the browser (DNS rebinding, another origin) | The inbox answers only requests from a loopback address under a loopback host name, sends no CORS headers, and clears only with its own header (`02` MSG-DEV-005) |
+| Script in a captured message runs in the inbox page | Every value written as text under a strict policy; an email's HTML served from its own route under a policy and sandbox with no script (`02` MSG-DEV-005) |
+| Captured messages are read from the disk by another user, or committed | A folder only its owner reads, outside the application's content root, its records deleted after `KeepFor` (`02` MSG-DEV-002) |
 
-*Source: M-007, M-008, M-009, M-010, M-012, M-022*
+*Source: M-007, M-008, M-009, M-010, M-012, M-022, M-024*
 
 **Acceptance criteria**
 1. Every control above that the library itself carries has a test carrying the
