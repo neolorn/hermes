@@ -45,19 +45,6 @@ internal static class SubscriptionRule
         return address.IdnHost;
     }
 
-    /// <summary>The push service of <paramref name="host"/> (<c>08</c> section 2).</summary>
-    internal static PushService Service(string host)
-    {
-        return host switch
-        {
-            _ when string.Equals(host, "fcm.googleapis.com", StringComparison.OrdinalIgnoreCase) => PushService.Fcm,
-            _ when host.EndsWith(".push.services.mozilla.com", StringComparison.OrdinalIgnoreCase) => PushService.Mozilla,
-            _ when host.EndsWith(".push.apple.com", StringComparison.OrdinalIgnoreCase) => PushService.Apple,
-            _ when host.EndsWith(".notify.windows.com", StringComparison.OrdinalIgnoreCase) => PushService.Windows,
-            _ => PushService.Other,
-        };
-    }
-
     /// <summary>The 81 bytes of <paramref name="p256dh"/> and <paramref name="auth"/> where each reads as the rule says; none otherwise.</summary>
     internal static byte[]? Keys(string? p256dh, string? auth)
     {

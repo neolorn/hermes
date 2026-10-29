@@ -112,7 +112,7 @@ internal sealed partial class PushSubscriptions(
                         Endpoint = storedEndpoint,
                         Keys = storedKeys,
                         VapidVersion = version,
-                        Service = Spellings.Of(SubscriptionRule.Service(host)),
+                        Service = Spellings.Of(PushServiceRule.Of(host)),
                         MadeAt = now,
                     };
                     context.Subscriptions.Add(row);
@@ -125,7 +125,7 @@ internal sealed partial class PushSubscriptions(
                 row.Keys = storedKeys;
                 row.ContentKeyVersion = Messages.LibraryVersion(storedEndpoint);
                 row.VapidVersion = version;
-                row.Service = Spellings.Of(SubscriptionRule.Service(host));
+                row.Service = Spellings.Of(PushServiceRule.Of(host));
                 row.MadeAt = now;
                 row.ExpiresAt = expiresAt;
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
