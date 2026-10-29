@@ -24,7 +24,7 @@ control SHALL have the test its requirement gives.
 
 | Threat | Control |
 |---|---|
-| A forged SMS delivery report marks a message delivered or failed | A secret key in the route, compared in constant time; a report can only move an SMS delivery to `delivered` or `failed`; rejected reports counted and alerted (`02` MSG-SMS-004). Where the report echoes the delivery reference, a forger must also hold the 128 random bits of an attempt, and a report of an earlier attempt can only mark a delivery delivered; where reports are matched by the provider's own identifier, the key alone stands in the way. Someone who holds the key (over plain HTTP, `02` MSG-SMS-003, or from a request log that was not redacted, `05` MSG-API-006) can mark sent SMS delivered or failed: the host's observer is told so and may act on it, and a forged failure gives back a per-destination place, never a place under the deployment's cap (`01` MSG-SEND-014) |
+| A forged SMS delivery report marks a message delivered or failed | A secret key in the route, compared in constant time; a report can only move an SMS delivery to `delivered` or `failed`; rejected reports counted and alerted (`02` MSG-SMS-004). Where the report echoes the delivery reference, a forger must also hold the 128 random bits of an attempt, and a report of an earlier attempt can only mark a delivery delivered; where reports are matched by the provider's own identifier, the key alone stands in the way. Someone who holds the key (over plain HTTP where the gateway calls only `http`, or from a request log that was not redacted, `05` MSG-API-006) can mark sent SMS delivered or failed: the host's observer is told so and may act on it, and a forged failure gives back a per-destination place, never a place under the deployment's cap (`01` MSG-SEND-014) |
 | A browser registers a push "subscription" pointing at an internal address, so the server sends requests into the network (server-side request forgery) | Endpoints only at allowed push services, by DNS name, `https` on 443, checked again before every request, no redirects (`02` MSG-PUSH-004) |
 | Someone unsubscribes another person by guessing a link | Tokens signed with HMAC-SHA-256, verified in constant time, with a lifetime (`05` MSG-API-005, `07` MSG-ENG-004) |
 | A mail scanner opening a link unsubscribes the person | `GET` never unsubscribes (`05` MSG-API-005) |
@@ -50,7 +50,7 @@ control SHALL have the test its requirement gives.
 | An older release running beside a newer one retires a key version the newer one's rows still need, or reports an erasure done that it could not finish | A process whose database holds a migration its release does not know marks no version retired and answers erasure and export `messaging.release.newer` (`06` MSG-OPS-008; `01` MSG-SEND-020) |
 | A key changed in place, or removed while in use, silently breaks suppressions, tokens or subscriptions | Check values recorded per version of the five keys; a version still in use cannot be removed, and only the retention job marks one retired, never sooner than `Hermes:Secrets:RetireAfter` after values were last made under it; a write version must be chosen where several versions are held (`06` MSG-OPS-008) |
 
-*Source: M-007, M-008, M-009, M-010, M-012*
+*Source: M-007, M-008, M-009, M-010, M-012, M-022*
 
 **Acceptance criteria**
 1. Every control above that the library itself carries has a test carrying the

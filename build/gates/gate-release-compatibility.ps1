@@ -15,6 +15,10 @@
     addition a minor one. Anywhere else (a pull request, a push), the version is a pre-release, and
     a change that needs a major release fails unless a commit since the last release carries ! or
     BREAKING CHANGE: (07 MSG-ENG-011).
+
+    Where the change from Base changes build/gates/release-baseline.json, which only a release
+    commit may (07 MSG-ENG-011), the baseline at Head must be the set read there, before the first
+    release as after it.
 .PARAMETER Repository
     The repository to check; by default, this one.
 .PARAMETER Base
@@ -25,13 +29,17 @@
 .PARAMETER Needs
     A needs.json the comparison already wrote, read in place of building and comparing; for the
     gate's own tests.
+.PARAMETER Current
+    A current.json the read already wrote, read in place of building where the baseline at Head is
+    compared with the set read there; for the gate's own tests.
 #>
 [CmdletBinding()]
 param(
     [string] $Repository = (Join-Path $PSScriptRoot '..' '..'),
     [string] $Base = '',
     [string] $Head = 'HEAD',
-    [string] $Needs = ''
+    [string] $Needs = '',
+    [string] $Current = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -45,12 +53,20 @@ $release = '^v(\d+)\.(\d+)\.(\d+)$'
 $tagged = @(& git -C $Repository tag --points-at $commit | Where-Object { $_ -cmatch $release } | Sort-Object -Descending { [version]$_.Substring(1) })
 $previous = [string](& (Join-Path $PSScriptRoot 'previous-release-tag.ps1') -Repository $Repository -Head $commit)
 
-if (-not $previous) {
+$baselineFile = 'build/gates/release-baseline.json'
+$baselineChanged = $false
+if ($Base) {
+    & git -C $Repository diff --quiet $Base $commit -- $baselineFile
+    if ($LASTEXITCODE -eq 1) { $baselineChanged = $true }
+    elseif ($LASTEXITCODE -ne 0) { throw "git diff $Base $commit failed." }
+}
+
+if (-not $previous -and -not $baselineChanged) {
     Write-Host 'No release precedes Head, so the baseline is empty and nothing is a break.'
     return
 }
 
-if (-not $Needs) {
+if (($previous -and -not $Needs) -or ($baselineChanged -and -not $Current)) {
     if (-not $Base) { throw "A release ($previous) precedes Head, so -Base must name the commit whose baseline the change is compared with." }
 
     $folder = Join-Path $Repository 'tmp' 'release-gate'
@@ -79,10 +95,40 @@ if (-not $Needs) {
     }
 
     $Needs = Join-Path $folder 'needs.json'
-    if ($code -ne 0 -or -not (Test-Path $Needs)) {
+    $Current = Join-Path $folder 'current.json'
+    if ($code -ne 0 -or -not (Test-Path $Needs) -or -not (Test-Path $Current)) {
         $output | Write-Host
         throw "The current set could not be read and compared (exit code $code)."
     }
+}
+
+# The release commit writes the baseline as the set read at it, and only docs: commits follow it
+# in its pull request, so a baseline the change rewrites is the set read at Head (04 MSG-LIB-006).
+if ($baselineChanged) {
+    $held = & git -C $Repository show "${commit}:$baselineFile" 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "Head holds no $baselineFile, which only a release commit changes." }
+
+    $atHead = ($held -join "`n") | ConvertFrom-Json -AsHashtable
+    $read = Get-Content -Raw -Path $Current | ConvertFrom-Json -AsHashtable
+    $differences = [System.Collections.Generic.List[string]]::new()
+    foreach ($section in @(@($atHead.Keys) + @($read.Keys) | Sort-Object -Unique)) {
+        $heldLines = [System.Collections.Generic.HashSet[string]]::new([string[]]@($atHead[$section] | Where-Object { $null -ne $_ }), [StringComparer]::Ordinal)
+        $readLines = [System.Collections.Generic.HashSet[string]]::new([string[]]@($read[$section] | Where-Object { $null -ne $_ }), [StringComparer]::Ordinal)
+        foreach ($line in $readLines) { if (-not $heldLines.Contains($line)) { $differences.Add("${section}: read at Head, not in the baseline: $line") } }
+        foreach ($line in $heldLines) { if (-not $readLines.Contains($line)) { $differences.Add("${section}: in the baseline, not read at Head: $line") } }
+    }
+
+    if ($differences.Count -gt 0) {
+        foreach ($difference in $differences) { Write-Host $difference }
+        throw "The baseline at Head is not the set the release gate reads there, as a release commit writes it."
+    }
+
+    Write-Host 'The baseline at Head is the set the release gate reads there.'
+}
+
+if (-not $previous) {
+    Write-Host 'No release precedes Head, so the baseline is empty and nothing is a break.'
+    return
 }
 
 $answer = Get-Content -Raw -Path $Needs | ConvertFrom-Json

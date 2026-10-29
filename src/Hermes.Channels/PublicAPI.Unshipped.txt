@@ -1,3 +1,1 @@
 #nullable enable
-Hermes.Channels.MessagingChannelsServiceCollectionExtensions
-static Hermes.Channels.MessagingChannelsServiceCollectionExtensions.AddHermesChannels(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

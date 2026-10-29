@@ -8,6 +8,9 @@ chapters are complete without it. An entry that changes an earlier one carries
 
 ## M-001 — A product-agnostic sending library, designed for conversations
 
+> **Amended.** M-022: `Hermes` is the final name, and no rename comes before the first
+> release.
+
 **Date:** 2026-10-21 · **Status:** accepted
 
 **TL;DR.** One product, under the working name `Hermes`, that sends email, SMS and
@@ -477,6 +480,10 @@ added to one a host implements.
 ---
 
 ## M-008 — SMS through WE
+
+> **Amended.** M-022: the library ships no SMS provider. WE is the gateway one
+> deployment contracted, and its adapter is that host's, behind `ISmsProvider`; what
+> this entry decides for reports, the balance and segments holds for every provider.
 
 **Date:** 2026-10-21 · **Status:** accepted, one input open
 
@@ -1082,6 +1089,8 @@ phases (every chapter's reference to phase 6, 7 and 8 would move).
 
 ## M-020 — A standalone library: the Janus bridges come out, and the release does not wait for WE
 
+> **Amended.** M-022: no WE adapter follows the release; phase 7 is retired.
+
 **Date:** 2026-10-28 · **Status:** accepted · **Supersedes:** M-003
 
 The owner's rule: this library, the identity library and every host are standalone, and
@@ -1146,6 +1155,88 @@ keep for a one-off).
 
 ---
 
+## M-022 — The library ships no SMS gateway, and `Hermes` is the final name
+
+**Date:** 2026-10-29 · **Status:** accepted · **Amends:** M-001, M-008, M-020
+
+The owner's rule of M-020 reaches the SMS gateway too: a library that carries one
+provider's API is shaped by one deployment's contract, as the bridges were by one
+identity library. WE is the gateway one deployment contracted, not a part of this
+library. SMS gateways share no protocol (each has its own request, credential, answers,
+report and balance), so no provider the library could ship serves every host, as SMTP
+and Web Push do for theirs.
+
+So `Hermes.Channels` ships no SMS provider. A host that uses SMS registers its own
+`ISmsProvider`, a seam required where SMS is used or the report group is mapped (`04`
+MSG-LIB-005, `details.key` `smsProvider`). The contract already carries what a gateway
+needs: the whole report request; a report matched by the delivery reference or by the
+gateway's own identifier, under the route's key; the report address given with each
+message or held once for the account; a balance in the gateway's unit, or none. Where
+one account's reports reach the report group for two senders, the host's provider hands
+the other sender's to it and answers them `notfinal`, so the contract routes them with
+no route of the host's. MSG-SMS-003 is retired, and what it listed as WE's answers
+becomes what any provider decides (`02` MSG-CHAN-001). The secret `smsWe`, the key
+`Hermes:Sms:We:BaseAddress` and the named client `Hermes.Sms` go; the plain-HTTP case
+moves to the report group (`05` MSG-API-006). Plan phase 7 is retired, and phase 8 makes
+the removal before the release.
+
+`Hermes` is the final name (the owner, 2026-10-29): no rename comes before 1.0.0, and
+the names `08` section 8 lists keep it.
+
+*Rejected:* a WE adapter in a package of its own within this library (the library would
+still ship and release one provider's API, and change when that provider does); a
+generic HTTP provider configured by request and report templates (each gateway's
+credential, answer classes and report form differ, so the configuration would be a
+second language with no tests of its own).
+
+**Propagated to:** `00` (the name, status, stack and package tables); `02` MSG-CHAN-001,
+MSG-SMS-003 (retired), MSG-SMS-004; `04` MSG-LIB-003, MSG-LIB-005, MSG-LIB-008
+(`FixedSecretSource`); `05` MSG-API-006; `06` MSG-OPS-004, MSG-OPS-007, MSG-OPS-008;
+`07` MSG-ENG-008, MSG-ENG-011; `08` sections 4, 7 and 8; `10` MSG-THR-001;
+`implementation-plan.md` (phases 7 and 8, and the inputs waited on).
+
+---
+
+## M-023 — The release step: the release commit, its checks, and the release job
+
+**Date:** 2026-10-29 · **Status:** accepted · **Follows from:** M-015, M-020
+
+M-015 made `PublicAPI.Shipped.txt` and the release baseline change only in a release
+commit and left that commit's exemption to the release step, and M-020 put the packages
+on the tag's release; neither said how the gate knows a release commit or what makes the
+release. Phase 8 needs both, so they are fixed here rather than asked.
+
+- **The release commit** is named by its message, `chore: release X.Y.Z`, and the gate
+  checks what it may do rather than trusting the name: it changes only the surface
+  files, the baseline, the changelog and the release notes, and each only as a release
+  does (the unshipped entries moved, `*REMOVED*` entries taken out, the changelog's
+  `Unreleased` entries under the version's heading). A commit of that message doing
+  anything else fails, so the name exempts nothing a release would not do.
+- **The release commit is the last that builds anything in its pull request;** only
+  `docs:` commits on `docs/` may follow it, so the tag on it carries all the pull
+  request built. The release commit therefore comes after the review has passed, and a
+  fix found in review comes before it.
+- **The baseline is checked where it is written:** a pull request that changes it must
+  leave it equal to the set the release gate reads at its head, so the next release
+  compares against what was released.
+- **The tag goes on the release commit,** after the merge, so MinVer gives the packages
+  the tag's version and the report commit after it changes no package.
+- **The release job** runs only for a release tag and after the gates pass on it, and is
+  the one job with write access to the repository's contents, since creating a release
+  needs it and nothing else does; it uses the runner's GitHub CLI, so no action is
+  added.
+
+*Rejected:* an exemption by a list of release commits kept in the repository (a list the
+gate trusts, which the commit could edit itself); a tag on the merge commit (not the
+commit the review and the pull request's gates passed); a release action from the
+marketplace (a third party with write access to the repository, for what the runner's
+CLI does).
+
+**Propagated to:** `04` MSG-LIB-006; `07` MSG-ENG-011 (the release commit and releases
+values, criteria 2 to 4); `implementation-plan.md` (phase 8, and the inputs waited on).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1171,3 +1262,5 @@ keep for a one-off).
 | Phase 5's report: the endpoint contract placed, the sample host first, the gates paragraph brought to M-018 | M-019 |
 | A standalone library: the Janus bridges come out, and the release does not wait for WE | M-020 |
 | Phase 6's question: an empty `PublicAPI.Shipped.txt` leaves with its project | M-021 |
+| The library ships no SMS gateway, and `Hermes` is the final name | M-022 |
+| The release step: the release commit, its checks, and the release job | M-023 |

@@ -109,6 +109,8 @@ internal static class TestHost
             collection.AddSingleton<ITemplateSource>(TemplateSourceFake.Every(declare));
         }
 
+        // The library ships no SMS provider, so a host using SMS registers its own; a test's own replaces this one.
+        collection.AddSingleton<ISmsProvider>(new RecordingSmsProvider());
         services?.Invoke(collection);
         collection.AddHermes(configurationManager, declare ?? (_ => { }));
         after?.Invoke(collection);

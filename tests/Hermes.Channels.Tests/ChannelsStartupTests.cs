@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Hermes.Core;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
@@ -462,6 +463,35 @@ public sealed class ChannelsStartupTests
             Assert.Equal("messaging.startup.configurationinvalid", failure.Code);
             Assert.Equal("Email:TrustedAuthority", failure.Details["key"]);
         }
+    }
+
+    [Fact]
+    public async Task MSG_LIB_005_AC3_TheProvidersAloneWithTheSmsSectionPresentAndNoSmsProviderDoNotStartNamingIt()
+    {
+        Dictionary<string, string?> configuration = new(StringComparer.Ordinal)
+        {
+            ["Hermes:Sms:Sender"] = ChannelsHost.Sender,
+            ["Hermes:Sms:AllowedPrefixes:0"] = "+20",
+        };
+        using IHost host = ChannelsHost.Build(configuration, services => services.AddSingleton<ISecretSource>(new SecretSourceFake()), services => services.RemoveAll<ISmsProvider>());
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("messaging.startup.declarationmissing", failure.Code);
+        Assert.Equal("smsProvider", failure.Details["key"]);
+    }
+
+    [Fact]
+    public async Task MSG_LIB_005_AC3_TheProvidersAloneWithNoSmsSectionStartWithNoSmsProvider()
+    {
+        Dictionary<string, string?> configuration = new(StringComparer.Ordinal)
+        {
+            ["Hermes:Push:Subject"] = ChannelsHost.Subject,
+        };
+        using IHost host = ChannelsHost.Build(configuration, after: services => services.RemoveAll<ISmsProvider>());
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        await host.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]

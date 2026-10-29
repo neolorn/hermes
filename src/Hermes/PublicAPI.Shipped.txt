@@ -1,1 +1,27 @@
 #nullable enable
+Hermes.CategoryBuilder
+Hermes.CategoryBuilder.DeploymentLimit(Hermes.Core.Channel channel, int count, System.TimeSpan window) -> Hermes.CategoryBuilder!
+Hermes.CategoryBuilder.Essential() -> Hermes.CategoryBuilder!
+Hermes.CategoryBuilder.Label(string! language, string! text) -> Hermes.CategoryBuilder!
+Hermes.CategoryBuilder.Limit(Hermes.Core.Channel channel, int count, System.TimeSpan window) -> Hermes.CategoryBuilder!
+Hermes.CategoryBuilder.QuietHours(bool apply) -> Hermes.CategoryBuilder!
+Hermes.CategoryBuilder.RequiresConsent(string! purpose) -> Hermes.CategoryBuilder!
+Hermes.DeclarationBuilder
+Hermes.DeclarationBuilder.Category(string! name) -> Hermes.CategoryBuilder!
+Hermes.DeclarationBuilder.Kind(string! name, string! category) -> Hermes.KindBuilder!
+Hermes.DeclarationBuilder.Retire(string! name) -> Hermes.DeclarationBuilder!
+Hermes.DeclarationBuilder.Templates(System.Reflection.Assembly! assembly) -> Hermes.DeclarationBuilder!
+Hermes.IDispatcher
+Hermes.IDispatcher.RunPassAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<int>
+Hermes.KindBuilder
+Hermes.KindBuilder.Email(Hermes.Core.EmailAddress? from = null, Hermes.Core.EmailAddress? replyTo = null) -> Hermes.KindBuilder!
+Hermes.KindBuilder.ExpiresAfter(System.TimeSpan duration) -> Hermes.KindBuilder!
+Hermes.KindBuilder.Push(System.TimeSpan? ttl = null, Hermes.Core.PushUrgency urgency = Hermes.Core.PushUrgency.Normal) -> Hermes.KindBuilder!
+Hermes.KindBuilder.Sms(int maxSegments = 1, string? sender = null) -> Hermes.KindBuilder!
+Hermes.MessagingEndpointRouteBuilderExtensions
+Hermes.MessagingServiceCollectionExtensions
+static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesPreferences(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
+static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesPushSubscriptions(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
+static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesSmsReports(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
+static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesUnsubscribe(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
+static Hermes.MessagingServiceCollectionExtensions.AddHermes(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration! configuration, System.Action<Hermes.DeclarationBuilder!>! declare) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

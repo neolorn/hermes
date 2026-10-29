@@ -6,6 +6,7 @@ using Hermes.Core;
 using Hermes.Operations;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -43,6 +44,41 @@ public sealed class SeamTests
 
         Assert.Equal("messaging.startup.declarationmissing", failure.Code);
         Assert.Equal("consentSource", failure.Details["key"]);
+    }
+
+    [Fact]
+    public async Task MSG_LIB_005_AC3_SmsUsedWithNoSmsProviderStopsTheStartNamingIt()
+    {
+        using IHost host = TestHost.Build(TestHost.Languages(), Essential, services => services.AddSingleton<ISecretSource>(new SecretSourceFake()), after: services => services.RemoveAll<ISmsProvider>());
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("messaging.startup.declarationmissing", failure.Code);
+        Assert.Equal("smsProvider", failure.Details["key"]);
+    }
+
+    [Fact]
+    public async Task MSG_LIB_005_AC3_TheReportGroupMappedWithNoSmsProviderStopsTheStartNamingIt()
+    {
+        using IHost host = TestHost.Build(
+            Addressed(),
+            Newsletter,
+            services => services.AddSingleton<ISecretSource>(new SecretSourceFake()),
+            after: services => services.RemoveAll<ISmsProvider>(),
+            map: application => application.MapHermesSmsReports(Endpoints.Prefix));
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("messaging.startup.declarationmissing", failure.Code);
+        Assert.Equal("smsProvider", failure.Details["key"]);
+    }
+
+    [Fact]
+    public async Task MSG_LIB_005_AC3_AnEmailOnlyApplicationThatMapsNoReportGroupStartsWithNoSmsProvider()
+    {
+        using IHost host = TestHost.Build(Addressed(), Newsletter, services => services.AddSingleton<ISecretSource>(new SecretSourceFake()), after: services => services.RemoveAll<ISmsProvider>());
+
+        await StartStage.AssertPastTheSeams(host);
     }
 
     [Fact]
@@ -248,5 +284,18 @@ public sealed class SeamTests
     {
         declare.Category("security").Essential();
         declare.Kind("sign.in", "security").Sms();
+    }
+
+    private static Dictionary<string, string?> Addressed()
+    {
+        Dictionary<string, string?> configuration = TestHost.Languages();
+        configuration["Hermes:PublicBaseAddress"] = "https://example.test/";
+        return configuration;
+    }
+
+    private static void Newsletter(DeclarationBuilder declare)
+    {
+        declare.Category("news").Label("en", "News");
+        declare.Kind("news.issued", "news").Email();
     }
 }

@@ -12,6 +12,11 @@ public sealed class ReleaseGateTests
 {
     private const string Gate = "gate-release-compatibility.ps1";
 
+    private const string Baseline = "build/gates/release-baseline.json";
+
+    /// <summary>A set the release gate reads, as the baseline file holds it.</summary>
+    private const string Read = "{\n  \"codes\": [\n    \"messaging.send.unknown\"\n  ]\n}\n";
+
     [Fact]
     public async Task MSG_LIB_006_AC1_BeforeTheFirstReleaseTheBaselineIsEmptySoTheGatePassesWithoutComparing()
     {
@@ -46,6 +51,45 @@ public sealed class ReleaseGateTests
 
         Assert.True((gate.ExitCode == 0) == passes, gate.Output);
         Assert.Contains("codes: removed or changed: messaging.send.unknown", gate.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(Read, true)]
+    [InlineData("""{"codes":["messaging.send.unknown"],"keys":[]}""", true)]
+    [InlineData("""{"codes":["messaging.send.unknown","messaging.send.retired"]}""", false)]
+    [InlineData("""{"codes":[]}""", false)]
+    public async Task MSG_ENG_011_AC3_APullRequestChangingTheBaselinePassesOnlyWhereTheBaselineAtItsHeadIsTheSetReadThere(string current, bool passes)
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        GitRepository repository = await GitRepository.CreateAsync(folder, cancellationToken);
+        repository.Write(Baseline, "{}\n");
+        string start = await repository.CommitAsync("docs: add the baseline", cancellationToken);
+        repository.Write(Baseline, Read);
+        string head = await repository.CommitAsync("chore: release 1.0.0", cancellationToken);
+        string read = folder.Write("current.json", current);
+
+        ProcessResult gate = await Processes.GateAsync(Gate, repository.Root, cancellationToken, "-Repository", repository.Root, "-Base", start, "-Head", head, "-Current", read);
+
+        Assert.True((gate.ExitCode == 0) == passes, gate.Output);
+        Assert.Contains(passes ? "The baseline at Head is the set the release gate reads there." : "The baseline at Head is not the set the release gate reads there", gate.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MSG_ENG_011_AC3_APullRequestThatLeavesTheBaselineDoesNotCompareItWithTheSetReadThere()
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        GitRepository repository = await GitRepository.CreateAsync(folder, cancellationToken);
+        repository.Write(Baseline, "{}\n");
+        string start = await repository.CommitAsync("docs: add the baseline", cancellationToken);
+        string head = await repository.CommitAsync("feat(engine): add a code", cancellationToken);
+        string read = folder.Write("current.json", Read);
+
+        ProcessResult gate = await Processes.GateAsync(Gate, repository.Root, cancellationToken, "-Repository", repository.Root, "-Base", start, "-Head", head, "-Current", read);
+
+        Assert.True(gate.ExitCode == 0, gate.Output);
+        Assert.DoesNotContain("The baseline at Head", gate.Output, StringComparison.Ordinal);
     }
 
     [Theory]

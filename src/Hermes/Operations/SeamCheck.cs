@@ -30,6 +30,12 @@ internal static class SeamCheck
             return "secretSource";
         }
 
+        // The library ships no SMS provider (02 MSG-CHAN-001), so SMS used or the report group mapped needs the host's.
+        if ((declarations.Kinds.Any(kind => kind.Sms is not null) || groups.SmsReports) && !services.IsService(typeof(ISmsProvider)))
+        {
+            return "smsProvider";
+        }
+
         if (groups.NeedIdentity && !services.IsService(typeof(IRecipientIdentity)))
         {
             return "recipientIdentity";

@@ -28,13 +28,13 @@ internal sealed class GitRepository(ScratchFolder folder)
         File.WriteAllText(file, content.ReplaceLineEndings("\n"));
     }
 
-    /// <summary>Commits every change of the working tree, or none, under the given message, and answers the commit.</summary>
-    internal async Task<string> CommitAsync(string message, CancellationToken cancellationToken)
+    /// <summary>Commits every change of the working tree, or none, under the given message and <paramref name="options"/>, and answers the commit.</summary>
+    internal async Task<string> CommitAsync(string message, CancellationToken cancellationToken, params string[] options)
     {
         string messageFile = Path.Combine(folder.Path, "message.txt");
         await File.WriteAllTextAsync(messageFile, message.ReplaceLineEndings("\n"), cancellationToken);
         await GitAsync(cancellationToken, "add", "--all");
-        await GitAsync(cancellationToken, "commit", "--quiet", "--allow-empty", "--cleanup=verbatim", "--file", messageFile);
+        await GitAsync(cancellationToken, ["commit", "--quiet", "--allow-empty", "--cleanup=verbatim", "--file", messageFile, .. options]);
         ProcessResult head = await GitAsync(cancellationToken, "rev-parse", "HEAD");
         return head.Output.Trim();
     }

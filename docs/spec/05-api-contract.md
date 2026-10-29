@@ -182,15 +182,18 @@ answer each as the provider expects, whatever its effect.
 | `GET /sms/report/{key}` and `POST /sms/report/{key}` | **404**, empty, where `key` does not match (`02` MSG-SMS-004); **429** `messaging.request.ratelimited` with `Retry-After` where the source has sent more than `Hermes:Sms:WrongKeyRate` requests with a wrong key in the last minute; otherwise the response the provider's `ReadReportAsync` gives, **200** with an empty body unless the provider says otherwise; **413** `messaging.request.toolarge` for a body over 16 KiB |
 
 The routes need no signed-in person. The report's effect is `02` MSG-SMS-004's; its
-shape is the provider's own (`02` MSG-SMS-003). The mapped group's absolute address,
-with the key, is what the deployment gives the provider, or the provider passes with
-each message (`Hermes:Sms:ReportBaseAddress`, `02` MSG-SMS-004).
+shape is the gateway's own, which the host's provider reads (`02` MSG-CHAN-001). The
+mapped group's absolute address, with the key, is what the deployment gives the gateway,
+or the provider passes with each message (`Hermes:Sms:ReportBaseAddress`, `02`
+MSG-SMS-004). Where the gateway calls only plain `http`, the deployment serves the group
+on a listener of its own exempt from HTTPS redirection, and the key then travels in
+clear (`10` MSG-THR-001).
 
 The key is in the request's path, which the host's request logging, its tracing and its
 reverse proxy record unless told not to, beyond the library's reach; the deployment
 redacts the report route's path in each of them (`06` MSG-OPS-007).
 
-*Source: M-008*
+*Source: M-008, M-022*
 
 **Acceptance criteria**
 1. A report of delivery for a sent SMS moves it to `delivered` and is answered as the

@@ -25,7 +25,7 @@ public sealed class TestingDoublesTests
         FixedSecretSource source = new();
 
         Dictionary<string, byte[]> held = [];
-        foreach (string name in (string[])["contentKeys", "hashKeys", "tokenKeys", "smsReportKey", "pushVapidKeys", "emailSubmission", "smsWe"])
+        foreach (string name in (string[])["contentKeys", "hashKeys", "tokenKeys", "smsReportKey", "pushVapidKeys", "emailSubmission"])
         {
             SecretVersion version = Assert.Single((await source.ReadAsync(name, TestContext.Current.CancellationToken))!.Versions);
             Assert.Equal(1, version.Version);
@@ -38,7 +38,6 @@ public sealed class TestingDoublesTests
         using JsonDocument account = JsonDocument.Parse(held["emailSubmission"]);
         Assert.False(string.IsNullOrEmpty(account.RootElement.GetProperty("userName").GetString()));
         Assert.False(string.IsNullOrEmpty(account.RootElement.GetProperty("password").GetString()));
-        Assert.NotEmpty(held["smsWe"]);
         Assert.Equal(5, held.Where(entry => entry.Key.EndsWith("Keys", StringComparison.Ordinal) || entry.Key == "smsReportKey").Select(entry => Convert.ToHexString(entry.Value)).Distinct().Count());
         Assert.Null(await source.ReadAsync("connection", TestContext.Current.CancellationToken));
         Assert.Null(await source.ReadAsync("listenConnection", TestContext.Current.CancellationToken));

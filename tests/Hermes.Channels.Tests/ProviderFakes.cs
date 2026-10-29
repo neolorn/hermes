@@ -18,6 +18,30 @@ internal sealed class PushProviderFake : IPushProvider
     }
 }
 
+/// <summary>A host's own SMS provider, which narrows the sender rule no further and accepts every message.</summary>
+internal sealed class AnySenderSmsProvider : ISmsProvider
+{
+    public bool IsValidSender(string sender)
+    {
+        return true;
+    }
+
+    public ValueTask<Attempt> SendAsync(SmsMessage message, CancellationToken cancellationToken)
+    {
+        return ValueTask.FromResult<Attempt>(new Attempt.Accepted(null));
+    }
+
+    public ValueTask<BalanceReading> BalanceAsync(CancellationToken cancellationToken)
+    {
+        return ValueTask.FromResult<BalanceReading>(new BalanceReading.NotSupported());
+    }
+
+    public ValueTask<SmsReportReading> ReadReportAsync(SmsReportRequest request, CancellationToken cancellationToken)
+    {
+        throw new NotSupportedException("The fake reads no report.");
+    }
+}
+
 /// <summary>A host's own SMS provider, which narrows the sender rule to numbers.</summary>
 internal sealed class SmsProviderFake : ISmsProvider
 {
