@@ -77,6 +77,20 @@ jobs:
         with:
           global-json-file: global.json
 
+      # A release tag is on its release commit; a tag on any other commit, a merge commit or a
+      # report's among them, releases nothing (07 MSG-ENG-011).
+      - name: Refuse a tag that is not on its release commit
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          $subject = [string](git log -1 --format=%s HEAD)
+          if ($LASTEXITCODE -ne 0) { throw "git log failed with exit code $LASTEXITCODE." }
+          $expected = "chore: release $($env:TAG.Substring(1))"
+          if ($subject -cne $expected) {
+            throw "The tag $($env:TAG) is on a commit whose subject is ""$subject"", not ""$expected"", so it releases nothing."
+          }
+
       # MinVer takes the version from the tag, so each package is packed at the tag's version.
       - name: Pack every package at the tag's version
         shell: pwsh

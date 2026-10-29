@@ -70,9 +70,18 @@ internal static class WorkflowRules
             yield return "the release job's checkout leaves its token in the repository's configuration";
         }
 
-        if (!release.Any(line => line.TrimStart().StartsWith("dotnet pack Hermes.sln ", StringComparison.Ordinal)))
+        int pack = Array.FindIndex(release, line => line.TrimStart().StartsWith("dotnet pack Hermes.sln ", StringComparison.Ordinal));
+        if (pack < 0)
         {
             yield return "the release job does not pack every package";
+        }
+
+        // A tag on any other commit than its release commit, a merge or a report among them, releases nothing.
+        int subject = Array.FindIndex(release, line => line.Contains("git log -1 --format=%s HEAD", StringComparison.Ordinal));
+        int expected = Array.FindIndex(release, line => line.Contains("\"chore: release $($env:TAG.Substring(1))\"", StringComparison.Ordinal));
+        if (subject < 0 || expected < 0 || (pack >= 0 && Math.Max(subject, expected) > pack))
+        {
+            yield return "the release job does not refuse, before it packs, a tag whose commit is not its release commit";
         }
 
         if (!release.Any(line => line.TrimStart().StartsWith("gh release create ", StringComparison.Ordinal) && line.Contains(" --notes-file RELEASE-NOTES.md ", StringComparison.Ordinal)))
