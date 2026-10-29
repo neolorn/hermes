@@ -14,10 +14,9 @@ internal static partial class ThreatModelRules
 {
     /// <summary>
     /// Requirements the control column names that the library does not carry: the
-    /// deployment's (<c>06</c> MSG-OPS-007), the host's own controls (MSG-THR-002), and the
-    /// WE adapter, named only as the plain HTTP a report key can leak over (<c>02</c> MSG-SMS-003).
+    /// deployment's (<c>06</c> MSG-OPS-007) and the host's own controls (MSG-THR-002).
     /// </summary>
-    internal static IReadOnlySet<string> NotTheLibrarys { get; } = new HashSet<string>(StringComparer.Ordinal) { "MSG-OPS-007", "MSG-THR-002", "MSG-SMS-003" };
+    internal static IReadOnlySet<string> NotTheLibrarys { get; } = new HashSet<string>(StringComparer.Ordinal) { "MSG-OPS-007", "MSG-THR-002" };
 
     /// <summary>The requirements named in the control column of MSG-THR-001's table, in order.</summary>
     internal static IReadOnlyList<string> Controls(string threatModel)
