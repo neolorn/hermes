@@ -2,38 +2,54 @@
 
 ## 1.0.0-rc.2
 
-The second release candidate of 1.0.0. A delivery notice now carries the idempotency key
-its send was recorded with. It ships the six packages of 1.0.0-rc.1, each at this version
-and each depending on the others it uses at exactly this version. Until a final release, a
-release candidate may change or remove anything; this one removes nothing, and names each
-change since 1.0.0-rc.1 below.
+The second release candidate of 1.0.0. A delivery notice, and a delivery's export, now
+carry the idempotency key its send was recorded with. It ships the six packages of
+1.0.0-rc.1, each at this version and each depending on the others it uses at exactly this
+version. Until a final release, a release candidate may change or remove anything; this
+one removes nothing, and names each change since 1.0.0-rc.1 below.
 
 ### Changes since 1.0.0-rc.1
 
 - **`DeliveryNotice`.** It gains `string? IdempotencyKey`, its last member: the key the
-  notice's send was recorded with, as the host gave it, or none where the send had none or
-  its person was erased. The notice's `ToString` prints it no more than it prints the
-  person. The member is an optional `init` property, as `Person` and `Reason` are: the
-  type's constructor is unchanged, takes no argument, and a host that creates a notice
-  with an object initializer, in a test of its observer for instance, compiles as before
-  and creates one without a key.
-- **The key is kept with the send.** It is recorded with the send and kept for as long as
-  the send's record, `Hermes:Retention:Record`, not read from the send's idempotency row,
-  which lapses after `Hermes:Idempotency:Window`. A notice told after that row has lapsed,
-  the notice of a provider's report moving `sent` to `delivered` or `failed` among them,
-  still carries the key.
-- **Erasure.** `ISubjects.EraseAsync` also deletes the key kept with the person's sends, and
+  notice's send was recorded with, as the host gave it, or none where the send had none,
+  the delivery's content has gone or its person was erased. The notice's `ToString` prints
+  it no more than it prints the person. The member is an optional `init` property, as
+  `Person` and `Reason` are: the type's constructor is unchanged, takes no argument, and a
+  host that creates a notice with an object initializer, in a test of its observer for
+  instance, compiles as before and creates one without a key.
+- **`DeliveryExport`.** It gains `string? IdempotencyKey`, its last member: the key the
+  delivery keeps of its send while it keeps it, none where the delivery is marked past
+  content retention, erased or rejected. Its `ToString` prints it no more than it prints
+  the destination. It is an optional `init` property, so a host's code that creates an
+  export compiles as before.
+- **Each delivery keeps the key.** Every delivery of a send keeps its idempotency key,
+  protected as its destination is: by the protector that protects the person's values,
+  bound to its row and its person, and protected again with the delivery's other values
+  when the content keys turn. A notice reads it from its delivery, not from the send's
+  idempotency row, which lapses after `Hermes:Idempotency:Window`, so a notice told after
+  that row has lapsed, the notice of a provider's report moving `sent` to `delivered` or
+  `failed` among them, still carries the key.
+- **The key goes with the content.** The retention job deletes it with the delivery's
+  content, `Hermes:Retention:Content` after its final status, and a notice told after
+  that carries none. `ISubjects.EraseAsync` deletes it with the person's other values, and
   the notices it keeps for the observer carry none, as they carry no person.
+- **A key that does not open.** A notice whose key answers that the person's key was
+  erased is told without it; one whose key does not open under its binding is told
+  without it and raises `content-rejected`; one whose key cannot open yet, its protector's
+  key unavailable or its protector not registered, is not told, and is told at a later run
+  as a notice the observer did not take, so `observer-failing` covers a lasting hold.
+- **No backfill.** A delivery recorded before the migration keeps no key, so its notices
+  and its export carry none, even where its send's idempotency row is still live.
 - **Migrations added.** `SendIdempotencyKey`, which this release's `hermes migrate` applies
   before the release starts; it is described below.
 
 ### Migrations that drop or rewrite data
 
 None. `SendIdempotencyKey`, the one added since 1.0.0-rc.1, adds a nullable column to the
-sends' table that holds each send's idempotency key; it drops and rewrites no data, so the
-notices of a send recorded before it carry no key. A process of 1.0.0-rc.1 beside it
-records and dispatches as before, the sends it records carrying no key, and answers
-erasure and export `messaging.release.newer`.
+deliveries' table that holds the protected idempotency key each delivery keeps of its
+send; it drops and rewrites no data. A process of 1.0.0-rc.1 beside it records and
+dispatches as before, the deliveries it records keeping no key, and answers erasure and
+export `messaging.release.newer`.
 
 ### What the deployment does
 
