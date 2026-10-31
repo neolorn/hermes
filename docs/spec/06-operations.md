@@ -85,12 +85,13 @@ two releases. At startup the library checks that the database holds every migrat
 its release and stops the start with `messaging.startup.schemamismatch`,
 `details.migration` the first missing, where it does not; later migrations, of a newer
 release, are accepted. A migration that drops or rewrites data is named in the release
-notes. Release 1.2.0's migration adds the in-app list's table (`02` MSG-INAPP-001) and
-drops or rewrites nothing; a process of release 1.1.0 beside it leaves in-app deliveries
-and the `read` status as it leaves any row it does not know (`01` MSG-SEND-007), and its
-erasure and export answer `messaging.release.newer` (`01` MSG-SEND-020).
+notes. The migration `InAppList` adds the in-app list's table (`02` MSG-INAPP-001) and
+drops or rewrites nothing; a process of a release without it, beside it, leaves in-app
+deliveries and the `read` status as it leaves any row it does not know (`01`
+MSG-SEND-007), and its erasure and export answer `messaging.release.newer` (`01`
+MSG-SEND-020).
 
-*Source: M-012, M-013, M-016, M-026*
+*Source: M-012, M-013, M-016, M-026, M-027*
 
 **Acceptance criteria**
 1. Starting against a database missing the release's last migration stops the start.

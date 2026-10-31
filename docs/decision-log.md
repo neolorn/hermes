@@ -638,6 +638,9 @@ the model for the support desk. `09` fixes the model.
 
 ## M-012 — How the library is built
 
+> **Amended.** M-027: release candidates of 1.0.0 until the owner calls a release final;
+> the compatibility rule binds from the first final release.
+>
 > **Amended.** M-014: the implementer pushes its own work, after the secret scan, and a
 > phase reaches `main` by its reviewed pull request.
 >
@@ -1199,6 +1202,9 @@ MSG-SMS-003 (retired), MSG-SMS-004; `04` MSG-LIB-003, MSG-LIB-005, MSG-LIB-008
 
 ## M-023 — The release step: the release commit, its checks, and the release job
 
+> **Amended.** M-027: a release commit and a tag may name a release candidate,
+> `X.Y.Z-rc.N`, whose release is marked as a pre-release.
+
 **Date:** 2026-10-29 · **Status:** accepted · **Follows from:** M-015, M-020
 
 M-015 made `PublicAPI.Shipped.txt` and the release baseline change only in a release
@@ -1317,6 +1323,9 @@ guarded by no release).
 
 ## M-026 — The in-application list
 
+> **Amended.** M-027: release 1.2.0 was never tagged; the in-application list ships in
+> the first release candidate, `1.0.0-rc.1`.
+
 **Date:** 2026-10-31 · **Status:** accepted · **Follows from:** M-004, M-005, M-006,
 M-007
 
@@ -1385,6 +1394,50 @@ MSG-THR-001; `implementation-plan.md` (phase 10).
 
 ---
 
+## M-027 — Release candidates until the final 1.0.0
+
+**Date:** 2026-10-31 · **Status:** accepted · **Amends:** M-012, M-023, M-026
+
+The owner, 2026-10-31: none of his libraries is final or stable enough yet for the
+compatibility rule to bind, so each ships release candidates until he calls a release
+final, and Hermes starts again at 1.0.0.
+
+- **Releases 1.0.0 and 1.1.0 are withdrawn.** The owner deletes their releases and tags
+  on the remote; 1.2.0 was never tagged. No feed ever held them (M-020), and the one
+  host that uses the library keeps a copy of its own, so nothing outside the repository
+  points at them. History keeps their release commits; only the tags and the releases
+  go.
+- **What they released is the first release candidate, `1.0.0-rc.1`.** Phase 11 gathers
+  the changelog's three released sections back under `Unreleased`, writes the release
+  notes as one section, and makes the release commit `chore: release 1.0.0-rc.1`.
+- **A release candidate is `X.Y.Z-rc.N`,** a SemVer 2.0.0 pre-release numbered from 1
+  for each version, tagged `vX.Y.Z-rc.N`, its release marked as a pre-release. MinVer
+  reads such a tag as it is. A release candidate is made on the lead's message; a final
+  release on the owner's.
+- **Before the first final release, nothing binds.** A release candidate of 1.0.0 may
+  change or remove anything: SemVer says a pre-release may not meet what its version
+  will promise. Each release candidate's release notes name every change and removal
+  since the release before it, so a host knows what to adapt. From the first final
+  release on, `04` MSG-LIB-006 binds against the newest final release; a release
+  candidate is never that baseline, and a release candidate `X.Y.Z-rc.N` is held to what
+  `X.Y.Z` needs.
+- **Why the rule itself stays.** A host takes a final release's minor and patch versions
+  without reading the library's code, and the rule, enforced by the gate, is what makes
+  that safe; a break is not forbidden, it is a new major version that tells the host to
+  look. It was turned on too early here, at a 1.0.0 the design had not yet earned, not
+  wrongly.
+
+*Rejected:* versions `0.y.z` (SemVer's other way of saying "not yet stable", but the
+owner asked for release candidates of 1.0.0, which carry the version the first final
+release will have); keeping 1.0.0 and 1.1.0 and spending a major version on every break
+(versions that claim a stability the design does not have, and majors used up while it
+settles).
+
+**Propagated to:** `00` section 3; `04` MSG-LIB-006; `06` MSG-OPS-002; `07`
+MSG-ENG-011; `implementation-plan.md` (phase 11, and the inputs waited on).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1415,3 +1468,4 @@ MSG-THR-001; `implementation-plan.md` (phase 10).
 | The development inbox | M-024 |
 | Phase 9's question: the release set reads the development inbox too | M-025 |
 | The in-application list | M-026 |
+| Release candidates until the final 1.0.0 | M-027 |
