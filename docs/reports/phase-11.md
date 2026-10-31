@@ -10,6 +10,7 @@
 | `04` MSG-LIB-006 in the release gate (`c9d12a2`): the baseline is what the tag of the newest final release before Head holds, on a pull request as on a release tag, a release candidate's tag never being it, so before the first final release nothing binds; a release tag's version, a release candidate's included, is held to what its `X.Y.Z` needs against that release; the `!` or `BREAKING CHANGE:` a pull request's break needs is looked for since that release; `previous-release-tag.ps1 -Final` gives that release | `MSG_LIB_006_AC2_WithNoFinalReleaseTaggedAPullRequestAndAReleaseTagThatRemoveAPublicMemberPass` (a pull request, `v1.0.0-rc.2` and `v1.0.0`), `MSG_LIB_006_AC2_WithAFinalReleaseTaggedTheSameRemovalFailsInAPullRequestAndInAReleaseCandidatesTag` (a pull request and `v1.1.0-rc.1`), `MSG_LIB_006_AC1_APullRequestIsComparedWithTheNewestFinalReleaseAndNeverWithANewerReleaseCandidate`, `MSG_LIB_006_AC1_TheBaselineComparedWithIsWhatTheNewestFinalReleasesTagHoldsNotTheBaseOrAReleaseCandidate`, `MSG_LIB_006_AC1_AReleaseTagBelowWhatTheChangeNeedsFails` (six release candidates' tags added), `MSG_LIB_006_AC1_BeforeTheFirstReleaseTheBaselineIsEmptySoTheGatePassesWithoutComparing`, `PreviousReleaseTag_Final_LeavesOutEveryReleaseCandidate`, and the gate's other tests, unchanged |
 | `07` MSG-ENG-011's release job (`0805537`): the pipeline runs for a release candidate's tag, `v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+`, beside a final release's, and the release job passes `--prerelease` to `gh release create` for a tag `vX.Y.Z-rc.N`, `N` from 1, and for no other | `MSG_ENG_011_AC4_TheReleaseJobAloneCanWriteToTheContentsAndRunsOnlyForAReleaseTagAfterTheGates`, `MSG_ENG_011_AC4_AWorkflowOutsideTheReleaseRuleFails` (the release candidates' tags missing or widened; the pre-release flag missing, always passed, or read from another tag form) |
 | The test-name gate's list: MSG-LIB-006 AC2 (`ed9b268`) | `gate-test-names`: 286 criteria |
+| The pipeline's first run's fix (`ac2f5a3`): `MSG_LIB_006_AC2_WithAFinalReleaseTaggedTheSameRemovalFailsInAPullRequestAndInAReleaseCandidatesTag` looked for the gate's thrown refusal, which PowerShell wraps at the console's width, so on the pipeline's runner the text was split; the test now reads the lines the gate writes (the comparison with `v1.0.0`) and that the passing line is absent, beside the gate's failure | The test itself, run here; the gate is unchanged |
 | `CHANGELOG.md`'s sections `1.2.0`, `1.1.0` and `1.0.0` gathered under `## [Unreleased]`, one `### Added` holding their 75 entries (`fa279fb`) | `gate-commit-messages`; see below |
 
 ## Items not built, and criteria proven in a later phase
@@ -58,7 +59,7 @@ None. The commit gate's changelog rules and the gathering do not conflict: every
 
 ## Commit and checks
 
-The report names `fa279fb84a1d5b2ff98e3071de67da23302d7667`. On its tree, clean:
+The report names `ac2f5a36f9edc1bff44dbf56e139949a8295fa07`. The full checks below ran on `fa279fb84a1d5b2ff98e3071de67da23302d7667`, clean; `ac2f5a3` changes one test alone, and on it the fast checks, `ReleaseGateTests` (31 passed), the commit-message gate and the secret scan were run again here:
 
 | Check | Result |
 |---|---|
@@ -66,6 +67,7 @@ The report names `fa279fb84a1d5b2ff98e3071de67da23302d7667`. On its tree, clean:
 | Every test of every project, run here | Passed: 2,023 (`Hermes.Tests` 1,003, `Hermes.Repository.Tests` 455, `Hermes.Channels.Tests` 362, `Hermes.Development.Tests` 113, `Hermes.Core.Tests` 43, `Hermes.Cli.Tests` 28, `Hermes.Testing.Tests` 19), in `gate-tests` |
 | Every gate (`run-gates.ps1 -Base origin/main`) | Passed: all 13, among them `gate-commit-messages` (6 commits after `main`), `gate-release-compatibility` (no final release precedes Head, so the baseline is empty and nothing is a break), `gate-sample-host` and `gate-test-names` (286 criteria) |
 | Secret scanning of the whole history (`gate-secret-scan`) | Passed: 192 commits, no leaks |
+| The pipeline's `gates` run on the first report commit, `5839c75` | Failed: run 41170680354, `gate-tests`, the one test above; every other gate passed |
 
 The gate of record is the pipeline's `gates` run on the report's own commit, whose identifier and result the message naming the pull request gives. The commit-message gate and the secret scan are run again on the report's commit before the push. The secret scanner was fetched again before the scan.
 
