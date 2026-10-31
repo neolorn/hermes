@@ -12,15 +12,16 @@
 | The test-name gate's list: MSG-LIB-006 AC2 (`ed9b268`) | `gate-test-names`: 286 criteria |
 | The pipeline's first run's fix (`ac2f5a3`): `MSG_LIB_006_AC2_WithAFinalReleaseTaggedTheSameRemovalFailsInAPullRequestAndInAReleaseCandidatesTag` looked for the gate's thrown refusal, which PowerShell wraps at the console's width, so on the pipeline's runner the text was split; the test now reads the lines the gate writes (the comparison with `v1.0.0`) and that the passing line is absent, beside the gate's failure | The test itself, run here; the gate is unchanged |
 | `CHANGELOG.md`'s sections `1.2.0`, `1.1.0` and `1.0.0` gathered under `## [Unreleased]`, one `### Added` holding their 75 entries (`fa279fb`) | `gate-commit-messages`; see below |
+| The release commit `chore: release 1.0.0-rc.1` (`29e0107`), as `07` MSG-ENG-011's release commit value gives it: no `PublicAPI.Unshipped.txt` holds an entry, so each `PublicAPI.Shipped.txt` is unchanged, already its entries under `#nullable enable` in ordinal order; `build/gates/release-baseline.json` is unchanged, since the release gate's read at that commit is the set it holds, section by section; `CHANGELOG.md`'s Unreleased entries are under `## [1.0.0-rc.1] - 2026-10-31`, the commit's date in UTC, below an empty `## [Unreleased]`; `RELEASE-NOTES.md` is one section, `## 1.0.0-rc.1`, in place of the 1.2.0, 1.1.0 and 1.0.0 sections | `gate-commit-messages` and `gate-release-compatibility` on it; see below |
 
 ## Items not built, and criteria proven in a later phase
 
 | Item or criterion | Phase | Reason |
 |---|---|---|
-| The release commit `chore: release 1.0.0-rc.1`, with `RELEASE-NOTES.md` as one section for 1.0.0-rc.1 | 11, after the review | It comes in this pull request once the review has passed, on the lead's message (the plan's row 11) |
+
 | The tag `v1.0.0-rc.1` | 11, after the merge | `07` MSG-ENG-011: the tag goes on the release commit once the merge has brought it into `main`, on the lead's message |
 | `07` MSG-ENG-011 criterion 4 for 1.0.0-rc.1, its release marked a pre-release | 11, the tag's run | The release tag's run |
-| `06` MSG-OPS-007 criterion 1 for 1.0.0-rc.1 | 11, the release commit | `RELEASE-NOTES.md` is written in the release commit |
+
 | `00` MSG-OVR-001 criterion 1 | Each phase | Checked in review; see below |
 
 ## Criteria checked without a test
@@ -33,6 +34,8 @@
 | `04` MSG-LIB-006, the read of the current set against the newest final release's baseline | The read itself is the release set test of `Hermes.Tests`, unchanged; the gate's test above proves that the baseline and the shipped lists laid out for it are the final release's, not the base's or a release candidate's. With no tag in the clone, `gate-release-compatibility -Base origin/main` answers that no final release precedes Head. |
 | `07` MSG-ENG-008, a test with or before the code it proves | Each gate's tests were run red before its change: 25 of the commit gate's, 14 of the release gate's and 8 of the workflow's. |
 | `07` MSG-ENG-009, the packages added | None. |
+| `06` MSG-OPS-007 criterion 1 for 1.0.0-rc.1 | We read the section against each value of MSG-OPS-007: the six packages; the in-app list; the changes since 1.1.0's release commit, taken from the 1.2.0 section and from the differences of the release baseline and the `PublicAPI.Shipped.txt` files between `634eb0d` and this commit, which are additions alone (92 public members, four routes with their statuses, three bodies, three codes, two keys, a channel and a status); the migrations, none dropping or rewriting data; and the sixteen duties of MSG-OPS-007, each once, merged from the three sections, their "new in" sentences dropped. |
+| `07` MSG-ENG-011 criteria 2 and 3 and `04` MSG-LIB-006 on the release commit | `gate-commit-messages` passes on it, which it checks as a release candidate's release commit, after `main` (10 commits) and on the whole history (196 commits); `gate-release-compatibility -Base origin/main` finds that no final release precedes Head. The release gate's read at the release commit, written to a folder of `tmp/` with the release set test, equals the committed baseline in every section. |
 
 ## Criteria awaiting the pipeline's run
 
@@ -59,7 +62,7 @@ None. The commit gate's changelog rules and the gathering do not conflict: every
 
 ## Commit and checks
 
-The report names `ac2f5a36f9edc1bff44dbf56e139949a8295fa07`. The full checks below ran on `fa279fb84a1d5b2ff98e3071de67da23302d7667`, clean; `ac2f5a3` changes one test alone, and on it the fast checks, `ReleaseGateTests` (31 passed), the commit-message gate and the secret scan were run again here:
+The report names the release commit, `29e0107669632f34effd6d6d70338371d2cb15c3`. The full checks below ran on `fa279fb84a1d5b2ff98e3071de67da23302d7667`, clean; `ac2f5a3` changes one test alone, on which the fast checks, `ReleaseGateTests` (31 passed), the commit-message gate and the secret scan were run again, and the release commit changes `CHANGELOG.md` and `RELEASE-NOTES.md` alone, on which the commit-message gate, the release gate and the secret scan (196 commits, no leaks) were run again:
 
 | Check | Result |
 |---|---|
@@ -68,6 +71,7 @@ The report names `ac2f5a36f9edc1bff44dbf56e139949a8295fa07`. The full checks bel
 | Every gate (`run-gates.ps1 -Base origin/main`) | Passed: all 13, among them `gate-commit-messages` (6 commits after `main`), `gate-release-compatibility` (no final release precedes Head, so the baseline is empty and nothing is a break), `gate-sample-host` and `gate-test-names` (286 criteria) |
 | Secret scanning of the whole history (`gate-secret-scan`) | Passed: 192 commits, no leaks |
 | The pipeline's `gates` run on the first report commit, `5839c75` | Failed: run 41170680354, `gate-tests`, the one test above; every other gate passed |
+| The pipeline's `gates` run on `36e915c`, before the release commit | Passed: run 41171648775 |
 
 The gate of record is the pipeline's `gates` run on the report's own commit, whose identifier and result the message naming the pull request gives. The commit-message gate and the secret scan are run again on the report's commit before the push. The secret scanner was fetched again before the scan.
 
