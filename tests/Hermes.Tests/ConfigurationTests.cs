@@ -172,6 +172,8 @@ public sealed class ConfigurationTests
     [InlineData("Retention:Suppression:Email", "3650.00:00:01")]
     [InlineData("Retention:Suppression:Sms", "29.23:59:59")]
     [InlineData("Retention:Suppression:Sms", "3650.00:00:01")]
+    [InlineData("Retention:InApp", "23:59:59")]
+    [InlineData("Retention:InApp", "1095.00:00:01")]
     [InlineData("Jobs:Enabled", "off")]
     [InlineData("Jobs:RetentionAt", "3 in the morning")]
     [InlineData("Jobs:SubscriptionsInterval", "00:00:59")]
@@ -195,6 +197,7 @@ public sealed class ConfigurationTests
     [InlineData("Secrets:ContentKeys:MaxValues", "4294967297")]
     [InlineData("Secrets:ContentKeys:ReserveBlock", "99")]
     [InlineData("Secrets:ContentKeys:ReserveBlock", "1000001")]
+    [InlineData("InApp:AlwaysOn", "always")]
     public async Task MSG_OPS_001_AC1_KeyOutsideItsRuleStopsTheStart(string key, string value)
     {
         Dictionary<string, string?> configuration = TestHost.Languages();
@@ -240,6 +243,9 @@ public sealed class ConfigurationTests
     [InlineData("QuietHours:Spread", "00:00:00")]
     [InlineData("Retention:Content", "1.00:00:00")]
     [InlineData("Retention:Suppression:Sms", "30.00:00:00")]
+    [InlineData("Retention:InApp", "1.00:00:00")]
+    [InlineData("Retention:InApp", "1095.00:00:00")]
+    [InlineData("InApp:AlwaysOn", "true")]
     [InlineData("Secrets:ContentKeys:MaxValues", "4294967296")]
     [InlineData("Unsubscribe:TokenLifetime", "3650.00:00:00")]
     [InlineData("TimeZone", "UTC")]

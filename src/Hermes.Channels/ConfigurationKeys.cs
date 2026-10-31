@@ -79,10 +79,10 @@ internal static class ConfigurationKeys
         return new(path, startOnly, text => values.Contains(text, StringComparer.Ordinal) ? text : null, _ => true, value);
     }
 
-    /// <summary>A flag; every flag of <c>08</c> section 4 is start only.</summary>
-    internal static ConfigurationKey Flag(string path, bool value)
+    /// <summary>A flag, start only unless its row of <c>08</c> section 4 gives no such rule (<c>InApp:AlwaysOn</c>).</summary>
+    internal static ConfigurationKey Flag(string path, bool value, bool startOnly = true)
     {
-        return new(path, true, text => bool.TryParse(text, out bool read) ? read : null, _ => true, value);
+        return new(path, startOnly, text => bool.TryParse(text, out bool read) ? read : null, _ => true, value);
     }
 
     /// <summary>A time of day.</summary>

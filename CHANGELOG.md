@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The channel `inapp` and the status `read`, and the migration `InAppList`, which adds the
   in-app list's table and a column for an in-app delivery's parts, and drops or rewrites
   nothing
+- The keys `Hermes:Retention:InApp`, 180 days by default, and `Hermes:InApp:AlwaysOn`, off by
+  default, each checked against its rule when the host starts and read again when it reloads
 
 ## [1.1.0] - 2026-10-29
 

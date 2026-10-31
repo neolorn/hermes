@@ -39,6 +39,12 @@ internal static class Codes
 
     internal const string PreferenceEssential = "messaging.preference.essential";
 
+    internal const string PreferenceFixed = "messaging.preference.fixed";
+
+    internal const string InAppCursorInvalid = "messaging.inapp.cursorinvalid";
+
+    internal const string InAppUnknown = "messaging.inapp.unknown";
+
     internal const string SuppressionEssential = "messaging.suppression.essential";
 
     internal const string SuppressionInvalid = "messaging.suppression.invalid";
