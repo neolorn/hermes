@@ -7,17 +7,21 @@
     <major>.<minor>.<patch>-rc.<N>, N from 1; another tag is no release. Writes the highest
     release tag Head's parent reaches, in Semantic Versioning's precedence (a release candidate
     below its final release, rc.10 above rc.9), or nothing for the first release, whose gate
-    checks the whole history.
+    checks the whole history. With -Final, writes the highest final release tag alone, the one
+    the release gate compares with (04 MSG-LIB-006), or nothing before the first final release.
 .PARAMETER Repository
     The repository to read; by default, this one.
 .PARAMETER Head
     The release tag's commit.
+.PARAMETER Final
+    Whether a release candidate's tag is left out.
 #>
 [CmdletBinding()]
 param(
     [string] $Repository = (Join-Path $PSScriptRoot '..' '..'),
     [Parameter(Mandatory)]
-    [string] $Head
+    [string] $Head,
+    [switch] $Final
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,7 +35,7 @@ if ($LASTEXITCODE -ne 0) { throw "git tag --merged $parent failed." }
 
 $releases = @(foreach ($tag in $tags) {
         $match = [regex]::Match($tag, '^v(?<version>\d+\.\d+\.\d+)(-rc\.(?<candidate>[1-9]\d*))?$')
-        if ($match.Success) {
+        if ($match.Success -and -not ($Final -and $match.Groups['candidate'].Success)) {
             $candidate = $match.Groups['candidate']
             [pscustomobject]@{
                 Tag       = $tag
