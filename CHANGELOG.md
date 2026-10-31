@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The retention job deletes, in batches, each in-app entry older than `Hermes:Retention:InApp`,
   clears a final in-app delivery's parts with the rest of its content, and protects an
   entry's values and a waiting in-app delivery's parts again under the write version
+- Erasing a person deletes their in-app entries and clears their in-app deliveries' parts,
+  and their export holds each entry with its parts in every language, its target and its
+  target values
 
 ## [1.1.0] - 2026-10-29
 
