@@ -57,7 +57,7 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
     private static readonly string[] Volatile = ["alerts", "jobs"];
 
     [Fact]
-    public async Task MSG_SEND_020_AC1_AfterAnErasureNothingNamesThePersonNoKeptPlaceLinksTheirRecordsAndTheObserverIsToldOfTheCancellations()
+    public async Task MSG_SEND_020_AC1_AfterAnErasureNothingNamesThePersonOrHoldsTheirKeyNoKeptPlaceLinksTheirRecordsAndTheObserverIsToldOfTheCancellations()
     {
         DeliveryObserverFake observer = new();
         await using DispatchEngine engine = await DispatchEngine.StartAsync(
@@ -78,6 +78,7 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
         string dump = await DumpAsync(engine.Host);
         Assert.DoesNotContain(Person, dump, StringComparison.Ordinal);
         Assert.DoesNotContain(Hex(Person), dump, StringComparison.Ordinal);
+        Assert.DoesNotContain("order-1", dump, StringComparison.Ordinal);
         Assert.Equal(0L, await CountAsync(engine.Host, database => new NpgsqlCommand(LinkedPlaces, database), deliveries));
         Assert.Equal(1L, await CountAsync(engine.Host, database => new NpgsqlCommand(UnlinkedLimitPlaces, database), deliveries));
         Assert.Equal(0L, await CountAsync(engine.Host, database => new NpgsqlCommand(HeldValues, database), deliveries));
@@ -92,7 +93,7 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
         Assert.Equal(
             [.. waiting.Deliveries.Select(delivery => delivery.Delivery.Value).Order()],
             [.. observer.Notices.Where(notice => notice.Status == DeliveryStatus.Cancelled).Select(notice => notice.Delivery.Value).Order()]);
-        Assert.All(observer.Notices, notice => Assert.Null(notice.Person));
+        Assert.All(observer.Notices, notice => Assert.Equal(((string?)null, (string?)null), (notice.Person, notice.IdempotencyKey)));
     }
 
     [Fact]
