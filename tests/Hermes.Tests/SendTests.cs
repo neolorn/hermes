@@ -506,11 +506,11 @@ public sealed class SendTests(PostgresFixture postgres) : IClassFixture<Postgres
     }
 
     [Fact]
-    public async Task MSG_SEND_018_AC1_NoDestinationOrRenderedContentIsStoredInPlainText()
+    public async Task MSG_SEND_018_AC1_NoDestinationRenderedContentOrKeptIdempotencyKeyIsStoredInPlainText()
     {
         await using EngineHost host = await StartAsync();
 
-        Result<SendReceipt> result = await host.SendAsync(Code(code: "secret-code-778899"));
+        Result<SendReceipt> result = await host.SendAsync(Code(code: "secret-code-778899") with { IdempotencyKey = "order-secret-5566" });
 
         Assert.True(result.IsSuccess);
         string dump = await DumpAsync(host);
@@ -518,7 +518,30 @@ public sealed class SendTests(PostgresFixture postgres) : IClassFixture<Postgres
         Assert.DoesNotContain(Phone, dump, StringComparison.Ordinal);
         Assert.DoesNotContain("secret-code-778899", dump, StringComparison.Ordinal);
         Assert.DoesNotContain("Subject en", dump, StringComparison.Ordinal);
+        Assert.DoesNotContain("order-secret-5566", dump, StringComparison.Ordinal);
         Assert.Contains(Person, dump, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MSG_SEND_017_AC5_EachDeliveryKeepsItsSendsKeyProtectedAndItOpensInItsOwnRowAlone()
+    {
+        await using EngineHost host = await StartAsync();
+        SendReceipt receipt = (await host.SendAsync(Code(channels: [Channel.Email, Channel.Sms]) with { IdempotencyKey = "order-7f3a" })).Value!;
+        Guid email = receipt.Deliveries[0].Delivery.Value;
+        Guid sms = receipt.Deliveries[1].Delivery.Value;
+        byte[] stored = (await host.ColumnAsync<byte[]>(email, "idempotency_key"))!;
+
+        ContentOpening elsewhere;
+        AsyncServiceScope scope = host.Services.CreateAsyncScope();
+        await using (scope)
+        {
+            elsewhere = await scope.ServiceProvider.GetRequiredService<ContentProtection>().OpenAsync(Person, stored, ContentContext.Of(ContentContext.Deliveries, sms, "idempotencykey"), TestContext.Current.CancellationToken);
+        }
+
+        Assert.False(stored.AsSpan().IndexOf("order-7f3a"u8) >= 0);
+        Assert.Equal("order-7f3a", await host.OpenAsync(email, "idempotencykey", column: "idempotency_key"));
+        Assert.Equal("order-7f3a", await host.OpenAsync(sms, "idempotencykey", column: "idempotency_key"));
+        Assert.Equal(ContentOpeningStatus.Rejected, elsewhere.Status);
     }
 
     [Fact]
@@ -669,7 +692,7 @@ public sealed class SendTests(PostgresFixture postgres) : IClassFixture<Postgres
     {
         const string Dump = """
             SELECT string_agg(row_to_json(d)::text, ' ') FROM messaging.deliveries d
-            UNION ALL SELECT string_agg(encode(coalesce(d.destination, ''::bytea) || coalesce(d.subject, ''::bytea) || coalesce(d.text, ''::bytea) || coalesce(d.body, ''::bytea), 'escape'), ' ') FROM messaging.deliveries d
+            UNION ALL SELECT string_agg(encode(coalesce(d.destination, ''::bytea) || coalesce(d.subject, ''::bytea) || coalesce(d.text, ''::bytea) || coalesce(d.body, ''::bytea) || coalesce(d.idempotency_key, ''::bytea), 'escape'), ' ') FROM messaging.deliveries d
             UNION ALL SELECT string_agg(row_to_json(s)::text, ' ') FROM messaging.sends s
             """;
         StringBuilder text = new();

@@ -50,7 +50,7 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
         SELECT count(*) FROM messaging.deliveries
         WHERE id = ANY(@ids)
           AND (person IS NOT NULL OR destination IS NOT NULL OR unsubscribe IS NOT NULL OR subject IS NOT NULL OR text IS NOT NULL OR html IS NOT NULL
-               OR title IS NOT NULL OR body IS NOT NULL OR url IS NOT NULL OR tag IS NOT NULL OR icon IS NOT NULL OR badge IS NOT NULL OR content_key_version IS NOT NULL)
+               OR title IS NOT NULL OR body IS NOT NULL OR url IS NOT NULL OR tag IS NOT NULL OR icon IS NOT NULL OR badge IS NOT NULL OR idempotency_key IS NOT NULL OR content_key_version IS NOT NULL)
         """;
 
     /// <summary>The tables a refused call may still change: an alert's state and a job's claim.</summary>

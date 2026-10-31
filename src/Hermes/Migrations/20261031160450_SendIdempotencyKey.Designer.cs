@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Hermes.Migrations
 {
     [DbContext(typeof(MessagingContext))]
-    [Migration("20261031151931_SendIdempotencyKey")]
+    [Migration("20261031160450_SendIdempotencyKey")]
     partial class SendIdempotencyKey
     {
         /// <inheritdoc />
@@ -351,6 +351,10 @@ namespace Hermes.Migrations
                     b.Property<byte[]>("Icon")
                         .HasColumnType("bytea")
                         .HasColumnName("icon");
+
+                    b.Property<byte[]>("IdempotencyKey")
+                        .HasColumnType("bytea")
+                        .HasColumnName("idempotency_key");
 
                     b.Property<string>("Kind")
                         .IsRequired()
@@ -870,10 +874,6 @@ namespace Hermes.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    b.Property<string>("IdempotencyKey")
-                        .HasColumnType("text")
-                        .HasColumnName("idempotency_key");
 
                     b.Property<string>("Kind")
                         .IsRequired()

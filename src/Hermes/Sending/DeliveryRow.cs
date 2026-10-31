@@ -55,6 +55,9 @@ internal sealed class DeliveryRow
 
     public byte[]? Badge { get; set; }
 
+    /// <summary>The idempotency key the delivery keeps of its send, protected as its destination is (<c>01</c> MSG-SEND-017).</summary>
+    public byte[]? IdempotencyKey { get; set; }
+
     /// <summary>An in-app delivery's protected values, as <see cref="InAppParts"/> writes them, until its dispatch moves them into its entry.</summary>
     public string? Parts { get; set; }
 

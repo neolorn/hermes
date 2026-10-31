@@ -36,15 +36,15 @@ public sealed class RetentionTests(PostgresFixture postgres) : IClassFixture<Pos
         VALUES (gen_random_uuid(), @person, @hash, 1, '\x00', '\x00', 1, 'other', @made, @accepted)
         """;
 
-    private static readonly string[] ContentColumns = ["destination", "unsubscribe", "subject", "text", "html", "content_key_version"];
+    private static readonly string[] ContentColumns = ["destination", "unsubscribe", "subject", "text", "html", "idempotency_key", "content_key_version"];
 
     [Fact]
     public async Task MSG_SEND_019_AC1_ContentGoes31DaysPastTheFinalStatusTheRecord366DaysPastItAndAWaitingDeliveryKeepsEverything()
     {
         await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, configure: UnsubscribeLinkTests.Configure, declare: UnsubscribeLinkTests.Declare, templates: UnsubscribeLinkTests.Templates);
-        SendReceipt sent = (await engine.Host.SendAsync(UnsubscribeLinkTests.LetterTo("someone@example.com"))).Value!;
+        SendReceipt sent = (await engine.Host.SendAsync(UnsubscribeLinkTests.LetterTo("someone@example.com") with { IdempotencyKey = "letter-1" })).Value!;
         await engine.Host.DispatchAsync();
-        SendReceipt waiting = (await engine.Host.SendAsync(UnsubscribeLinkTests.LetterTo("other@example.com"))).Value!;
+        SendReceipt waiting = (await engine.Host.SendAsync(UnsubscribeLinkTests.LetterTo("other@example.com") with { IdempotencyKey = "letter-2" })).Value!;
         Guid letter = sent.Deliveries[0].Delivery.Value;
         Guid kept = waiting.Deliveries[0].Delivery.Value;
 

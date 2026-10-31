@@ -137,7 +137,6 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             send.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
             send.Property(row => row.Kind).HasColumnName("kind");
             send.Property(row => row.RecordedAt).HasColumnName("recorded_at");
-            send.Property(row => row.IdempotencyKey).HasColumnName("idempotency_key");
         });
 
         modelBuilder.Entity<DeliveryRow>(delivery =>
@@ -179,6 +178,7 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             delivery.Property(row => row.Tag).HasColumnName("tag");
             delivery.Property(row => row.Icon).HasColumnName("icon");
             delivery.Property(row => row.Badge).HasColumnName("badge");
+            delivery.Property(row => row.IdempotencyKey).HasColumnName("idempotency_key");
             delivery.Property(row => row.Parts).HasColumnName("parts").HasColumnType("jsonb");
             delivery.Property(row => row.ContentKeyVersion).HasColumnName("content_key_version");
             delivery.Property(row => row.RecordedAt).HasColumnName("recorded_at");

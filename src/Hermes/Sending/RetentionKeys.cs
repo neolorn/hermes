@@ -42,13 +42,14 @@ internal sealed partial class RetentionKeys(
     private const string ProtectDelivery = """
         UPDATE messaging.deliveries
         SET destination = @destination, unsubscribe = @unsubscribe, subject = @subject, text = @text, html = @html,
-            title = @title, body = @body, url = @url, tag = @tag, icon = @icon, badge = @badge, parts = @parts, content_key_version = @version
+            title = @title, body = @body, url = @url, tag = @tag, icon = @icon, badge = @badge, parts = @parts,
+            idempotency_key = @idempotencykey, content_key_version = @version
         WHERE id = @id
           AND destination IS NOT DISTINCT FROM @was_destination AND unsubscribe IS NOT DISTINCT FROM @was_unsubscribe
           AND subject IS NOT DISTINCT FROM @was_subject AND text IS NOT DISTINCT FROM @was_text AND html IS NOT DISTINCT FROM @was_html
           AND title IS NOT DISTINCT FROM @was_title AND body IS NOT DISTINCT FROM @was_body AND url IS NOT DISTINCT FROM @was_url
           AND tag IS NOT DISTINCT FROM @was_tag AND icon IS NOT DISTINCT FROM @was_icon AND badge IS NOT DISTINCT FROM @was_badge
-          AND parts IS NOT DISTINCT FROM @was_parts
+          AND parts IS NOT DISTINCT FROM @was_parts AND idempotency_key IS NOT DISTINCT FROM @was_idempotencykey
         """;
 
     private const string Subscriptions = """
@@ -190,6 +191,7 @@ internal sealed partial class RetentionKeys(
         [
             ("destination", row.Destination), ("unsubscribe", row.Unsubscribe), ("subject", row.Subject), ("text", row.Text), ("html", row.Html),
             ("title", row.Title), ("body", row.Body), ("url", row.Url), ("tag", row.Tag), ("icon", row.Icon), ("badge", row.Badge),
+            (ContentContext.IdempotencyKey, row.IdempotencyKey),
         ];
     }
 

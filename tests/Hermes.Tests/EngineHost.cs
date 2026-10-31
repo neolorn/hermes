@@ -238,10 +238,10 @@ internal sealed class EngineHost : IAsyncDisposable
         return value is DBNull ? default : (T)value;
     }
 
-    /// <summary>A delivery's protected value opened, as the dispatcher opens it, or none where the row holds none.</summary>
-    internal async Task<string?> OpenAsync(Guid delivery, string field)
+    /// <summary>A delivery's protected value opened, as the dispatcher opens it, or none where the row holds none; its column is the field's name unless <paramref name="column"/> names another.</summary>
+    internal async Task<string?> OpenAsync(Guid delivery, string field, string? column = null)
     {
-        byte[]? stored = await ColumnAsync<byte[]>(delivery, field);
+        byte[]? stored = await ColumnAsync<byte[]>(delivery, column ?? field);
         if (stored is null)
         {
             return null;

@@ -59,12 +59,10 @@ internal sealed class Subjects(
 
     private const string Unlink = "UPDATE messaging.places SET delivery_id = NULL WHERE delivery_id IN (SELECT id FROM messaging.deliveries WHERE person = @person)";
 
-    private const string ForgetKeys = "UPDATE messaging.sends SET idempotency_key = NULL WHERE idempotency_key IS NOT NULL AND id IN (SELECT send_id FROM messaging.deliveries WHERE person = @person)";
-
     private const string Clear = """
         UPDATE messaging.deliveries
         SET person = NULL, destination = NULL, unsubscribe = NULL, subject = NULL, text = NULL, html = NULL,
-            title = NULL, body = NULL, url = NULL, tag = NULL, icon = NULL, badge = NULL, parts = NULL, content_key_version = NULL
+            title = NULL, body = NULL, url = NULL, tag = NULL, icon = NULL, badge = NULL, parts = NULL, idempotency_key = NULL, content_key_version = NULL
         WHERE person = @person
         """;
 
@@ -118,7 +116,6 @@ internal sealed class Subjects(
                 await RunAsync(context, DeleteIdempotency, new NpgsqlParameter("scope", Encoding.UTF8.GetBytes(person)), token).ConfigureAwait(false);
                 await RunAsync(context, DeletePlaces, new NpgsqlParameter("hashes", keyed), token).ConfigureAwait(false);
                 await RunAsync(context, Unlink, new NpgsqlParameter("person", person), token).ConfigureAwait(false);
-                await RunAsync(context, ForgetKeys, new NpgsqlParameter("person", person), token).ConfigureAwait(false);
                 await RunAsync(context, Clear, new NpgsqlParameter("person", person), token).ConfigureAwait(false);
                 return new Erasure(Result.Success(), cancelled, null);
             },

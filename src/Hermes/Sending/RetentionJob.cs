@@ -43,13 +43,13 @@ internal sealed partial class RetentionJob(
     private const string DeleteContent = $"""
         UPDATE messaging.deliveries
         SET destination = NULL, unsubscribe = NULL, subject = NULL, text = NULL, html = NULL,
-            title = NULL, body = NULL, url = NULL, tag = NULL, icon = NULL, badge = NULL, parts = NULL, content_key_version = NULL
+            title = NULL, body = NULL, url = NULL, tag = NULL, icon = NULL, badge = NULL, parts = NULL, idempotency_key = NULL, content_key_version = NULL
         WHERE id IN (
             SELECT id FROM messaging.deliveries
             WHERE {Known} AND last_moved_at <= @now - @period
               AND (destination IS NOT NULL OR unsubscribe IS NOT NULL OR subject IS NOT NULL OR text IS NOT NULL OR html IS NOT NULL
                    OR title IS NOT NULL OR body IS NOT NULL OR url IS NOT NULL OR tag IS NOT NULL OR icon IS NOT NULL OR badge IS NOT NULL
-                   OR parts IS NOT NULL OR content_key_version IS NOT NULL)
+                   OR parts IS NOT NULL OR idempotency_key IS NOT NULL OR content_key_version IS NOT NULL)
             ORDER BY id LIMIT @batch FOR UPDATE SKIP LOCKED)
         """;
 

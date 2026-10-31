@@ -349,6 +349,10 @@ namespace Hermes.Migrations
                         .HasColumnType("bytea")
                         .HasColumnName("icon");
 
+                    b.Property<byte[]>("IdempotencyKey")
+                        .HasColumnType("bytea")
+                        .HasColumnName("idempotency_key");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("text")
@@ -867,10 +871,6 @@ namespace Hermes.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    b.Property<string>("IdempotencyKey")
-                        .HasColumnType("text")
-                        .HasColumnName("idempotency_key");
 
                     b.Property<string>("Kind")
                         .IsRequired()

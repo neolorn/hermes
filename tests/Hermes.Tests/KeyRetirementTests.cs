@@ -32,14 +32,14 @@ public sealed class KeyRetirementTests(PostgresFixture postgres) : IClassFixture
     private static readonly string[] ContentColumns = ["destination", "unsubscribe", "subject", "text", "html", "content_key_version"];
 
     [Fact]
-    public async Task MSG_OPS_008_AC4_TheRetentionJobProtectsADeliveryAndASubscriptionAgainUnderTheWriteVersionAndRetiresTheOldOne()
+    public async Task MSG_OPS_008_AC4_TheRetentionJobProtectsADeliveryItsKeptKeyIncludedAndASubscriptionAgainUnderTheWriteVersionAndRetiresTheOldOne()
     {
         string connection = await EngineHost.DatabaseAsync(postgres);
         Guid delivery;
         Guid subscription = Guid.CreateVersion7();
         await using (EngineHost one = await EngineHost.StartAsync(connection))
         {
-            delivery = (await one.SendAsync(SendTests.Code(channels: [Channel.Email]))).Value!.Deliveries[0].Delivery.Value;
+            delivery = (await one.SendAsync(SendTests.Code(channels: [Channel.Email]) with { IdempotencyKey = "order-7f3a" })).Value!.Deliveries[0].Delivery.Value;
             await SubscribeAsync(one, subscription);
         }
 
@@ -48,6 +48,8 @@ public sealed class KeyRetirementTests(PostgresFixture postgres) : IClassFixture
 
         Assert.Equal(2, await two.ColumnAsync<int>(delivery, "content_key_version"));
         Assert.Equal(SendTests.Email, await two.OpenAsync(delivery, "destination"));
+        Assert.Equal(2, Messages.LibraryVersion((await two.ColumnAsync<byte[]>(delivery, "idempotency_key"))!));
+        Assert.Equal("order-7f3a", await two.OpenAsync(delivery, "idempotencykey", column: "idempotency_key"));
         Assert.Equal(2, await ScalarAsync<int>(two, database => new("SELECT content_key_version FROM messaging.subscriptions", database)));
         Assert.Equal("https://push.example.com/send/first", await OpenSubscriptionAsync(two, subscription, "endpoint"));
         Assert.Equal("keys", await OpenSubscriptionAsync(two, subscription, "keys"));
@@ -84,7 +86,7 @@ public sealed class KeyRetirementTests(PostgresFixture postgres) : IClassFixture
         Guid delivery;
         await using (EngineHost one = await EngineHost.StartAsync(connection))
         {
-            delivery = (await one.SendAsync(SendTests.Code(channels: [Channel.Email]))).Value!.Deliveries[0].Delivery.Value;
+            delivery = (await one.SendAsync(SendTests.Code(channels: [Channel.Email]) with { IdempotencyKey = "order-7f3a" })).Value!.Deliveries[0].Delivery.Value;
         }
 
         await using EngineHost two = await StartRotatedAsync(connection, days: 8);

@@ -10,11 +10,11 @@ namespace Hermes.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
+            migrationBuilder.AddColumn<byte[]>(
                 name: "idempotency_key",
                 schema: "messaging",
-                table: "sends",
-                type: "text",
+                table: "deliveries",
+                type: "bytea",
                 nullable: true);
         }
 
@@ -24,7 +24,7 @@ namespace Hermes.Migrations
             migrationBuilder.DropColumn(
                 name: "idempotency_key",
                 schema: "messaging",
-                table: "sends");
+                table: "deliveries");
         }
     }
 }

@@ -356,6 +356,21 @@ internal sealed partial class Messages(
                 delivery.Parts = InAppParts.Write(inApp);
             }
 
+            if (send.IdempotencyKey is { } kept)
+            {
+                ContentProtecting made = await protection.ProtectAsync(prepared.Person, Encoding.UTF8.GetBytes(kept), ContentContext.Of(ContentContext.Deliveries, id, ContentContext.IdempotencyKey), cancellationToken).ConfigureAwait(false);
+                if (made.Stored is not { } stored)
+                {
+                    return Unavailable(made.Key!, made.Version);
+                }
+
+                delivery.IdempotencyKey = stored;
+                if (LibraryVersion(stored) is { } version)
+                {
+                    delivery.ContentKeyVersion = version;
+                }
+            }
+
             deliveries.Add(delivery);
         }
 
@@ -369,7 +384,7 @@ internal sealed partial class Messages(
             context.Idempotency.Remove(lapsed);
         }
 
-        context.Sends.Add(new SendRow { Id = sendId, Kind = prepared.Kind.Name, RecordedAt = now, IdempotencyKey = send.IdempotencyKey });
+        context.Sends.Add(new SendRow { Id = sendId, Kind = prepared.Kind.Name, RecordedAt = now });
         context.Deliveries.AddRange(deliveries);
         if (send.IdempotencyKey is { } written)
         {
