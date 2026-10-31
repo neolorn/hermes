@@ -93,7 +93,23 @@ internal sealed partial class NoticeDelivery(
                     context.Deliveries,
                     notice => notice.DeliveryId,
                     delivery => delivery.Id,
-                    (notice, delivery) => new Pending(notice.DeliveryId, notice.Sequence, notice.Status, notice.Reason, notice.At, delivery.SendId, delivery.Kind, delivery.Category, delivery.Channel, delivery.Person))
+                    (notice, delivery) => new { Notice = notice, Delivery = delivery })
+                .Join(
+                    context.Sends,
+                    pair => pair.Delivery.SendId,
+                    send => send.Id,
+                    (pair, send) => new Pending(
+                        pair.Notice.DeliveryId,
+                        pair.Notice.Sequence,
+                        pair.Notice.Status,
+                        pair.Notice.Reason,
+                        pair.Notice.At,
+                        pair.Delivery.SendId,
+                        pair.Delivery.Kind,
+                        pair.Delivery.Category,
+                        pair.Delivery.Channel,
+                        pair.Delivery.Person,
+                        send.IdempotencyKey))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -126,6 +142,7 @@ internal sealed partial class NoticeDelivery(
             Status = status,
             Reason = pending.Reason is { } reason ? Spellings.Reason(reason) : null,
             At = pending.At,
+            IdempotencyKey = pending.IdempotencyKey,
         };
         try
         {
@@ -187,5 +204,5 @@ internal sealed partial class NoticeDelivery(
     [LoggerMessage(EventId = 43, EventName = "NoticeNotTaken", Level = LogLevel.Warning, Message = "The observer did not take the notice of delivery {Delivery}: {Exception}; the next run tells it again.")]
     private static partial void NotTaken(ILogger logger, Guid delivery, string exception);
 
-    private sealed record Pending(Guid Delivery, int Sequence, string Status, string? Reason, DateTimeOffset At, Guid Send, string Kind, string Category, string Channel, string? Person);
+    private sealed record Pending(Guid Delivery, int Sequence, string Status, string? Reason, DateTimeOffset At, Guid Send, string Kind, string Category, string Channel, string? Person, string? IdempotencyKey);
 }

@@ -369,7 +369,7 @@ internal sealed partial class Messages(
             context.Idempotency.Remove(lapsed);
         }
 
-        context.Sends.Add(new SendRow { Id = sendId, Kind = prepared.Kind.Name, RecordedAt = now });
+        context.Sends.Add(new SendRow { Id = sendId, Kind = prepared.Kind.Name, RecordedAt = now, IdempotencyKey = send.IdempotencyKey });
         context.Deliveries.AddRange(deliveries);
         if (send.IdempotencyKey is { } written)
         {
