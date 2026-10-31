@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `DeliveryNotice.IdempotencyKey`, the key the notice's send was recorded with, its last
+  member; a notice prints it no more than it prints the person
+- The migration `SendIdempotencyKey`, which keeps the idempotency key with its send for as
+  long as the send's record, so a notice carries it after the key's row has lapsed; it
+  drops and rewrites nothing
+
+### Changed
+
+- An erasure also deletes the idempotency key kept with the person's sends, and the
+  notices it keeps for the observer carry none
+
 ## [1.0.0-rc.1] - 2026-10-31
 
 ### Added

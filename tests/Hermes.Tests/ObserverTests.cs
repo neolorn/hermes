@@ -43,6 +43,52 @@ public sealed class ObserverTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task MSG_SEND_017_AC4_ANoticeCarriesItsSendsKeyAfterTheKeysRowHasLapsedAndNoneForASendWithoutOne()
+    {
+        DeliveryObserverFake observer = new();
+        await using EngineHost host = await StartAsync(observer);
+        SendReceipt keyed = (await host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { IdempotencyKey = "order-7f3a" })).Value!;
+        SendReceipt unkeyed = (await host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person("person-2")))).Value!;
+        await host.DispatchAsync();
+        int lapsed = await host.RunAsync(connection => new NpgsqlCommand("DELETE FROM messaging.idempotency", connection));
+
+        await RunAsync(host);
+
+        Assert.Equal(1, lapsed);
+        Assert.Equal("order-7f3a", Assert.Single(observer.Notices, notice => notice.Send == keyed.Send).IdempotencyKey);
+        Assert.Null(Assert.Single(observer.Notices, notice => notice.Send == unkeyed.Send).IdempotencyKey);
+    }
+
+    [Fact]
+    public async Task MSG_OPS_002_ASendRecordedAsAProcessOf1Rc1RecordsItIsDispatchedAndItsNoticeCarriesNoKey()
+    {
+        DeliveryObserverFake observer = new();
+        await using EngineHost host = await StartAsync(observer);
+        SendReceipt receipt = (await host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
+        Guid recorded = Guid.CreateVersion7();
+
+        // A process of 1.0.0-rc.1 records a send's row without the key's column, which it does not know.
+        await host.RunAsync(connection =>
+        {
+            NpgsqlCommand again = new(
+                """
+                INSERT INTO messaging.sends (id, kind, recorded_at) SELECT @recorded, kind, recorded_at FROM messaging.sends WHERE id = @send;
+                UPDATE messaging.deliveries SET send_id = @recorded WHERE send_id = @send;
+                DELETE FROM messaging.sends WHERE id = @send
+                """,
+                connection);
+            again.Parameters.AddWithValue("recorded", recorded);
+            again.Parameters.AddWithValue("send", receipt.Send.Value);
+            return again;
+        });
+        await host.DispatchAsync();
+        await RunAsync(host);
+
+        DeliveryNotice notice = Assert.Single(observer.Notices);
+        Assert.Equal((new SendId(recorded), DeliveryStatus.Sent, (string?)null), (notice.Send, notice.Status, notice.IdempotencyKey));
+    }
+
+    [Fact]
     public async Task MSG_SEND_017_AC2_AnObserverThatThrewIsToldAgainAtTheJobsNextRun()
     {
         DeliveryObserverFake observer = new();

@@ -1,1 +1,3 @@
 #nullable enable
+Hermes.Core.DeliveryNotice.IdempotencyKey.get -> string?
+Hermes.Core.DeliveryNotice.IdempotencyKey.init -> void

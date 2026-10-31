@@ -95,6 +95,28 @@ public sealed class SmsReportTests(PostgresFixture postgres) : IClassFixture<Pos
     }
 
     [Fact]
+    public async Task MSG_SEND_017_AC4_TheNoticeOfAReportsMoveToDeliveredCarriesTheSendsKeyAfterTheKeysRowHasLapsed()
+    {
+        DeliveryObserverFake observer = new();
+        await using DispatchEngine engine = await StartAsync(
+            configuration => configuration["Hermes:Observer:Enabled"] = "true",
+            services: collection => collection.AddSingleton<IDeliveryObserver>(observer));
+        using HttpClient client = engine.Host.Client();
+        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { IdempotencyKey = "order-7f3a" })).Value!;
+        await engine.Host.DispatchAsync();
+        await engine.Host.RunAsync(connection => new NpgsqlCommand("DELETE FROM messaging.idempotency", connection));
+
+        using HttpResponseMessage report = await ReportAsync(client, Fields(engine.Sms.Received[0].DeliveryReference, "delivered"));
+        await ObserverTests.RunAsync(engine.Host);
+
+        Assert.Equal(HttpStatusCode.OK, report.StatusCode);
+        Assert.Equal(DeliveryStatus.Delivered, await SuppressionTests.StatusAsync(engine.Host, receipt));
+        Assert.Equal(
+            [(DeliveryStatus.Sent, "order-7f3a"), (DeliveryStatus.Delivered, "order-7f3a")],
+            observer.Notices.Select(notice => (notice.Status, notice.IdempotencyKey)));
+    }
+
+    [Fact]
     public async Task MSG_SMS_004_AC3_AReportThatArrivesWhileItsDeliveryIsInflightIsAppliedOnceTheAttemptsAnswerIsRecorded()
     {
         await using DispatchEngine engine = await StartAsync();

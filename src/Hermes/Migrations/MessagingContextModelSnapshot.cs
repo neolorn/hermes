@@ -868,6 +868,10 @@ namespace Hermes.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("IdempotencyKey")
+                        .HasColumnType("text")
+                        .HasColumnName("idempotency_key");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("text")

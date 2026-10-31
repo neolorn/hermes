@@ -1438,6 +1438,41 @@ MSG-ENG-011; `implementation-plan.md` (phase 11, and the inputs waited on).
 
 ---
 
+## M-028 — A delivery notice carries its send's idempotency key
+
+**Date:** 2026-10-31 · **Status:** accepted · **Amends:** M-005
+
+A host that hands the library another component's messages keys each send with that
+component's own reference (`01` MSG-SEND-009), and has to give each outcome back under
+that reference. The first host to do so found that nothing the observer is told names
+it: a `DeliveryNotice` carries the library's `SendId` alone, and `IMessages.ReadAsync`
+answers deliveries, not the key. The host would have to keep a table of its own from
+each receipt's `SendId` to its key: a second record of every send, beside the
+library's, with a retention and an erasure of its own to keep in step.
+
+- **A notice carries the key its send was recorded with,**
+  `DeliveryNotice.IdempotencyKey`, none where the send had none. It is the host's own
+  value, given back as given.
+- **The key is kept with the send,** not read from its idempotency row: the row lapses
+  after `Hermes:Idempotency:Window`, while a delivery's outcome can come later (a
+  provider's report moving `sent` to `delivered` or `failed`). It is kept for as long
+  as the send's record.
+- **It goes with the person.** The library already treats a key as the person's (it is
+  exported and erased with them, MSG-SEND-020), since a host may put anything in it.
+  An erasure deletes the key kept with the person's sends, and the notices kept for the
+  observer carry none, as they carry no person reference.
+- **A notice still carries no destination and no content.**
+
+*Rejected:* a host table from `SendId` to key (every host that keys its sends would keep
+the same second record); `IMessages.ReadAsync` answering the key (a lookup per notice,
+and nothing to look up once the row has lapsed); a new positional member placed other
+than last (it would reorder what every reader of a notice already deconstructs).
+
+**Propagated to:** `01` MSG-SEND-017, MSG-SEND-020; `04` MSG-LIB-005;
+`implementation-plan.md` (phase 12).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1469,3 +1504,4 @@ MSG-ENG-011; `implementation-plan.md` (phase 11, and the inputs waited on).
 | Phase 9's question: the release set reads the development inbox too | M-025 |
 | The in-application list | M-026 |
 | Release candidates until the final 1.0.0 | M-027 |
+| A delivery notice carries its send's idempotency key | M-028 |
