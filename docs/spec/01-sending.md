@@ -890,7 +890,13 @@ clocks agree as `06` MSG-OPS-003 says, so two never deliver one notice at once. 
 older than `Hermes:Retention:Record` is dropped and logged by the retention job
 (MSG-SEND-019). An application with it off writes no notice.
 
-*Source: M-005*
+A notice carries the idempotency key its send was recorded with (MSG-SEND-009), none
+where the send had none, so a host that keyed its send with a reference of its own
+finds its own record of the delivery. The key is kept with the send for as long as the
+send's record, not read from its idempotency row, which lapses while a delivery's
+outcome can still come, and goes with the person at an erasure (MSG-SEND-020, M-028).
+
+*Source: M-005, M-028*
 
 **Acceptance criteria**
 1. No delivery is attempted after reaching a final status, none moves from a final
@@ -899,6 +905,9 @@ older than `Hermes:Retention:Record` is dropped and logged by the retention job
    and told of a report's move only after the status it moved from.
 3. An observer that keeps throwing raises the alert once its oldest notice passes the
    threshold.
+4. A notice of a send recorded with an idempotency key carries the key, also after the
+   key's row has lapsed and for a move a provider's report makes; a notice of a send
+   recorded without one carries none.
 
 ---
 
@@ -1025,15 +1034,16 @@ waits for a check-8 transaction holding one of their rows (MSG-SEND-014), so its
 statements see any place that transaction took (an `inflight` delivery's late outcome
 then changes nothing, MSG-SEND-007); it deletes their preferences, push subscriptions,
 in-app entries and idempotency rows, and deletes the content, destination, unsubscribe
-address and person reference of every delivery for them, whatever its status, keeping
-the rest of each record until its retention ends. Their pending observer notices, and
-the notices of the deliveries it cancels, are kept for the observer with no person
-reference, so the host still learns how each delivery ended. The deliveries it cancels
-release their limit places as any cancellation does (MSG-SEND-014); it then deletes the
-limit places keyed by their reference's hash, and clears the delivery link of the other
-places their deliveries took, so no kept place ties a kept record to a destination hash.
-Suppressions and the other limit places stay: they hold no destination and nothing of
-the person, and a suppression keeps the person's refusal in force.
+address and person reference of every delivery for them, whatever its status, and the
+idempotency key kept with their sends (MSG-SEND-017), keeping the rest of each record
+until its retention ends. Their pending observer notices, and the notices of the
+deliveries it cancels, are kept for the observer with no person reference and no
+idempotency key, so the host still learns how each delivery ended. The deliveries it
+cancels release their limit places as any cancellation does (MSG-SEND-014); it then
+deletes the limit places keyed by their reference's hash, and clears the delivery link
+of the other places their deliveries took, so no kept place ties a kept record to a
+destination hash. Suppressions and the other limit places stay: they hold no destination
+and nothing of the person, and a suppression keeps the person's refusal in force.
 
 `ISubjects.ExportAsync(person)` answers a `Result<SubjectExport>` (`04` MSG-LIB-002), or
 `messaging.key.unavailable` or `messaging.release.newer` as erasure does: the person's
@@ -1063,7 +1073,7 @@ ordered list of channels where the next is used when a delivery on one ends in a
 the list names; the deliveries of a send already share its identifier, so a fallback is
 a new delivery of the same send and changes no table.
 
-*Source: M-004, M-005, M-007, M-020*
+*Source: M-004, M-005, M-007, M-020, M-028*
 
 **Acceptance criteria**
 1. After erasure, nothing the library holds names the person or holds a destination, an
