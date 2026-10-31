@@ -79,7 +79,7 @@ internal static class PreferenceEndpoints
 
         if (result.Failure is { } refused)
         {
-            return Refusal.Of(refused.Code == Codes.PreferenceEssential ? StatusCodes.Status422UnprocessableEntity : StatusCodes.Status404NotFound, refused);
+            return Refusal.Of(refused.Code is Codes.PreferenceEssential or Codes.PreferenceFixed ? StatusCodes.Status422UnprocessableEntity : StatusCodes.Status404NotFound, refused);
         }
 
         return TypedResults.NoContent();

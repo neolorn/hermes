@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   language asked for, with an opaque cursor and `messaging.inapp.cursorinvalid` for one that
   does not read; the unread count; and an entry, or all of them, marked read, which moves
   each delivery from `sent` to `read` and tells the observer
+- With `Hermes:InApp:AlwaysOn` on, `IPreferences.SetAsync` refuses the in-app channel with
+  `messaging.preference.fixed`, answered 422 by the preference route, and `ReadAsync` and
+  `GET /preferences` leave the channel out
 
 ## [1.1.0] - 2026-10-29
 
