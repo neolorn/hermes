@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each in that language's culture, refuses one past 128 or 1,024 characters with
   `messaging.send.toolong`, and refuses the channel for an anonymous recipient with
   `messaging.send.nodestination`
+- The in-app pass: the dispatcher writes an in-app delivery's entry to its person's list in
+  every environment, with no provider, no rate and no quiet hours, and ends the delivery `sent`
 
 ## [1.1.0] - 2026-10-29
 
