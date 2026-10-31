@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - With `Hermes:InApp:AlwaysOn` on, `IPreferences.SetAsync` refuses the in-app channel with
   `messaging.preference.fixed`, answered 422 by the preference route, and `ReadAsync` and
   `GET /preferences` leave the channel out
+- The retention job deletes, in batches, each in-app entry older than `Hermes:Retention:InApp`,
+  clears a final in-app delivery's parts with the rest of its content, and protects an
+  entry's values and a waiting in-app delivery's parts again under the write version
 
 ## [1.1.0] - 2026-10-29
 

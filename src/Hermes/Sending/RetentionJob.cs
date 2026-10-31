@@ -17,7 +17,7 @@ using Npgsql;
 namespace Hermes.Sending;
 
 /// <summary>
-/// The <c>retention</c> job (<c>06</c> MSG-OPS-004; <c>01</c> MSG-SEND-019): where
+/// The <c>retention</c> job (<c>06</c> MSG-OPS-004; <c>01</c> MSG-SEND-019; <c>02</c> MSG-INAPP-005): where
 /// <c>Hermes:Jobs:Enabled</c> is on, daily at <c>Hermes:Jobs:RetentionAt</c> in
 /// <c>Hermes:TimeZone</c> it takes the job's claim, where no run has started since that
 /// instant, and deletes what is past its period in batches of <c>Hermes:Jobs:BatchSize</c>,
@@ -43,14 +43,20 @@ internal sealed partial class RetentionJob(
     private const string DeleteContent = $"""
         UPDATE messaging.deliveries
         SET destination = NULL, unsubscribe = NULL, subject = NULL, text = NULL, html = NULL,
-            title = NULL, body = NULL, url = NULL, tag = NULL, icon = NULL, badge = NULL, content_key_version = NULL
+            title = NULL, body = NULL, url = NULL, tag = NULL, icon = NULL, badge = NULL, parts = NULL, content_key_version = NULL
         WHERE id IN (
             SELECT id FROM messaging.deliveries
             WHERE {Known} AND last_moved_at <= @now - @period
               AND (destination IS NOT NULL OR unsubscribe IS NOT NULL OR subject IS NOT NULL OR text IS NOT NULL OR html IS NOT NULL
                    OR title IS NOT NULL OR body IS NOT NULL OR url IS NOT NULL OR tag IS NOT NULL OR icon IS NOT NULL OR badge IS NOT NULL
-                   OR content_key_version IS NOT NULL)
+                   OR parts IS NOT NULL OR content_key_version IS NOT NULL)
             ORDER BY id LIMIT @batch FOR UPDATE SKIP LOCKED)
+        """;
+
+    private const string DeleteEntries = """
+        DELETE FROM messaging.entries WHERE id IN (
+            SELECT id FROM messaging.entries WHERE written_at <= @now - @period
+            ORDER BY written_at LIMIT @batch FOR UPDATE SKIP LOCKED)
         """;
 
     private const string DeleteRecords = $"""
@@ -184,6 +190,7 @@ internal sealed partial class RetentionJob(
         Run run = new(database, options, clock, Kinds(), holder, current, cancellationToken);
         RetentionOptions retention = current.Retention;
         if (!await run.DeleteAsync(DeleteContent, retention.Content).ConfigureAwait(false)
+            || !await run.DeleteAsync(DeleteEntries, retention.InApp).ConfigureAwait(false)
             || !await run.DeleteAsync(DeleteRecords, retention.Record).ConfigureAwait(false)
             || !await run.DeleteAsync(DeleteUnknown, retention.Record, count => UnknownDeleted(logger, count), each: false).ConfigureAwait(false)
             || !await run.DeleteAsync(DeleteSends, retention.Record).ConfigureAwait(false)

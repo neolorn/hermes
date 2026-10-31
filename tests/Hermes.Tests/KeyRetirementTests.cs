@@ -55,6 +55,29 @@ public sealed class KeyRetirementTests(PostgresFixture postgres) : IClassFixture
     }
 
     [Fact]
+    public async Task MSG_OPS_008_AC4_TheRetentionJobProtectsAnInAppDeliverysPartsAndAnEntryAgainUnderTheWriteVersionAndRetiresTheOldOne()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        Guid waiting;
+        await using (DispatchEngine one = await DispatchEngine.StartAsync(postgres, declare: InApp.Declare, templates: InApp.Templates, connection: connection))
+        {
+            await one.Host.SendAsync(InApp.Send(order: "A-1"));
+            Assert.Equal(1, await one.Host.DispatchAsync());
+            waiting = (await one.Host.SendAsync(InApp.Send(order: "A-2"))).Value!.Deliveries[0].Delivery.Value;
+        }
+
+        await using EngineHost two = await EngineHost.StartAsync(connection, InApp.Declare, InApp.Templates, WriteTwo, secrets: Rotated(connection), clock: new ManualClock(EngineHost.Start.AddDays(8)));
+        Assert.True(await RunAsync(two));
+
+        (Guid entry, _, _, _) = await InAppDispatchTests.EntryAsync(two);
+        Assert.Equal(2, await two.ColumnAsync<int>(waiting, "content_key_version"));
+        Assert.Equal("Order A-2 en en", (await InApp.OpenAsync(two, waiting))["title.en"]);
+        Assert.Equal(2, await ScalarAsync<int>(two, database => new("SELECT content_key_version FROM messaging.entries", database)));
+        Assert.Equal("Order A-1 ar ar", (await InAppDispatchTests.OpenEntryAsync(two, entry))["title.ar"]);
+        Assert.Contains("contentKeys:1", await RetiredAsync(two));
+    }
+
+    [Fact]
     public async Task MSG_OPS_008_AC5_AValueErasedWhileTheRetentionJobProtectsItAgainStaysErased()
     {
         string connection = await EngineHost.DatabaseAsync(postgres);
