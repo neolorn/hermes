@@ -6,8 +6,9 @@ namespace Hermes.Repository.Tests;
 
 /// <summary>
 /// The pipeline's release rule, read from the text of <c>.github/workflows/gates.yml</c>: the
-/// release job runs only for a release tag, after the gates job, packs every package and creates
-/// the tag's release, and is the one job that can write to the repository's contents
+/// release job runs only for a release tag, a final release's or a release candidate's, after the
+/// gates job, packs every package and creates the tag's release, a release candidate's marked as
+/// a pre-release, and is the one job that can write to the repository's contents
 /// (<c>07</c> MSG-ENG-011).
 /// </summary>
 internal static class WorkflowRules
@@ -27,7 +28,7 @@ internal static class WorkflowRules
             yield return "the workflow's permissions are not contents: read alone";
         }
 
-        if (!Block(Block(Block(lines, "on:", 0), "push:", 2), "tags:", 4).SequenceEqual(["      - 'v[0-9]+.[0-9]+.[0-9]+'"], StringComparer.Ordinal))
+        if (!Block(Block(Block(lines, "on:", 0), "push:", 2), "tags:", 4).SequenceEqual(["      - 'v[0-9]+.[0-9]+.[0-9]+'", "      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'"], StringComparer.Ordinal))
         {
             yield return "the workflow's tags are not the release tags alone";
         }
@@ -84,9 +85,18 @@ internal static class WorkflowRules
             yield return "the release job does not refuse, before it packs, a tag whose commit is not its release commit";
         }
 
-        if (!release.Any(line => line.TrimStart().StartsWith("gh release create ", StringComparison.Ordinal) && line.Contains(" --notes-file RELEASE-NOTES.md ", StringComparison.Ordinal)))
+        string[] create = [.. release.Where(line => line.TrimStart().StartsWith("gh release create ", StringComparison.Ordinal))];
+        if (!create.Any(line => line.Contains(" --notes-file RELEASE-NOTES.md ", StringComparison.Ordinal)))
         {
             yield return "the release job does not create the tag's release with RELEASE-NOTES.md as its notes";
+        }
+
+        // A release candidate's tag, vX.Y.Z-rc.N with N from 1, and no other, makes a pre-release.
+        int prerelease = Array.FindIndex(release, line => line.Trim() == """$prerelease = @(if ($env:TAG -cmatch '^v\d+\.\d+\.\d+-rc\.[1-9]\d*$') { '--prerelease' })""");
+        int created = Array.FindIndex(release, line => line.TrimStart().StartsWith("gh release create ", StringComparison.Ordinal) && line.Contains(" @prerelease ", StringComparison.Ordinal));
+        if (prerelease < 0 || created < 0 || prerelease > created || create.Any(line => line.Contains("--prerelease", StringComparison.Ordinal)))
+        {
+            yield return "the release job does not mark a release candidate's release, and it alone, as a pre-release";
         }
     }
 

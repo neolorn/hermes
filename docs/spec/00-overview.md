@@ -168,8 +168,8 @@ the public surface (`04` MSG-LIB-006):
 | Email attachments | `02` MSG-EMAIL-003 |
 | Email bounce and complaint feedback | `02` MSG-EMAIL-007 |
 
-Release 1.2.0 adds the in-application notification list, as additions only (`02`
-section 5; `04` MSG-LIB-006).
+The first release candidate, `1.0.0-rc.1`, holds the in-application notification list
+(`02` section 5) with all that came before it (`04` MSG-LIB-006, M-027).
 
 *Source: M-001, M-004, M-026*
 

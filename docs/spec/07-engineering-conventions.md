@@ -373,7 +373,7 @@ pushes to the empty default branch before setting its protection), commit messag
 follow Conventional Commits 1.0.0, a `CHANGELOG.md` SHALL follow Keep a Changelog 1.1.0,
 and MinVer SHALL derive the version from the tag.
 
-**Values (M-012, M-015).**
+**Values (M-012, M-015, M-027).**
 - **Commit message:** a type of `feat`, `fix`, `refactor`, `perf`, `test`, `docs`,
   `build`, `ci`, `chore`; an optional scope naming the package's area (`core`,
   `channels`, `engine`, `testing`, `cli`, `sample`); a description in the imperative
@@ -393,25 +393,28 @@ and MinVer SHALL derive the version from the tag.
   `build/gates/release-baseline.json` does (`04` MSG-LIB-006), save that one holding no
   entry (nothing but `#nullable enable` and blank lines) MAY be deleted in the commit
   that deletes the project file beside it, since it records nothing released (M-021).
-- **Release commit:** the commit that makes release `X.Y.Z` has the message
-  `chore: release X.Y.Z` and changes no file but these (M-023): each
+- **Release commit:** the commit that makes release `V`, a final release `X.Y.Z` or a
+  release candidate `X.Y.Z-rc.N` (`04` MSG-LIB-006, M-027), has the message
+  `chore: release V` and changes no file but these (M-023): each
   `PublicAPI.Shipped.txt`, to its parent's entries and those of the
   `PublicAPI.Unshipped.txt` beside it, less each entry that file marks `*REMOVED*`,
   `#nullable enable` first and the rest in ordinal order; each
   `PublicAPI.Unshipped.txt`, to nothing but `#nullable enable`;
   `build/gates/release-baseline.json`, to the release's own set as the release gate
   reads it at that commit (`04` MSG-LIB-006); `CHANGELOG.md`, whose `Unreleased` entries
-  move under a new heading `## [X.Y.Z] - YYYY-MM-DD`, the commit's date in UTC, below an
+  move under a new heading `## [V] - YYYY-MM-DD`, the commit's date in UTC, below an
   empty `## [Unreleased]`; and `RELEASE-NOTES.md`. In its pull request only `docs:`
   commits that change nothing outside `docs/` follow it, so the tag on it carries
   everything the pull request built.
-- **Releases:** a release is a tag `v<major>.<minor>.<patch>` on the release commit,
-  pushed by the implementer once the pull request's merge has brought that commit into
-  the default branch, when the owner's message says to release. The pipeline's release
-  job runs only for such a tag, after the gates job has passed on it, and is the one job
-  that can write to the repository's contents: it packs every package at the tag, each
-  at the tag's version, and creates the tag's release with the runner's GitHub CLI, its
-  notes the tag's `RELEASE-NOTES.md`, the packages attached; where the owner names a
+- **Releases:** a release is a tag `v<V>` on the release commit, pushed once the pull
+  request's merge has brought that commit into the default branch, by the implementer
+  or, where the machine's permissions refuse it the push, by the owner; a release
+  candidate on the lead's message, a final release on the owner's (M-027). The
+  pipeline's release job runs only for such a tag, after the gates job has passed on it,
+  and is the one job that can write to the repository's contents: it packs every package
+  at the tag, each at the tag's version, and creates the tag's release with the runner's
+  GitHub CLI, a release candidate's marked as a pre-release, its notes the tag's
+  `RELEASE-NOTES.md`, the packages attached; where the owner names a
   package feed, it publishes them there too (M-020, M-023). Each package carries its
   identifier, its description (the text of its "What it holds" cell in `00` section 2.2,
   without markup or references), as its authors the name the owner's first message of
@@ -427,7 +430,7 @@ and MinVer SHALL derive the version from the tag.
   targets, not a documented setting, so `04` MSG-LIB-001's criterion 3 is what catches
   an SDK that changes them.
 
-*Source: M-012, M-014, M-015, M-020, M-021, M-022, M-023*
+*Source: M-012, M-014, M-015, M-020, M-021, M-022, M-023, M-027*
 
 **Acceptance criteria**
 1. A commit message outside the rule, and a behaviour-changing commit without a
@@ -439,14 +442,15 @@ and MinVer SHALL derive the version from the tag.
    entry deleted in the commit that deletes the project file beside it (M-021). The same
    deletion while that project file stays, or the deletion of a file that holds an
    entry, fails.
-3. A commit `chore: release X.Y.Z` that changes a file outside the release commit's
-   value, or one of its files otherwise than the value gives, or that a commit other
-   than a `docs:` commit changing only `docs/` follows in its pull request, fails a
-   check; so does a pull request that changes the release baseline where the baseline at
-   its head differs from the set the release gate reads there.
+3. A commit `chore: release V`, `V` a final release or a release candidate, that changes
+   a file outside the release commit's value, or one of its files otherwise than the
+   value gives, or that a commit other than a `docs:` commit changing only `docs/`
+   follows in its pull request, fails a check; so does a pull request that changes the
+   release baseline where the baseline at its head differs from the set the release gate
+   reads there. A version outside `X.Y.Z` and `X.Y.Z-rc.N`, `N` from 1, fails it.
 4. A release tag's run creates the tag's release, holding every package at the tag's
-   version, only once its gates have passed, and no other job of the pipeline can write
-   to the repository's contents.
+   version, a release candidate's marked as a pre-release, only once its gates have
+   passed, and no other job of the pipeline can write to the repository's contents.
 
 ---
 

@@ -7,68 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.0] - 2026-10-31
-
-### Added
-
-- `IInApp` and its types, `InAppPage`, `InAppEntry` and `EntryId`, for a person's
-  in-application list, and `SubjectExport.Entries`, each of the person's entries as
-  `InAppEntryExport`; none prints a part, a target or a target value
-- The channel `inapp` and the status `read`, and the migration `InAppList`, which adds the
-  in-app list's table and a column for an in-app delivery's parts, and drops or rewrites
-  nothing
-- The keys `Hermes:Retention:InApp`, 180 days by default, and `Hermes:InApp:AlwaysOn`, off by
-  default, each checked against its rule when the host starts and read again when it reloads
-- `KindBuilder.InApp(target, targetValues)`, which lets a kind go to its person's
-  in-application list: the send renders its `title` and `body` in every declared language,
-  each in that language's culture, refuses one past 128 or 1,024 characters with
-  `messaging.send.toolong`, and refuses the channel for an anonymous recipient with
-  `messaging.send.nodestination`
-- The in-app pass: the dispatcher writes an in-app delivery's entry to its person's list in
-  every environment, with no provider, no rate and no quiet hours, and ends the delivery `sent`
-- `IInApp`, registered scoped: a person's list read a page at a time, newest first, in the
-  language asked for, with an opaque cursor and `messaging.inapp.cursorinvalid` for one that
-  does not read; the unread count; and an entry, or all of them, marked read, which moves
-  each delivery from `sent` to `read` and tells the observer
-- With `Hermes:InApp:AlwaysOn` on, `IPreferences.SetAsync` refuses the in-app channel with
-  `messaging.preference.fixed`, answered 422 by the preference route, and `ReadAsync` and
-  `GET /preferences` leave the channel out
-- The retention job deletes, in batches, each in-app entry older than `Hermes:Retention:InApp`,
-  clears a final in-app delivery's parts with the rest of its content, and protects an
-  entry's values and a waiting in-app delivery's parts again under the write version
-- Erasing a person deletes their in-app entries and clears their in-app deliveries' parts,
-  and their export holds each entry with its parts in every language, its target and its
-  target values
-- `MapHermesInApp`, the in-app group: `GET /inapp` in the language of the request's
-  `Accept-Language`, `GET /inapp/unread`, and `POST /inapp/{id}/read` and `POST /inapp/read`,
-  which read an empty object as `application/json` alone, all for the person signed in
-
-## [1.1.0] - 2026-10-29
-
-### Added
-
-- `AddHermesDevelopmentInbox`, of the new package `Hermes.Development`, which in Development
-  keeps every message on the machine instead of sending it, whatever the order of the host's
-  provider registrations, and does nothing in any other environment; `AddHermesTesting`'s
-  in-memory providers are still used where it is registered
-- The development inbox's records: one JSON record a message, with the application, the
-  delivery's kind, category, language and person and the message's links, and an email's
-  `.eml` beside it as the SMTP provider would submit it, in a folder its owner alone reads,
-  cleaned as it grows past `Hermes:DevelopmentInbox:KeepFor` and `MaxMessages`
-- The development inbox's group, `MapHermesDevelopmentInbox`: a small JSON API over the
-  captured messages, `GET /messages/latest` able to wait for one, each email's `.eml` and its
-  HTML under a policy and sandbox that run no script, answered only to the machine itself
-  under a loopback host name unless `Hermes:DevelopmentInbox:AllowRemote` is on
-- The development inbox's page: every captured message, newest first and checked for new ones
-  every second, with filters, each email as it arrives in a sandboxed frame with its text,
-  headers and `.eml`, each SMS as a phone shows it and each push as a notification, every
-  link with Open and Copy, and Clear; one self-contained page that loads nothing from outside
-- `DevelopmentInbox`, for a .NET test or tool: it lists, reads the latest of and clears the
-  captured messages, and waits for one captured after it was made, without HTTP
-- The sample host runs with the development inbox, its page at `/dev/inbox/`, while its tests
-  keep sending through the in-memory providers of `Hermes.Testing`
-
-## [1.0.0] - 2026-10-29
+## [1.0.0-rc.1] - 2026-10-31
 
 ### Added
 
@@ -278,3 +217,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AddHermesChannels` alike
 - `FixedSecretSource` answers only the secrets the library reads: the five keys of the
   key tables and `emailSubmission`
+- `AddHermesDevelopmentInbox`, of the new package `Hermes.Development`, which in Development
+  keeps every message on the machine instead of sending it, whatever the order of the host's
+  provider registrations, and does nothing in any other environment; `AddHermesTesting`'s
+  in-memory providers are still used where it is registered
+- The development inbox's records: one JSON record a message, with the application, the
+  delivery's kind, category, language and person and the message's links, and an email's
+  `.eml` beside it as the SMTP provider would submit it, in a folder its owner alone reads,
+  cleaned as it grows past `Hermes:DevelopmentInbox:KeepFor` and `MaxMessages`
+- The development inbox's group, `MapHermesDevelopmentInbox`: a small JSON API over the
+  captured messages, `GET /messages/latest` able to wait for one, each email's `.eml` and its
+  HTML under a policy and sandbox that run no script, answered only to the machine itself
+  under a loopback host name unless `Hermes:DevelopmentInbox:AllowRemote` is on
+- The development inbox's page: every captured message, newest first and checked for new ones
+  every second, with filters, each email as it arrives in a sandboxed frame with its text,
+  headers and `.eml`, each SMS as a phone shows it and each push as a notification, every
+  link with Open and Copy, and Clear; one self-contained page that loads nothing from outside
+- `DevelopmentInbox`, for a .NET test or tool: it lists, reads the latest of and clears the
+  captured messages, and waits for one captured after it was made, without HTTP
+- The sample host runs with the development inbox, its page at `/dev/inbox/`, while its tests
+  keep sending through the in-memory providers of `Hermes.Testing`
+- `IInApp` and its types, `InAppPage`, `InAppEntry` and `EntryId`, for a person's
+  in-application list, and `SubjectExport.Entries`, each of the person's entries as
+  `InAppEntryExport`; none prints a part, a target or a target value
+- The channel `inapp` and the status `read`, and the migration `InAppList`, which adds the
+  in-app list's table and a column for an in-app delivery's parts, and drops or rewrites
+  nothing
+- The keys `Hermes:Retention:InApp`, 180 days by default, and `Hermes:InApp:AlwaysOn`, off by
+  default, each checked against its rule when the host starts and read again when it reloads
+- `KindBuilder.InApp(target, targetValues)`, which lets a kind go to its person's
+  in-application list: the send renders its `title` and `body` in every declared language,
+  each in that language's culture, refuses one past 128 or 1,024 characters with
+  `messaging.send.toolong`, and refuses the channel for an anonymous recipient with
+  `messaging.send.nodestination`
+- The in-app pass: the dispatcher writes an in-app delivery's entry to its person's list in
+  every environment, with no provider, no rate and no quiet hours, and ends the delivery `sent`
+- `IInApp`, registered scoped: a person's list read a page at a time, newest first, in the
+  language asked for, with an opaque cursor and `messaging.inapp.cursorinvalid` for one that
+  does not read; the unread count; and an entry, or all of them, marked read, which moves
+  each delivery from `sent` to `read` and tells the observer
+- With `Hermes:InApp:AlwaysOn` on, `IPreferences.SetAsync` refuses the in-app channel with
+  `messaging.preference.fixed`, answered 422 by the preference route, and `ReadAsync` and
+  `GET /preferences` leave the channel out
+- The retention job deletes, in batches, each in-app entry older than `Hermes:Retention:InApp`,
+  clears a final in-app delivery's parts with the rest of its content, and protects an
+  entry's values and a waiting in-app delivery's parts again under the write version
+- Erasing a person deletes their in-app entries and clears their in-app deliveries' parts,
+  and their export holds each entry with its parts in every language, its target and its
+  target values
+- `MapHermesInApp`, the in-app group: `GET /inapp` in the language of the request's
+  `Accept-Language`, `GET /inapp/unread`, and `POST /inapp/{id}/read` and `POST /inapp/read`,
+  which read an empty object as `application/json` alone, all for the person signed in

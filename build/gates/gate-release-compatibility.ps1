@@ -6,24 +6,26 @@
     Compares the current set (the public surface, the routes with their methods and statuses, the
     JSON bodies' members and types, the codes, the configuration keys, the spellings and the
     metric names and kinds, as the contract tests read them) with the baseline: the
-    build/gates/release-baseline.json and PublicAPI.Shipped.txt files Base holds. Before the first
-    release no tag holds a baseline, so it is empty and nothing is a break.
+    build/gates/release-baseline.json and PublicAPI.Shipped.txt files the tag of the newest final
+    release before Head holds, on a pull request as on a release tag. A release candidate's tag,
+    vX.Y.Z-rc.N, is never that release. Before the first final release no tag holds a baseline, so
+    it is empty and nothing is a break.
 
-    On a release tag, the tag's version must be above the previous release's by what the change
-    needs: a removal or a change, a request member a caller must now send, or a member added to
-    an interface a host implements without a default implementation needs a major release; an
-    addition a minor one. Anywhere else (a pull request, a push), the version is a pre-release, and
-    a change that needs a major release fails unless a commit since the last release carries ! or
-    BREAKING CHANGE: (07 MSG-ENG-011).
+    On a release tag, a release candidate's included, the tag's version X.Y.Z must be above the
+    newest final release's by what the change needs: a removal or a change, a request member a
+    caller must now send, or a member added to an interface a host implements without a default
+    implementation needs a major release; an addition a minor one. Anywhere else (a pull request,
+    a push), the version is a pre-release, and a change that needs a major release fails unless a
+    commit since the newest final release carries ! or BREAKING CHANGE: (07 MSG-ENG-011).
 
     Where the change from Base changes build/gates/release-baseline.json, which only a release
     commit may (07 MSG-ENG-011), the baseline at Head must be the set read there, before the first
-    release as after it.
+    final release as after it.
 .PARAMETER Repository
     The repository to check; by default, this one.
 .PARAMETER Base
-    The commit whose baseline the change is compared with: the previous release tag, or a pull
-    request's base.
+    The commit after which the change is checked: the previous release tag, or a pull request's
+    base.
 .PARAMETER Head
     The commit checked.
 .PARAMETER Needs
@@ -49,9 +51,11 @@ $Repository = (Resolve-Path $Repository).Path
 $commit = & git -C $Repository rev-parse --verify --quiet "$Head^{commit}"
 if ($LASTEXITCODE -ne 0 -or -not $commit) { throw "-Head $Head names no commit." }
 
-$release = '^v(\d+)\.(\d+)\.(\d+)$'
-$tagged = @(& git -C $Repository tag --points-at $commit | Where-Object { $_ -cmatch $release } | Sort-Object -Descending { [version]$_.Substring(1) })
-$previous = [string](& (Join-Path $PSScriptRoot 'previous-release-tag.ps1') -Repository $Repository -Head $commit)
+# A release tag at Head, a release candidate's included, is held to what its version X.Y.Z needs
+# against the newest final release before it, which alone is the baseline (04 MSG-LIB-006).
+$release = '^v(?<version>\d+\.\d+\.\d+)(-rc\.[1-9]\d*)?$'
+$tagged = @(& git -C $Repository tag --points-at $commit | Where-Object { $_ -cmatch $release } | Sort-Object -Descending { [version]([regex]::Match($_, $release).Groups['version'].Value) })
+$previous = [string](& (Join-Path $PSScriptRoot 'previous-release-tag.ps1') -Repository $Repository -Head $commit -Final)
 
 $baselineFile = 'build/gates/release-baseline.json'
 $baselineChanged = $false
@@ -62,26 +66,31 @@ if ($Base) {
 }
 
 if (-not $previous -and -not $baselineChanged) {
-    Write-Host 'No release precedes Head, so the baseline is empty and nothing is a break.'
+    Write-Host 'No final release precedes Head, so the baseline is empty and nothing is a break.'
     return
 }
 
 if (($previous -and -not $Needs) -or ($baselineChanged -and -not $Current)) {
-    if (-not $Base) { throw "A release ($previous) precedes Head, so -Base must name the commit whose baseline the change is compared with." }
+    if (-not $Base) { throw "A final release ($previous) precedes Head, so -Base must name the commit after which the change is checked." }
 
     $folder = Join-Path $Repository 'tmp' 'release-gate'
     if (Test-Path $folder) { Remove-Item -Recurse -Force $folder }
     New-Item -ItemType Directory -Force (Join-Path $folder 'shipped') | Out-Null
 
-    $baseline = & git -C $Repository show "${Base}:build/gates/release-baseline.json" 2>$null
-    if ($LASTEXITCODE -ne 0) { $baseline = '{}' }
+    # The baseline is what the newest final release's tag holds; before the first, it is empty.
+    $baseline = '{}'
+    $files = @()
+    if ($previous) {
+        $baseline = & git -C $Repository show "${previous}:$baselineFile" 2>$null
+        if ($LASTEXITCODE -ne 0) { $baseline = '{}' }
+        $files = @(& git -C $Repository ls-tree -r --name-only $previous -- src | Where-Object { $_ -cmatch '^src/[^/]+/PublicAPI\.Shipped\.txt$' })
+    }
     Set-Content -Path (Join-Path $folder 'baseline.json') -Value $baseline
 
-    $files = @(& git -C $Repository ls-tree -r --name-only $Base -- src | Where-Object { $_ -cmatch '^src/[^/]+/PublicAPI\.Shipped\.txt$' })
     foreach ($file in $files) {
         $project = ($file -split '/')[1]
-        $lines = & git -C $Repository show "${Base}:$file"
-        if ($LASTEXITCODE -ne 0) { throw "git show ${Base}:$file failed." }
+        $lines = & git -C $Repository show "${previous}:$file"
+        if ($LASTEXITCODE -ne 0) { throw "git show ${previous}:$file failed." }
         Set-Content -Path (Join-Path $folder 'shipped' "$project.txt") -Value $lines
     }
 
@@ -127,7 +136,7 @@ if ($baselineChanged) {
 }
 
 if (-not $previous) {
-    Write-Host 'No release precedes Head, so the baseline is empty and nothing is a break.'
+    Write-Host 'No final release precedes Head, so the baseline is empty and nothing is a break.'
     return
 }
 
@@ -137,7 +146,7 @@ foreach ($line in @($answer.lines)) { Write-Host $line }
 Write-Host "Since $previous the change needs a $level release."
 
 if ($tagged.Count -gt 0) {
-    $version = [version]$tagged[0].Substring(1)
+    $version = [version]([regex]::Match($tagged[0], $release).Groups['version'].Value)
     $before = [version]$previous.Substring(1)
     $enough = switch ($level) {
         'major' { $version.Major -gt $before.Major }

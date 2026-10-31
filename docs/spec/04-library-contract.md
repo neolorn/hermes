@@ -287,7 +287,8 @@ A required seam missing stops the start with `messaging.startup.declarationmissi
 
 ---
 
-**MSG-LIB-006** — The library SHALL follow Semantic Versioning 2.0.0: a release that
+**MSG-LIB-006** — The library SHALL follow Semantic Versioning 2.0.0, and SHALL release
+candidates of 1.0.0 until its first final release: from that release on, a release that
 changes or removes a public member, an endpoint or its wire shape, a code, a
 configuration key, a value of an enumeration or status, or a metric's name, or that adds
 to an interface a host implements a member without a default implementation, is a major
@@ -304,26 +305,42 @@ member names and types, the codes, the configuration keys, the spellings of the
 enumerations and statuses, and the metric names and kinds. The gate takes the current
 set as the contract tests read it (`07` MSG-ENG-006, MSG-ENG-007: the built assemblies,
 the serializer contexts, and a test host's endpoint metadata and meter) and compares it
-with the baseline as the previous release tag holds it (on a pull request, as its base
-holds it), since the release commit rewrites the file to the release's own set; before
-the first release no tag holds one, so the baseline is empty. Where a pull request
-changes the baseline, which only its release commit may (`07` MSG-ENG-011), the gate
-also checks that the baseline at its head is the set it reads there. An addition (a
-route, a status, a response member, a code, a key, an enumeration value, a metric) is
-minor; a change or a removal, and a request member a caller must now send, are major.
+with the baseline as the tag of the newest final release holds it, on a pull request as
+on a release tag, a release candidate's tag never being one, since the release commit
+rewrites the file to the release's own set; before the first final release no such tag
+holds one, so the baseline is empty. Where a pull request changes the baseline, which
+only its release commit may (`07` MSG-ENG-011), the gate also checks that the baseline
+at its head is the set it reads there. An addition (a route, a status, a response
+member, a code, a key, an enumeration value, a metric) is minor; a change or a removal,
+and a request member a caller must now send, are major.
 
-*Source: M-012, M-023*
+**Release candidates (M-027).** A version is final only on the owner's word. Until then
+each release of it is a release candidate, `X.Y.Z-rc.N`, `N` counting from 1 for each
+version (SemVer 2.0.0 compares it numerically, so `rc.10` follows `rc.9`). The first
+final release is 1.0.0, so every release before it is `1.0.0-rc.N`, and nothing in this
+rule binds those: a release candidate of 1.0.0 may change or remove anything, as SemVer
+leaves a pre-release free to fall short of what its version will promise. The release
+notes of each release candidate name every change and removal since the release before
+it, so a host knows what to adapt. From the first final release on, a release candidate
+`X.Y.Z-rc.N` is held to what `X.Y.Z` needs against the newest final release.
+
+*Source: M-012, M-023, M-027*
 
 **Acceptance criteria**
 1. The release gate compares the public surface, the endpoints and their wire shapes,
    the codes, the configuration keys, the enumerations and statuses and the metric names
-   with the previous release's, and fails a release whose version is below what changed
-   needs, a member added to a host-implemented interface without a default
+   with the newest final release's, and fails a release whose version is below what
+   changed needs, a member added to a host-implemented interface without a default
    implementation counted as a break (`07` MSG-ENG-012). That rule is applied to the
-   version of a release tag; on a pull request, whose version is a pre-release, the gate
-   fails a change that needs a major release where no commit since the last release
-   carries `!` or `BREAKING CHANGE:` (`07` MSG-ENG-011); before the first release its
-   baseline is empty, so nothing is a break.
+   version of a release tag, a release candidate's included; on a pull request, whose
+   version is a pre-release, the gate fails a change that needs a major release where no
+   commit since the newest final release carries `!` or `BREAKING CHANGE:` (`07`
+   MSG-ENG-011); before the first final release its baseline is empty, so nothing is a
+   break.
+2. With no final release tagged, a pull request and a release candidate's tag that
+   remove a public member pass the release gate; with a final release `1.0.0` tagged,
+   the same removal fails it in a pull request carrying neither `!` nor
+   `BREAKING CHANGE:`, and in a tag `v1.1.0-rc.1`.
 
 ---
 

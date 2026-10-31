@@ -30,7 +30,8 @@ public sealed class CommitMessageGateTests
 
     private const string Entry = "\n- The send operation records a send.\n";
 
-    private const string ReleasedChangelog = "# Changelog\n\n## [Unreleased]\n\n## [1.0.0] - 2026-10-30\n\n### Added\n" + Entry;
+    /// <summary>The final release the release commit makes where a test names no other version.</summary>
+    private const string FinalRelease = "1.0.0";
 
     private const string Shipped = "#nullable enable\nHermes.Extra.Old\nHermes.Extra.Gone\n";
 
@@ -150,13 +151,16 @@ public sealed class CommitMessageGateTests
         Assert.Contains("adds no line under the changelog's Unreleased section", gate.Output, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task MSG_ENG_011_AC1_ChangelogLineUnderChangedPassesOnceAReleaseIsTagged()
+    [Theory]
+    [InlineData("v1.0.0")]
+    [InlineData("v1.0.0-rc.1")]
+    [InlineData("v1.0.0-rc.10")]
+    public async Task MSG_ENG_011_AC1_ChangelogLineUnderChangedPassesOnceAReleaseIsTagged(string tag)
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         using ScratchFolder folder = new();
         (GitRepository repository, string start) = await CreateAsync(folder, cancellationToken);
-        await repository.GitAsync(cancellationToken, "tag", "v1.0.0", start);
+        await repository.GitAsync(cancellationToken, "tag", tag, start);
         repository.Write("CHANGELOG.md", Changelog.Replace("### Added", "### Changed", StringComparison.Ordinal) + "- A send records its time zone.\n");
         await repository.CommitAsync("feat(engine): record the send's time zone", cancellationToken);
 
@@ -166,7 +170,10 @@ public sealed class CommitMessageGateTests
     }
 
     [Theory]
-    [InlineData("v1.0.0-rc.1")]
+    [InlineData("v1.0.0-rc.0")]
+    [InlineData("v1.0.0-rc.01")]
+    [InlineData("v1.0.0-beta.1")]
+    [InlineData("v1.0.0-RC.1")]
     [InlineData("v1.0")]
     [InlineData("version-1.0.0")]
     public async Task MSG_ENG_011_AC1_ChangelogLineUnderChangedFailsAfterATagThatIsNoRelease(string tag)
@@ -320,19 +327,48 @@ public sealed class CommitMessageGateTests
         Assert.True(gate.ExitCode == 0, gate.Output);
     }
 
-    [Fact]
-    public async Task MSG_ENG_011_AC2_TheReleaseCommitChangingItsFilesAsTheValueGivesPasses()
+    [Theory]
+    [InlineData("1.0.0")]
+    [InlineData("1.0.0-rc.1")]
+    [InlineData("1.0.0-rc.10")]
+    [InlineData("2.3.4-rc.2")]
+    public async Task MSG_ENG_011_AC2_TheReleaseCommitChangingItsFilesAsTheValueGivesPasses(string version)
     {
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         using ScratchFolder folder = new();
         (GitRepository repository, string start) = await CreateForReleaseAsync(folder, cancellationToken);
-        WriteRelease(repository);
-        await CommitReleaseAsync(repository, cancellationToken);
+        WriteRelease(repository, version);
+        await CommitReleaseAsync(repository, version, cancellationToken);
 
         ProcessResult gate = await RunAsync(repository, start, cancellationToken);
 
         Assert.True(gate.ExitCode == 0, gate.Output);
         Assert.Contains("1 commit(s)", gate.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("1.0.0-rc.0")]
+    [InlineData("1.0.0-rc.01")]
+    [InlineData("1.0.0-rc")]
+    [InlineData("1.0.0-rc.1.2")]
+    [InlineData("1.0.0-beta.1")]
+    [InlineData("1.0.0-RC.1")]
+    [InlineData("1.0.0+build.1")]
+    [InlineData("1.0")]
+    [InlineData("v1.0.0")]
+    [InlineData("the next version")]
+    public async Task MSG_ENG_011_AC3_AReleaseCommitNamingAVersionOutsideBothFormsFails(string version)
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateForReleaseAsync(folder, cancellationToken);
+        WriteRelease(repository, version);
+        await CommitReleaseAsync(repository, version, cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.NotEqual(0, gate.ExitCode);
+        Assert.Contains($"it names the release {version}, which is neither X.Y.Z nor X.Y.Z-rc.N with N from 1", gate.Output, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -378,6 +414,24 @@ public sealed class CommitMessageGateTests
         Assert.Contains(problem, gate.Output, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("1.0.0")]
+    [InlineData("1.0.0-rc.2")]
+    [InlineData("1.0.0-rc")]
+    public async Task MSG_ENG_011_AC3_AReleaseCandidatesReleaseCommitWhoseChangelogHeadingNamesAnotherVersionFails(string heading)
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateForReleaseAsync(folder, cancellationToken);
+        WriteRelease(repository, heading);
+        await CommitReleaseAsync(repository, "1.0.0-rc.1", cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.NotEqual(0, gate.ExitCode);
+        Assert.Contains("CHANGELOG.md does not move the Unreleased entries under ## [1.0.0-rc.1] - 2026-10-30 below an empty ## [Unreleased]", gate.Output, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task MSG_ENG_011_AC3_AReleaseCommitDeletingTheReleaseNotesFails()
     {
@@ -396,17 +450,20 @@ public sealed class CommitMessageGateTests
     }
 
     [Theory]
-    [InlineData("docs: correct the report", "docs/reports/phase-08.md", true)]
-    [InlineData("docs: correct the readme", "README.md", false)]
-    [InlineData("test: correct the report", "docs/reports/phase-08.md", false)]
-    public async Task MSG_ENG_011_AC3_OnlyADocsCommitChangingOnlyDocsFollowsTheReleaseCommitInItsPullRequest(string message, string path, bool passes)
+    [InlineData("1.0.0", "docs: correct the report", "docs/reports/phase-08.md", true)]
+    [InlineData("1.0.0", "docs: correct the readme", "README.md", false)]
+    [InlineData("1.0.0", "test: correct the report", "docs/reports/phase-08.md", false)]
+    [InlineData("1.0.0-rc.1", "docs: correct the report", "docs/reports/phase-08.md", true)]
+    [InlineData("1.0.0-rc.1", "docs: correct the readme", "README.md", false)]
+    [InlineData("1.0.0-rc.1", "test: correct the report", "docs/reports/phase-08.md", false)]
+    public async Task MSG_ENG_011_AC3_OnlyADocsCommitChangingOnlyDocsFollowsTheReleaseCommitInItsPullRequest(string version, string message, string path, bool passes)
     {
         ArgumentNullException.ThrowIfNull(message);
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         using ScratchFolder folder = new();
         (GitRepository repository, string start) = await CreateForReleaseAsync(folder, cancellationToken);
-        WriteRelease(repository);
-        string release = await CommitReleaseAsync(repository, cancellationToken);
+        WriteRelease(repository, version);
+        string release = await CommitReleaseAsync(repository, version, cancellationToken);
         repository.Write(path, "# Phase 8\n");
         await repository.CommitAsync(message, cancellationToken);
 
@@ -446,14 +503,39 @@ public sealed class CommitMessageGateTests
         (GitRepository repository, string start) = await CreateAsync(folder, cancellationToken);
         await repository.GitAsync(cancellationToken, "tag", "v1.0.0", start);
         string second = await repository.CommitAsync("build: add the shared build settings", cancellationToken);
-        await repository.GitAsync(cancellationToken, "tag", "v1.1.0-rc.1", second);
-        await repository.GitAsync(cancellationToken, "tag", "v9", second);
+        foreach (string tag in new[] { "v9", "v2.0", "v2.0.0-rc.0", "v2.0.0-rc.01", "v2.0.0-beta.1", "v2.0.0-RC.1", "v2.0.0-rc.1.1", "version-2.0.0" })
+        {
+            await repository.GitAsync(cancellationToken, "tag", tag, second);
+        }
+
         string head = await repository.CommitAsync("docs: add the release notes", cancellationToken);
 
-        ProcessResult previous = await Processes.GateAsync("previous-release-tag.ps1", repository.Root, cancellationToken, "-Repository", repository.Root, "-Head", head);
+        ProcessResult previous = await PreviousReleaseTagAsync(repository, head, cancellationToken);
 
         Assert.True(previous.ExitCode == 0, previous.Output);
         Assert.Equal("v1.0.0", previous.Output.Trim());
+    }
+
+    [Theory]
+    [InlineData("v1.0.0-rc.1", "v1.0.0-rc.2", "v1.0.0-rc.2")]
+    [InlineData("v1.0.0-rc.10", "v1.0.0-rc.9", "v1.0.0-rc.10")]
+    [InlineData("v1.0.0-rc.10", "v1.0.0", "v1.0.0")]
+    [InlineData("v1.0.0", "v1.1.0-rc.1", "v1.1.0-rc.1")]
+    [InlineData("v1.10.0-rc.1", "v1.9.0", "v1.10.0-rc.1")]
+    public async Task PreviousReleaseTag_AReleaseCandidate_IsAReleaseTakenInSemanticVersioningsPrecedence(string first, string second, string expected)
+    {
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateAsync(folder, cancellationToken);
+        await repository.GitAsync(cancellationToken, "tag", first, start);
+        string next = await repository.CommitAsync("build: add the shared build settings", cancellationToken);
+        await repository.GitAsync(cancellationToken, "tag", second, next);
+        string head = await repository.CommitAsync("docs: add the release notes", cancellationToken);
+
+        ProcessResult previous = await PreviousReleaseTagAsync(repository, head, cancellationToken);
+
+        Assert.True(previous.ExitCode == 0, previous.Output);
+        Assert.Equal(expected, previous.Output.Trim());
     }
 
     [Fact]
@@ -464,7 +546,7 @@ public sealed class CommitMessageGateTests
         (GitRepository repository, _) = await CreateAsync(folder, cancellationToken);
         string head = await repository.CommitAsync("docs: add the release notes", cancellationToken);
 
-        ProcessResult previous = await Processes.GateAsync("previous-release-tag.ps1", repository.Root, cancellationToken, "-Repository", repository.Root, "-Head", head);
+        ProcessResult previous = await PreviousReleaseTagAsync(repository, head, cancellationToken);
 
         Assert.True(previous.ExitCode == 0, previous.Output);
         Assert.Equal(string.Empty, previous.Output.Trim());
@@ -518,7 +600,13 @@ public sealed class CommitMessageGateTests
     /// <summary>Writes the release commit's files as the release commit's value gives them for release 1.0.0.</summary>
     private static void WriteRelease(GitRepository repository)
     {
-        repository.Write("CHANGELOG.md", ReleasedChangelog);
+        WriteRelease(repository, FinalRelease);
+    }
+
+    /// <summary>Writes the release commit's files as the release commit's value gives them for release <paramref name="version"/>.</summary>
+    private static void WriteRelease(GitRepository repository, string version)
+    {
+        repository.Write("CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n\n## [" + version + "] - 2026-10-30\n\n### Added\n" + Entry);
         repository.Write(ProjectFolder + "/PublicAPI.Shipped.txt", ReleasedShipped);
         repository.Write(ProjectFolder + "/PublicAPI.Unshipped.txt", "#nullable enable\n");
         repository.Write("build/gates/release-baseline.json", "{\n  \"codes\": [\n    \"messaging.send.unknown\"\n  ]\n}\n");
@@ -526,7 +614,17 @@ public sealed class CommitMessageGateTests
 
     private static Task<string> CommitReleaseAsync(GitRepository repository, CancellationToken cancellationToken)
     {
-        return repository.CommitAsync("chore: release 1.0.0", cancellationToken, "--date", ReleaseDate);
+        return CommitReleaseAsync(repository, FinalRelease, cancellationToken);
+    }
+
+    private static Task<string> CommitReleaseAsync(GitRepository repository, string version, CancellationToken cancellationToken)
+    {
+        return repository.CommitAsync("chore: release " + version, cancellationToken, "--date", ReleaseDate);
+    }
+
+    private static Task<ProcessResult> PreviousReleaseTagAsync(GitRepository repository, string head, CancellationToken cancellationToken)
+    {
+        return Processes.GateAsync("previous-release-tag.ps1", repository.Root, cancellationToken, "-Repository", repository.Root, "-Head", head);
     }
 
     private static Task<ProcessResult> RunAsync(GitRepository repository, string start, CancellationToken cancellationToken)

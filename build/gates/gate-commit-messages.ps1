@@ -12,16 +12,18 @@
     section, under "Added" while no release is tagged. No commit but a release commit changes or
     deletes an existing PublicAPI.Shipped.txt or build/gates/release-baseline.json; adding one,
     or moving one unchanged, is no change, and a PublicAPI.Shipped.txt holding no entry may be
-    deleted in the commit that deletes the project file beside it.
+    deleted in the commit that deletes the project file beside it. A release is a tag v<V>, V a
+    final release X.Y.Z or a release candidate X.Y.Z-rc.N, N from 1; another tag is no release.
 
-    A release commit, "chore: release X.Y.Z", changes no file but each PublicAPI.Shipped.txt, to
-    its parent's entries and those of the PublicAPI.Unshipped.txt beside it, less each one marked
+    A release commit, "chore: release V", changes no file but each PublicAPI.Shipped.txt, to its
+    parent's entries and those of the PublicAPI.Unshipped.txt beside it, less each one marked
     *REMOVED*, under #nullable enable in ordinal order; each PublicAPI.Unshipped.txt, to
     #nullable enable alone; the release baseline, whose content the release gate checks;
-    CHANGELOG.md, whose Unreleased entries move under "## [X.Y.Z] - YYYY-MM-DD", the commit's
-    date in UTC, below an empty "## [Unreleased]"; and RELEASE-NOTES.md, which it holds. In its
-    pull request, up to the platform's merge of it, only docs: commits that change nothing
-    outside docs/ follow it.
+    CHANGELOG.md, whose Unreleased entries move under "## [V] - YYYY-MM-DD", the commit's date in
+    UTC, below an empty "## [Unreleased]"; and RELEASE-NOTES.md, which it holds. In its pull
+    request, up to the platform's merge of it, only docs: commits that change nothing outside
+    docs/ follow it. A commit whose first line begins "chore: release " names a release, and
+    fails where what follows is not a version of either form.
 .PARAMETER Repository
     The repository to check; by default, this one.
 .PARAMETER Base
@@ -44,8 +46,10 @@ $scopes = 'core|channels|engine|testing|cli|sample'
 $headerPattern = "^(?<type>$types)(\((?<scope>$scopes)\))?(?<breaking>!)?: (?<description>\S(.*\S)?)$"
 $footerPattern = '^(Implements: MSG-[A-Z]+-\d{3}(, MSG-[A-Z]+-\d{3})*|BREAKING CHANGE: \S.*)$'
 $sectionTypes = 'Added|Changed|Deprecated|Removed|Fixed|Security'
-$releaseTagPattern = '^v\d+\.\d+\.\d+$'
-$releasePattern = '^chore: release (?<version>\d+\.\d+\.\d+)$'
+$versionPattern = '\d+\.\d+\.\d+(-rc\.[1-9]\d*)?'
+$releaseTagPattern = "^v$versionPattern$"
+$releasePattern = "^chore: release (?<version>$versionPattern)$"
+$releaseNamePattern = '^chore: release (?<version>.*)$'
 $platformCommitter = 'noreply@github.com'
 $emptyTree = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 
@@ -314,7 +318,11 @@ foreach ($commit in $commits) {
     $subject = ($message -split "`n")[0].TrimEnd("`r")
     $release = [regex]::Match($subject, $releasePattern)
     if ($release.Success) { $problems += @(Get-ReleaseCommitProblems $commit $parent $release.Groups['version'].Value) }
-    else { $problems += @(Get-ReleasedFileProblems $commit $parent) }
+    else {
+        $named = [regex]::Match($subject, $releaseNamePattern)
+        if ($named.Success) { $problems += "it names the release $($named.Groups['version'].Value), which is neither X.Y.Z nor X.Y.Z-rc.N with N from 1" }
+        $problems += @(Get-ReleasedFileProblems $commit $parent)
+    }
     if ($followers.ContainsKey($commit)) { $problems += @($followers[$commit]) }
 
     foreach ($problem in $problems) {
