@@ -213,6 +213,7 @@ internal sealed class Subjects(
                 .Where(row => Spellings.Service(row.Service) is not null)
                 .Select(row => new SubscriptionExport { Service = Spellings.Service(row.Service)!.Value, MadeAt = row.MadeAt, LastAcceptedAt = row.LastAcceptedAt })],
             Deliveries = deliveries,
+            Entries = [],
             IdempotencyKeys = [.. read.Idempotency.Select(row => new IdempotencyKeyExport { Kind = row.Kind, Key = row.Key, RecordedAt = row.RecordedAt })],
         });
     }

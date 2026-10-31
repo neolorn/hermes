@@ -20,18 +20,19 @@ internal static class PublicTypeTable
             "Send",
             "SendValue", "SendValue.PlainText", "SendValue.WholeNumber", "SendValue.DecimalNumber", "SendValue.Flag", "SendValue.Instant", "SendValue.List",
             "Recipient", "Recipient.Person", "Recipient.Anonymous",
-            "SendId", "DeliveryId",
+            "SendId", "DeliveryId", "EntryId",
             "SendReceipt", "DeliveryReceipt",
             "SendRecord", "DeliveryRecord", "AttemptRecord", "CallRecord",
             "Result", "Result`1", "Failure",
             "MessagingStartupException",
             "EmailAddress",
             "CategoryPreferences", "ChannelPreference",
-            "SubjectExport", "SubscriptionExport", "DeliveryExport", "IdempotencyKeyExport",
+            "SubjectExport", "SubscriptionExport", "DeliveryExport", "InAppEntryExport", "IdempotencyKeyExport",
+            "InAppPage", "InAppEntry",
             "Channel", "DeliveryStatus", "AttemptClass", "AttemptReason", "PushUrgency", "PushService", "PushPlatform", "SmsEncoding", "SmsReportOutcome", "ConsentAnswer",
 
             // Operations.
-            "IMessages", "IPreferences", "ISuppressions", "ISubjects",
+            "IMessages", "IPreferences", "ISuppressions", "ISubjects", "IInApp",
 
             // Provider contracts.
             "Attempt", "Attempt.Accepted", "Attempt.Transient", "Attempt.Permanent", "Attempt.Gone",
