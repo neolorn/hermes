@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `DeliveryNotice.IdempotencyKey`, the key the notice's send was recorded with, its last
+  member; a notice prints it no more than it prints the person
+
 ## [1.0.0-rc.1] - 2026-10-31
 
 ### Added

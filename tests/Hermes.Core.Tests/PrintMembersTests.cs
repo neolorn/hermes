@@ -29,8 +29,9 @@ public sealed class PrintMembersTests
     }
 
     [Fact]
-    public void MSG_LIB_002_DeliveryNoticePrintsNoPerson()
+    public void MSG_LIB_002_DeliveryNoticePrintsNeitherItsPersonNorItsIdempotencyKey()
     {
+        const string Key = "order-7f3a-reference";
         DeliveryNotice notice = new()
         {
             Send = new SendId(Guid.CreateVersion7()),
@@ -41,11 +42,13 @@ public sealed class PrintMembersTests
             Person = Secret,
             Status = DeliveryStatus.Sent,
             At = DateTimeOffset.UnixEpoch,
+            IdempotencyKey = Key,
         };
 
         string printed = notice.ToString();
 
         Assert.DoesNotContain(Secret, printed, StringComparison.Ordinal);
+        Assert.DoesNotContain(Key, printed, StringComparison.Ordinal);
         Assert.Contains("order.placed", printed, StringComparison.Ordinal);
     }
 
