@@ -40,11 +40,12 @@ control SHALL have the test its requirement gives.
 | A log leaks addresses, numbers, endpoints, references or text | Logs carry identifiers only, checked in the gate (`06` MSG-OPS-005); the HTTP clients log no request address (`02` MSG-CHAN-001); a host's outbound traces are redacted by the deployment (`06` MSG-OPS-007) |
 | A man in the middle reads mail on its way to the submission server | TLS required, its certificate validated with its revocation status (`02` MSG-EMAIL-001) |
 | A push service or anyone between reads a push message | RFC 8291 encryption to the browser's key (`02` MSG-PUSH-001); the topic a keyed hash (`02` MSG-PUSH-002) |
-| One person reads or changes another's preferences or subscriptions | Every such route acts only for the signed-in person (`05` MSG-API-002) |
-| Another site makes a signed-in person's browser change their preferences | JSON bodies read only as `application/json`; the host's own forgery protection on those groups (`04` MSG-LIB-004, `05` MSG-API-001) |
+| One person reads or changes another's preferences, subscriptions or in-app entries | Every such route acts only for the signed-in person, and another person's entry answers as one that does not exist (`05` MSG-API-002, MSG-API-008; `02` MSG-INAPP-003) |
+| Another site makes a signed-in person's browser change their preferences or mark their in-app entries read | JSON bodies read only as `application/json`; the host's own forgery protection on those groups (`04` MSG-LIB-004, `05` MSG-API-001, MSG-API-008) |
+| A value carrying markup runs as script in the host's in-app list | Entries hold plain text, which the host's frontend shows as text, never as markup (`05` MSG-API-008) |
 | A report endpoint is flooded, or its key guessed | A key of at least 128 random bits, compared in constant time; wrong-key requests limited per source address and bodies bounded, which bound the load; someone holding the key can make at most `Hermes:Sms:ReportHoldMax` held reports at once, the rest dropped, counted and logged (`02` MSG-SMS-004, `05` MSG-API-006) |
 | A process that does not hold a newer key version acts as though nothing were made under it, sending to a suppressed address or past a limit | Lookups computed under every version the process holds, then the versions in use read; one in use that the process does not hold makes its lookups wait, never pass (`06` MSG-OPS-008; `01` MSG-SEND-006) |
-| Someone with write access to the database moves a subscription or a delivery to another person | Each protected value bound to its person as well as its row (`01` MSG-SEND-018) |
+| Someone with write access to the database moves a subscription, a delivery or an in-app entry to another person | Each protected value bound to its person as well as its row (`01` MSG-SEND-018) |
 | Someone with write access to the database alters a protected value | The value does not open, its delivery ends `failed` and `content-rejected` is raised; an altered format byte that lands in the range kept for later releases holds it instead, with `key-unavailable` raised, until `Hermes:Dispatch:MaxHold` ends it `failed` (`01` MSG-SEND-006, MSG-SEND-018) |
 | A process deployed without a key version, or without the protector another process writes with, loses the messages it claims | A delivery held for a key is never counted as an attempt and waits for a process that holds it, with `key-unavailable` raised, for a run of holds of up to `Hermes:Dispatch:MaxHold` (`01` MSG-SEND-006; `06` MSG-OPS-008) |
 | An older release running beside a newer one retires a key version the newer one's rows still need, or reports an erasure done that it could not finish | A process whose database holds a migration its release does not know marks no version retired and answers erasure and export `messaging.release.newer` (`06` MSG-OPS-008; `01` MSG-SEND-020) |
@@ -54,7 +55,7 @@ control SHALL have the test its requirement gives.
 | Script in a captured message runs in the inbox page | Every value written as text under a strict policy; an email's HTML served from its own route under a policy and sandbox with no script (`02` MSG-DEV-005) |
 | Captured messages are read from the disk by another user, or committed | A folder only its owner reads, outside the application's content root, its records deleted after `KeepFor` (`02` MSG-DEV-002) |
 
-*Source: M-007, M-008, M-009, M-010, M-012, M-022, M-024*
+*Source: M-007, M-008, M-009, M-010, M-012, M-022, M-024, M-026*
 
 **Acceptance criteria**
 1. Every control above that the library itself carries has a test carrying the

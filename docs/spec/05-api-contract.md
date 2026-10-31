@@ -37,13 +37,13 @@ and a 429 the whole seconds until the source's minute window frees.
 `messaging.request.unauthenticated` where the identity seam answers none, and SHALL act
 only for the person it answers.
 
-*Source: M-005*
+*Source: M-005, M-026*
 
 **Acceptance criteria**
-1. A request with no signed-in person to a preferences or subscription route that needs
-   one is 401.
-2. No route of those groups reads or changes another person's preferences or
-   subscriptions.
+1. A request with no signed-in person to a preferences, subscription or in-app route
+   that needs one is 401.
+2. No route of those groups reads or changes another person's preferences, subscriptions
+   or in-app entries.
 
 ---
 
@@ -54,15 +54,15 @@ optional category and channel, whether they receive it.
 
 | Method and route | Body | Answers |
 |---|---|---|
-| `GET /preferences` | | **200** `{ "categories": [ { "name", "essential", "channels": [ { "channel", "on" } ] } ] }`: every declared category with the channels its kinds use, in declaration order |
-| `PUT /preferences/{category}/{channel}` | `{ "on": true \| false }` | **204**; **404** `messaging.preference.unknown` for a category not declared or a channel its kinds do not use; **422** `messaging.preference.essential` for an essential category, whatever `on` says; **503** `messaging.request.unavailable` with `Retry-After` where the person's locks are not had within `Hermes:Dispatch:Timeout` (`01` MSG-SEND-010) |
+| `GET /preferences` | | **200** `{ "categories": [ { "name", "essential", "channels": [ { "channel", "on" } ] } ] }`: every declared category with the channels its kinds use, in declaration order, the in-app channel left out where `Hermes:InApp:AlwaysOn` is on (`02` MSG-INAPP-004) |
+| `PUT /preferences/{category}/{channel}` | `{ "on": true \| false }` | **204**; **404** `messaging.preference.unknown` for a category not declared or a channel its kinds do not use; **422** `messaging.preference.essential` for an essential category, whatever `on` says; **422** `messaging.preference.fixed` for the in-app channel where `Hermes:InApp:AlwaysOn` is on (`02` MSG-INAPP-004); **503** `messaging.request.unavailable` with `Retry-After` where the person's locks are not had within `Hermes:Dispatch:Timeout` (`01` MSG-SEND-010) |
 
 Both routes need a signed-in person (MSG-API-002). A category's name is its declared
 name; how it reads to the person is the host's frontend's to say. Turning a category on
 does not withdraw a suppression; the host withdraws it with the person's address (`01`
 MSG-SEND-012).
 
-*Source: M-006*
+*Source: M-006, M-026*
 
 **Acceptance criteria**
 1. A person's `PUT` turning a category's SMS off is read back by `GET` and stops their
@@ -253,3 +253,52 @@ from is the same JSON (`02` MSG-DEV-002).
    as soon as it is captured; with nothing sent it answers 404 once ten seconds have
    passed.
 3. Outside Development the group answers no route.
+
+---
+
+## 7. The in-application list (`MapHermesInApp`)
+
+**MSG-API-008** — The in-app group SHALL let the person signed in read their list a page
+at a time and their unread count, and mark one entry, or all of theirs, read.
+
+| Method and route | Body | Answers |
+|---|---|---|
+| `GET /inapp` | | **200** `{ "entries": [ <entry> ], "next" }`, newest first, `next` the cursor of the next page or `null`; query `cursor`, and `size`, 1 to 100, default 20; **400** `messaging.inapp.cursorinvalid` for a cursor that does not read; **400** `messaging.request.malformed`, `details.member` `size`, for a size outside its rule; **503** `messaging.request.unavailable` with `Retry-After` where an entry's value cannot open yet, a protector call throws or does not answer, or the person's locks are not had, within `Hermes:Dispatch:Timeout` (`02` MSG-INAPP-003) |
+| `GET /inapp/unread` | | **200** `{ "unread": <number> }`; **503** as for `GET /inapp` where the person's locks are not had |
+| `POST /inapp/{id}/read` | `{ }` | **204**, an entry already read included; **404** `messaging.inapp.unknown` for an `id` that does not read, an entry that does not exist, or another person's; **503** as for `GET /inapp` where the person's locks are not had |
+| `POST /inapp/read` | `{ }` | **204**, every unread entry of the person marked read; **503** as for `GET /inapp` where the person's locks are not had |
+
+Every route needs a signed-in person (MSG-API-002). The two `POST` routes read their
+empty object as `application/json` alone (MSG-API-001), so a cross-site form cannot
+reach them (`10` MSG-THR-001). `GET /inapp` reads in the language of the request's
+`Accept-Language` (RFC 9110): of its tags in order of weight, the first that matches a
+declared language as `01` MSG-SEND-003 matches a send's is passed to `ListAsync`, and
+none where none matches or the header is absent, so the entries read in
+`Hermes:DefaultLanguage` (`02` MSG-INAPP-002).
+
+| Shape | Members |
+|---|---|
+| `<entry>` | `{ "id", "kind", "category", "writtenAt", "readAt", "language", "title", "body", "target", "targetValues" }` |
+
+`id` is the entry's identifier, lower-case and hyphenated; `writtenAt` and `readAt` are
+instants in ISO 8601 UTC with milliseconds; `language` is the declared language the
+entry reads in; `readAt`, `body` and `target` are `null` where the entry has none;
+`targetValues` is an object of the target values by name, each a string, a number, a
+boolean or an instant as `writtenAt` is written, and `{}` where the kind declares none.
+`title` and `body` are plain text, which the host's frontend shows as text, never as
+markup.
+
+**What the host's frontend does.** It shows the list and its count from these routes,
+and builds each entry's link from its `target` and `targetValues`, which name a place in
+the host's own screens. A host that shows the list live refreshes it from its own
+realtime channel, which the observer's notices of `sent` and `read` feed (`01`
+MSG-SEND-017); the library serves no socket.
+
+*Source: M-026*
+
+**Acceptance criteria**
+1. A signed-in person's `GET /inapp` with `Accept-Language: ar, en;q=0.5` answers their
+   entries newest first in Arabic, and none of another person's.
+2. `POST /inapp/{id}/read` for another person's entry answers 404 and changes nothing;
+   for the person's own, 204, and `GET /inapp/unread` then answers one fewer.
+3. A `POST /inapp/read` sent as a form is answered 415 and marks nothing.
