@@ -60,11 +60,11 @@ public sealed class ReleaseGateTests
     }
 
     [Theory]
-    [InlineData(null, "The change needs a major release, and no commit since v1.0.0 carries ! or BREAKING CHANGE:.")]
-    [InlineData("v1.1.0-rc.1", "v1.1.0-rc.1 is below the major release the change since v1.0.0 needs.")]
-    public async Task MSG_LIB_006_AC2_WithAFinalReleaseTaggedTheSameRemovalFailsInAPullRequestAndInAReleaseCandidatesTag(string? tag, string reason)
+    [InlineData(null, "A commit since v1.0.0 marks the break.")]
+    [InlineData("v1.1.0-rc.1", "v1.1.0-rc.1 is the major release the change needs, or above it.")]
+    public async Task MSG_LIB_006_AC2_WithAFinalReleaseTaggedTheSameRemovalFailsInAPullRequestAndInAReleaseCandidatesTag(string? tag, string passing)
     {
-        ArgumentNullException.ThrowIfNull(reason);
+        ArgumentNullException.ThrowIfNull(passing);
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
         using ScratchFolder folder = new();
         GitRepository repository = await GitRepository.CreateAsync(folder, cancellationToken);
@@ -80,8 +80,11 @@ public sealed class ReleaseGateTests
 
         ProcessResult gate = await Processes.GateAsync(Gate, repository.Root, cancellationToken, "-Repository", repository.Root, "-Base", released, "-Head", head, "-Needs", needs);
 
+        // The gate's refusal is thrown, and PowerShell wraps a thrown message at the console's
+        // width, so the test reads the lines the gate writes rather than the refusal's own text.
         Assert.NotEqual(0, gate.ExitCode);
-        Assert.Contains(reason, gate.Output, StringComparison.Ordinal);
+        Assert.Contains("Since v1.0.0 the change needs a major release.", gate.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain(passing, gate.Output, StringComparison.Ordinal);
     }
 
     [Theory]
