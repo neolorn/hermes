@@ -892,11 +892,14 @@ older than `Hermes:Retention:Record` is dropped and logged by the retention job
 
 A notice carries the idempotency key its send was recorded with (MSG-SEND-009), none
 where the send had none, so a host that keyed its send with a reference of its own
-finds its own record of the delivery. The key is kept with the send for as long as the
-send's record, not read from its idempotency row, which lapses while a delivery's
-outcome can still come, and goes with the person at an erasure (MSG-SEND-020, M-028).
+finds its own record of the delivery. The key is kept with the send, not read from its
+idempotency row, which lapses while a delivery's outcome can still come. It is kept as
+the send's content is: a protected value, opened in its own row alone (`06`
+MSG-OPS-008), and gone when the last of the send's deliveries' content goes
+(MSG-SEND-019) or with the person at an erasure (MSG-SEND-020); a notice written after
+that carries none (M-028, M-029).
 
-*Source: M-005, M-028*
+*Source: M-005, M-028, M-029*
 
 **Acceptance criteria**
 1. No delivery is attempted after reaching a final status, none moves from a final
@@ -907,7 +910,10 @@ outcome can still come, and goes with the person at an erasure (MSG-SEND-020, M-
    threshold.
 4. A notice of a send recorded with an idempotency key carries the key, also after the
    key's row has lapsed and for a move a provider's report makes; a notice of a send
-   recorded without one carries none.
+   recorded without one carries none, and so does one written after the last of the
+   send's deliveries' content has gone.
+5. The key kept with a send cannot be read from the database without the content keys,
+   and opens in its own row alone.
 
 ---
 
@@ -976,10 +982,12 @@ hash from the opened value at that moment.
 **MSG-SEND-019** — The library's data SHALL be deleted when its time is up, each period
 configuration.
 
-**Values (M-005, M-007, M-008, M-009, M-026).** The retention job deletes, in batches:
+**Values (M-005, M-007, M-008, M-009, M-026, M-029).** The retention job deletes, in
+batches:
 - a delivery's content, destination and unsubscribe address `Hermes:Retention:Content`
   (default 30 days) after it reached its final status (for `sent`, after its last move);
-  a delivery not yet final keeps them;
+  a delivery not yet final keeps them; the idempotency key kept with a send goes with
+  the last of its deliveries' content (MSG-SEND-017);
 - a delivery's record `Hermes:Retention:Record` (default 365 days) after the same
   instant, keeping until then the kind, category, channel, statuses with their instants,
   attempts, the provider reference and the person reference, so an erasure still finds
@@ -1053,10 +1061,11 @@ kind, category, the instants it was written and read, and its parts in every lan
 holds with its target and target values, its values answering as a delivery's do below;
 their live idempotency rows, each with its kind, key and instant; and every delivery
 whose record names them, each with its kind, channel, status and instants, and with its
-destination and content while it holds them, one past content retention being marked so
-and carrying neither, a value whose protector answers `Erased` being marked erased and
-carrying no destination and no content, and one that does not open under its binding
-being marked rejected, carrying no destination and no content, and raising
+destination, its content and its send's idempotency key (M-029) while it holds them, one
+past content retention being marked so and carrying none of the three, a value whose
+protector answers `Erased` being marked erased and carrying none of the three, and one
+that does not open under its binding being marked rejected, carrying none of the three,
+and raising
 `content-rejected`; a value that cannot open yet (MSG-SEND-006), a protector call that
 throws or does not answer within `Hermes:Dispatch:Timeout` included, answers the export
 `messaging.key.unavailable`. The export runs in one transaction at `READ COMMITTED`
@@ -1073,7 +1082,7 @@ ordered list of channels where the next is used when a delivery on one ends in a
 the list names; the deliveries of a send already share its identifier, so a fallback is
 a new delivery of the same send and changes no table.
 
-*Source: M-004, M-005, M-007, M-020, M-028*
+*Source: M-004, M-005, M-007, M-020, M-028, M-029*
 
 **Acceptance criteria**
 1. After erasure, nothing the library holds names the person or holds a destination, an
