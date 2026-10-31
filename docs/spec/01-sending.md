@@ -14,21 +14,21 @@ declared at startup. A kind declares its name, its category, the channels it may
 on and, for each channel, the channel's options (`02`); its templates come from the
 template source (`03`).
 
-**Values (M-005).** The host declares kinds in `AddHermes` (`04` MSG-LIB-003) through
-`DeclarationBuilder.Kind(name, category)`, then `Email(...)`, `Sms(...)` and `Push(...)`
-for each channel the kind may use (`04` MSG-LIB-002 gives their parameters). A kind's
-name and a category's name are 1 to 64 lower-case letters and digits separated by single
-`.`, `-` or `_`. A kind MAY declare `ExpiresAfter`, a duration after which a delivery
-not yet sent is not sent at all (MSG-SEND-015). A kind the host no longer sends is
-declared retired, `DeclarationBuilder.Retire(name)`, rather than dropped: a send of it
-is a fault, as of an undeclared kind, and each of its deliveries not yet final ends
-`cancelled` at check 1 when it is next claimed (MSG-SEND-006), so the observer is told
-and retention runs as for any other; a delivery of a kind its application neither
-declares nor retires is deleted by the retention job, logged by count, once
-`Hermes:Retention:Record` has passed since the later of its recording and its due
-instant (MSG-SEND-019). Every application of a deployment that dispatches
-(`Hermes:Dispatch:Enabled` on), runs the retention job, maps the unsubscribe or
-preferences group (`05` MSG-API-003, MSG-API-005), or calls `IPreferences`,
+**Values (M-005, M-026).** The host declares kinds in `AddHermes` (`04` MSG-LIB-003)
+through `DeclarationBuilder.Kind(name, category)`, then `Email(...)`, `Sms(...)`,
+`Push(...)` and `InApp(...)` for each channel the kind may use (`04` MSG-LIB-002 gives
+their parameters). A kind's name and a category's name are 1 to 64 lower-case letters
+and digits separated by single `.`, `-` or `_`. A kind MAY declare `ExpiresAfter`, a
+duration after which a delivery not yet sent is not sent at all (MSG-SEND-015). A kind
+the host no longer sends is declared retired, `DeclarationBuilder.Retire(name)`, rather
+than dropped: a send of it is a fault, as of an undeclared kind, and each of its
+deliveries not yet final ends `cancelled` at check 1 when it is next claimed
+(MSG-SEND-006), so the observer is told and retention runs as for any other; a delivery
+of a kind its application neither declares nor retires is deleted by the retention job,
+logged by count, once `Hermes:Retention:Record` has passed since the later of its
+recording and its due instant (MSG-SEND-019). Every application of a deployment that
+dispatches (`Hermes:Dispatch:Enabled` on), runs the retention job, maps the unsubscribe
+or preferences group (`05` MSG-API-003, MSG-API-005), or calls `IPreferences`,
 `ISuppressions` or `ISubjects`, declares, or retires, every kind of the deployment,
 since each reads a kind's category and a category's rules from its own declarations
 (MSG-SEND-007). Startup fails with `messaging.startup.declarationinvalid`,
@@ -41,6 +41,8 @@ since each reads a kind's category and a category's rules from its own declarati
 - an SMS `maxSegments` below 1 or above 10, or a `sender` outside the provider's rule
   (`02` MSG-SMS-002);
 - a push `ttl` below 1 second or above 28 days;
+- an in-app target or target value outside its rule, or target values without a target
+  (`02` MSG-INAPP-001);
 - any template failure of `03` MSG-TPL-004.
 
 *Source: M-005*
@@ -64,7 +66,7 @@ gives every limit, preference and report a stable name to attach to.
 and which carries the rules every kind in it shares: whether a person may turn it off,
 whether it needs consent, whether quiet hours apply, its limits, and its labels.
 
-**Values (M-005, M-006).** `DeclarationBuilder.Category(name)` declares:
+**Values (M-005, M-006, M-026).** `DeclarationBuilder.Category(name)` declares:
 - `Essential()`: the person cannot turn the category off (MSG-SEND-010), no suppression
   applies to it (MSG-SEND-012), quiet hours never apply to it, and its SMS goes out
   below the balance floor (`02` MSG-SMS-006). Without it the category is **optional**:
@@ -75,9 +77,9 @@ whether it needs consent, whether quiet hours apply, its limits, and its labels.
   `purpose` follows the name rule of MSG-SEND-001;
 - `QuietHours(bool)`, only on an optional category: whether quiet hours apply
   (MSG-SEND-013); on by default where the category requires consent, off otherwise;
-- `Limit(channel, count, window)`: a cap per destination, or per person for push
-  (MSG-SEND-014); none by default; a category MAY declare several for one channel, each
-  with its own window;
+- `Limit(channel, count, window)`: a cap per destination, or per person for push and
+  in-app (MSG-SEND-014); none by default; a category MAY declare several for one
+  channel, each with its own window;
 - `DeploymentLimit(channel, count, window)`: a cap across every destination
   (MSG-SEND-014); none by default; several MAY be declared likewise;
 - `Label(language, text)`: the category's name as people read it, in each declared
@@ -105,7 +107,7 @@ declared language where one is required, or longer than 128 characters.
 records the send and its deliveries and returns; nothing is handed to a provider inside
 the call.
 
-**Values (M-005).** The `Send` record (`04` MSG-LIB-002) carries:
+**Values (M-005, M-026).** The `Send` record (`04` MSG-LIB-002) carries:
 - `Kind`: a declared kind's name;
 - `Recipient`: `new Recipient.Person(reference)` for a person the host identifies (a
   reference of 1 to 128 characters, the same for every message to that person), or
@@ -122,23 +124,26 @@ the call.
   replaced by `Hermes:TimeZone`;
 - `Values`: the template's values (`03` MSG-TPL-002);
 - `Channels`: the channels this send uses, a subset of the kind's; absent, every channel
-  the kind declares for which the send has a destination, push included for a person;
+  the kind declares for which the send has a destination, push and in-app included for a
+  person;
 - `NotBefore`: an instant before which nothing is dispatched; absent, now;
 - `IdempotencyKey`: optional, 1 to 128 printable ASCII characters (MSG-SEND-009);
 - `PushTopic`: optional, 1 to 128 characters (`02` MSG-PUSH-002).
 
 A push delivery needs no destination: it goes to the person's subscriptions as they
-stand when it is dispatched (`02` MSG-PUSH-003). The send is refused, nothing recorded,
-with a failure (`08` section 1):
+stand when it is dispatched (`02` MSG-PUSH-003); nor does an in-app delivery, which
+writes to the person's list in every declared language (`02` MSG-INAPP-001,
+MSG-INAPP-002). The send is refused, nothing recorded, with a failure (`08` section 1):
 - `messaging.send.nodestination`, `details.channel`, where a channel the send names has
-  no destination, push for an anonymous recipient included, and without
+  no destination, push and in-app for an anonymous recipient included, and without
   `details.channel` where the send is left with no channel at all;
 - `messaging.send.destinationinvalid`, `details.channel`, where a destination does not
   read;
 - `messaging.send.destinationnotallowed`, `details.channel` `sms`, where a phone number
   starts with none of `Hermes:Sms:AllowedPrefixes` (`02` MSG-SMS-002);
 - `messaging.send.toolong`, `details.channel`, where a rendered message exceeds its
-  channel's limit (`02` MSG-EMAIL-003, MSG-SMS-001, MSG-PUSH-002; `03` MSG-TPL-007);
+  channel's limit (`02` MSG-EMAIL-003, MSG-SMS-001, MSG-PUSH-002, MSG-INAPP-002; `03`
+  MSG-TPL-007);
 - `messaging.send.renderlimit`, `details.channel`, where a render passes its steps (`03`
   MSG-TPL-007);
 - `messaging.send.renderfailed`, `details.channel`, where a filter cannot compute from
@@ -172,7 +177,7 @@ protector throws propagates to the caller, and the send records nothing.
 2. Each refusal above records nothing and names the channel where it has one; each fault
    records nothing.
 3. A send to a person with no channel named sends on every declared channel it has a
-   destination for, push included.
+   destination for, push and in-app included.
 4. A send naming a language that matches no declared one is rendered in the default
    language, and one naming `ar-EG` where `ar` is declared is rendered in `ar`.
 
@@ -225,12 +230,14 @@ without the other.
 **MSG-SEND-005** — A send SHALL become **one delivery per channel**, each dispatched,
 retried, refused and reported on its own.
 
-**Values (M-005).** An email or SMS delivery carries its destination. A push delivery
-carries the person and is sent, when dispatched, to each of the person's live
-subscriptions, under the outcome rules of `02` MSG-PUSH-005. The deliveries of one send
-share the send's identifier. Each attempt that calls its provider draws its own delivery
-reference (`00` glossary), recorded on the attempt when its claim is renewed, before the
-provider is called (MSG-SEND-007).
+**Values (M-005, M-026).** An email or SMS delivery carries its destination. A push
+delivery carries the person and is sent, when dispatched, to each of the person's live
+subscriptions, under the outcome rules of `02` MSG-PUSH-005. An in-app delivery carries
+the person and its rendered parts, which its dispatch moves into the person's entry
+(`02` MSG-INAPP-001). The deliveries of one send share the send's identifier. Each
+attempt that calls its provider draws its own delivery reference (`00` glossary),
+recorded on the attempt when its claim is renewed, before the provider is called
+(MSG-SEND-007).
 
 *Source: M-005*
 
@@ -258,13 +265,16 @@ delivery in the status it names, or holds it where it says so, and nothing is se
 | 8 | Within the category's limits (MSG-SEND-014) | `limited` |
 | 9 | The channel's own check: for SMS, the number still within `Hermes:Sms:AllowedPrefixes` (`02` MSG-SMS-002) and the balance floor (`02` MSG-SMS-006); for push, a live subscription, every live subscription's values open and its VAPID version held (`02` MSG-PUSH-003, MSG-PUSH-005) | `failed` (reason `destinationnotallowed`); `balancefloor`; `nosubscription`; held for a key |
 
-Checks 3, 4, 5 and 7 do not apply to an essential category. Each check is made against
-the state at that moment, never the state at the send: a consent withdrawn or a
-preference turned off after the send stops the delivery. A check that looks up a keyed
-hash (3, 8) computes it under every `hashKeys` version this process holds, looks it up,
-then reads the key versions in use, in the same transaction and never from a cache (`06`
-MSG-OPS-008); where a version in use is one this process does not hold, the delivery is
-held for a key, never taken as "not suppressed" or "under the limit".
+Checks 3, 4, 5 and 7 do not apply to an essential category. Checks 3, 5 and 6 never
+apply to an in-app delivery, which has no destination, interrupts nobody and has no
+provider rate, and check 4 does not where `Hermes:InApp:AlwaysOn` is on (`02`
+MSG-INAPP-001, MSG-INAPP-004). Each check is made against the state at that moment,
+never the state at the send: a consent withdrawn or a preference turned off after the
+send stops the delivery. A check that looks up a keyed hash (3, 8) computes it under
+every `hashKeys` version this process holds, looks it up, then reads the key versions in
+use, in the same transaction and never from a cache (`06` MSG-OPS-008); where a version
+in use is one this process does not hold, the delivery is held for a key, never taken as
+"not suppressed" or "under the limit".
 
 **Held for a key.** Where a value cannot open yet (its protector answers
 `KeyUnavailable`, throws or does not answer within `Hermes:Dispatch:Timeout`, its
@@ -303,19 +313,19 @@ expiry comes first: a hold whose next attempt would fall after the kind's expiry
 channel's provider and record the answer, so that several dispatchers, in one process or
 several, never make one attempt twice.
 
-**Values (M-005, M-012).** Every instant is the library's `TimeProvider`'s, passed to
-each statement as `@now` (`07` MSG-ENG-005). A delivery is **due** when it is `waiting`
-and its due instant has passed, or `inflight` and its claim has expired. A claim records
-its holder, its instant and the instant it expires, which the holder sets, when it
-claims, extends or renews, to `@now` plus its own `Hermes:Dispatch:ClaimTimeout`, so a
-claim is judged by the settings of the application that holds it, whatever those of one
-that would take it over. A **pass** is of one channel: it draws a holder of its own and
-claims due deliveries of its channel, of the kinds its application declares or retires
-(MSG-SEND-001) and the reasons its release knows, in one transaction: it locks its
-channel's rate counter row for the current second of `@now` (MSG-SEND-014, made at zero
-where there is none), claims the kinds of essential categories in one statement and then
-the others and the retired ones together in a second, and adds what it claimed to the
-row's count:
+**Values (M-005, M-012, M-026).** Every instant is the library's `TimeProvider`'s,
+passed to each statement as `@now` (`07` MSG-ENG-005). A delivery is **due** when it is
+`waiting` and its due instant has passed, or `inflight` and its claim has expired. A
+claim records its holder, its instant and the instant it expires, which the holder sets,
+when it claims, extends or renews, to `@now` plus its own
+`Hermes:Dispatch:ClaimTimeout`, so a claim is judged by the settings of the application
+that holds it, whatever those of one that would take it over. A **pass** is of one
+channel: it draws a holder of its own and claims due deliveries of its channel, of the
+kinds its application declares or retires (MSG-SEND-001) and the reasons its release
+knows, in one transaction: it locks its channel's rate counter row for the current
+second of `@now` (MSG-SEND-014, made at zero where there is none), claims the kinds of
+essential categories in one statement and then the others and the retired ones together
+in a second, and adds what it claimed to the row's count:
 
 ```sql
 WITH due AS MATERIALIZED (
@@ -339,23 +349,24 @@ what the first took, and `@claimTimeout` this application's
 `Hermes:Dispatch:ClaimTimeout`; so a delivery is claimed only with its place in the
 provider's rate, no pass of any process claims past the rate, an essential delivery
 never waits behind an optional one of its channel, and a backlog over the rate waits
-unclaimed and unopened. A delivery that checks 1 to 5 end or hold, or that a pass hands
-back, gives its place back to the row it was taken from (`count = count - 1`). A
-delivery also records the instant it became due: its due instant when recorded, its next
-due instant after a counted attempt, and the due instant a hold for quiet hours gives
-it; a hold for a key or for a lock that timed out, and a hand-back, leave it, so
-`dispatch-lag` (`06` MSG-OPS-005), measured from it, shows a backlog that waits on the
-rate, a key or a lock. A row whose channel, status or reason this release does not know,
-written by a newer release running beside it (`06` MSG-OPS-002), is left as it is: no
-pass or job of this release claims or moves it, the observer is not told of it, neither
-`dispatch-lag`, the health check nor the gauge of `06` MSG-OPS-005 counts it, and
-`ReadAsync` leaves it out (erasure and export, while such a row can exist, answer
-`messaging.release.newer`, MSG-SEND-020); the retention job deletes it once
-`Hermes:Retention:Record` has passed since the later of its recording and its due
-instant, logging how many it deleted, so a row a rolled-back release left holds nothing
-for longer. An attempt or a call whose class or reason, or a notice whose status or
-reason, this release does not know, inside a delivery it does know, is left out of
-`ReadAsync` and is not delivered by this release's `observer` job. A value in an
+unclaimed and unopened. A pass of the in-app channel, which has no rate, locks no
+counter row, and its `@limit` is `Hermes:Dispatch:BatchSize` alone. A delivery that
+checks 1 to 5 end or hold, or that a pass hands back, gives its place back to the row it
+was taken from (`count = count - 1`). A delivery also records the instant it became due:
+its due instant when recorded, its next due instant after a counted attempt, and the due
+instant a hold for quiet hours gives it; a hold for a key or for a lock that timed out,
+and a hand-back, leave it, so `dispatch-lag` (`06` MSG-OPS-005), measured from it, shows
+a backlog that waits on the rate, a key or a lock. A row whose channel, status or reason
+this release does not know, written by a newer release running beside it (`06`
+MSG-OPS-002), is left as it is: no pass or job of this release claims or moves it, the
+observer is not told of it, neither `dispatch-lag`, the health check nor the gauge of
+`06` MSG-OPS-005 counts it, and `ReadAsync` leaves it out (erasure and export, while
+such a row can exist, answer `messaging.release.newer`, MSG-SEND-020); the retention job
+deletes it once `Hermes:Retention:Record` has passed since the later of its recording
+and its due instant, logging how many it deleted, so a row a rolled-back release left
+holds nothing for longer. An attempt or a call whose class or reason, or a notice whose
+status or reason, this release does not know, inside a delivery it does know, is left
+out of `ReadAsync` and is not delivered by this release's `observer` job. A value in an
 envelope format kept for a later release is met at check 1 (MSG-SEND-006). A row of a
 kind no dispatching application declares or retires stays `waiting` and shows in
 `dispatch-lag` until the retention job deletes it (MSG-SEND-001), so a kind dropped
@@ -405,27 +416,29 @@ reference, and it skips the delivery where that update changes nothing; an SMS r
 is a transaction that first locks the delivery's row (`SELECT ... FOR UPDATE`) and reads
 the reports kept on it in a later statement, as an outcome does (`02` MSG-SMS-004), so a
 report kept a moment before is never missed; a push renewal also checks its subscription
-(`02` MSG-PUSH-005). Each call is bounded as a whole, its answer read included, by
-`Hermes:Dispatch:Timeout`. The pass records the outcome by one update conditional on the
-delivery still being `inflight` under its claim, which changes nothing where the claim
-was taken over or the delivery was cancelled; every update of a pass, at a check, a
-hold, an extension, a renewal or an outcome, carries that condition, and every one but
-check 8's, which keeps its own timeout and hold (MSG-SEND-014), and a stopping pass's,
-which take what is left of its timeout (above), runs under a `lock_timeout` of
-`Hermes:Dispatch:Timeout`, the SMS renewal's row lock, the claim's lock of the counter
-row and every give-back and hand-back included: a timeout leaves the delivery as it is
-until its claim expires, and a claim whose lock times out claims nothing. Every update
-that takes an SMS delivery out of `inflight` takes the locks of `02` MSG-SMS-004 and
-applies the reports kept on it. A seam of the host that throws during a pass or a job,
-or that does not answer within `Hermes:Dispatch:Timeout` (each protector and alert sink
-call being bounded so, as the consent source and the observer are), is logged by the
-exception's type alone, and the pass or job goes on: a consent source's exception is a
-transient answer at check 7 (MSG-SEND-011), a content protector's a hold for a key
-(MSG-SEND-006), an alert sink's ignored. A transient answer at check 7 is counted as an
-attempt by the same conditional update that records it; a delivery held for a key or by
-quiet hours, or handed back, is never counted. An attempt is counted before its call, so
-a holder that keeps failing still uses up `Hermes:Retry:MaxAttempts`. A pass opens
-values and calls providers in a service scope of its own.
+(`02` MSG-PUSH-005); an in-app delivery's provider call is the writing of its entry, in
+one transaction with its outcome (`02` MSG-INAPP-001). Each call is bounded as a whole,
+its answer read included, by `Hermes:Dispatch:Timeout`. The pass records the outcome by
+one update conditional on the delivery still being `inflight` under its claim, which
+changes nothing where the claim was taken over or the delivery was cancelled; every
+update of a pass, at a check, a hold, an extension, a renewal or an outcome, carries
+that condition, and every one but check 8's, which keeps its own timeout and hold
+(MSG-SEND-014), and a stopping pass's, which take what is left of its timeout (above),
+runs under a `lock_timeout` of `Hermes:Dispatch:Timeout`, the SMS renewal's row lock,
+the claim's lock of the counter row and every give-back and hand-back included: a
+timeout leaves the delivery as it is until its claim expires, and a claim whose lock
+times out claims nothing. Every update that takes an SMS delivery out of `inflight`
+takes the locks of `02` MSG-SMS-004 and applies the reports kept on it. A seam of the
+host that throws during a pass or a job, or that does not answer within
+`Hermes:Dispatch:Timeout` (each protector and alert sink call being bounded so, as the
+consent source and the observer are), is logged by the exception's type alone, and the
+pass or job goes on: a consent source's exception is a transient answer at check 7
+(MSG-SEND-011), a content protector's a hold for a key (MSG-SEND-006), an alert sink's
+ignored. A transient answer at check 7 is counted as an attempt by the same conditional
+update that records it; a delivery held for a key or by quiet hours, or handed back, is
+never counted. An attempt is counted before its call, so a holder that keeps failing
+still uses up `Hermes:Retry:MaxAttempts`. A pass opens values and calls providers in a
+service scope of its own.
 
 The hosted dispatcher runs, in each process, passes of each channel its release knows,
 at most `Hermes:Dispatch:MaxPasses` of one channel at once, each working its deliveries
@@ -610,20 +623,22 @@ form, then its bytes:
 **MSG-SEND-010** — A person SHALL be able to turn each optional category off, and back
 on, for each channel its kinds use; an essential category SHALL NOT be turned off.
 
-**Values (M-006).** Preferences are kept per person reference, category and channel, on
-by default, and written under the person's locks of `02` MSG-PUSH-003 taken shared, by
-`INSERT ... ON CONFLICT DO UPDATE`, so an erasure, which takes them exclusively, never
-misses one (MSG-SEND-020), and a host's transaction that has sent for the person does
-not block the write, save behind a registration or an erasure waiting for it, each of
-which waits no longer than `Hermes:Dispatch:Timeout`; the write's own transaction has
-that `lock_timeout` too, a timeout letting the database's error through `SetAsync` and
-answered 503 `messaging.request.unavailable` by the route (`05` MSG-API-003).
-`IPreferences.ReadAsync(person)` and
+**Values (M-006, M-026).** Preferences are kept per person reference, category and
+channel, on by default, and written under the person's locks of `02` MSG-PUSH-003 taken
+shared, by `INSERT ... ON CONFLICT DO UPDATE`, so an erasure, which takes them
+exclusively, never misses one (MSG-SEND-020), and a host's transaction that has sent for
+the person does not block the write, save behind a registration or an erasure waiting
+for it, each of which waits no longer than `Hermes:Dispatch:Timeout`; the write's own
+transaction has that `lock_timeout` too, a timeout letting the database's error through
+`SetAsync` and answered 503 `messaging.request.unavailable` by the route (`05`
+MSG-API-003). `IPreferences.ReadAsync(person)` and
 `IPreferences.SetAsync(person, category, channel, isOn)` serve the host; the endpoints
 of `05` MSG-API-003 serve the person signed in. Setting a preference of an essential
 category is refused with `messaging.preference.essential`; a category not declared, or a
-channel the category's kinds do not use, with `messaging.preference.unknown`. A
-preference changes only deliveries checked after it is set.
+channel the category's kinds do not use, with `messaging.preference.unknown`; where
+`Hermes:InApp:AlwaysOn` is on, setting one of the in-app channel is refused with
+`messaging.preference.fixed`, and `ReadAsync` leaves that channel out (`02`
+MSG-INAPP-004). A preference changes only deliveries checked after it is set.
 
 *Source: M-006, M-007*
 
@@ -638,18 +653,18 @@ preference changes only deliveries checked after it is set.
 only when the host's consent source answers, at that moment, that the recipient consents
 to the category's purpose.
 
-**Values (M-006).** The host registers an `IConsentSource` (`04` MSG-LIB-005);
+**Values (M-006, M-026).** The host registers an `IConsentSource` (`04` MSG-LIB-005);
 `ConsentsAsync(ConsentQuery query, CancellationToken)` takes the recipient, the
-destination the delivery would use (none for push), the purpose and the channel, and
-answers `Given`, `NotGiven` or `Unavailable`. `NotGiven` ends the delivery `noconsent`.
-`Unavailable`, a call that does not answer within `Hermes:Dispatch:Timeout`, and a call
-that throws are a transient answer: it counts as an attempt, the delivery waits for its
-next, and after the last it ends `failed` with the reason `consentunavailable`, or
-`expired` where the kind's expiry comes first. The source is never asked for an
-essential category. A deployment that declares a category requiring consent and
-registers no consent source fails startup with `messaging.startup.declarationmissing`,
-`details.key` `consentSource`. A source meeting a recipient case it does not know (`04`
-MSG-LIB-002) answers `NotGiven`.
+destination the delivery would use (none for push and in-app), the purpose and the
+channel, and answers `Given`, `NotGiven` or `Unavailable`. `NotGiven` ends the delivery
+`noconsent`. `Unavailable`, a call that does not answer within
+`Hermes:Dispatch:Timeout`, and a call that throws are a transient answer: it counts as
+an attempt, the delivery waits for its next, and after the last it ends `failed` with
+the reason `consentunavailable`, or `expired` where the kind's expiry comes first. The
+source is never asked for an essential category. A deployment that declares a category
+requiring consent and registers no consent source fails startup with
+`messaging.startup.declarationmissing`, `details.key` `consentSource`. A source meeting
+a recipient case it does not know (`04` MSG-LIB-002) answers `NotGiven`.
 
 *Source: M-006*
 
@@ -694,14 +709,15 @@ turns the category on.
 **MSG-SEND-013** — A delivery of a category whose quiet hours apply SHALL be held, when
 its check falls inside quiet hours in the recipient's time zone, until they end.
 
-**Values (M-006).** Quiet hours run from `Hermes:QuietHours:Start` to
+**Values (M-006, M-026).** Quiet hours run from `Hermes:QuietHours:Start` to
 `Hermes:QuietHours:End` (default 21:00 to 09:00 local wall-clock time; a window that
 crosses midnight included) in the send's time zone. A delivery that meets check 5 inside
 them gets a due instant at the window's end plus a random delay of up to
 `Hermes:QuietHours:Spread`, and returns to `waiting` without counting an attempt. Where
 a start or end falls in a daylight-saving gap, the first instant after the gap is used;
 where it falls in an overlap, the first occurrence. A start equal to the end turns quiet
-hours off.
+hours off. Quiet hours never apply to an in-app delivery, which interrupts nobody (`02`
+MSG-INAPP-001).
 
 *Source: M-006*
 
@@ -720,21 +736,21 @@ person is waiting for, which is why an essential category is never subject to th
 **MSG-SEND-014** — A delivery SHALL be dispatched only within its category's limits and
 its provider's rate.
 
-**Values (M-005, M-006, M-007).** At check 8, in one transaction at `READ COMMITTED`
-whose locks, taken together, wait no longer than `Hermes:Dispatch:Timeout` (the
-transaction setting `lock_timeout` before each lock to what is left of it, in whole
-milliseconds rounded up, the delivery being held as for a lock that timed out where
-nothing is left), the dispatcher takes the advisory locks of the category's limits on
-the channel, then locks the delivery's row (`SELECT ... FOR UPDATE`) and confirms that
-it is still `inflight` under this pass's claim, taking no place where it is not; it then
-counts the **places** taken in each window, and takes one place for each limit where
-every count is under its limit:
+**Values (M-005, M-006, M-007, M-026).** At check 8, in one transaction at
+`READ COMMITTED` whose locks, taken together, wait no longer than
+`Hermes:Dispatch:Timeout` (the transaction setting `lock_timeout` before each lock to
+what is left of it, in whole milliseconds rounded up, the delivery being held as for a
+lock that timed out where nothing is left), the dispatcher takes the advisory locks of
+the category's limits on the channel, then locks the delivery's row
+(`SELECT ... FOR UPDATE`) and confirms that it is still `inflight` under this pass's
+claim, taking no place where it is not; it then counts the **places** taken in each
+window, and takes one place for each limit where every count is under its limit:
 - a `Limit` place is keyed by its channel, its category, its window in whole seconds and
   the destination's keyed hash for email and SMS, or the person reference's (domain
-  `person`) for push; its locks are taken under every `hashKeys` version this process
-  holds, in ascending order of version, its places counted under every such version (the
-  versions in use then read as for a lookup, MSG-SEND-006), and a new place written
-  under the write version;
+  `person`) for push and in-app; its locks are taken under every `hashKeys` version this
+  process holds, in ascending order of version, its places counted under every such
+  version (the versions in use then read as for a lookup, MSG-SEND-006), and a new place
+  written under the write version;
 - a `DeploymentLimit` place is keyed by its channel, its category and its window, and
   has one lock;
 - a lock's key is the first eight bytes, read as a big-endian signed 64-bit integer, of
@@ -769,7 +785,9 @@ second of `@now`, whose places a pass takes when it claims (MSG-SEND-007), its
 transaction locking the row (`INSERT ... ON CONFLICT DO NOTHING`, then
 `SELECT ... FOR UPDATE`) so passes of every process take them one after another; a
 delivery keeps its place through check 6, so it is past the rate before the consent
-source is asked, and gives it back where an earlier check ends or holds it.
+source is asked, and gives it back where an earlier check ends or holds it. The in-app
+channel has no provider and so no rate: its deliveries take no place in a counter
+(MSG-SEND-007).
 
 *Source: M-005, M-006, M-007*
 
@@ -838,12 +856,14 @@ its calls gave) that falls later, the next attempt is due then, capped at
 once, from `sent`, and the host SHALL be able to read a delivery's status and be told of
 each final status a delivery reaches.
 
-**Values (M-005).** The statuses are in `08` section 3. A **final** status is one after
-which no attempt is made. Of the final statuses, `sent` alone may change once more, by a
-provider's report: to `delivered`, or to `failed` (`02` MSG-SMS-004). A delivery held
-for a key ends, at the latest, at its first hold `Hermes:Dispatch:MaxHold` after its run
-of holds began (MSG-SEND-006). `IMessages.ReadAsync(SendId)` answers the send's
-deliveries with their statuses, instants and attempts, or `messaging.send.unknown`.
+**Values (M-005, M-026).** The statuses are in `08` section 3. A **final** status is one
+after which no attempt is made. Of the final statuses, `sent` alone may change once
+more: by a provider's report, to `delivered` or to `failed` (`02` MSG-SMS-004), or, for
+an in-app delivery, by its entry being marked read, to `read` (`02` MSG-INAPP-003). A
+delivery held for a key ends, at the latest, at its first hold `Hermes:Dispatch:MaxHold`
+after its run of holds began (MSG-SEND-006). `IMessages.ReadAsync(SendId)` answers the
+send's deliveries with their statuses, instants and attempts, or
+`messaging.send.unknown`.
 
 An application with `Hermes:Observer:Enabled` on writes a **notice** for each final
 status and each move from `sent` it makes, in the transaction that makes it, carrying
@@ -888,23 +908,26 @@ older than `Hermes:Retention:Record` is dropped and logged by the retention job
 every destination, unsubscribe address and rendered content SHALL be stored only as a
 content protector's output, bound to its row and its person.
 
-**Values (M-007).** Each channel's template is rendered in the send's language when
-`SendAsync` records it (`03`), so a template changed afterwards does not change a
-recorded send. Each destination, each rendered part and an email's unsubscribe address
-is stored as an envelope: the format byte `0x01`, the protector's `Id` as its length in
-one byte and its ASCII bytes, then the protector's output. The format bytes `0x02` to
-`0x0F` are kept for later releases: a value in one of them cannot open yet here
-(MSG-SEND-006), since a newer release wrote it, and a value in any other format does not
-open under its binding, as `Rejected`. A person's values are protected by the last
-registered protector's `ProtectAsync` (`04` MSG-LIB-002), called with the person
-reference and the context `<table>:<row id>:<field>`, to which the output is bound, so a
-value copied to another row or field does not open: `<table>` is `deliveries` for a
-delivery's values and `subscriptions` for a push subscription's, whatever the tables are
-called; `<row id>` is the row's identifier in lower-case hexadecimal, hyphenated
-8-4-4-4-12; `<field>` is `destination`, `unsubscribe` (the email's one-click address,
-made with its token at the send and kept for the header, `02` MSG-EMAIL-006), a rendered
-part's name (`03` MSG-TPL-001: `subject`, `text`, `html`, `title`, `body`, `url`, `tag`,
-`icon`, `badge`), or for a subscription `endpoint`, `p256dh` or `auth`; a layout two
+**Values (M-007, M-026).** Each channel's template is rendered in the send's language
+when `SendAsync` records it (`03`), the in-app channel's in every declared language
+(`02` MSG-INAPP-002), so a template changed afterwards does not change a recorded send.
+Each destination, each rendered part and an email's unsubscribe address is stored as an
+envelope: the format byte `0x01`, the protector's `Id` as its length in one byte and its
+ASCII bytes, then the protector's output. The format bytes `0x02` to `0x0F` are kept for
+later releases: a value in one of them cannot open yet here (MSG-SEND-006), since a
+newer release wrote it, and a value in any other format does not open under its binding,
+as `Rejected`. A person's values are protected by the last registered protector's
+`ProtectAsync` (`04` MSG-LIB-002), called with the person reference and the context
+`<table>:<row id>:<field>`, to which the output is bound, so a value copied to another
+row or field does not open: `<table>` is `deliveries` for a delivery's values and
+`subscriptions` for a push subscription's and `entries` for an in-app entry's, whatever
+the tables are called; `<row id>` is the row's identifier in lower-case hexadecimal,
+hyphenated 8-4-4-4-12; `<field>` is `destination`, `unsubscribe` (the email's one-click
+address, made with its token at the send and kept for the header, `02` MSG-EMAIL-006), a
+rendered part's name (`03` MSG-TPL-001: `subject`, `text`, `html`, `title`, `body`,
+`url`, `tag`, `icon`, `badge`), an in-app part's name and its language's declared tag
+joined by `.` (`title.en`, `body.ar`), `target` for an in-app delivery's or entry's
+target values, or for a subscription `endpoint`, `p256dh` or `auth`; a layout two
 releases share and never change (`08` section 8); an anonymous recipient's values are
 always protected by the library's own protector, whatever protector is registered. A
 value is opened by the protector its envelope names. A host protector's `Id` SHALL NOT
@@ -944,7 +967,7 @@ hash from the opened value at that moment.
 **MSG-SEND-019** — The library's data SHALL be deleted when its time is up, each period
 configuration.
 
-**Values (M-005, M-007, M-008, M-009).** The retention job deletes, in batches:
+**Values (M-005, M-007, M-008, M-009, M-026).** The retention job deletes, in batches:
 - a delivery's content, destination and unsubscribe address `Hermes:Retention:Content`
   (default 30 days) after it reached its final status (for `sent`, after its last move);
   a delivery not yet final keeps them;
@@ -958,6 +981,8 @@ configuration.
 - a suppression past its lifetime (MSG-SEND-012);
 - a push subscription that has accepted nothing for `Hermes:Push:IdleRetention` (default
   180 days);
+- an in-app entry `Hermes:Retention:InApp` (default 180 days) after it was written (`02`
+  MSG-INAPP-005);
 - an observer notice older than `Hermes:Retention:Record`, logged as it goes
   (MSG-SEND-017);
 - a delivery whose channel, status or reason this release does not know, or of a kind
@@ -969,12 +994,7 @@ configuration.
   MSG-SMS-006), a push answer counter row older than `Hermes:Push:AuthFailWindow` (`02`
   MSG-PUSH-005), and a rate counter row whose second has passed (MSG-SEND-014).
 
-*In-application notification list (designed for, not built).* A later channel, `inapp`,
-keeps a person's notifications in the library's own store for the host to show; its
-deliveries are made and ended like any other, its provider being that store, so it
-changes no table of the send or delivery.
-
-*Source: M-004, M-005, M-007, M-008, M-009*
+*Source: M-005, M-007, M-008, M-009, M-026*
 
 **Acceptance criteria**
 1. A delivery 31 days past its final status holds no content, no destination and no
@@ -987,54 +1007,56 @@ changes no table of the send or delivery.
 **MSG-SEND-020** — Erasing a person SHALL remove what the library holds about them, and
 the library SHALL answer what it holds for a person's export.
 
-**Values (M-007).** `ISubjects.EraseAsync(person)` answers a `Result`. It runs in one
-transaction at `READ COMMITTED` whose `lock_timeout` is `Hermes:Dispatch:Timeout`, a
+**Values (M-007, M-026).** `ISubjects.EraseAsync(person)` answers a `Result`. It runs in
+one transaction at `READ COMMITTED` whose `lock_timeout` is `Hermes:Dispatch:Timeout`, a
 timeout letting the database's error through, so an erasure that waits for a host's open
 transaction (MSG-SEND-004) never waits for ever. It first takes the person's locks of
 `02` MSG-PUSH-003 exclusively, under which subscriptions are registered and preferences
-written and which a send and a preference write take shared (MSG-SEND-003,
-MSG-SEND-010), and then reads the migration history: where its database holds a
-migration its release does not know (`06` MSG-OPS-002), it answers
-`messaging.release.newer`, `details.migration` the first it does not know, since a newer
-release's tables may hold the person's values; otherwise, where it would need a key
-version this process does not hold, it answers `messaging.key.unavailable`; either way
-it changes nothing, so an erasure is all or nothing and the caller retries it, on a
-process of the newest release for the first. It then ends the person's `waiting` and
-`inflight` deliveries `cancelled`, an update that waits for a check-8 transaction
-holding one of their rows (MSG-SEND-014), so its later statements see any place that
-transaction took (an `inflight` delivery's late outcome then changes nothing,
-MSG-SEND-007); it deletes their preferences, push subscriptions and idempotency rows,
-and deletes the content, destination, unsubscribe address and person reference of every
-delivery for them, whatever its status, keeping the rest of each record until its
-retention ends. Their pending observer notices, and the notices of the deliveries it
-cancels, are kept for the observer with no person reference, so the host still learns
-how each delivery ended. The deliveries it cancels release their limit places as any
-cancellation does (MSG-SEND-014); it then deletes the limit places keyed by their
-reference's hash, and clears the delivery link of the other places their deliveries
-took, so no kept place ties a kept record to a destination hash. Suppressions and the
-other limit places stay: they hold no destination and nothing of the person, and a
-suppression keeps the person's refusal in force.
+written and which a send, a preference write and the in-app list's writes and reads take
+shared (MSG-SEND-003, MSG-SEND-010, `02` MSG-INAPP-001, MSG-INAPP-003), and then reads
+the migration history: where its database holds a migration its release does not know
+(`06` MSG-OPS-002), it answers `messaging.release.newer`, `details.migration` the first
+it does not know, since a newer release's tables may hold the person's values;
+otherwise, where it would need a key version this process does not hold, it answers
+`messaging.key.unavailable`; either way it changes nothing, so an erasure is all or
+nothing and the caller retries it, on a process of the newest release for the first. It
+then ends the person's `waiting` and `inflight` deliveries `cancelled`, an update that
+waits for a check-8 transaction holding one of their rows (MSG-SEND-014), so its later
+statements see any place that transaction took (an `inflight` delivery's late outcome
+then changes nothing, MSG-SEND-007); it deletes their preferences, push subscriptions,
+in-app entries and idempotency rows, and deletes the content, destination, unsubscribe
+address and person reference of every delivery for them, whatever its status, keeping
+the rest of each record until its retention ends. Their pending observer notices, and
+the notices of the deliveries it cancels, are kept for the observer with no person
+reference, so the host still learns how each delivery ended. The deliveries it cancels
+release their limit places as any cancellation does (MSG-SEND-014); it then deletes the
+limit places keyed by their reference's hash, and clears the delivery link of the other
+places their deliveries took, so no kept place ties a kept record to a destination hash.
+Suppressions and the other limit places stay: they hold no destination and nothing of
+the person, and a suppression keeps the person's refusal in force.
 
 `ISubjects.ExportAsync(person)` answers a `Result<SubjectExport>` (`04` MSG-LIB-002), or
 `messaging.key.unavailable` or `messaging.release.newer` as erasure does: the person's
 preferences; their subscriptions, each with its push service and the instants it was
-made and last used, never its endpoint or keys; their live idempotency rows, each with
-its kind, key and instant; and every delivery whose record names them, each with its
-kind, channel, status and instants, and with its destination and content while it holds
-them, one past content retention being marked so and carrying neither, a value whose
-protector answers `Erased` being marked erased and carrying no destination and no
-content, and one that does not open under its binding being marked rejected, carrying no
-destination and no content, and raising `content-rejected`; a value that cannot open yet
-(MSG-SEND-006), a protector call that throws or does not answer within
-`Hermes:Dispatch:Timeout` included, answers the export `messaging.key.unavailable`. The
-export runs in one transaction at `READ COMMITTED` whose `lock_timeout` is
-`Hermes:Dispatch:Timeout`, a timeout letting the database's error through as for
-erasure, takes the person's locks shared, then reads the migration history as erasure
-does and the person's rows, and commits; it opens the values after, outside any
-transaction, so its protector calls hold no lock and no session idle; an erasure
-committed after its read leaves the export as it read, its values answering `Erased`
-only where the person's key was erased (a host's protector over per-person keys, `04`
-MSG-LIB-005).
+made and last used, never its endpoint or keys; their in-app entries, each with its
+kind, category, the instants it was written and read, and its parts in every language it
+holds with its target and target values, its values answering as a delivery's do below;
+their live idempotency rows, each with its kind, key and instant; and every delivery
+whose record names them, each with its kind, channel, status and instants, and with its
+destination and content while it holds them, one past content retention being marked so
+and carrying neither, a value whose protector answers `Erased` being marked erased and
+carrying no destination and no content, and one that does not open under its binding
+being marked rejected, carrying no destination and no content, and raising
+`content-rejected`; a value that cannot open yet (MSG-SEND-006), a protector call that
+throws or does not answer within `Hermes:Dispatch:Timeout` included, answers the export
+`messaging.key.unavailable`. The export runs in one transaction at `READ COMMITTED`
+whose `lock_timeout` is `Hermes:Dispatch:Timeout`, a timeout letting the database's
+error through as for erasure, takes the person's locks shared, then reads the migration
+history as erasure does and the person's rows, and commits; it opens the values after,
+outside any transaction, so its protector calls hold no lock and no session idle; an
+erasure committed after its read leaves the export as it read, its values answering
+`Erased` only where the person's key was erased (a host's protector over per-person
+keys, `04` MSG-LIB-005).
 
 *Falling back to another channel (designed for, not built).* A kind may later declare an
 ordered list of channels where the next is used when a delivery on one ends in a status

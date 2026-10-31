@@ -88,6 +88,25 @@ public static class MessagingEndpointRouteBuilderExtensions
         return group;
     }
 
+    /// <summary>
+    /// Maps the in-app group: <c>GET /inapp</c>, <c>GET /inapp/unread</c>,
+    /// <c>POST /inapp/{id}/read</c> and <c>POST /inapp/read</c>, for the person the registered
+    /// <c>IRecipientIdentity</c> answers, the two <c>POST</c> routes reading an empty object as
+    /// <c>application/json</c> alone. A host adds its own requirements to the group as for any
+    /// of its endpoints.
+    /// </summary>
+    /// <param name="endpoints">The host's endpoints.</param>
+    /// <param name="prefix">The prefix the group's routes are under.</param>
+    /// <returns>The group's route group.</returns>
+    /// <exception cref="ArgumentNullException">An argument is null.</exception>
+    /// <exception cref="InvalidOperationException"><c>AddHermes</c> is not registered, or the host has started.</exception>
+    public static RouteGroupBuilder MapHermesInApp(this IEndpointRouteBuilder endpoints, string prefix)
+    {
+        RouteGroupBuilder group = Group(endpoints, prefix, groups => groups.InApp = true);
+        InAppEndpoints.Map(group);
+        return group;
+    }
+
     private static RouteGroupBuilder Group(IEndpointRouteBuilder endpoints, string prefix, Action<EndpointGroups> record)
     {
         ArgumentNullException.ThrowIfNull(endpoints);

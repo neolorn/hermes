@@ -14,6 +14,9 @@ public sealed record SubjectExport
     /// <summary>Every delivery whose record names the person.</summary>
     public required IReadOnlyList<DeliveryExport> Deliveries { get; init; }
 
+    /// <summary>The person's in-app entries, each with its parts in every language it holds.</summary>
+    public required IReadOnlyList<InAppEntryExport> Entries { get; init; }
+
     /// <summary>The person's live idempotency rows.</summary>
     public required IReadOnlyList<IdempotencyKeyExport> IdempotencyKeys { get; init; }
 }

@@ -14,6 +14,9 @@ internal static class ContentContext
     /// <summary>The table a push subscription's values are bound to, whatever the table is called.</summary>
     internal const string Subscriptions = "subscriptions";
 
+    /// <summary>The table an in-app entry's values are bound to, whatever the table is called.</summary>
+    internal const string Entries = "entries";
+
     /// <summary>The context of <paramref name="field"/> in the row <paramref name="row"/> of <paramref name="table"/>, its id in lower-case hexadecimal, hyphenated 8-4-4-4-12.</summary>
     internal static string Of(string table, Guid row, string field)
     {

@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-31
+
+### Added
+
+- `IInApp` and its types, `InAppPage`, `InAppEntry` and `EntryId`, for a person's
+  in-application list, and `SubjectExport.Entries`, each of the person's entries as
+  `InAppEntryExport`; none prints a part, a target or a target value
+- The channel `inapp` and the status `read`, and the migration `InAppList`, which adds the
+  in-app list's table and a column for an in-app delivery's parts, and drops or rewrites
+  nothing
+- The keys `Hermes:Retention:InApp`, 180 days by default, and `Hermes:InApp:AlwaysOn`, off by
+  default, each checked against its rule when the host starts and read again when it reloads
+- `KindBuilder.InApp(target, targetValues)`, which lets a kind go to its person's
+  in-application list: the send renders its `title` and `body` in every declared language,
+  each in that language's culture, refuses one past 128 or 1,024 characters with
+  `messaging.send.toolong`, and refuses the channel for an anonymous recipient with
+  `messaging.send.nodestination`
+- The in-app pass: the dispatcher writes an in-app delivery's entry to its person's list in
+  every environment, with no provider, no rate and no quiet hours, and ends the delivery `sent`
+- `IInApp`, registered scoped: a person's list read a page at a time, newest first, in the
+  language asked for, with an opaque cursor and `messaging.inapp.cursorinvalid` for one that
+  does not read; the unread count; and an entry, or all of them, marked read, which moves
+  each delivery from `sent` to `read` and tells the observer
+- With `Hermes:InApp:AlwaysOn` on, `IPreferences.SetAsync` refuses the in-app channel with
+  `messaging.preference.fixed`, answered 422 by the preference route, and `ReadAsync` and
+  `GET /preferences` leave the channel out
+- The retention job deletes, in batches, each in-app entry older than `Hermes:Retention:InApp`,
+  clears a final in-app delivery's parts with the rest of its content, and protects an
+  entry's values and a waiting in-app delivery's parts again under the write version
+- Erasing a person deletes their in-app entries and clears their in-app deliveries' parts,
+  and their export holds each entry with its parts in every language, its target and its
+  target values
+- `MapHermesInApp`, the in-app group: `GET /inapp` in the language of the request's
+  `Accept-Language`, `GET /inapp/unread`, and `POST /inapp/{id}/read` and `POST /inapp/read`,
+  which read an empty object as `application/json` alone, all for the person signed in
+
 ## [1.1.0] - 2026-10-29
 
 ### Added

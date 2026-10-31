@@ -15,24 +15,27 @@ MSG-OPS-002).
 
 | Code | Status | When | Details |
 |---|---|---|---|
-| `messaging.startup.declarationinvalid` | (startup) | A kind, category, template, page or protector `Id` is malformed, or two host protectors share one `Id` (`04` MSG-LIB-005; `01` MSG-SEND-001, MSG-SEND-002, MSG-SEND-018; `02` MSG-EMAIL-002, MSG-SMS-002; `03` MSG-TPL-004) | `declaration` (for a protector, its `Id`), `field` (for a protector, `Id`) |
+| `messaging.startup.declarationinvalid` | (startup) | A kind, category, template, page or protector `Id` is malformed, or two host protectors share one `Id` (`04` MSG-LIB-005; `01` MSG-SEND-001, MSG-SEND-002, MSG-SEND-018; `02` MSG-EMAIL-002, MSG-SMS-002, MSG-INAPP-001; `03` MSG-TPL-004) | `declaration` (for a protector, its `Id`), `field` (for a protector, `Id`) |
 | `messaging.startup.declarationmissing` | (startup) | A required seam is not registered (`04` MSG-LIB-005) | `key` |
 | `messaging.startup.configurationinvalid` | (startup) | A configuration value is outside its rule (`06` MSG-OPS-001; `03` MSG-TPL-003) | `key` |
 | `messaging.startup.secretunavailable` | (startup) | A secret a used part needs, or a version still in use of a key a used part needs, is not answered (`06` MSG-OPS-008) | `key` |
 | `messaging.startup.secretinvalid` | (startup) | A secret is outside its form, or a version's check value differs from the one recorded (`06` MSG-OPS-008) | `key` |
 | `messaging.startup.schemamismatch` | (startup) | The database lacks a migration of the release (`06` MSG-OPS-002) | `migration` |
-| `messaging.send.nodestination` | (result) | A channel the send names has no destination, or the send is left with no channel (`01` MSG-SEND-003) | `channel`, where there is one |
+| `messaging.send.nodestination` | (result) | A channel the send names has no destination, or the send is left with no channel (`01` MSG-SEND-003; `02` MSG-INAPP-001) | `channel`, where there is one |
 | `messaging.send.destinationinvalid` | (result) | A destination does not read (`01` MSG-SEND-003) | `channel` |
 | `messaging.send.destinationnotallowed` | (result) | A phone number outside `Sms:AllowedPrefixes` (`02` MSG-SMS-002) | `channel` |
-| `messaging.send.toolong` | (result) | A rendered message, or a value a render builds, exceeds its channel's limit (`02` MSG-EMAIL-003, MSG-SMS-001, MSG-PUSH-002; `03` MSG-TPL-007) | `channel` |
+| `messaging.send.toolong` | (result) | A rendered message, or a value a render builds, exceeds its channel's limit (`02` MSG-EMAIL-003, MSG-SMS-001, MSG-PUSH-002, MSG-INAPP-002; `03` MSG-TPL-007) | `channel` |
 | `messaging.send.renderlimit` | (result) | A render passes `Templates:MaxSteps` (`03` MSG-TPL-007) | `channel` |
 | `messaging.send.renderfailed` | (result) | A filter cannot compute from the send's values (a division by zero, an overflow, or an argument it cannot take), or a member is missing from data the send passes, or an assigned name, a loop variable or `forloop` is read where it was not set (`03` MSG-TPL-002, MSG-TPL-007; `01` MSG-SEND-003) | `channel` |
 | `messaging.send.idempotencyconflict` | (result) | An idempotency key reused with another send (`01` MSG-SEND-009) | |
 | `messaging.send.unknown` | (result) | A send the library does not hold (`01` MSG-SEND-008, MSG-SEND-017) | |
-| `messaging.key.unavailable` | (result) | A key version this process does not hold, or a content key past its use, is needed, or, for an export, a value cannot open yet (`06` MSG-OPS-008; `01` MSG-SEND-003, MSG-SEND-006, MSG-SEND-012, MSG-SEND-020) | `key`: the secret, or the protector's `Id`; absent for a format kept for a later release |
+| `messaging.key.unavailable` | (result) | A key version this process does not hold, or a content key past its use, is needed, or, for an export or a read of the in-app list, a value cannot open yet (`06` MSG-OPS-008; `01` MSG-SEND-003, MSG-SEND-006, MSG-SEND-012, MSG-SEND-020; `02` MSG-INAPP-003) | `key`: the secret, or the protector's `Id`; absent for a format kept for a later release |
 | `messaging.release.newer` | (result) | An erasure or an export on a process whose database holds a migration its release does not know, so that a newer release's tables may hold the person's values (`01` MSG-SEND-020) | `migration` |
 | `messaging.preference.unknown` | 404 | A category not declared, or a channel the category's kinds do not use (`01` MSG-SEND-010; `05` MSG-API-003) | `category`, `channel` |
 | `messaging.preference.essential` | 422 | Setting a preference of an essential category, on or off (`01` MSG-SEND-010) | `category` |
+| `messaging.preference.fixed` | 422 | Setting a preference of the in-app channel, on or off, where `InApp:AlwaysOn` is on (`01` MSG-SEND-010; `02` MSG-INAPP-004; `05` MSG-API-003) | `category`, `channel` |
+| `messaging.inapp.cursorinvalid` | 400 | A cursor of the in-app list that does not read (`02` MSG-INAPP-003; `05` MSG-API-008) | |
+| `messaging.inapp.unknown` | 404 | An in-app entry that does not exist or is another person's (`02` MSG-INAPP-003; `05` MSG-API-008) | |
 | `messaging.suppression.essential` | (result) | A suppression for an essential category (`01` MSG-SEND-012) | `category` |
 | `messaging.suppression.invalid` | (result) | A suppression naming a category not declared, a channel other than `email` and `sms`, or a destination that does not read (`01` MSG-SEND-012) | `member` |
 | `messaging.push.keyunknown` | 422 | A subscription posted with a key whose VAPID version is retired, held or not, or that no version has (`02` MSG-PUSH-007; `05` MSG-API-004) | |
@@ -40,12 +43,12 @@ MSG-OPS-002).
 | `messaging.unsubscribe.invalid` | 404 | An unsubscribe token that does not verify (`05` MSG-API-005) | |
 | `messaging.inbox.notfound` | 404 | A message the development inbox does not hold, or none that matches (`05` MSG-API-007) | |
 | `messaging.inbox.notlocal` | 403 | A request to the development inbox from another machine or under another host name (`02` MSG-DEV-005) | |
-| `messaging.request.malformed` | 400 | A body, a query parameter or a header that does not read (`05` MSG-API-001, MSG-API-007) | `member` |
+| `messaging.request.malformed` | 400 | A body, a query parameter or a header that does not read (`05` MSG-API-001, MSG-API-007, MSG-API-008) | `member` |
 | `messaging.request.unauthenticated` | 401 | No signed-in person where one is needed (`05` MSG-API-002) | |
 | `messaging.request.toolarge` | 413 | A body over 16 KiB (`05` MSG-API-001, MSG-API-005, MSG-API-006) | |
 | `messaging.request.mediatype` | 415 | A JSON route's body not sent as `application/json` (`05` MSG-API-001) | |
 | `messaging.request.ratelimited` | 429 | A report source over `Sms:WrongKeyRate` (`05` MSG-API-006) | |
-| `messaging.request.unavailable` | 503 | A key version in use that this process does not hold, a posted push key the key table records for such a version, a content key's use refused on the push subscription route, an unsubscribe token whose format byte is kept for a later release, or a person's locks not had within `Dispatch:Timeout` by the preference route or a push registration, or a push registration's protector call that throws or does not answer within it (`06` MSG-OPS-008; `01` MSG-SEND-010; `02` MSG-PUSH-003, MSG-PUSH-007; `05` MSG-API-003, MSG-API-004, MSG-API-005); answered with `Retry-After` | |
+| `messaging.request.unavailable` | 503 | A key version in use that this process does not hold, a posted push key the key table records for such a version, a content key's use refused on the push subscription route, an unsubscribe token whose format byte is kept for a later release, an in-app entry's value that cannot open yet, or a person's locks not had within `Dispatch:Timeout` by the preference route, the in-app routes or a push registration, or a push registration's or an in-app read's protector call that throws or does not answer within it (`06` MSG-OPS-008; `01` MSG-SEND-010; `02` MSG-PUSH-003, MSG-PUSH-007, MSG-INAPP-003; `05` MSG-API-003, MSG-API-004, MSG-API-005, MSG-API-008); answered with `Retry-After` | |
 | `messaging.migrate.inputinvalid` | (tool) | The tool's input does not read, or names a role the database does not have (`06` MSG-OPS-002) | `member` |
 | `messaging.migrate.connectionfailed` | (tool) | The tool cannot connect (`06` MSG-OPS-002) | |
 | `messaging.migrate.failed` | (tool) | A migration failed (`06` MSG-OPS-002) | `migration` |
@@ -57,7 +60,7 @@ MSG-OPS-002).
 
 | Enumeration | Values | C# type and members |
 |---|---|---|
-| Channels | `email` · `sms` · `push`; designed for, not built: `inapp`, `whatsapp` (`02` MSG-CHAN-002) | `Channel`: `Email` · `Sms` · `Push` |
+| Channels | `email` · `sms` · `push` · `inapp` (`02` section 5); designed for, not built: `whatsapp` (`02` MSG-CHAN-002) | `Channel`: `Email` · `Sms` · `Push` · `InApp` |
 | Push urgencies | `very-low` · `low` · `normal` · `high` (RFC 8030 section 5.3) | `PushUrgency`: `VeryLow` · `Low` · `Normal` · `High` |
 | Push services, from the endpoint's host | `fcm` (`fcm.googleapis.com`) · `mozilla` (`*.push.services.mozilla.com`) · `apple` (`*.push.apple.com`) · `windows` (`*.notify.windows.com`) · `other` (any other allowed host) | `PushService`: `Fcm` · `Mozilla` · `Apple` · `Windows` · `Other` |
 | Push platforms | `webpush`; designed for, not built: `android`, `ios` (`02` MSG-PUSH-008) | `PushPlatform`: `WebPush` |
@@ -74,14 +77,15 @@ MSG-OPS-002).
 ## 3. Delivery statuses
 
 A **final** status is one after which no attempt is made. Of the final statuses, `sent`
-alone may move once more, by a provider's report or feedback, to `delivered` or `failed`
-(`01` MSG-SEND-017).
+alone may move once more, by a provider's report or feedback, to `delivered` or
+`failed`, or, for an in-app delivery, by its entry being marked read, to `read` (`01`
+MSG-SEND-017).
 
 | Status | `DeliveryStatus` member | Final | Meaning |
 |---|---|---|---|
 | `waiting` | `Waiting` | No | Recorded; not yet due, or waiting for its next attempt, quiet hours or a provider's rate |
 | `inflight` | `InFlight` | No | Claimed by a dispatcher |
-| `sent` | `Sent` | Yes, moving once by a report | Accepted by the provider |
+| `sent` | `Sent` | Yes, moving once by a report or, in-app, a read | Accepted by the provider, or, in-app, its entry written |
 | `delivered` | `Delivered` | Yes | Reported delivered by the provider |
 | `failed` | `Failed` | Yes | A permanent answer, the attempts used up, a number no longer within the allowed prefixes at dispatch, a run of holds for a key past `Dispatch:MaxHold`, or reported failed; its reason (section 6) says which |
 | `cancelled` | `Cancelled` | Yes | Cancelled while waiting, its recipient erased, a value whose key was erased, or its kind retired (`01` MSG-SEND-001) |
@@ -92,6 +96,7 @@ alone may move once more, by a provider's report or feedback, to `delivered` or 
 | `limited` | `Limited` | Yes | A limit of the category is reached for the destination, the person or the deployment |
 | `balancefloor` | `BalanceFloor` | Yes | An SMS of an optional category, checked while the balance is below the floor |
 | `nosubscription` | `NoSubscription` | Yes | A push to a person with no live subscription, or whose every subscription is gone |
+| `read` | `Read` | Yes | An in-app delivery whose entry the person marked read (`02` MSG-INAPP-003) |
 
 ---
 
@@ -145,6 +150,7 @@ separator; a length in characters is counted as `00` section 1.5 gives.
 | `Retention:Places` | `31.00:00:00` | 1 day to 1 year; a limit's window above it fails its category's declaration (`01` MSG-SEND-002); start only |
 | `Retention:Suppression:Email` | none: indefinitely | None, or 30 days to 10 years |
 | `Retention:Suppression:Sms` | none: indefinitely | None, or 30 days to 10 years |
+| `Retention:InApp` | `180.00:00:00` | 1 day to 3 years, from the instant an in-app entry was written (`02` MSG-INAPP-005) |
 | `Jobs:Enabled` | `true` | Start only |
 | `Jobs:RetentionAt` | `03:00` | A time of day, in `TimeZone` |
 | `Jobs:SubscriptionsInterval` | `01:00:00` | 1 minute to 1 day |
@@ -197,6 +203,7 @@ separator; a length in characters is counted as `00` section 1.5 gives.
 | `Push:IdleRetention` | `180.00:00:00` | 7 days to 3 years |
 | `Push:AuthFailThreshold` | `20` | 1 to 10,000 |
 | `Push:AuthFailWindow` | `01:00:00` | 1 minute to 1 day |
+| `InApp:AlwaysOn` | `false` | Whether the in-app channel of every optional category cannot be turned off (`02` MSG-INAPP-004), set alike in every application of the deployment |
 | `DevelopmentInbox:Folder` | `hermes-inbox` in the operating system's temporary folder | An absolute path (`02` MSG-DEV-002); start only |
 | `DevelopmentInbox:KeepFor` | `7.00:00:00` | 1 hour to 90 days; start only |
 | `DevelopmentInbox:MaxMessages` | `1000` | 10 to 100,000; start only |
@@ -289,7 +296,7 @@ These names are stored, or shared by the processes of two releases, and never ch
 | `messaging` | The schema (`06` MSG-OPS-002) and the library protector's `Id` (`01` MSG-SEND-018) |
 | `messaging.__migrations_history` | The migration history table (`06` MSG-OPS-002) |
 | `messaging_dispatch` | The notification channel a send wakes the dispatchers on (`01` MSG-SEND-004) |
-| `deliveries`, `subscriptions`; `destination`, `unsubscribe`, the part names of `03` MSG-TPL-001, `endpoint`, `p256dh`, `auth` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018) |
+| `deliveries`, `subscriptions`, `entries`; `destination`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018) |
 | `email`, `sms`, `push-endpoint`, `push-topic`, `person`, `idempotency` | The keyed hash's domains (`06` MSG-OPS-008) |
 | `sms-report`, `idempotency` | The texts that begin the unkeyed lock keys (`01` MSG-SEND-009; `02` MSG-SMS-004) |
 | `sms-report-hold` | The text of the lock the held reports are counted under (`02` MSG-SMS-004) |

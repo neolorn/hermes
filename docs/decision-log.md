@@ -1315,6 +1315,76 @@ guarded by no release).
 
 ---
 
+## M-026 — The in-application list
+
+**Date:** 2026-10-31 · **Status:** accepted · **Follows from:** M-004, M-005, M-006,
+M-007
+
+A host building on the library asked for the `inapp` channel the first release was
+designed for (M-004): a host showing a list of a person's notifications keeps one more
+store of personal data to erase and export, one more place that decides what a person
+sees, and the same list rebuilt by every host. Every host with a signed-in person has
+the need, so the library builds it, in release 1.2.0, as additions only (`04`
+MSG-LIB-006).
+
+- **A channel whose provider is the library's store.** A kind declares `InApp(...)`
+  beside its other channels. Its delivery passes the checks as any other and,
+  dispatched, writes one **entry** to the person's list instead of calling an outside
+  provider, so the send, its deliveries, the observer and retention stay as they are.
+  Only a person has a list: an anonymous recipient's send naming `inapp` is refused as
+  push's is.
+- **Rendered at the send, in every declared language.** The host asked that an entry be
+  read in the language the reader asks for at that moment, not the send's, and that old
+  entries keep reading after a template changes. Rendering the in-app parts in each
+  declared language when the send is recorded meets both: the read picks the language,
+  and a template changed later changes no recorded send, as `01` MSG-SEND-018 already
+  holds. The rendered parts are protected values like any content, and a read never
+  fails to render. A language declared later is missing from older entries, which then
+  read in the default language. *Rejected:* keeping each entry's template version and
+  values and rendering at the read (every version of every in-app template kept for as
+  long as an entry lives, a read that can fail to render, and the values kept in a form
+  no other channel keeps).
+- **Where an entry leads is the host's.** A kind's in-app channel declares a target key
+  and which of the send's values go with it (an order's identifier, say); the entry
+  answers both and the host turns them into a link. The library knows nothing of the
+  host's screens.
+- **"Cannot be turned off" is a deployment setting.** `Hermes:InApp:AlwaysOn` makes the
+  in-app channel of every optional category impossible to turn off and leaves it off the
+  preferences routes. `Essential()` was weighed and is not it: it also lifts
+  suppressions, quiet hours and the SMS floor on the category's other channels, which a
+  host that only wants its list complete does not want. Consent still applies: an offer
+  needs its consent in a list as anywhere.
+- **Never held.** An entry interrupts nobody, so quiet hours never apply to it, and it
+  has no provider rate. A limit applies only where a category declares one for `inapp`.
+- **Retention of its own.** A list is read for months, so an entry lives
+  `Hermes:Retention:InApp` (default 180 days) from its creation, not
+  `Hermes:Retention:Content`. Erasure removes a person's entries and export answers
+  them, as for every other channel.
+- **Read is a status.** An entry stored ends its delivery `sent`; marked read, the
+  delivery moves from `sent` to a new final status, `read`, the one move `sent` may make
+  on this channel, so the observer is told of both in order (`01` MSG-SEND-017) and a
+  host refreshes an open screen or badges another device from its notices. The library
+  builds no socket of its own. Read is one way: nothing marks an entry unread.
+- **A read API and its routes.** `IInApp` answers a page of a person's entries newest
+  first and the unread count, and marks one or all read; `MapHermesInApp` maps the same
+  for the person signed in, as `MapHermesPushSubscriptions` does, and another person's
+  entry answers as one that does not exist.
+
+*Rejected:* a socket or server-sent events in the library (the host's realtime choice,
+which the notices already feed); entries kept in the delivery's row (content retention
+would delete them after 30 days); marking an entry unread (no host asked, and it would
+make `read` move again).
+
+**Propagated to:** `00` MSG-OVR-003 and the glossary; `01` MSG-SEND-001, MSG-SEND-002,
+MSG-SEND-003, MSG-SEND-005, MSG-SEND-006, MSG-SEND-007, MSG-SEND-010, MSG-SEND-011,
+MSG-SEND-013, MSG-SEND-014, MSG-SEND-017 to MSG-SEND-020; `02` MSG-CHAN-001,
+MSG-CHAN-002, section 5 (MSG-INAPP-001 to MSG-INAPP-005), MSG-DEV-001; `03` MSG-TPL-001,
+MSG-TPL-002; `04` MSG-LIB-002 to MSG-LIB-005; `05` MSG-API-002, MSG-API-003,
+MSG-API-008; `06` MSG-OPS-002, MSG-OPS-004; `08` sections 1 to 4 and 8; `10`
+MSG-THR-001; `implementation-plan.md` (phase 10).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1344,3 +1414,4 @@ guarded by no release).
 | The release step: the release commit, its checks, and the release job | M-023 |
 | The development inbox | M-024 |
 | Phase 9's question: the release set reads the development inbox too | M-025 |
+| The in-application list | M-026 |

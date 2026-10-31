@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 
 using Hermes.Channels;
+using Hermes.Content;
 using Hermes.Core;
 
 namespace Hermes.Sending;
@@ -91,7 +92,7 @@ internal static partial class DeclarationCheck
             return "category";
         }
 
-        if (kind.Email is null && kind.Sms is null && kind.Push is null)
+        if (kind.Email is null && kind.Sms is null && kind.Push is null && kind.InApp is null)
         {
             return "channel";
         }
@@ -126,7 +127,29 @@ internal static partial class DeclarationCheck
             return "ttl";
         }
 
+        if (kind.InApp is { } inApp && !IsInApp(inApp))
+        {
+            return "inapp";
+        }
+
         return null;
+    }
+
+    /// <summary>
+    /// Whether a kind's in-app target is a name, and its target values are names a send may
+    /// use (<c>03</c> MSG-TPL-002), none named twice ignoring case, given where the target is and
+    /// only there (<c>02</c> MSG-INAPP-001).
+    /// </summary>
+    private static bool IsInApp(KindInApp inApp)
+    {
+        if (inApp.Target is null || !IsName(inApp.Target))
+        {
+            return inApp.Target is null && inApp.TargetValues.Count == 0;
+        }
+
+        HashSet<string> named = new(StringComparer.OrdinalIgnoreCase);
+        return inApp.TargetValues.Count > 0
+            && inApp.TargetValues.All(name => SendValues.IsName(name) && !TemplateNames.Reserved.Contains(name) && named.Add(name));
     }
 
     /// <summary>
@@ -197,6 +220,7 @@ internal static partial class DeclarationCheck
             Channel.Email => kind.Email is not null,
             Channel.Sms => kind.Sms is not null,
             Channel.Push => kind.Push is not null,
+            Channel.InApp => kind.InApp is not null,
             _ => false,
         };
     }

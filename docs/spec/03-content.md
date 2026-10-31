@@ -9,19 +9,22 @@ safe and bounded, and what is checked before the first send. Every value named
 **MSG-TPL-001** — Every channel of every kind SHALL have a template in each declared
 language, written in Liquid and rendered by Fluid, made of the parts its channel needs.
 
-**Values (M-002, M-005).**
+**Values (M-002, M-005, M-026).**
 
 | Channel | Parts |
 |---|---|
 | Email | `subject` and `text`, required; `html`, optional |
 | SMS | `text`, required |
 | Push | `title` and `body`, required; `url`, `tag`, `icon`, `badge`, optional |
+| In-app | `title`, required; `body`, optional (`02` MSG-INAPP-002) |
 
 A template part is found by its `TemplateKey` (`04` MSG-LIB-002): the kind, the channel,
-the language and the part, through the template source (MSG-TPL-006). The library's own
-pages (MSG-TPL-006) are keyed by page, language and part instead.
+the language and the part, through the template source (MSG-TPL-006). An in-app
+template's parts are rendered in every declared language when the send is recorded,
+every other channel's in the send's language alone (`02` MSG-INAPP-002). The library's
+own pages (MSG-TPL-006) are keyed by page, language and part instead.
 
-*Source: M-002, M-005*
+*Source: M-002, M-005, M-026*
 
 **Acceptance criteria**
 1. A kind's email in Arabic renders its Arabic subject and text, and its HTML part where
@@ -33,24 +36,28 @@ pages (MSG-TPL-006) are keyed by page, language and part instead.
 from the values the library adds, every value a template uses SHALL be passed, and a
 send that passes a value wrongly SHALL be a fault of the calling code.
 
-**Values (M-002, M-005).** `Values` maps names to values. A name is 1 to 64 letters,
-digits and `_`, starting with a letter, and no two names of a send are equal ignoring
-case (Fluid compares names ignoring case). A value is a string, a whole number (64-bit),
-a decimal number, a boolean, an instant (`DateTimeOffset`), or a list of maps whose
-values are of those scalar kinds, so that an order's lines can be listed; a list holds
-no list. A map inside a list follows the same rule for its entry names, the library's
-reserved names being reserved at the top level only. Rendering is strict (Fluid's
-`StrictVariables`): a send passes every top-level name read by the templates it renders
-(those of its channels, in its language), in an output or a condition alike, save the
-values the library adds below, Fluid's `forloop`, and their loop variables and assigned
-names (the startup walk of MSG-TPL-004 collects them), and one it does not pass is a
-fault found before the render, never an empty string; a member missing from data it
-passes (the first line of an empty list, an index past a list's end) is refused with
-`messaging.send.renderfailed` (MSG-TPL-007), since a host's data can cause it. The
-library adds, to every template, these values, whose names a send SHALL NOT use:
+**Values (M-002, M-005, M-026).** `Values` maps names to values. A name is 1 to 64
+letters, digits and `_`, starting with a letter, and no two names of a send are equal
+ignoring case (Fluid compares names ignoring case). A value is a string, a whole number
+(64-bit), a decimal number, a boolean, an instant (`DateTimeOffset`), or a list of maps
+whose values are of those scalar kinds, so that an order's lines can be listed; a list
+holds no list. A map inside a list follows the same rule for its entry names, the
+library's reserved names being reserved at the top level only. Rendering is strict
+(Fluid's `StrictVariables`): a send passes every top-level name read by the templates it
+renders (those of its channels, in its language, and its in-app channel's in every
+declared language), in an output or a condition alike, save the values the library adds
+below, Fluid's `forloop`, and their loop variables and assigned names (the startup walk
+of MSG-TPL-004 collects them), and one it does not pass is a fault found before the
+render, never an empty string; a member missing from data it passes (the first line of
+an empty list, an index past a list's end) is refused with `messaging.send.renderfailed`
+(MSG-TPL-007), since a host's data can cause it. A kind's in-app target values (`02`
+MSG-INAPP-001) are top-level names of scalar values, and a send that does not pass one,
+or passes a list under it, is a fault as for a template's value. The library adds, to
+every template, these values, whose names a send SHALL NOT use:
 - `unsubscribe`: the one-click address, in an optional category's email only (`02`
   MSG-EMAIL-006);
-- `language`: the send's language, and `direction`: `ltr` or `rtl` (MSG-TPL-003).
+- `language`: the send's language (for an in-app part, the language it is rendered in),
+  and `direction`: `ltr` or `rtl` (MSG-TPL-003).
 
 And these filters, which replace Fluid's filters of the same names:
 - `format_date: "<format>"`: an instant in the send's time zone, under a .NET date
@@ -58,10 +65,12 @@ And these filters, which replace Fluid's filters of the same names:
 - `format_number: "<format>"`: a number under a .NET numeric format string, in that
   culture.
 
-Fluid's clock is the library's `TimeProvider` and its time zone the send's. A host
-formats anything else (an amount with its currency, an address) before passing it.
+Fluid's clock is the library's `TimeProvider` and its time zone the send's; an in-app
+part rendered in a language other than the send's is formatted in that language's
+culture. A host formats anything else (an amount with its currency, an address) before
+passing it.
 
-*Source: M-002, M-005*
+*Source: M-002, M-005, M-026*
 
 **Acceptance criteria**
 1. A send that leaves out a value its template reads, in a condition or a branch not

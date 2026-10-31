@@ -58,4 +58,6 @@ internal sealed class MessagingOptions
 
     [ValidateObjectMembers]
     public SecretsOptions Secrets { get; set; } = new();
+
+    public InAppOptions InApp { get; set; } = new();
 }

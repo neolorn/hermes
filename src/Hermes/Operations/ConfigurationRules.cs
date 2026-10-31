@@ -50,6 +50,7 @@ internal static class ConfigurationRules
         ConfigurationKeys.Duration("Retention:Places", startOnly: true, TimeSpan.FromDays(1), Year, Defaults.Retention.Places),
         ConfigurationKeys.Duration("Retention:Suppression:Email", startOnly: false, TimeSpan.FromDays(30), 10 * Year, Defaults.Retention.Suppression.Email),
         ConfigurationKeys.Duration("Retention:Suppression:Sms", startOnly: false, TimeSpan.FromDays(30), 10 * Year, Defaults.Retention.Suppression.Sms),
+        ConfigurationKeys.Duration("Retention:InApp", startOnly: false, TimeSpan.FromDays(1), 3 * Year, Defaults.Retention.InApp),
         ConfigurationKeys.Flag("Jobs:Enabled", Defaults.Jobs.Enabled),
         ConfigurationKeys.TimeOfDay("Jobs:RetentionAt", Defaults.Jobs.RetentionAt),
         ConfigurationKeys.Duration("Jobs:SubscriptionsInterval", startOnly: false, TimeSpan.FromMinutes(1), TimeSpan.FromDays(1), Defaults.Jobs.SubscriptionsInterval),
@@ -62,6 +63,7 @@ internal static class ConfigurationRules
         ConfigurationKeys.Duration("Secrets:RetireAfter", startOnly: false, TimeSpan.FromDays(1), Year, Defaults.Secrets.RetireAfter),
         ConfigurationKeys.Count("Secrets:ContentKeys:MaxValues", 1, 4_294_967_296L, Defaults.Secrets.ContentKeys.MaxValues),
         ConfigurationKeys.Whole("Secrets:ContentKeys:ReserveBlock", startOnly: false, 100, 1_000_000, Defaults.Secrets.ContentKeys.ReserveBlock),
+        ConfigurationKeys.Flag("InApp:AlwaysOn", Defaults.InApp.AlwaysOn, startOnly: false),
     ];
 
     /// <summary>The paths of <see cref="Keys"/>, in order.</summary>

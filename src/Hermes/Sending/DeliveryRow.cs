@@ -55,6 +55,9 @@ internal sealed class DeliveryRow
 
     public byte[]? Badge { get; set; }
 
+    /// <summary>An in-app delivery's protected values, as <see cref="InAppParts"/> writes them, until its dispatch moves them into its entry.</summary>
+    public string? Parts { get; set; }
+
     /// <summary>The <c>contentKeys</c> version of the values the library's protector made, none where it made none (<c>06</c> MSG-OPS-008).</summary>
     public int? ContentKeyVersion { get; set; }
 

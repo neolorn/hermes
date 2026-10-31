@@ -69,7 +69,7 @@ internal static class SendValues
         }
     }
 
-    private static bool IsName(string name)
+    internal static bool IsName(string? name)
     {
         if (string.IsNullOrEmpty(name) || name.Length > MostNameCharacters || !char.IsAsciiLetter(name[0]))
         {

@@ -49,6 +49,8 @@ internal sealed class Subjects(
 
     private const string DeletePreferences = "DELETE FROM messaging.preferences WHERE person = @person";
 
+    private const string DeleteEntries = "DELETE FROM messaging.entries WHERE person = @person";
+
     private const string DeleteSubscriptions = "DELETE FROM messaging.subscriptions WHERE person = @person";
 
     private const string DeleteIdempotency = "DELETE FROM messaging.idempotency WHERE NOT anonymous AND scope = @scope";
@@ -60,7 +62,7 @@ internal sealed class Subjects(
     private const string Clear = """
         UPDATE messaging.deliveries
         SET person = NULL, destination = NULL, unsubscribe = NULL, subject = NULL, text = NULL, html = NULL,
-            title = NULL, body = NULL, url = NULL, tag = NULL, icon = NULL, badge = NULL, content_key_version = NULL
+            title = NULL, body = NULL, url = NULL, tag = NULL, icon = NULL, badge = NULL, parts = NULL, content_key_version = NULL
         WHERE person = @person
         """;
 
@@ -110,6 +112,7 @@ internal sealed class Subjects(
                 byte[][] keyed = [.. hashes.Every(KeyedHashes.Person, Encoding.UTF8.GetBytes(person)).Select(hash => hash.Hash)];
                 await RunAsync(context, DeletePreferences, new NpgsqlParameter("person", person), token).ConfigureAwait(false);
                 await RunAsync(context, DeleteSubscriptions, new NpgsqlParameter("person", person), token).ConfigureAwait(false);
+                await RunAsync(context, DeleteEntries, new NpgsqlParameter("person", person), token).ConfigureAwait(false);
                 await RunAsync(context, DeleteIdempotency, new NpgsqlParameter("scope", Encoding.UTF8.GetBytes(person)), token).ConfigureAwait(false);
                 await RunAsync(context, DeletePlaces, new NpgsqlParameter("hashes", keyed), token).ConfigureAwait(false);
                 await RunAsync(context, Unlink, new NpgsqlParameter("person", person), token).ConfigureAwait(false);
@@ -148,7 +151,7 @@ internal sealed class Subjects(
                 await AdvisoryLocks.TakeAsync(context, AdvisoryLocks.Person(hashes, person), shared: true, token).ConfigureAwait(false);
                 if (await SchemaCheck.UnknownAsync(context, token).ConfigureAwait(false) is { } migration)
                 {
-                    return new Read(migration, [], [], [], []);
+                    return new Read(migration, [], [], [], [], []);
                 }
 
                 DateTimeOffset now = clock.GetUtcNow();
@@ -158,7 +161,8 @@ internal sealed class Subjects(
                     await context.Preferences.AsNoTracking().Where(row => row.Person == person).ToListAsync(token).ConfigureAwait(false),
                     await context.Subscriptions.AsNoTracking().Where(row => row.Person == person).OrderBy(row => row.MadeAt).ToListAsync(token).ConfigureAwait(false),
                     await context.Idempotency.AsNoTracking().Where(row => !row.Anonymous && row.Scope == scope && row.LapsesAt > now).OrderBy(row => row.RecordedAt).ToListAsync(token).ConfigureAwait(false),
-                    await context.Deliveries.AsNoTracking().Where(row => row.Person == person).OrderBy(row => row.RecordedAt).ThenBy(row => row.Id).ToListAsync(token).ConfigureAwait(false));
+                    await context.Deliveries.AsNoTracking().Where(row => row.Person == person).OrderBy(row => row.RecordedAt).ThenBy(row => row.Id).ToListAsync(token).ConfigureAwait(false),
+                    await context.Entries.AsNoTracking().Where(row => row.Person == person).OrderBy(row => row.WrittenAt).ThenBy(row => row.Id).ToListAsync(token).ConfigureAwait(false));
             },
             cancellationToken).ConfigureAwait(false);
         if (read.Migration is { } unknown)
@@ -175,7 +179,8 @@ internal sealed class Subjects(
                 continue;
             }
 
-            Opened opened = await OpenAsync(row, channel, current, cancellationToken).ConfigureAwait(false);
+            List<(string Field, byte[] Stored)> stored = [.. Fields(row, channel).Where(field => field.Stored is not null).Select(field => (field.Field, field.Stored!))];
+            Opened opened = await OpenAsync(row.Person, ContentContext.Deliveries, row.Id, stored, current, cancellationToken).ConfigureAwait(false);
             if (opened.Held is { } held)
             {
                 return Result.Fail<SubjectExport>(held);
@@ -197,12 +202,35 @@ internal sealed class Subjects(
             });
         }
 
+        List<InAppEntryExport> entries = [];
+        bool entryRejected = false;
+        foreach (EntryRow row in read.Entries)
+        {
+            (InAppEntryExport? entry, Failure? held) = await EntryAsync(row, current, cancellationToken).ConfigureAwait(false);
+            if (held is not null)
+            {
+                return Result.Fail<SubjectExport>(held);
+            }
+
+            entryRejected |= entry!.Rejected;
+            entries.Add(entry);
+        }
+
         if (rejected)
         {
             await alerts.HoldsUntilAsync(
                 "content-rejected",
                 ContentContext.Deliveries,
                 new Dictionary<string, string>(StringComparer.Ordinal) { ["table"] = ContentContext.Deliveries },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (entryRejected)
+        {
+            await alerts.HoldsUntilAsync(
+                "content-rejected",
+                ContentContext.Entries,
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["table"] = ContentContext.Entries },
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -213,6 +241,7 @@ internal sealed class Subjects(
                 .Where(row => Spellings.Service(row.Service) is not null)
                 .Select(row => new SubscriptionExport { Service = Spellings.Service(row.Service)!.Value, MadeAt = row.MadeAt, LastAcceptedAt = row.LastAcceptedAt })],
             Deliveries = deliveries,
+            Entries = entries,
             IdempotencyKeys = [.. read.Idempotency.Select(row => new IdempotencyKeyExport { Kind = row.Kind, Key = row.Key, RecordedAt = row.RecordedAt })],
         });
     }
@@ -236,16 +265,65 @@ internal sealed class Subjects(
                 yield return (TemplateParts.Icon, row.Icon);
                 yield return (TemplateParts.Badge, row.Badge);
                 break;
+            case Channel.InApp:
+                foreach ((string field, byte[] stored) in InAppParts.Read(row.Parts) ?? [])
+                {
+                    yield return (field, stored);
+                }
+
+                break;
             default:
                 yield return ("text", row.Text);
                 break;
         }
     }
 
-    /// <summary>Opens each of the delivery's values outside any transaction; the first that is erased, rejected or cannot open yet decides.</summary>
-    private async Task<Opened> OpenAsync(DeliveryRow row, Channel channel, MessagingOptions current, CancellationToken cancellationToken)
+    /// <summary>An entry as its export holds it, its values opened outside any transaction; or the failure of a value that cannot open yet.</summary>
+    private async Task<(InAppEntryExport? Entry, Failure? Held)> EntryAsync(EntryRow row, MessagingOptions current, CancellationToken cancellationToken)
     {
-        List<(string Field, byte[] Stored)> stored = [.. Fields(row, channel).Where(field => field.Stored is not null).Select(field => (field.Field, field.Stored!))];
+        Dictionary<string, byte[]>? stored = InAppParts.Read(row.Parts);
+        Opened opened = stored is null
+            ? new Opened(null, Deleted: false, Erased: false, Rejected: true, Held: null)
+            : await OpenAsync(row.Person, ContentContext.Entries, row.Id, [.. stored.Select(field => (field.Key, field.Value))], current, cancellationToken).ConfigureAwait(false);
+        if (opened.Held is { } held)
+        {
+            return (null, held);
+        }
+
+        Dictionary<string, string> content = new(StringComparer.Ordinal);
+        IReadOnlyDictionary<string, SendValue> targetValues = new Dictionary<string, SendValue>(StringComparer.Ordinal);
+        bool rejected = opened.Rejected;
+        if (opened.Values is { } values)
+        {
+            Dictionary<string, SendValue>? read = values.TryGetValue(InAppParts.Target, out string? text) ? TargetValues.Read(text) : [];
+            if (read is null)
+            {
+                rejected = true;
+            }
+            else
+            {
+                targetValues = read;
+                content = values.Where(value => value.Key != InAppParts.Target).ToDictionary(StringComparer.Ordinal);
+            }
+        }
+
+        return (new InAppEntryExport
+        {
+            Kind = row.Kind,
+            Category = row.Category,
+            WrittenAt = row.WrittenAt,
+            ReadAt = row.ReadAt,
+            Content = content,
+            Target = row.Target,
+            TargetValues = targetValues,
+            Erased = opened.Erased,
+            Rejected = rejected,
+        }, null);
+    }
+
+    /// <summary>Opens each of a row's values outside any transaction, bound to its field of <paramref name="id"/> in <paramref name="table"/>; the first that is erased, rejected or cannot open yet decides.</summary>
+    private async Task<Opened> OpenAsync(string? person, string table, Guid id, List<(string Field, byte[] Stored)> stored, MessagingOptions current, CancellationToken cancellationToken)
+    {
         if (stored.Count == 0)
         {
             return new Opened(null, Deleted: true, Erased: false, Rejected: false, Held: null);
@@ -259,7 +337,7 @@ internal sealed class Subjects(
             {
                 using CancellationTokenSource bound = new(current.Dispatch.Timeout, clock);
                 using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(bound.Token, cancellationToken);
-                opening = await protection.OpenAsync(row.Person, value, ContentContext.Of(ContentContext.Deliveries, row.Id, field), linked.Token)
+                opening = await protection.OpenAsync(person, value, ContentContext.Of(table, id, field), linked.Token)
                     .AsTask()
                     .WaitAsync(current.Dispatch.Timeout, clock, cancellationToken)
                     .ConfigureAwait(false);
@@ -318,7 +396,7 @@ internal sealed class Subjects(
 
     private sealed record Erasure(Result Result, List<Cancelled> Cancelled, int? Missing);
 
-    private sealed record Read(string? Migration, List<PreferenceRow> Preferences, List<SubscriptionRow> Subscriptions, List<IdempotencyRow> Idempotency, List<DeliveryRow> Deliveries);
+    private sealed record Read(string? Migration, List<PreferenceRow> Preferences, List<SubscriptionRow> Subscriptions, List<IdempotencyRow> Idempotency, List<DeliveryRow> Deliveries, List<EntryRow> Entries);
 
     private sealed record Opened(Dictionary<string, string>? Values, bool Deleted, bool Erased, bool Rejected, Failure? Held);
 }

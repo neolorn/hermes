@@ -81,7 +81,7 @@ internal sealed partial class DispatchPasses
     }
 
     /// <summary>The channels a pass runs on.</summary>
-    internal static IReadOnlyList<Channel> Dispatched { get; } = [Channel.Email, Channel.Sms, Channel.Push];
+    internal static IReadOnlyList<Channel> Dispatched { get; } = [Channel.Email, Channel.Sms, Channel.Push, Channel.InApp];
 
     internal MessagingDatabase Database { get; }
 
@@ -156,7 +156,8 @@ internal sealed partial class DispatchPasses
     /// <summary>
     /// Claims, for <paramref name="holder"/>, the channel's due deliveries up to the lesser of the
     /// batch and what the second's counter leaves of its rate, essential kinds first, adding them
-    /// to the counter; a lock that times out claims nothing.
+    /// to the counter; the in-app channel, which has no rate, up to the batch alone, with no
+    /// counter (<c>01</c> MSG-SEND-007). A lock that times out claims nothing.
     /// </summary>
     internal async Task<(List<DeliveryRow> Rows, DateTimeOffset Second, int Limit)> ClaimAsync(Channel channel, Guid holder, MessagingOptions current, CancellationToken cancellationToken)
     {
@@ -173,8 +174,9 @@ internal sealed partial class DispatchPasses
                     await DeliveryClaims.LockTimeoutAsync(context, current.Dispatch.Timeout, token).ConfigureAwait(false);
                     DateTimeOffset now = Clock.GetUtcNow();
                     DateTimeOffset second = DeliveryClaims.Second(now);
-                    int count = await DeliveryClaims.CounterAsync(context, spelling, second, token).ConfigureAwait(false);
-                    int limit = Math.Max(0, Math.Min(current.Dispatch.BatchSize, rate - count));
+                    bool counted = HasRate(channel);
+                    int count = counted ? await DeliveryClaims.CounterAsync(context, spelling, second, token).ConfigureAwait(false) : 0;
+                    int limit = counted ? Math.Max(0, Math.Min(current.Dispatch.BatchSize, rate - count)) : current.Dispatch.BatchSize;
                     List<DeliveryRow> rows = [];
                     if (limit > 0 && essential.Count > 0)
                     {
@@ -186,7 +188,7 @@ internal sealed partial class DispatchPasses
                         rows.AddRange(Ordered(await DeliveryClaims.ClaimAsync(context, spelling, others, limit - rows.Count, holder, current.Dispatch.ClaimTimeout, now, token).ConfigureAwait(false)));
                     }
 
-                    if (rows.Count > 0)
+                    if (counted && rows.Count > 0)
                     {
                         await DeliveryClaims.CountAsync(context, spelling, second, rows.Count, token).ConfigureAwait(false);
                     }
@@ -200,6 +202,12 @@ internal sealed partial class DispatchPasses
             ClaimLockTimedOut(Logger, spelling);
             return ([], default, 0);
         }
+    }
+
+    /// <summary>Whether <paramref name="channel"/> has a provider rate and so a counter row: every channel but the in-app one, whose provider is the library's own list.</summary>
+    internal static bool HasRate(Channel channel)
+    {
+        return channel != Channel.InApp;
     }
 
     private async Task MarkSentAsync(string key, int version, CancellationToken cancellationToken)

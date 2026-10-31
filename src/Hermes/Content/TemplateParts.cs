@@ -35,6 +35,10 @@ internal static class TemplateParts
 
     private static readonly string[] PushOptional = [Url, Tag, Icon, Badge];
 
+    private static readonly string[] InAppRequired = [Title];
+
+    private static readonly string[] InAppOptional = [Body];
+
     /// <summary>The parts a channel's template must have.</summary>
     internal static IReadOnlyList<string> Required(Channel channel)
     {
@@ -42,6 +46,7 @@ internal static class TemplateParts
         {
             Channel.Email => EmailRequired,
             Channel.Sms => SmsRequired,
+            Channel.InApp => InAppRequired,
             _ => PushRequired,
         };
     }
@@ -53,6 +58,7 @@ internal static class TemplateParts
         {
             Channel.Email => EmailOptional,
             Channel.Sms => [],
+            Channel.InApp => InAppOptional,
             _ => PushOptional,
         };
     }

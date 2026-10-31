@@ -42,12 +42,13 @@ internal sealed partial class RetentionKeys(
     private const string ProtectDelivery = """
         UPDATE messaging.deliveries
         SET destination = @destination, unsubscribe = @unsubscribe, subject = @subject, text = @text, html = @html,
-            title = @title, body = @body, url = @url, tag = @tag, icon = @icon, badge = @badge, content_key_version = @version
+            title = @title, body = @body, url = @url, tag = @tag, icon = @icon, badge = @badge, parts = @parts, content_key_version = @version
         WHERE id = @id
           AND destination IS NOT DISTINCT FROM @was_destination AND unsubscribe IS NOT DISTINCT FROM @was_unsubscribe
           AND subject IS NOT DISTINCT FROM @was_subject AND text IS NOT DISTINCT FROM @was_text AND html IS NOT DISTINCT FROM @was_html
           AND title IS NOT DISTINCT FROM @was_title AND body IS NOT DISTINCT FROM @was_body AND url IS NOT DISTINCT FROM @was_url
           AND tag IS NOT DISTINCT FROM @was_tag AND icon IS NOT DISTINCT FROM @was_icon AND badge IS NOT DISTINCT FROM @was_badge
+          AND parts IS NOT DISTINCT FROM @was_parts
         """;
 
     private const string Subscriptions = """
@@ -61,9 +62,21 @@ internal sealed partial class RetentionKeys(
         WHERE id = @id AND endpoint = @was_endpoint AND keys = @was_keys
         """;
 
+    private const string Entries = """
+        SELECT * FROM messaging.entries
+        WHERE content_key_version < @write AND id > @after
+        ORDER BY id LIMIT @batch FOR UPDATE SKIP LOCKED
+        """;
+
+    private const string ProtectEntry = """
+        UPDATE messaging.entries SET parts = @parts, content_key_version = @version
+        WHERE id = @id AND parts = @was_parts
+        """;
+
     private const string NoContentRow = """
         SELECT NOT EXISTS (SELECT 1 FROM messaging.deliveries WHERE content_key_version = @version)
-           AND NOT EXISTS (SELECT 1 FROM messaging.subscriptions WHERE content_key_version = @version) AS "Value"
+           AND NOT EXISTS (SELECT 1 FROM messaging.subscriptions WHERE content_key_version = @version)
+           AND NOT EXISTS (SELECT 1 FROM messaging.entries WHERE content_key_version = @version) AS "Value"
         """;
 
     private const string NoHash = """
@@ -100,7 +113,7 @@ internal sealed partial class RetentionKeys(
     }
 
     /// <summary>
-    /// Protects again, in batches, the values of every delivery and subscription under a
+    /// Protects again, in batches, the values of every delivery, subscription and in-app entry under a
     /// <c>contentKeys</c> version below this process's write version, renewing the claim after
     /// each; false where a renewal finds the claim no longer the run's.
     /// </summary>
@@ -112,7 +125,8 @@ internal sealed partial class RetentionKeys(
         }
 
         return await RunAsync(content.WriteVersion, Deliveries, renew, (context, row, token) => DeliveryAsync(context, (DeliveryRow)row, content.WriteVersion, token), context => context.Deliveries, cancellationToken).ConfigureAwait(false)
-            && await RunAsync(content.WriteVersion, Subscriptions, renew, (context, row, token) => SubscriptionAsync(context, (SubscriptionRow)row, content.WriteVersion, token), context => context.Subscriptions, cancellationToken).ConfigureAwait(false);
+            && await RunAsync(content.WriteVersion, Subscriptions, renew, (context, row, token) => SubscriptionAsync(context, (SubscriptionRow)row, content.WriteVersion, token), context => context.Subscriptions, cancellationToken).ConfigureAwait(false)
+            && await RunAsync(content.WriteVersion, Entries, renew, (context, row, token) => EntryAsync(context, (EntryRow)row, content.WriteVersion, token), context => context.Entries, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Marks retired each version nothing needs, one transaction a version, renewing the claim after each; false where a renewal finds the claim no longer the run's.</summary>
@@ -216,7 +230,7 @@ internal sealed partial class RetentionKeys(
                     Guid last = after;
                     foreach (TRow row in rows)
                     {
-                        last = row is DeliveryRow delivery ? delivery.Id : ((SubscriptionRow)(object)row).Id;
+                        last = row switch { DeliveryRow delivery => delivery.Id, EntryRow entry => entry.Id, _ => ((SubscriptionRow)(object)row).Id };
                         switch (await protect(context, row, token).ConfigureAwait(false))
                         {
                             case Again.Protected:
@@ -274,7 +288,64 @@ internal sealed partial class RetentionKeys(
             parameters.Add(Bytes("was_" + field, stored));
         }
 
+        string? parts = null;
+        if (row.Parts is not null)
+        {
+            (Again outcome, string? made) = await PartsAgainAsync(row.Person, row.Parts, ContentContext.Deliveries, row.Id, cancellationToken).ConfigureAwait(false);
+            if (outcome != Again.Protected)
+            {
+                return outcome;
+            }
+
+            parts = made;
+        }
+
+        parameters.Add(Json("parts", parts));
+        parameters.Add(Json("was_parts", row.Parts));
         return await context.Database.ExecuteSqlRawAsync(ProtectDelivery, parameters, cancellationToken).ConfigureAwait(false) == 1 ? Again.Protected : Again.Left;
+    }
+
+    private async Task<Again> EntryAsync(MessagingContext context, EntryRow row, int write, CancellationToken cancellationToken)
+    {
+        (Again outcome, string? parts) = await PartsAgainAsync(row.Person, row.Parts, ContentContext.Entries, row.Id, cancellationToken).ConfigureAwait(false);
+        if (outcome != Again.Protected)
+        {
+            return outcome;
+        }
+
+        int changed = await context.Database.ExecuteSqlRawAsync(
+            ProtectEntry,
+            [new NpgsqlParameter("id", row.Id), new NpgsqlParameter("version", write), Json("parts", parts), Json("was_parts", row.Parts)],
+            cancellationToken).ConfigureAwait(false);
+        return changed == 1 ? Again.Protected : Again.Left;
+    }
+
+    /// <summary>Each value of an in-app parts column, as <see cref="InAppParts"/> writes it, protected again bound to its field of <paramref name="row"/> in <paramref name="table"/>; the first that is not protected again decides.</summary>
+    private async Task<(Again Outcome, string? Parts)> PartsAgainAsync(string? person, string column, string table, Guid row, CancellationToken cancellationToken)
+    {
+        if (InAppParts.Read(column) is not { } stored)
+        {
+            return (Again.Left, null);
+        }
+
+        Dictionary<string, byte[]> again = new(StringComparer.Ordinal);
+        foreach ((string field, byte[] value) in stored)
+        {
+            (Again outcome, byte[]? made) = await AgainAsync(person, value, ContentContext.Of(table, row, field), cancellationToken).ConfigureAwait(false);
+            if (outcome != Again.Protected)
+            {
+                return (outcome, null);
+            }
+
+            again[field] = made!;
+        }
+
+        return (Again.Protected, InAppParts.Write(again));
+    }
+
+    private static NpgsqlParameter Json(string name, string? value)
+    {
+        return new NpgsqlParameter(name, NpgsqlDbType.Jsonb) { Value = (object?)value ?? DBNull.Value };
     }
 
     private async Task<Again> SubscriptionAsync(MessagingContext context, SubscriptionRow row, int write, CancellationToken cancellationToken)

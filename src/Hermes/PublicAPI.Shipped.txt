@@ -16,10 +16,12 @@ Hermes.IDispatcher.RunPassAsync(System.Threading.CancellationToken cancellationT
 Hermes.KindBuilder
 Hermes.KindBuilder.Email(Hermes.Core.EmailAddress? from = null, Hermes.Core.EmailAddress? replyTo = null) -> Hermes.KindBuilder!
 Hermes.KindBuilder.ExpiresAfter(System.TimeSpan duration) -> Hermes.KindBuilder!
+Hermes.KindBuilder.InApp(string? target = null, System.Collections.Generic.IReadOnlyList<string!>? targetValues = null) -> Hermes.KindBuilder!
 Hermes.KindBuilder.Push(System.TimeSpan? ttl = null, Hermes.Core.PushUrgency urgency = Hermes.Core.PushUrgency.Normal) -> Hermes.KindBuilder!
 Hermes.KindBuilder.Sms(int maxSegments = 1, string? sender = null) -> Hermes.KindBuilder!
 Hermes.MessagingEndpointRouteBuilderExtensions
 Hermes.MessagingServiceCollectionExtensions
+static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesInApp(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
 static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesPreferences(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
 static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesPushSubscriptions(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
 static Hermes.MessagingEndpointRouteBuilderExtensions.MapHermesSmsReports(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!

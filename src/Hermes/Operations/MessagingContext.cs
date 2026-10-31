@@ -57,6 +57,8 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
     internal DbSet<PushAuthFailureRow> PushAuthFailures => Set<PushAuthFailureRow>();
 
+    internal DbSet<EntryRow> Entries => Set<EntryRow>();
+
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
     {
@@ -122,6 +124,7 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
         ReportTables(modelBuilder);
         BalanceTable(modelBuilder);
         PushTables(modelBuilder);
+        EntryTable(modelBuilder);
     }
 
     /// <summary>The send's tables (<c>01</c> MSG-SEND-003 to MSG-SEND-009, MSG-SEND-014, MSG-SEND-017), each closed set checked by the database.</summary>
@@ -175,6 +178,7 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             delivery.Property(row => row.Tag).HasColumnName("tag");
             delivery.Property(row => row.Icon).HasColumnName("icon");
             delivery.Property(row => row.Badge).HasColumnName("badge");
+            delivery.Property(row => row.Parts).HasColumnName("parts").HasColumnType("jsonb");
             delivery.Property(row => row.ContentKeyVersion).HasColumnName("content_key_version");
             delivery.Property(row => row.RecordedAt).HasColumnName("recorded_at");
             delivery.Property(row => row.DueAt).HasColumnName("due_at");
@@ -418,6 +422,32 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             failure.Property(row => row.Service).HasColumnName("service");
             failure.Property(row => row.Minute).HasColumnName("minute");
             failure.Property(row => row.Count).HasColumnName("count");
+        });
+    }
+
+    /// <summary>The in-application list (<c>02</c> MSG-INAPP-001), read a page at a time by person, newest first.</summary>
+    private static void EntryTable(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<EntryRow>(entry =>
+        {
+            entry.ToTable("entries");
+            entry.HasKey(row => row.Id).HasName("pk_entries");
+            entry.HasOne<DeliveryRow>().WithMany().HasForeignKey(row => row.DeliveryId).HasConstraintName("fk_entries_deliveries").OnDelete(DeleteBehavior.SetNull);
+            entry.HasIndex(row => new { row.Person, row.WrittenAt, row.Id }).HasDatabaseName("ix_entries_person_written_at");
+            entry.HasIndex(row => row.WrittenAt).HasDatabaseName("ix_entries_written_at");
+            entry.HasIndex(row => row.DeliveryId).HasDatabaseName("ix_entries_delivery_id");
+            entry.HasIndex(row => row.ContentKeyVersion).HasDatabaseName("ix_entries_content_key_version");
+            entry.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            entry.Property(row => row.Person).HasColumnName("person");
+            entry.Property(row => row.Kind).HasColumnName("kind");
+            entry.Property(row => row.Category).HasColumnName("category");
+            entry.Property(row => row.Language).HasColumnName("language");
+            entry.Property(row => row.WrittenAt).HasColumnName("written_at");
+            entry.Property(row => row.ReadAt).HasColumnName("read_at");
+            entry.Property(row => row.DeliveryId).HasColumnName("delivery_id");
+            entry.Property(row => row.Target).HasColumnName("target");
+            entry.Property(row => row.Parts).HasColumnName("parts").HasColumnType("jsonb");
+            entry.Property(row => row.ContentKeyVersion).HasColumnName("content_key_version");
         });
     }
 

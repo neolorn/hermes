@@ -46,11 +46,11 @@ when the host starts, after its groups are mapped.
 changed only by the library's migrations, applied by the deployment's pipeline before
 the new version starts and never by the application at startup.
 
-**Values (M-012, M-013, M-016).** The schema name is fixed, and does not change with the
-library's name (`00`); the migration history table is `messaging.__migrations_history`,
-so the library's history never meets a host's. The migrations are applied by
-`hermes migrate`, the command of the `Hermes.Cli` tool of the same release, which reads
-one JSON document on its standard input and nothing else:
+**Values (M-012, M-013, M-016, M-026).** The schema name is fixed, and does not change
+with the library's name (`00`); the migration history table is
+`messaging.__migrations_history`, so the library's history never meets a host's. The
+migrations are applied by `hermes migrate`, the command of the `Hermes.Cli` tool of the
+same release, which reads one JSON document on its standard input and nothing else:
 `{ "connection": "<connection string>", "applicationRoles": [ "<role>", ... ] }`, the
 roles optional. Once connected, and before it applies any migration, it reads which of
 the roles the database has, comparing each name as text with `pg_roles`, so a name
@@ -85,9 +85,12 @@ two releases. At startup the library checks that the database holds every migrat
 its release and stops the start with `messaging.startup.schemamismatch`,
 `details.migration` the first missing, where it does not; later migrations, of a newer
 release, are accepted. A migration that drops or rewrites data is named in the release
-notes.
+notes. Release 1.2.0's migration adds the in-app list's table (`02` MSG-INAPP-001) and
+drops or rewrites nothing; a process of release 1.1.0 beside it leaves in-app deliveries
+and the `read` status as it leaves any row it does not know (`01` MSG-SEND-007), and its
+erasure and export answer `messaging.release.newer` (`01` MSG-SEND-020).
 
-*Source: M-012, M-013, M-016*
+*Source: M-012, M-013, M-016, M-026*
 
 **Acceptance criteria**
 1. Starting against a database missing the release's last migration stops the start.
@@ -144,14 +147,14 @@ MSG-SEND-004) rely on it too.
 host's process, each turned on or off per application by configuration, and SHALL do
 nothing twice when several processes run it.
 
-**Values (M-005, M-007).**
+**Values (M-005, M-007, M-026).**
 
 | Job | Runs | Turned on by |
 |---|---|---|
 | `dispatch` (`01` MSG-SEND-007) | As `01` MSG-SEND-007 gives: on each notification of a committed send, every `Hermes:Dispatch:Interval`, and the other instants it names | `Hermes:Dispatch:Enabled` and `Hermes:Dispatch:Hosted` |
 | `observer` (`01` MSG-SEND-017) | Every `Hermes:Dispatch:Interval`; it completes at once, delivering nothing, where `Hermes:Observer:Enabled` is off | `Hermes:Dispatch:Enabled` |
 | `balance` (`02` MSG-SMS-006) | Every `Hermes:Sms:BalancePoll`, only in an application where SMS is used (`04` MSG-LIB-003), which alone takes its claim | `Hermes:Dispatch:Enabled`, whatever `Hermes:Jobs:Enabled` says, as `observer` is |
-| `retention` (MSG-OPS-008; `01` MSG-SEND-019) | Daily at `Hermes:Jobs:RetentionAt`, in `Hermes:TimeZone` | `Hermes:Jobs:Enabled` |
+| `retention` (MSG-OPS-008; `01` MSG-SEND-019; `02` MSG-INAPP-005) | Daily at `Hermes:Jobs:RetentionAt`, in `Hermes:TimeZone` | `Hermes:Jobs:Enabled` |
 | `subscriptions` (`02` MSG-PUSH-006) | Every `Hermes:Jobs:SubscriptionsInterval` | `Hermes:Jobs:Enabled` |
 | `watch` (MSG-OPS-005, MSG-OPS-006, MSG-OPS-007, MSG-OPS-008; `01` MSG-SEND-017, MSG-SEND-018; `02` MSG-SMS-004, MSG-PUSH-005) | Every `Hermes:Dispatch:Interval` | `Hermes:Jobs:Enabled` |
 
@@ -187,7 +190,7 @@ report route keeps under `Hermes:Sms:ReportHoldMax`. Besides the jobs, every pro
 that registers `AddHermes`, whether or not it runs jobs, keeps the key table current on
 a timer of its own (MSG-OPS-008).
 
-*Source: M-005, M-007, M-008, M-009, M-012, M-022*
+*Source: M-005, M-007, M-008, M-009, M-012, M-022, M-026*
 
 **Acceptance criteria**
 1. With `Hermes:Dispatch:Enabled` false, an application records sends, its hosted
@@ -295,6 +298,9 @@ release notes SHALL state it.
   `ISubjects` declares, or retires, every kind of the deployment (`01` MSG-SEND-001).
 - **Observer.** A deployment that observes turns `Hermes:Observer:Enabled` on in every
   application (`01` MSG-SEND-017).
+- **The in-app list.** `Hermes:InApp:AlwaysOn` is set alike in every application of the
+  deployment (`02` MSG-INAPP-004), and the host's frontend shows an entry's `title` and
+  `body` as text, never as markup (`05` MSG-API-008).
 - **Jobs.** Each job with a row in the job table (MSG-OPS-004) runs in at least one
   application, the `balance` job where SMS is used, since a job no application runs
   raises no `job-stalled`.
@@ -321,7 +327,8 @@ release notes SHALL state it.
   alert on its key-table timer, which reads the migration history (MSG-OPS-008), so a
   deployment rolls forward rather than back.
 
-*Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020, M-022, M-024*
+*Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020, M-022, M-024,
+M-026*
 
 **Acceptance criteria**
 1. The release notes of each release (`RELEASE-NOTES.md`, `07` MSG-ENG-001) state every

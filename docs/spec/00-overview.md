@@ -164,12 +164,14 @@ the public surface (`04` MSG-LIB-006):
 | Push to native phone apps (Firebase Cloud Messaging, Apple Push Notification service) | `02` MSG-PUSH-008 |
 | Safari's declarative Web Push payload | `02` MSG-PUSH-002 |
 | WhatsApp, and any other channel | `02` MSG-CHAN-002 |
-| An in-application notification list | `01` MSG-SEND-019 |
 | Falling back to another channel when one fails | `01` MSG-SEND-020 |
 | Email attachments | `02` MSG-EMAIL-003 |
 | Email bounce and complaint feedback | `02` MSG-EMAIL-007 |
 
-*Source: M-001, M-004*
+Release 1.2.0 adds the in-application notification list, as additions only (`02`
+section 5; `04` MSG-LIB-006).
+
+*Source: M-001, M-004, M-026*
 
 ---
 
@@ -182,13 +184,14 @@ the public surface (`04` MSG-LIB-006):
 | **Category** | A group of kinds sharing one rule for opting out, consent, quiet hours and limits (`01`) |
 | **Recipient** | Who a message is for: a person the host identifies by its own reference, or someone anonymous, known only by a destination |
 | **Person reference** | An opaque string the host gives for a person, the same for every message to that person; the library never interprets it |
-| **Destination** | An email address or a phone number; for push, the person's subscriptions |
+| **Destination** | An email address or a phone number; for push, the person's subscriptions; for in-app, none |
 | **Send** | One call that asks for one kind to go to one recipient on one or more channels |
-| **Delivery** | One send on one channel: dispatched, retried and reported on its own; an email or SMS delivery has one destination, a push delivery goes to each of the person's subscriptions |
+| **Delivery** | One send on one channel: dispatched, retried and reported on its own; an email or SMS delivery has one destination, a push delivery goes to each of the person's subscriptions, and an in-app delivery writes one entry to the person's list |
 | **Attempt** | One try at a delivery: its checks and its provider calls (one, or for push one per subscription); an attempt answered at a check makes no call |
-| **Provider** | What carries a delivery: an SMTP server, an SMS gateway, a push service |
+| **Provider** | What carries a delivery: an SMTP server, an SMS gateway, a push service, or for in-app the library's own list |
 | **Outbox** | The library's table of deliveries waiting, in flight or finished |
 | **Quiet hours** | The hours, in the recipient's time zone, in which a category's deliveries wait, where its quiet hours apply |
 | **Suppression** | A destination the library will not send a category to, after an unsubscribe |
 | **Delivery reference** | 128 random bits the library draws for each attempt and passes to the provider, so a report can name the attempt it reports on |
 | **Provider reference** | What a provider answers to identify a message it took, where it answers one |
+| **Entry** | One item of a person's in-application list: an in-app delivery's parts in every declared language, kept for the host to show (`02` section 5) |

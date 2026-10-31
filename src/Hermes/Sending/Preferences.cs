@@ -43,17 +43,21 @@ internal sealed class Preferences(
             options.CurrentValue,
             (context, token) => context.Preferences.AsNoTracking().Where(row => row.Person == person).ToListAsync(token),
             cancellationToken).ConfigureAwait(false);
-        return Of(declarations, rows);
+        return Of(declarations, rows, options.CurrentValue.InApp.AlwaysOn);
     }
 
-    /// <summary>Every declared category's preferences with the channels its kinds use, a channel on unless <paramref name="rows"/> turn it off.</summary>
-    internal static IReadOnlyList<CategoryPreferences> Of(Declarations declarations, IReadOnlyList<PreferenceRow> rows)
+    /// <summary>
+    /// Every declared category's preferences with the channels its kinds use, a channel on unless
+    /// <paramref name="rows"/> turn it off, the in-app channel left out where <paramref name="alwaysOn"/>
+    /// says it cannot be turned off (<c>02</c> MSG-INAPP-004).
+    /// </summary>
+    internal static IReadOnlyList<CategoryPreferences> Of(Declarations declarations, IReadOnlyList<PreferenceRow> rows, bool alwaysOn = false)
     {
         return [.. declarations.Categories.Select(category => new CategoryPreferences
         {
             Category = category.Name,
             Essential = category.Essential,
-            Channels = [.. declarations.ChannelsOf(category.Name).Select(channel => new ChannelPreference
+            Channels = [.. declarations.ChannelsOf(category.Name).Where(channel => !alwaysOn || channel != Channel.InApp).Select(channel => new ChannelPreference
             {
                 Channel = channel,
                 On = category.Essential || !rows.Any(row => row.Category == category.Name && row.Channel == Spellings.Of(channel) && !row.On),
@@ -81,6 +85,15 @@ internal sealed class Preferences(
         }
 
         MessagingOptions current = options.CurrentValue;
+        if (channel == Channel.InApp && current.InApp.AlwaysOn)
+        {
+            return Result.Fail(new Failure
+            {
+                Code = Codes.PreferenceFixed,
+                Details = new Dictionary<string, string>(StringComparer.Ordinal) { ["category"] = category, ["channel"] = Spellings.Of(channel) },
+            });
+        }
+
         await LibraryTransactions.RunAsync(
             database,
             current,

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 using Hermes.Core;
 using Hermes.Sending;
@@ -17,6 +18,7 @@ public sealed class KindBuilder
     private KindEmail? email;
     private KindSms? sms;
     private KindPush? push;
+    private KindInApp? inApp;
     private TimeSpan? expiresAfter;
 
     internal KindBuilder(string name, string category)
@@ -55,6 +57,16 @@ public sealed class KindBuilder
         return this;
     }
 
+    /// <summary>Lets the kind go to the person's in-application list.</summary>
+    /// <param name="target">The key of where its entries lead, which the host's frontend reads: 1 to 64 lower-case letters and digits separated by single <c>.</c>, <c>-</c> or <c>_</c>; or none.</param>
+    /// <param name="targetValues">The names of the send's top-level scalar values that go with the target, each named once; required where a target is given, and none where it is not.</param>
+    /// <returns>This builder.</returns>
+    public KindBuilder InApp(string? target = null, IReadOnlyList<string>? targetValues = null)
+    {
+        inApp = new(target, targetValues is null ? [] : [.. targetValues]);
+        return this;
+    }
+
     /// <summary>Declares that a delivery not sent within <paramref name="duration"/> of its recording is not sent at all.</summary>
     /// <param name="duration">The duration, above zero.</param>
     /// <returns>This builder.</returns>
@@ -66,6 +78,6 @@ public sealed class KindBuilder
 
     internal KindDeclaration Declaration()
     {
-        return new(name, category, email, sms, push, expiresAfter);
+        return new(name, category, email, sms, push, inApp, expiresAfter);
     }
 }

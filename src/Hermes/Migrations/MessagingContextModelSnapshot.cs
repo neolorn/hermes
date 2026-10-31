@@ -367,6 +367,10 @@ namespace Hermes.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("next_sequence");
 
+                    b.Property<string>("Parts")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("parts");
+
                     b.Property<string>("Person")
                         .HasColumnType("text")
                         .HasColumnName("person");
@@ -447,14 +451,83 @@ namespace Hermes.Migrations
                         {
                             t.HasCheckConstraint("ck_deliveries_attempts", "attempts >= 0");
 
-                            t.HasCheckConstraint("ck_deliveries_channel", "channel IN ('email', 'sms', 'push')");
+                            t.HasCheckConstraint("ck_deliveries_channel", "channel IN ('email', 'sms', 'push', 'inapp')");
 
                             t.HasCheckConstraint("ck_deliveries_next_sequence", "next_sequence >= 1");
 
                             t.HasCheckConstraint("ck_deliveries_reason", "reason IS NULL OR reason IN ('timeout', 'connectionfailed', 'tlsfailed', 'authfailed', 'senderrefused', 'recipientrefused', 'messagerefused', 'badrequest', 'ratelimited', 'temporary', 'permanent', 'gone', 'providerfault', 'keyunavailable', 'consentunavailable', 'reportedfailed', 'claimlost', 'serverrefused', 'destinationnotallowed', 'valuerejected')");
 
-                            t.HasCheckConstraint("ck_deliveries_status", "status IN ('waiting', 'inflight', 'sent', 'delivered', 'failed', 'cancelled', 'expired', 'suppressed', 'optedout', 'noconsent', 'limited', 'balancefloor', 'nosubscription')");
+                            t.HasCheckConstraint("ck_deliveries_status", "status IN ('waiting', 'inflight', 'sent', 'delivered', 'failed', 'cancelled', 'expired', 'suppressed', 'optedout', 'noconsent', 'limited', 'balancefloor', 'nosubscription', 'read')");
                         });
+                });
+
+            modelBuilder.Entity("Hermes.Sending.EntryRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<int?>("ContentKeyVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("content_key_version");
+
+                    b.Property<Guid?>("DeliveryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delivery_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("language");
+
+                    b.Property<string>("Parts")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("parts");
+
+                    b.Property<string>("Person")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("person");
+
+                    b.Property<DateTimeOffset?>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<string>("Target")
+                        .HasColumnType("text")
+                        .HasColumnName("target");
+
+                    b.Property<DateTimeOffset>("WrittenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("written_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_entries");
+
+                    b.HasIndex("ContentKeyVersion")
+                        .HasDatabaseName("ix_entries_content_key_version");
+
+                    b.HasIndex("DeliveryId")
+                        .HasDatabaseName("ix_entries_delivery_id");
+
+                    b.HasIndex("WrittenAt")
+                        .HasDatabaseName("ix_entries_written_at");
+
+                    b.HasIndex("Person", "WrittenAt", "Id")
+                        .HasDatabaseName("ix_entries_person_written_at");
+
+                    b.ToTable("entries", "messaging");
                 });
 
             modelBuilder.Entity("Hermes.Sending.HeldReportRow", b =>
@@ -610,7 +683,7 @@ namespace Hermes.Migrations
 
                             t.HasCheckConstraint("ck_notices_sequence", "sequence >= 1");
 
-                            t.HasCheckConstraint("ck_notices_status", "status IN ('waiting', 'inflight', 'sent', 'delivered', 'failed', 'cancelled', 'expired', 'suppressed', 'optedout', 'noconsent', 'limited', 'balancefloor', 'nosubscription')");
+                            t.HasCheckConstraint("ck_notices_status", "status IN ('waiting', 'inflight', 'sent', 'delivered', 'failed', 'cancelled', 'expired', 'suppressed', 'optedout', 'noconsent', 'limited', 'balancefloor', 'nosubscription', 'read')");
                         });
                 });
 
@@ -679,7 +752,7 @@ namespace Hermes.Migrations
 
                     b.ToTable("places", "messaging", t =>
                         {
-                            t.HasCheckConstraint("ck_places_channel", "channel IN ('email', 'sms', 'push')");
+                            t.HasCheckConstraint("ck_places_channel", "channel IN ('email', 'sms', 'push', 'inapp')");
 
                             t.HasCheckConstraint("ck_places_hash", "(kind = 'limit') = (hash IS NOT NULL AND hash_version IS NOT NULL)");
 
@@ -716,7 +789,7 @@ namespace Hermes.Migrations
 
                     b.ToTable("preferences", "messaging", t =>
                         {
-                            t.HasCheckConstraint("ck_preferences_channel", "channel IN ('email', 'sms', 'push')");
+                            t.HasCheckConstraint("ck_preferences_channel", "channel IN ('email', 'sms', 'push', 'inapp')");
                         });
                 });
 
@@ -764,7 +837,7 @@ namespace Hermes.Migrations
 
                     b.ToTable("rate_counters", "messaging", t =>
                         {
-                            t.HasCheckConstraint("ck_rate_counters_channel", "channel IN ('email', 'sms', 'push')");
+                            t.HasCheckConstraint("ck_rate_counters_channel", "channel IN ('email', 'sms', 'push', 'inapp')");
 
                             t.HasCheckConstraint("ck_rate_counters_count", "count >= 0");
                         });
@@ -960,6 +1033,15 @@ namespace Hermes.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_deliveries_sends");
+                });
+
+            modelBuilder.Entity("Hermes.Sending.EntryRow", b =>
+                {
+                    b.HasOne("Hermes.Sending.DeliveryRow", null)
+                        .WithMany()
+                        .HasForeignKey("DeliveryId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_entries_deliveries");
                 });
 
             modelBuilder.Entity("Hermes.Sending.NoticeRow", b =>

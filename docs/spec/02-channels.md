@@ -12,8 +12,9 @@ named `Hermes:...` is configuration (`08` section 4).
 `Hermes.Core` that a host can replace, and every provider SHALL answer each call with an
 `Attempt` that carries no text the provider answered.
 
-**Values (M-002, M-005, M-012).** `IEmailProvider`, `ISmsProvider` and `IPushProvider`,
-with the signatures of `04` MSG-LIB-002. An `Attempt` is one of:
+**Values (M-002, M-005, M-012, M-026).** `IEmailProvider`, `ISmsProvider` and
+`IPushProvider`, with the signatures of `04` MSG-LIB-002; the in-app channel has none,
+its provider being the library's own store (section 5). An `Attempt` is one of:
 - `Accepted(providerReference)`, the provider reference where the provider answers one;
 - `Transient(reason, status, retryAfter)`;
 - `Permanent(reason, status)`;
@@ -742,11 +743,152 @@ subscription being a browser's.
 
 ---
 
-## 5. Further channels (designed for, not built)
+## 5. The in-application list
 
-**MSG-CHAN-002** — A later release SHALL add a channel (WhatsApp, the in-application
-list, any other) as a provider contract, its kinds' templates and its destination, with
-no change to how a host sends.
+A person's list of notifications, kept in the library's own store for the host to show.
+Its routes are `05` MSG-API-008, its types `04` MSG-LIB-002.
+
+**MSG-INAPP-001** — A kind MAY declare the in-app channel, and its delivery SHALL, when
+dispatched, write one **entry** to its person's list and end `sent`.
+
+**Values (M-026).** `InApp(target, targetValues)` (`04` MSG-LIB-002): `target`,
+optional, a key the host gives where the entry leads, under the name rule of `01`
+MSG-SEND-001; `targetValues`, the names of the send's top-level scalar values that go
+with it (`03` MSG-TPL-002), required where `target` is given and empty where it is not.
+Startup fails with `messaging.startup.declarationinvalid`, `details.declaration` the
+kind and `details.field` `inapp`, for a target outside the rule, a target value whose
+name breaks the rule of `03` MSG-TPL-002 or is named twice, or target values without a
+target. A send's target values are the scalar values its `Values` carries under those
+names; one it does not carry is a fault of the calling code, as a template's value is.
+The channel has no destination: only a person has a list, and a send naming `inapp` for
+an anonymous recipient is refused with `messaging.send.nodestination`, `details.channel`
+`inapp`. It has no provider contract and no provider rate: once the checks pass (`01`
+MSG-SEND-006), the dispatcher, in one transaction holding the person's locks of
+MSG-PUSH-003 in shared mode, writes the entry (its identifier a UUIDv7, the person
+reference, the kind, the category, the send's language, the instant it is written and no
+read instant), protects its parts and target values bound to the entry's row (`01`
+MSG-SEND-018), deletes the delivery's rendered parts, and ends the delivery `sent` with
+the entry's identifier as its provider reference, by the outcome's conditional update of
+`01` MSG-SEND-007; where that update changes nothing (the claim taken over, the delivery
+cancelled), the transaction is rolled back and no entry is kept. An entry is written in
+every environment, Development included: the development inbox captures no in-app
+message (section 7).
+
+*Source: M-026*
+
+**Acceptance criteria**
+1. A dispatched in-app delivery leaves one entry in its person's list, ends `sent`, and
+   holds no rendered part of its own.
+2. A send naming `inapp` for an anonymous recipient is refused and records nothing.
+3. Each condition listed above fails startup naming the kind.
+
+---
+
+**MSG-INAPP-002** — An entry SHALL hold its parts rendered at the send in every declared
+language, and SHALL be read in the language its reader asks for.
+
+**Values (M-026).** The in-app parts are `title`, required, at most 128 characters, and
+`body`, optional, at most 1,024 characters, both plain text, rendered when the send is
+recorded in each language of `Hermes:Languages` (`03` MSG-TPL-001, MSG-TPL-002); a part
+past its length in any language refuses the send with `messaging.send.toolong`,
+`details.channel` `inapp`. A read names a language, matched to the entry's languages as
+`01` MSG-SEND-003 matches a send's; one that matches none of them, or none, reads in
+`Hermes:DefaultLanguage`, and an entry lacking that language too (a language declared
+after the entry was written) reads in its send's language. A template changed after a
+send leaves the send's entry as it was rendered.
+
+*Source: M-026*
+
+**Acceptance criteria**
+1. An entry sent in Arabic, read asking `en`, answers its English parts, and read asking
+   `fr` where `fr` is not declared, its default-language parts.
+2. A send whose English title renders past 128 characters is refused, in whatever
+   language it is sent.
+
+---
+
+**MSG-INAPP-003** — The host SHALL read a person's list a page at a time, newest first,
+with its unread count, and SHALL mark one entry, or all of a person's entries, read.
+
+**Values (M-026).** `IInApp` (`04` MSG-LIB-002), a scoped service, every call reading
+or writing under the person's locks of MSG-PUSH-003 in shared mode:
+- `ListAsync(person, language, cursor, size)` answers an `InAppPage`: up to `size`
+  entries (1 to 100, 20 where none is given; another is a fault of the calling code),
+  newest first by the instant written and then by identifier, each with its identifier,
+  kind, category, instant written, read instant or none, the language it reads in, its
+  parts in that language and its target and target values, and the cursor of the next
+  page or none; a cursor is opaque, and one that does not read answers
+  `messaging.inapp.cursorinvalid`;
+- `UnreadCountAsync(person)` answers the number of the person's entries with no read
+  instant;
+- `MarkReadAsync(person, entryId)` sets the entry's read instant and moves its delivery
+  from `sent` to `read` (`01` MSG-SEND-017), in one transaction; an entry already read
+  changes nothing and succeeds; an entry that does not exist, or is another person's,
+  answers `messaging.inapp.unknown`;
+- `MarkAllReadAsync(person)` does so for every entry of the person with no read instant,
+  in one transaction.
+
+An entry's values are opened as content is (`01` MSG-SEND-018): an entry whose value
+answers `Erased` is left out; one that does not open under its binding is left out and
+raises `content-rejected`; one that cannot open yet answers the call
+`messaging.key.unavailable`. A protector is called after the read's transaction ends,
+never inside it.
+
+*Source: M-026*
+
+**Acceptance criteria**
+1. Twenty-five entries read with `size` 20 answer the newest twenty and a cursor whose
+   page answers the other five and no cursor.
+2. Marking an entry read lowers the unread count by one and tells the observer of its
+   delivery's move to `read`; marking it again changes nothing.
+3. Marking another person's entry read answers `messaging.inapp.unknown` and changes
+   nothing.
+
+---
+
+**MSG-INAPP-004** — Where `Hermes:InApp:AlwaysOn` is on, the in-app channel of every
+category SHALL be impossible to turn off.
+
+**Values (M-026).** Off by default. On, check 4 of `01` MSG-SEND-006 does not apply to
+an in-app delivery, a preference turning it off being ignored, whenever it was set;
+`IPreferences.SetAsync` naming `inapp` is refused with `messaging.preference.fixed`; and
+`IPreferences.ReadAsync` and the preferences routes leave the channel out (`01`
+MSG-SEND-010, `05` MSG-API-003). The category's other channels are unchanged, and
+consent still applies to the in-app channel (`01` MSG-SEND-011): this is not
+`Essential()`.
+
+*Source: M-026*
+
+**Acceptance criteria**
+1. With the key on, an in-app delivery of a category the person turned off on `inapp` is
+   written, and the person's SMS of that category is not sent.
+2. With the key on, an in-app delivery of a category requiring consent, to a person who
+   does not consent, ends `noconsent`.
+
+---
+
+**MSG-INAPP-005** — An entry SHALL be kept `Hermes:Retention:InApp` from the instant it
+was written, and SHALL be erased and exported with its person.
+
+**Values (M-026).** `Hermes:Retention:InApp` defaults to 180 days. The retention job
+deletes, in batches, every entry older (`01` MSG-SEND-019); the entry's delivery keeps
+its record as any delivery does, without content. Erasing the person deletes their
+entries; their export answers each with its kind, category, instants, every language's
+parts and its target (`01` MSG-SEND-020).
+
+*Source: M-026*
+
+**Acceptance criteria**
+1. An entry 181 days old is gone, and one 179 days old is listed.
+2. After erasure the person's list is empty, and their earlier export held each entry.
+
+---
+
+## 6. Further channels (designed for, not built)
+
+**MSG-CHAN-002** — A later release SHALL add a channel (WhatsApp, any other) as a
+provider contract, its kinds' templates and its destination, with no change to how a
+host sends.
 
 **Values (M-004).** A channel is a name in the closed set of `08` section 2, a provider
 contract of `Hermes.Core` (a new interface, `04` MSG-LIB-006), the destination a send
@@ -759,7 +901,7 @@ the kind's declaration for that channel.
 
 ---
 
-## 6. The development inbox
+## 7. The development inbox
 
 What `Hermes.Development` does while a host is developed: every message the host would
 send is kept on the machine, and a person, a browser test, a setup tool or a .NET test
@@ -769,18 +911,20 @@ reads it. Its routes are `05` MSG-API-007, its types `04` MSG-LIB-002.
 `AddHermesDevelopmentInbox` SHALL capture every message instead of sending it; in any
 other environment it, and `MapHermesDevelopmentInbox`, SHALL do nothing.
 
-**Values (M-024).** The environment is the host's `IHostEnvironment`, so an application
-whose environment is not set, which .NET takes as Production, captures nothing, and a
-host writes both calls with no condition of its own. The inbox's providers take the
-place of the three channels' providers, the shipped ones and any the host registers,
-whatever the order of the registrations, so a host registers its real providers
-unconditionally and none of them is called; where `AddHermesTesting` (`04` MSG-LIB-008)
-is registered too, its in-memory providers are used instead and the inbox captures
-nothing, in either order, so a host's tests, which ASP.NET Core's test host runs in
-Development, read the in-memory providers as before. Each message a provider is handed
-is written to the inbox (MSG-DEV-002) and answered `Accepted(id)`, `id` the record's; no
-outside call is made. Everything before the hand-off runs as it does otherwise: the
-outbox, the checks, the templates, the limits, the retries and the statuses.
+**Values (M-024, M-026).** The environment is the host's `IHostEnvironment`, so an
+application whose environment is not set, which .NET takes as Production, captures
+nothing, and a host writes both calls with no condition of its own. The inbox's
+providers take the place of the three channels' providers, the shipped ones and any the
+host registers, whatever the order of the registrations, so a host registers its real
+providers unconditionally and none of them is called; where `AddHermesTesting` (`04`
+MSG-LIB-008) is registered too, its in-memory providers are used instead and the inbox
+captures nothing, in either order, so a host's tests, which ASP.NET Core's test host
+runs in Development, read the in-memory providers as before. Each message a provider is
+handed is written to the inbox (MSG-DEV-002) and answered `Accepted(id)`, `id` the
+record's; no outside call is made. Everything before the hand-off runs as it does
+otherwise: the outbox, the checks, the templates, the limits, the retries and the
+statuses. An in-app delivery, which no provider carries, is written to the person's list
+as in any environment (section 5).
 
 - **Email:** the MIME message the shipped SMTP provider would submit for the same
   `EmailMessage` (MSG-EMAIL-003), built by the same code, is kept as the record's

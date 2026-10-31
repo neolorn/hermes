@@ -94,6 +94,8 @@ internal sealed class EngineHost : IAsyncDisposable
             { Channel: Channel.Sms, Part: "text" } => $"Sms {language} {{{{ code }}}}",
             { Channel: Channel.Push, Part: "title" } => $"Title {language}",
             { Channel: Channel.Push, Part: "body" } => $"Body {language} {{{{ code }}}}",
+            { Channel: Channel.InApp, Part: "title" } => $"Title {language} {{{{ code }}}}",
+            { Channel: Channel.InApp, Part: "body" } => $"Body {language}",
             _ => null,
         };
     }

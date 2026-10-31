@@ -15,6 +15,8 @@ internal sealed class EndpointGroups
 
     internal bool SmsReports { get; set; }
 
+    internal bool InApp { get; set; }
+
     /// <summary>Whether a mapped group needs the identity seam.</summary>
-    internal bool NeedIdentity => Preferences || PushSubscriptions;
+    internal bool NeedIdentity => Preferences || PushSubscriptions || InApp;
 }

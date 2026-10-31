@@ -19,4 +19,7 @@ internal sealed class RetentionOptions
 
     [ValidateObjectMembers]
     public SuppressionRetentionOptions Suppression { get; set; } = new();
+
+    [Range(typeof(TimeSpan), "1.00:00:00", "1095.00:00:00")]
+    public TimeSpan InApp { get; set; } = TimeSpan.FromDays(180);
 }

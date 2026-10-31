@@ -183,6 +183,53 @@ public sealed class PrintMembersTests
     }
 
     [Fact]
+    public void MSG_LIB_002_InAppEntryPrintsNeitherItsPartsNorItsTargetNorItsTargetValues()
+    {
+        InAppEntry entry = new()
+        {
+            Entry = new EntryId(Guid.CreateVersion7()),
+            Kind = "order.placed",
+            Category = "orders",
+            WrittenAt = DateTimeOffset.UnixEpoch,
+            Language = "ar",
+            Title = "title-" + Secret,
+            Body = "body-" + Secret,
+            Target = "orders.view",
+            TargetValues = new Dictionary<string, SendValue> { ["orderId"] = new SendValue.PlainText("value-" + Secret) },
+        };
+
+        string printed = entry.ToString();
+
+        Assert.DoesNotContain(Secret, printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("orders.view", printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("orderId", printed, StringComparison.Ordinal);
+        Assert.Contains("order.placed", printed, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MSG_LIB_002_InAppEntryExportPrintsNeitherItsContentNorItsTargetNorItsTargetValues()
+    {
+        InAppEntryExport entry = new()
+        {
+            Kind = "order.placed",
+            Category = "orders",
+            WrittenAt = DateTimeOffset.UnixEpoch,
+            Content = new Dictionary<string, string> { ["title.en"] = "title-" + Secret },
+            Target = "orders.view",
+            TargetValues = new Dictionary<string, SendValue> { ["orderId"] = new SendValue.PlainText("value-" + Secret) },
+            Erased = false,
+            Rejected = false,
+        };
+
+        string printed = entry.ToString();
+
+        Assert.DoesNotContain(Secret, printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("orders.view", printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("title.en", printed, StringComparison.Ordinal);
+        Assert.Contains("order.placed", printed, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Fail_Failure_IsNoSuccessAndCarriesIt()
     {
         Failure failure = new() { Code = "messaging.send.unknown", Details = new Dictionary<string, string>() };

@@ -118,6 +118,21 @@ public sealed class SeamTests
     }
 
     [Fact]
+    public async Task MSG_LIB_005_AC1_RecipientIdentityMissingWhereTheInAppGroupIsMappedStopsTheStartNamingIt()
+    {
+        using IHost host = TestHost.Build(
+            TestHost.Languages(),
+            Essential,
+            services => services.AddSingleton<ISecretSource>(new SecretSourceFake()),
+            map: application => application.MapHermesInApp(Endpoints.Prefix));
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("messaging.startup.declarationmissing", failure.Code);
+        Assert.Equal("recipientIdentity", failure.Details["key"]);
+    }
+
+    [Fact]
     public async Task MSG_LIB_005_AC1_RecipientIdentityMissingWhereThePushGroupIsMappedStopsTheStartNamingIt()
     {
         using IHost host = TestHost.Build(
