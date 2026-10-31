@@ -18,13 +18,14 @@
 | `06` MSG-OPS-007: a 1.2.0 section of `RELEASE-NOTES.md` above 1.1.0's (`0e6a7e5`) | Checked in review; see below |
 | The test-name gate's list: MSG-INAPP-001 to MSG-INAPP-005 and MSG-API-008 (`cd8242c`) | `gate-test-names`: 285 criteria |
 | `06` MSG-OPS-007's in-app list duty, under `docs/` (`0695234`) | None; the documents themselves |
+| The release commit `chore: release 1.2.0` (`81c642c`), as `07` MSG-ENG-011's release commit value gives it: each `PublicAPI.Shipped.txt` holds its entries and those of its `PublicAPI.Unshipped.txt` (`Hermes.Core` 90 added, 1,064 in all; `Hermes` 2 added, 28 in all; `Hermes.Development` 162, `Hermes.Testing` 33, `Hermes.Channels` 2 and `Hermes.Cli` none, each unchanged; no entry marked `*REMOVED*`) under `#nullable enable` in ordinal order; each `PublicAPI.Unshipped.txt` holds `#nullable enable` alone; `build/gates/release-baseline.json` is the set the release gate reads at that commit, the in-app list's routes, bodies, codes and keys among it; `CHANGELOG.md`'s Unreleased entries are under `## [1.2.0] - 2026-10-31`, the commit's date in UTC, below an empty `## [Unreleased]`; `RELEASE-NOTES.md` is as `0e6a7e5` wrote it | `gate-commit-messages` and `gate-release-compatibility` on it; see below |
 
 ## Items not built, and criteria proven in a later phase
 
 | Item or criterion | Phase | Reason |
 |---|---|---|
-| The release commit `chore: release 1.2.0` and the tag `v1.2.0` | 10, on the lead's message | The plan's section 3: the release commit comes once the review has passed, on the lead's message, and the tag after its merge |
-| `07` MSG-ENG-011 criterion 4 for 1.2.0, and `04` MSG-LIB-006 on the release commit | 10, the release commit and the tag's run | They read the release commit's baseline and the tag |
+| The tag `v1.2.0` | 10, after the merge | `07` MSG-ENG-011: the tag goes on the release commit once the pull request's merge has brought it into `main`, on the lead's message |
+| `07` MSG-ENG-011 criterion 4 for 1.2.0 | 10, the tag's run | The release tag's run |
 | `00` MSG-OVR-001 criterion 1 | Each phase | Checked in review; see below |
 
 ## Criteria checked without a test
@@ -38,12 +39,14 @@
 | `06` MSG-OPS-007 criterion 1 for 1.2.0 | We read the 1.2.0 section of `RELEASE-NOTES.md` against each value of MSG-OPS-007: the packages, the channel, status, codes, keys, routes and bodies added; the migration, which drops and rewrites nothing; and every deployment duty. The 1.1.0 and 1.0.0 sections are unchanged. |
 | `10` MSG-THR-001, the in-app list's four rows | The rows name MSG-API-002, MSG-API-008, MSG-INAPP-003, MSG-API-001, MSG-LIB-004 and MSG-SEND-018, each with tests carrying it; `MSG_THR_001_AC1_EveryControlTheLibraryCarriesHasATestCarryingItsRequirement` passes. |
 | `02` MSG-INAPP-001, an entry written in Development | The in-app pass calls no provider, so the development inbox, which replaces providers, captures nothing of it; `InAppDispatchTests` run with the in-memory providers and write the entry. |
+| `07` MSG-ENG-011 criteria 2 and 3 and `04` MSG-LIB-006 on the release commit | `gate-commit-messages` passes on the release commit, which it checks as a release commit; `gate-release-compatibility -Base origin/main` on it reads the set at that commit, finds the baseline there equal to it, and finds that the change since `v1.1.0` needs a minor release, every difference an addition. The baseline was written from the release gate's own read at that tree, its line endings LF. |
 | `07` MSG-ENG-008, a test with or before the code it proves | Each item's tests were written with it and run red before the code that passes them. |
 | `07` MSG-ENG-009, the packages added | None. |
 
 ## Criteria awaiting the pipeline's run
 
 - `07` MSG-ENG-012 criteria 1 and 2: the `gates` job's run on this phase's pull request, whose result the message naming the pull request gives.
+- `07` MSG-ENG-011 criterion 4: the release tag's run, which creates the tag's release holding every package at the tag's version only once its gates have passed. The tag `v1.2.0` goes on the release commit after the merge.
 
 ## Analyser suppressions
 
@@ -63,6 +66,8 @@ None. The migration's generated designer file carries the tool's `#pragma warnin
 10. **A protector call on a read that throws or does not answer.** It answers `messaging.key.unavailable`, as the export's does, which the route answers 503 with `Retry-After`.
 11. **`Accept-Language`.** Tags are taken by weight, ties in their order; a tag of weight 0 and `*` match nothing.
 12. **The contract reader.** `05`'s in-app section says "Every route needs a signed-in person", gives a 503 "as for `GET /inapp`" and names the shape `<entry>` in its own table of shapes; the test's reader of `05` now reads each of these, and three of its assertions pin them.
+13. **The release commit's date.** The commit's author and committer dates are one instant, `2026-10-31T03:16:27Z`, of the date its changelog heading gives, so the heading and the date the commit gate reads agree.
+
 ## Open questions
 
 1. **The message of the M-026 documents commit.** `be2fbaa`'s body was three lines of prose, which `gate-commit-messages` refuses, and the commit was not yet pushed; rewording it would have made a new commit of `docs/spec/`, `docs/guide/` and `docs/decision-log.md`, which is the lead's. Answered by the lead's reword of its message alone, its contents unchanged: `7ab039e`, its body three dash fragments, our commits replayed onto it with their trees unchanged. It parked nothing once answered.
@@ -70,14 +75,15 @@ None. The migration's generated designer file carries the tool's `#pragma warnin
 
 ## Commit and checks
 
-The report names `06952348c2f49a546c363fd1d4e6068a22e26bc7`, the lead's last commit on the branch. On its tree, clean:
+The report names the release commit, `81c642c3c8c7877cd14a2ef8f6ce15300dc61593`. On its tree, clean:
 
 | Check | Result |
 |---|---|
 | Fast checks: `dotnet format --verify-no-changes`, the build with warnings as errors and the analysers | Passed |
 | Every test of every project, run here | Passed: 1,971 (`Hermes.Tests` 1,003, `Hermes.Repository.Tests` 403, `Hermes.Channels.Tests` 362, `Hermes.Development.Tests` 113, `Hermes.Core.Tests` 43, `Hermes.Cli.Tests` 28, `Hermes.Testing.Tests` 19) |
-| Every gate (`run-gates.ps1 -Base origin/main`) | Passed: all 13, among them `gate-commit-messages` (14 commits after `main`), `gate-release-compatibility` (every difference since `v1.1.0` an addition), `gate-sample-host` and `gate-test-names` (285 criteria) |
-| Secret scanning of the whole history (`gate-secret-scan`) | Passed: 183 commits, no leaks |
+| Every gate (`run-gates.ps1 -Base origin/main`) | Passed: all 13, among them `gate-commit-messages` (16 commits after `main`, the release commit checked as one), `gate-release-compatibility` (the baseline at the head is the set read there; since `v1.1.0` the change needs a minor release, which 1.2.0 is), `gate-sample-host` and `gate-test-names` (285 criteria) |
+| Secret scanning of the whole history (`gate-secret-scan`) | Passed: 185 commits, no leaks |
+| The pipeline's `gates` run on `2003fc7`, before the release commit | Passed: run 41162594646 |
 
 The gate of record is the pipeline's `gates` run on the report's own commit, whose identifier and result the message naming the pull request gives. The commit-message gate and the secret scan are run again on the report's commit before the push. The secret scanner was fetched again before the scan.
 
