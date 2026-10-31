@@ -3,6 +3,9 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using Hermes.Core;
+using Hermes.Sending;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
 
@@ -38,5 +41,33 @@ public sealed class InAppSubjectTests(PostgresFixture postgres) : IClassFixture<
         Assert.Equal(1, await InApp.EntriesAsync(engine.Host));
         Assert.Null(await engine.Host.ColumnAsync<string>(waiting.Deliveries[0].Delivery.Value, "parts"));
         Assert.Equal(DeliveryStatus.Cancelled, Assert.Single((await engine.Host.ReadAsync(waiting.Send)).Deliveries).Status);
+    }
+
+    [Fact]
+    public async Task MSG_SEND_020_AC2_AnInAppDeliveryDispatchedIsExportedWithTheKeyItKeepsAndNoContentNotMarkedPastContentRetention()
+    {
+        await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, declare: InApp.Declare, templates: InApp.Templates);
+        await engine.Host.SendAsync(InApp.Send() with { IdempotencyKey = "order-7f3a" });
+        await engine.Host.DispatchAsync();
+
+        DeliveryExport delivery = Assert.Single((await SubjectTests.ExportAsync(engine.Host, InApp.Person)).Value!.Deliveries);
+
+        Assert.Equal((DeliveryStatus.Sent, false, false, false, (string?)"order-7f3a"), (delivery.Status, delivery.ContentDeleted, delivery.Erased, delivery.Rejected, delivery.IdempotencyKey));
+        Assert.Empty(delivery.Content);
+    }
+
+    [Fact]
+    public async Task MSG_SEND_020_AC2_AnInAppDeliveryDispatchedIsExportedMarkedPastContentRetentionWithNoKeyOnceRetentionHasTakenIt()
+    {
+        await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, declare: InApp.Declare, templates: InApp.Templates);
+        await engine.Host.SendAsync(InApp.Send() with { IdempotencyKey = "order-7f3a" });
+        await engine.Host.DispatchAsync();
+        engine.Host.Clock.Advance(TimeSpan.FromDays(31));
+        Assert.True(await engine.Host.Services.GetRequiredService<RetentionJob>().RunAsync(TestContext.Current.CancellationToken));
+
+        DeliveryExport delivery = Assert.Single((await SubjectTests.ExportAsync(engine.Host, InApp.Person)).Value!.Deliveries);
+
+        Assert.Equal((DeliveryStatus.Sent, true, (string?)null), (delivery.Status, delivery.ContentDeleted, delivery.IdempotencyKey));
+        Assert.Empty(delivery.Content);
     }
 }

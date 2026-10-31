@@ -184,7 +184,7 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
         await engine.Host.DispatchAsync();
         await engine.Host.RunAsync(database =>
         {
-            NpgsqlCommand command = new("UPDATE messaging.deliveries SET destination = NULL, text = NULL, content_key_version = NULL WHERE id = @id", database);
+            NpgsqlCommand command = new("UPDATE messaging.deliveries SET destination = NULL, text = NULL, idempotency_key = NULL, content_key_version = NULL WHERE id = @id", database);
             command.Parameters.AddWithValue("id", receipt.Deliveries[0].Delivery.Value);
             return command;
         });

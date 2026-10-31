@@ -181,8 +181,8 @@ internal sealed class Subjects(
 
             List<(string Field, byte[] Stored)> stored = [.. Fields(row, channel).Where(field => field.Stored is not null).Select(field => (field.Field, field.Stored!))];
 
-            // The key a delivery keeps opens with its other values, and goes with them (01 MSG-SEND-017).
-            if (stored.Count > 0 && row.IdempotencyKey is { } key)
+            // The key a delivery keeps is one of its values, opened with the others whenever the row holds it (01 MSG-SEND-017, MSG-SEND-020).
+            if (row.IdempotencyKey is { } key)
             {
                 stored.Add((ContentContext.IdempotencyKey, key));
             }
