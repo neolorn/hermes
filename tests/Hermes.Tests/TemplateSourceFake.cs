@@ -43,6 +43,7 @@ internal sealed class TemplateSourceFake(Func<TemplateKey, string?> answer) : IT
             { Channel: Channel.Sms, Part: "text" } => "Text",
             { Channel: Channel.Push, Part: "title" } => "Title",
             { Channel: Channel.Push, Part: "body" } => "Body",
+            { Channel: Channel.InApp, Part: "title" } => "Title",
             _ => null,
         });
     }

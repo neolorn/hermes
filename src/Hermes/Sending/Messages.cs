@@ -107,15 +107,16 @@ internal sealed partial class Messages(
 
         string language = SendLanguage.Resolve(send.Language, current.Languages, current.DefaultLanguage!);
         string zone = SendLanguage.Zone(send.TimeZone, current.TimeZone);
-        renderer.CheckPassed(kind, chosen!, language, send.Values);
+        renderer.CheckPassed(kind, chosen!, language, current.Languages, send.Values);
+        IReadOnlyDictionary<string, SendValue>? targets = chosen!.Contains(Channel.InApp) && kind.InApp!.Target is not null ? TargetValues.Of(kind, send.Values) : null;
         string? unsubscribe = chosen!.Contains(Channel.Email) && IsOptional(kind) ? Unsubscribe(kind, language, email!, send.NotBefore, current) : null;
-        SendRender render = await renderer.RenderAsync(kind, chosen!, language, zone, send.Values, unsubscribe).ConfigureAwait(false);
+        SendRender render = await renderer.RenderAsync(kind, chosen!, language, current.Languages, zone, send.Values, unsubscribe).ConfigureAwait(false);
         if (render.Refusal is { } refusal)
         {
             return Result.Fail<SendReceipt>(Failed(refusal, ("channel", Spellings.Of(render.Channel!.Value))));
         }
 
-        Prepared prepared = new(send, kind, person, email, phone, language, zone, render.Channels, unsubscribe);
+        Prepared prepared = new(send, kind, person, email, phone, language, zone, render.Channels, unsubscribe, targets);
         Result<SendReceipt> result;
         if (host is null)
         {
@@ -321,6 +322,12 @@ internal sealed partial class Messages(
                 values.Add(("unsubscribe", address));
             }
 
+            if (rendered.Channel == Channel.InApp && prepared.Targets is { } targets)
+            {
+                values.Add((InAppParts.Target, TargetValues.Write(targets)));
+            }
+
+            Dictionary<string, byte[]> inApp = new(StringComparer.Ordinal);
             foreach ((string field, string text) in values)
             {
                 ContentProtecting made = await protection.ProtectAsync(prepared.Person, Encoding.UTF8.GetBytes(text), ContentContext.Of(ContentContext.Deliveries, id, field), cancellationToken).ConfigureAwait(false);
@@ -329,11 +336,24 @@ internal sealed partial class Messages(
                     return Unavailable(made.Key!, made.Version);
                 }
 
-                Store(delivery, field, stored);
+                if (rendered.Channel == Channel.InApp)
+                {
+                    inApp[field] = stored;
+                }
+                else
+                {
+                    Store(delivery, field, stored);
+                }
+
                 if (LibraryVersion(stored) is { } version)
                 {
                     delivery.ContentKeyVersion = version;
                 }
+            }
+
+            if (rendered.Channel == Channel.InApp)
+            {
+                delivery.Parts = InAppParts.Write(inApp);
             }
 
             deliveries.Add(delivery);
@@ -448,6 +468,11 @@ internal sealed partial class Messages(
         if (kind.Push is not null)
         {
             declared.Add(Channel.Push);
+        }
+
+        if (kind.InApp is not null)
+        {
+            declared.Add(Channel.InApp);
         }
 
         bool HasDestination(Channel channel) => channel switch
@@ -605,7 +630,7 @@ internal sealed partial class Messages(
     [LoggerMessage(Level = LogLevel.Debug, Message = "Send {Send} of kind {Kind} recorded with {Deliveries} deliveries.")]
     private static partial void Recorded(ILogger logger, Guid send, string kind, int deliveries);
 
-    private sealed record Prepared(Send Send, KindDeclaration Kind, string? Person, string? Email, string? Phone, string Language, string Zone, IReadOnlyList<RenderedChannel> Channels, string? Unsubscribe);
+    private sealed record Prepared(Send Send, KindDeclaration Kind, string? Person, string? Email, string? Phone, string Language, string Zone, IReadOnlyList<RenderedChannel> Channels, string? Unsubscribe, IReadOnlyDictionary<string, SendValue>? Targets);
 
     private sealed record Cancelled(Guid Id, string Channel, int Sequence);
 }

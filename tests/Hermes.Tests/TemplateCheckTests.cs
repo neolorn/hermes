@@ -27,6 +27,22 @@ public sealed class TemplateCheckTests
     }
 
     [Fact]
+    public async Task MSG_TPL_004_AC1_AnInAppTitleMissingForADeclaredLanguageStopsTheStartNamingIt()
+    {
+        Func<TemplateKey, string?> every = Shipped(TemplateSourceFake.Every(InApp));
+
+        MessagingStartupException failure = await StartFailure(InApp, key => key is { Channel: Channel.InApp, Language: "ar", Part: "title" } ? null : every(key), Configuration("en", "ar"));
+
+        AssertInvalid(failure, Kind, "inapp.ar.title");
+    }
+
+    [Fact]
+    public async Task MSG_TPL_004_AC1_AnInAppKindNeedsNoBody()
+    {
+        await AssertStartsPastTheTemplates(InApp, Shipped(TemplateSourceFake.Every(InApp)), Configuration("en", "ar"));
+    }
+
+    [Fact]
     public async Task MSG_TPL_004_AC1_AnOptionalPartMissingDoesNotStopTheStart()
     {
         await AssertStartsPastTheTemplates(Essential, With(Kind, Channel.Email, "html", null));
@@ -309,6 +325,12 @@ public sealed class TemplateCheckTests
     {
         declare.Category("security").Essential();
         declare.Kind(Kind, "security").Email().Sms().Push();
+    }
+
+    private static void InApp(DeclarationBuilder declare)
+    {
+        declare.Category("security").Essential();
+        declare.Kind(Kind, "security").InApp();
     }
 
     private static void Optional(DeclarationBuilder declare)

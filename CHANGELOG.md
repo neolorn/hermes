@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing
 - The keys `Hermes:Retention:InApp`, 180 days by default, and `Hermes:InApp:AlwaysOn`, off by
   default, each checked against its rule when the host starts and read again when it reloads
+- `KindBuilder.InApp(target, targetValues)`, which lets a kind go to its person's
+  in-application list: the send renders its `title` and `body` in every declared language,
+  each in that language's culture, refuses one past 128 or 1,024 characters with
+  `messaging.send.toolong`, and refuses the channel for an anonymous recipient with
+  `messaging.send.nodestination`
 
 ## [1.1.0] - 2026-10-29
 

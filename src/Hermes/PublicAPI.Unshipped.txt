@@ -1,1 +1,2 @@
 #nullable enable
+Hermes.KindBuilder.InApp(string? target = null, System.Collections.Generic.IReadOnlyList<string!>? targetValues = null) -> Hermes.KindBuilder!

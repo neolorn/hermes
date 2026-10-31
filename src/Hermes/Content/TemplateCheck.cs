@@ -136,6 +136,11 @@ internal static class TemplateCheck
         {
             yield return Channel.Push;
         }
+
+        if (kind.InApp is not null)
+        {
+            yield return Channel.InApp;
+        }
     }
 
     private static IEnumerable<(string Part, bool Required)> Parts(Channel channel)

@@ -38,6 +38,11 @@ internal sealed record Declarations(IReadOnlyList<KindDeclaration> Kinds, IReadO
             channels.Add(Channel.Push);
         }
 
+        if (kinds.Any(kind => kind.InApp is not null))
+        {
+            channels.Add(Channel.InApp);
+        }
+
         return channels;
     }
 

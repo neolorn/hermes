@@ -38,6 +38,45 @@ public sealed class DeclarationTests
         AssertInvalid(failure, declaration, field);
     }
 
+    public static TheoryData<string?, string[]?> InvalidInApps => new()
+    {
+        { "Orders.View", ["orderId"] },
+        { "orders..view", ["orderId"] },
+        { "", ["orderId"] },
+        { "orders.view", null },
+        { "orders.view", [] },
+        { "orders.view", ["1order"] },
+        { "orders.view", ["order-id"] },
+        { "orders.view", ["o" + new string('r', 64)] },
+        { "orders.view", ["language"] },
+        { "orders.view", ["orderId", "ORDERID"] },
+        { null, ["orderId"] },
+    };
+
+    [Theory]
+    [MemberData(nameof(InvalidInApps))]
+    public async Task MSG_INAPP_001_AC3_AnInAppTargetOrTargetValueOutsideItsRuleFailsStartupNamingTheKind(string? target, string[]? targetValues)
+    {
+        MessagingStartupException failure = await StartFailure(declare =>
+        {
+            declare.Category("orders").Essential();
+            declare.Kind("order.placed", "orders").InApp(target, targetValues);
+        });
+
+        AssertInvalid(failure, "order.placed", "inapp");
+    }
+
+    [Fact]
+    public async Task MSG_INAPP_001_AC3_AnInAppKindWithNoTargetOrWithATargetAndItsValuesIsAccepted()
+    {
+        await AssertStartsPastTheDeclarations(declare =>
+        {
+            declare.Category("orders").Essential();
+            declare.Kind("order.placed", "orders").InApp();
+            declare.Kind("order.shipped", "orders").InApp("orders.view", ["orderId", "shipped_at2"]);
+        });
+    }
+
     [Fact]
     public async Task MSG_ENG_003_AC1_AStartupCodeIsThrownOnlyAsTheStartupExceptionWhileTheHostStarts()
     {
