@@ -7,6 +7,7 @@ on:
       - main
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
 
 permissions:
   contents: read
@@ -54,8 +55,9 @@ jobs:
           }
           ./build/gates/run-gates.ps1 -Base $base -Head $head
 
-  # A release tag's run alone releases, once the gates job has passed on it, and this job alone
-  # can write to the repository's contents (07 MSG-ENG-011).
+  # A release tag's run alone releases, a release candidate's as a pre-release, once the gates
+  # job has passed on it, and this job alone can write to the repository's contents
+  # (07 MSG-ENG-011).
   release:
     needs: gates
     if: github.ref_type == 'tag'
@@ -117,6 +119,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
+          $prerelease = @(if ($env:TAG -cmatch '^v\d+\.\d+\.\d+-rc\.[1-9]\d*$') { '--prerelease' })
           $packages = @(Get-ChildItem -Path artifacts/packages -Filter '*.nupkg' -File | ForEach-Object { $_.FullName })
-          gh release create $env:TAG --verify-tag --title $env:TAG --notes-file RELEASE-NOTES.md @packages
+          gh release create $env:TAG --verify-tag --title $env:TAG --notes-file RELEASE-NOTES.md @prerelease @packages
           if ($LASTEXITCODE -ne 0) { throw "gh release create failed with exit code $LASTEXITCODE." }
