@@ -1,5 +1,118 @@
 # Release notes
 
+## 1.0.0-rc.2
+
+The second release candidate of 1.0.0. A delivery notice, and a delivery's export, now
+carry the idempotency key its send was recorded with. It ships the six packages of
+1.0.0-rc.1, each at this version and each depending on the others it uses at exactly this
+version. Until a final release, a release candidate may change or remove anything; this
+one removes nothing, and names each change since 1.0.0-rc.1 below.
+
+### Changes since 1.0.0-rc.1
+
+- **`DeliveryNotice`.** It gains `string? IdempotencyKey`, its last member: the key the
+  notice's send was recorded with, as the host gave it, or none where the send had none,
+  the delivery's content has gone or its person was erased. The notice's `ToString` prints
+  it no more than it prints the person. The member is an optional `init` property, as
+  `Person` and `Reason` are: the type's constructor is unchanged, takes no argument, and a
+  host that creates a notice with an object initializer, in a test of its observer for
+  instance, compiles as before and creates one without a key.
+- **`DeliveryExport`.** It gains `string? IdempotencyKey`, its last member: the key the
+  delivery keeps of its send while it keeps it, none where the delivery is marked past
+  content retention, erased or rejected. Its `ToString` prints it no more than it prints
+  the destination. It is an optional `init` property, so a host's code that creates an
+  export compiles as before.
+- **Each delivery keeps the key.** Every delivery of a send keeps its idempotency key,
+  protected as its destination is: by the protector that protects the person's values,
+  bound to its row and its person, and protected again with the delivery's other values
+  when the content keys turn. A notice reads it from its delivery, not from the send's
+  idempotency row, which lapses after `Hermes:Idempotency:Window`, so a notice told after
+  that row has lapsed, the notice of a provider's report moving `sent` to `delivered` or
+  `failed` among them, still carries the key.
+- **The key goes with the content.** The retention job deletes it with the delivery's
+  content, `Hermes:Retention:Content` after its final status, and a notice told after
+  that carries none. `ISubjects.EraseAsync` deletes it with the person's other values, and
+  the notices it keeps for the observer carry none, as they carry no person.
+- **A key that does not open.** A notice whose key answers that the person's key was
+  erased is told without it; one whose key does not open under its binding is told
+  without it and raises `content-rejected`; one whose key cannot open yet, its protector's
+  key unavailable or its protector not registered, is not told, and is told at a later run
+  as a notice the observer did not take, so `observer-failing` covers a lasting hold.
+- **No backfill.** A delivery recorded before the migration keeps no key, so its notices
+  and its export carry none, even where its send's idempotency row is still live.
+- **Migrations added.** `SendIdempotencyKey`, which this release's `hermes migrate` applies
+  before the release starts; it is described below.
+
+### Migrations that drop or rewrite data
+
+None. `SendIdempotencyKey`, the one added since 1.0.0-rc.1, adds a nullable column to the
+deliveries' table that holds the protected idempotency key each delivery keeps of its
+send; it drops and rewrites no data. A process of 1.0.0-rc.1 beside it records and
+dispatches as before, the deliveries it records keeping no key, and answers erasure and
+export `messaging.release.newer`.
+
+### What the deployment does
+
+The library cannot meet these alone; the deployment meets each of them. None is new in
+1.0.0-rc.2.
+
+- **Sender rules.** For every sender: SPF or DKIM; forward and reverse DNS that agree for the
+  sending server's IP address; TLS. For a bulk sender (about 5,000 or more messages a day to
+  Gmail): SPF and DKIM; a DMARC record, whose policy may be `none`; a From domain aligned
+  with SPF or DKIM; one-click unsubscribe and a visible link on marketing and subscribed
+  messages. Every From domain the deployment or a kind declares is one the submission
+  server signs for with DKIM, its signature covering `From`, `List-Unsubscribe` and
+  `List-Unsubscribe-Post` (RFC 8058 section 4). These are Gmail's and Yahoo's published
+  rules.
+- **The report key.** The host's request logging, tracing and reverse proxy redact the path
+  of the SMS report route, which carries the report key.
+- **Outbound tracing.** Where the host traces its outbound HTTP requests, it redacts the
+  paths of the library's requests to the push services, since a push endpoint's path is
+  its subscription.
+- **Allowed push hosts.** An entry the deployment adds to `Hermes:Push:AllowedHosts` is a
+  push service it vouches for.
+- **Shared provider accounts.** Messages other software of the host hands to the providers
+  directly, through `AddHermesChannels` alone, pass none of the engine's limits and rates,
+  the allowed prefixes alone applying to them, so the provider account carries both.
+- **Clocks.** The processes' clocks agree within one second, which a host synchronised by
+  NTP keeps, since a claim's expiry, an alert's instant and a job's instant written by one
+  process are judged by the clocks of the others.
+- **Environment.** Every application that must send runs in an environment other than
+  Development, since the development inbox captures every message where the environment is
+  Development.
+- **The in-app list.** `Hermes:InApp:AlwaysOn` is set alike in every application of the
+  deployment, and the host's frontend shows an entry's `title` and `body` as text, never
+  as markup.
+- **Write versions.** A key's write version is never set back to a lower one, a rollback
+  included: an older release restarts with the current write versions, and a version made
+  wrongly is replaced by a new, higher one.
+- **Declarations.** Every application that dispatches, runs the retention job, maps the
+  unsubscribe or preferences group, or calls `IPreferences`, `ISuppressions` or `ISubjects`
+  declares, or retires, every kind of the deployment.
+- **Observer.** A deployment that observes turns `Hermes:Observer:Enabled` on in every
+  application.
+- **Jobs.** Each job of the job table runs in at least one application, the `balance` job
+  where SMS is used, since a job no application runs raises no `job-stalled`.
+- **Stopping.** The host's shutdown timeout (`HostOptions.ShutdownTimeout`, 30 seconds by
+  default) and the orchestrator's grace period before it ends a process are above
+  `Hermes:Dispatch:Timeout`, so a stopped pass, whose remaining calls and row waits share
+  one such timeout counted from the stop, records each answer that comes within it.
+- **PostgreSQL.** Version 16 or later. The integration tests run on `postgres:16.15`, so no
+  statement needs a later version.
+- **Sends in one host transaction.** A send recorded in a host's transaction holds, until
+  that transaction ends, one advisory lock per `hashKeys` version held for its person and
+  one for its idempotency key, in PostgreSQL's shared lock table, which holds
+  `max_locks_per_transaction` times the server's `max_connections`,
+  `max_prepared_transactions` and worker processes in all. A host records a large batch in
+  transactions of bounded size, or each send without a transaction.
+- **Rolling back.** A release older than the database's newest migration runs only during a
+  deployment. While it runs, beside the newer release or alone after a rollback, it answers
+  erasure and export `messaging.release.newer`, its retention job retires no key version
+  and protects no value again, it does not dispatch the deliveries the newer release left
+  on a channel or reason it does not know, and each of its processes raises the
+  `newer-release` alert on its key-table timer, which reads the migration history. A
+  deployment therefore rolls forward rather than back.
+
 ## 1.0.0-rc.1
 
 The first release candidate of 1.0.0. It holds everything releases 1.0.0 and 1.1.0

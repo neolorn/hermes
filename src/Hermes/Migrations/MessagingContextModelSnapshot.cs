@@ -349,6 +349,10 @@ namespace Hermes.Migrations
                         .HasColumnType("bytea")
                         .HasColumnName("icon");
 
+                    b.Property<byte[]>("IdempotencyKey")
+                        .HasColumnType("bytea")
+                        .HasColumnName("idempotency_key");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasColumnType("text")

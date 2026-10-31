@@ -29,8 +29,9 @@ public sealed class PrintMembersTests
     }
 
     [Fact]
-    public void MSG_LIB_002_DeliveryNoticePrintsNoPerson()
+    public void MSG_LIB_002_DeliveryNoticePrintsNeitherItsPersonNorItsIdempotencyKey()
     {
+        const string Key = "order-7f3a-reference";
         DeliveryNotice notice = new()
         {
             Send = new SendId(Guid.CreateVersion7()),
@@ -41,11 +42,13 @@ public sealed class PrintMembersTests
             Person = Secret,
             Status = DeliveryStatus.Sent,
             At = DateTimeOffset.UnixEpoch,
+            IdempotencyKey = Key,
         };
 
         string printed = notice.ToString();
 
         Assert.DoesNotContain(Secret, printed, StringComparison.Ordinal);
+        Assert.DoesNotContain(Key, printed, StringComparison.Ordinal);
         Assert.Contains("order.placed", printed, StringComparison.Ordinal);
     }
 
@@ -226,6 +229,31 @@ public sealed class PrintMembersTests
         Assert.DoesNotContain(Secret, printed, StringComparison.Ordinal);
         Assert.DoesNotContain("orders.view", printed, StringComparison.Ordinal);
         Assert.DoesNotContain("title.en", printed, StringComparison.Ordinal);
+        Assert.Contains("order.placed", printed, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MSG_LIB_002_DeliveryExportPrintsNeitherItsDestinationNorItsContentNorItsIdempotencyKey()
+    {
+        DeliveryExport delivery = new()
+        {
+            Kind = "order.placed",
+            Channel = Channel.Email,
+            Status = DeliveryStatus.Sent,
+            RecordedAt = DateTimeOffset.UnixEpoch,
+            LastMovedAt = DateTimeOffset.UnixEpoch,
+            Destination = Secret,
+            Content = new Dictionary<string, string> { ["subject"] = "subject-" + Secret },
+            ContentDeleted = false,
+            Erased = false,
+            Rejected = false,
+            IdempotencyKey = "order-7f3a-reference",
+        };
+
+        string printed = delivery.ToString();
+
+        Assert.DoesNotContain(Secret, printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("order-7f3a-reference", printed, StringComparison.Ordinal);
         Assert.Contains("order.placed", printed, StringComparison.Ordinal);
     }
 

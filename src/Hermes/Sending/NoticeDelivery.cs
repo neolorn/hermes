@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,12 +21,15 @@ namespace Hermes.Sending;
 /// pending notice alone, up to <c>Hermes:Observer:MaxCalls</c> of different deliveries at once,
 /// each claimed immediately before its <c>ObserveAsync</c>, which <c>Hermes:Dispatch:Timeout</c>
 /// bounds, and deleted under that claim once the observer took it. A delivery whose notice was
-/// not taken is left for the next run, so its later notices wait behind it.
+/// not taken is left for the next run, so its later notices wait behind it. A notice carries the
+/// idempotency key its delivery keeps, opened under the claim; a key that cannot open yet leaves
+/// the notice untold, as one the observer did not take.
 /// </summary>
 internal sealed partial class NoticeDelivery(
     MessagingDatabase database,
     IOptionsMonitor<MessagingOptions> options,
     IServiceProvider services,
+    Alerts alerts,
     TimeProvider clock,
     ILogger<NoticeDelivery> logger)
 {
@@ -36,6 +41,9 @@ internal sealed partial class NoticeDelivery(
     internal async Task<int> DeliverAsync(Func<CancellationToken, Task<bool>>? renewed, CancellationToken cancellationToken)
     {
         IDeliveryObserver observer = services.GetRequiredService<IDeliveryObserver>();
+        AsyncServiceScope scope = services.CreateAsyncScope();
+        await using ConfiguredAsyncDisposable disposing = scope.ConfigureAwait(false);
+        ContentProtection protection = scope.ServiceProvider.GetRequiredService<ContentProtection>();
         Guid holder = Guid.CreateVersion7();
         HashSet<Guid> left = [];
         int taken = 0;
@@ -51,7 +59,7 @@ internal sealed partial class NoticeDelivery(
 
             bool[] outcomes = await Task.WhenAll(ready.Select(async pending =>
             {
-                bool took = await DeliverAsync(observer, pending, holder, current, cancellationToken).ConfigureAwait(false);
+                bool took = await DeliverAsync(observer, protection, pending, holder, current, cancellationToken).ConfigureAwait(false);
                 if (renewed is not null && !await renewed(cancellationToken).ConfigureAwait(false))
                 {
                     held = false;
@@ -93,14 +101,14 @@ internal sealed partial class NoticeDelivery(
                     context.Deliveries,
                     notice => notice.DeliveryId,
                     delivery => delivery.Id,
-                    (notice, delivery) => new Pending(notice.DeliveryId, notice.Sequence, notice.Status, notice.Reason, notice.At, delivery.SendId, delivery.Kind, delivery.Category, delivery.Channel, delivery.Person))
+                    (notice, delivery) => new Pending(notice.DeliveryId, notice.Sequence, notice.Status, notice.Reason, notice.At, delivery.SendId, delivery.Kind, delivery.Category, delivery.Channel, delivery.Person, delivery.IdempotencyKey))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
     }
 
     /// <summary>Claims, tells and deletes one notice, answering whether the observer took it.</summary>
-    private async Task<bool> DeliverAsync(IDeliveryObserver observer, Pending pending, Guid holder, MessagingOptions current, CancellationToken cancellationToken)
+    private async Task<bool> DeliverAsync(IDeliveryObserver observer, ContentProtection protection, Pending pending, Guid holder, MessagingOptions current, CancellationToken cancellationToken)
     {
         // A notice in a channel, status or reason this release does not know waits for a release that does.
         if (Spellings.Channel(pending.Channel) is not { } channel
@@ -115,6 +123,30 @@ internal sealed partial class NoticeDelivery(
             return false;
         }
 
+        string? idempotencyKey = null;
+        if (pending.IdempotencyKey is { } stored)
+        {
+            ContentOpening opening = await OpenAsync(protection, pending, stored, current.Dispatch.Timeout, cancellationToken).ConfigureAwait(false);
+            switch (opening.Status)
+            {
+                case ContentOpeningStatus.Opened:
+                    idempotencyKey = Encoding.UTF8.GetString(opening.Plaintext.Span);
+                    break;
+                case ContentOpeningStatus.Erased:
+                    break;
+                case ContentOpeningStatus.Rejected:
+                    await alerts.HoldsUntilAsync(
+                        "content-rejected",
+                        ContentContext.Deliveries,
+                        new Dictionary<string, string>(StringComparer.Ordinal) { ["table"] = ContentContext.Deliveries },
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                default:
+                    await ReleaseAsync(pending, holder, cancellationToken).ConfigureAwait(false);
+                    return false;
+            }
+        }
+
         DeliveryNotice notice = new()
         {
             Send = new SendId(pending.Send),
@@ -126,6 +158,7 @@ internal sealed partial class NoticeDelivery(
             Status = status,
             Reason = pending.Reason is { } reason ? Spellings.Reason(reason) : null,
             At = pending.At,
+            IdempotencyKey = idempotencyKey,
         };
         try
         {
@@ -143,6 +176,24 @@ internal sealed partial class NoticeDelivery(
 
         await DeleteAsync(pending, holder, cancellationToken).ConfigureAwait(false);
         return true;
+    }
+
+    /// <summary>Opens the key a delivery keeps, bound to its row and person; a call that throws or does not answer within <paramref name="timeout"/> answers held, as at check 1 (<c>01</c> MSG-SEND-018).</summary>
+    private async Task<ContentOpening> OpenAsync(ContentProtection protection, Pending pending, byte[] stored, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using CancellationTokenSource bound = new(timeout, clock);
+            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(bound.Token, cancellationToken);
+            return await protection.OpenAsync(pending.Person, stored, ContentContext.Of(ContentContext.Deliveries, pending.Delivery, ContentContext.IdempotencyKey), linked.Token)
+                .AsTask()
+                .WaitAsync(timeout, clock, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception failure) when (failure is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            return ContentOpening.Held(ContentEnvelope.Read(stored).Id);
+        }
     }
 
     private async Task<bool> ClaimAsync(Pending pending, Guid holder, TimeSpan claimTimeout, CancellationToken cancellationToken)
@@ -187,5 +238,5 @@ internal sealed partial class NoticeDelivery(
     [LoggerMessage(EventId = 43, EventName = "NoticeNotTaken", Level = LogLevel.Warning, Message = "The observer did not take the notice of delivery {Delivery}: {Exception}; the next run tells it again.")]
     private static partial void NotTaken(ILogger logger, Guid delivery, string exception);
 
-    private sealed record Pending(Guid Delivery, int Sequence, string Status, string? Reason, DateTimeOffset At, Guid Send, string Kind, string Category, string Channel, string? Person);
+    private sealed record Pending(Guid Delivery, int Sequence, string Status, string? Reason, DateTimeOffset At, Guid Send, string Kind, string Category, string Channel, string? Person, byte[]? IdempotencyKey);
 }

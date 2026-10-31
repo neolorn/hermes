@@ -178,6 +178,7 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             delivery.Property(row => row.Tag).HasColumnName("tag");
             delivery.Property(row => row.Icon).HasColumnName("icon");
             delivery.Property(row => row.Badge).HasColumnName("badge");
+            delivery.Property(row => row.IdempotencyKey).HasColumnName("idempotency_key");
             delivery.Property(row => row.Parts).HasColumnName("parts").HasColumnType("jsonb");
             delivery.Property(row => row.ContentKeyVersion).HasColumnName("content_key_version");
             delivery.Property(row => row.RecordedAt).HasColumnName("recorded_at");

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Hermes.Core;
+using Hermes.Sending;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -40,6 +41,132 @@ public sealed class ObserverTests(PostgresFixture postgres) : IClassFixture<Post
             (receipt.Send, receipt.Deliveries.Single().Delivery, EngineHost.Kind, EngineHost.Category, Channel.Sms, (string?)"person-1", DeliveryStatus.Sent, (AttemptReason?)null, EngineHost.Start),
             (notice.Send, notice.Delivery, notice.Kind, notice.Category, notice.Channel, notice.Person, notice.Status, notice.Reason, notice.At));
         Assert.Equal(0, await NoticesAsync(host));
+    }
+
+    [Fact]
+    public async Task MSG_SEND_017_AC4_ANoticeCarriesItsSendsKeyAfterTheKeysRowHasLapsedAndNoneForASendWithoutOne()
+    {
+        DeliveryObserverFake observer = new();
+        await using EngineHost host = await StartAsync(observer);
+        SendReceipt keyed = (await host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { IdempotencyKey = "order-7f3a" })).Value!;
+        SendReceipt unkeyed = (await host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person("person-2")))).Value!;
+        await host.DispatchAsync();
+        int lapsed = await host.RunAsync(connection => new NpgsqlCommand("DELETE FROM messaging.idempotency", connection));
+
+        await RunAsync(host);
+
+        Assert.Equal(1, lapsed);
+        Assert.Equal("order-7f3a", Assert.Single(observer.Notices, notice => notice.Send == keyed.Send).IdempotencyKey);
+        Assert.Null(Assert.Single(observer.Notices, notice => notice.Send == unkeyed.Send).IdempotencyKey);
+    }
+
+    [Fact]
+    public async Task MSG_SEND_017_AC4_ANoticeToldAfterItsDeliverysContentHasGoneCarriesNoKey()
+    {
+        DeliveryObserverFake observer = new();
+        bool taking = false;
+        observer.Before = (_, _) => taking ? Task.CompletedTask : throw new InvalidOperationException("The observer is not taking notices yet.");
+        await using EngineHost host = await StartAsync(observer);
+        SendReceipt receipt = (await host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { IdempotencyKey = "order-7f3a" })).Value!;
+        await host.DispatchAsync();
+        Guid delivery = receipt.Deliveries.Single().Delivery.Value;
+        bool keptBefore = await host.ColumnAsync<byte[]>(delivery, "idempotency_key") is not null;
+
+        host.Clock.Advance(TimeSpan.FromDays(31));
+        await RunAsync(host);
+        Assert.True(await host.Services.GetRequiredService<RetentionJob>().RunAsync(TestContext.Current.CancellationToken));
+        taking = true;
+        await RunAsync(host);
+
+        Assert.True(keptBefore);
+        Assert.Null(await host.ColumnAsync<byte[]>(delivery, "idempotency_key"));
+        DeliveryNotice notice = Assert.Single(observer.Notices);
+        Assert.Equal((DeliveryStatus.Sent, (string?)null), (notice.Status, notice.IdempotencyKey));
+    }
+
+    [Fact]
+    public async Task MSG_SEND_017_AC6_ANoticeWhoseKeyAnswersErasedIsToldWithoutIt()
+    {
+        DeliveryObserverFake observer = new();
+        ContentProtectorFake vault = new("vault");
+        await using EngineHost host = await StartAsync(observer, services: services => services.AddSingleton<IContentProtector>(vault));
+        await host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { IdempotencyKey = "order-7f3a" });
+        await host.DispatchAsync();
+        vault.Erased = true;
+
+        await RunAsync(host);
+
+        DeliveryNotice notice = Assert.Single(observer.Notices);
+        Assert.Equal((DeliveryStatus.Sent, (string?)null), (notice.Status, notice.IdempotencyKey));
+        Assert.Equal(0, await NoticesAsync(host));
+    }
+
+    [Fact]
+    public async Task MSG_SEND_017_AC6_ANoticeWhoseKeyAnswersRejectedIsToldWithoutItAndRaisesContentRejected()
+    {
+        DeliveryObserverFake observer = new();
+        AlertSinkFake alerts = new();
+        await using EngineHost host = await StartAsync(observer, services: services => services.AddSingleton<IAlertSink>(alerts));
+        SendReceipt keyed = (await host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { IdempotencyKey = "order-7f3a" })).Value!;
+        SendReceipt other = (await host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person("person-2")) with { IdempotencyKey = "order-8b4c" })).Value!;
+        await host.DispatchAsync();
+
+        // The key of one delivery copied into another's row does not open there.
+        await host.RunAsync(connection =>
+        {
+            NpgsqlCommand copied = new("UPDATE messaging.deliveries SET idempotency_key = (SELECT idempotency_key FROM messaging.deliveries WHERE id = @from) WHERE id = @to", connection);
+            copied.Parameters.AddWithValue("from", keyed.Deliveries.Single().Delivery.Value);
+            copied.Parameters.AddWithValue("to", other.Deliveries.Single().Delivery.Value);
+            return copied;
+        });
+        await RunAsync(host);
+
+        Assert.Equal("order-7f3a", Assert.Single(observer.Notices, notice => notice.Send == keyed.Send).IdempotencyKey);
+        Assert.Null(Assert.Single(observer.Notices, notice => notice.Send == other.Send).IdempotencyKey);
+        Assert.Contains(alerts.Calls, call => call is { Raised: true, Condition: "content-rejected", Scope: "deliveries" } && call.Details!["table"] == "deliveries");
+    }
+
+    [Fact]
+    public async Task MSG_SEND_017_AC6_ANoticeWhoseKeyIsHeldIsNotToldAndIsToldWithItsKeyAtARunAfterTheKeyOpens()
+    {
+        DeliveryObserverFake observer = new();
+        bool holding = false;
+        ContentProtectorFake vault = new("vault") { BeforeOpen = () => holding ? throw new InvalidOperationException("The vault cannot be reached.") : Task.CompletedTask };
+        await using EngineHost host = await StartAsync(observer, services: services => services.AddSingleton<IContentProtector>(vault));
+        await host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { IdempotencyKey = "order-7f3a" });
+        await host.DispatchAsync();
+        holding = true;
+
+        await RunAsync(host);
+        (int Calls, long Kept, long Claimed) whileHeld = (observer.Calls.Count, await NoticesAsync(host), await NoticesAsync(host, claimed: true));
+        holding = false;
+        await RunAsync(host);
+
+        Assert.Equal((0, 1L, 0L), whileHeld);
+        DeliveryNotice notice = Assert.Single(observer.Notices);
+        Assert.Equal((DeliveryStatus.Sent, (string?)"order-7f3a"), (notice.Status, notice.IdempotencyKey));
+        Assert.Equal(0, await NoticesAsync(host));
+    }
+
+    [Fact]
+    public async Task MSG_OPS_002_ADeliveryRecordedWithoutTheKeysColumnAsAProcessOf1Rc1RecordsItIsDispatchedAndItsNoticeCarriesNoKey()
+    {
+        DeliveryObserverFake observer = new();
+        await using EngineHost host = await StartAsync(observer);
+        SendReceipt receipt = (await host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { IdempotencyKey = "order-7f3a" })).Value!;
+
+        // A process of 1.0.0-rc.1 records a delivery without the key's column, which it does not know, so the column is empty.
+        await host.RunAsync(connection =>
+        {
+            NpgsqlCommand emptied = new("UPDATE messaging.deliveries SET idempotency_key = NULL WHERE id = @id", connection);
+            emptied.Parameters.AddWithValue("id", receipt.Deliveries.Single().Delivery.Value);
+            return emptied;
+        });
+        await host.DispatchAsync();
+        await RunAsync(host);
+
+        DeliveryNotice notice = Assert.Single(observer.Notices);
+        Assert.Equal((receipt.Send, DeliveryStatus.Sent, (string?)null), (notice.Send, notice.Status, notice.IdempotencyKey));
     }
 
     [Fact]
@@ -202,7 +329,8 @@ public sealed class ObserverTests(PostgresFixture postgres) : IClassFixture<Post
         Assert.Null(await CompletedAsync(host));
     }
 
-    private async Task<EngineHost> StartAsync(DeliveryObserverFake observer, Action<Dictionary<string, string?>>? configure = null, string? connection = null)
+    private async Task<EngineHost> StartAsync(DeliveryObserverFake observer, Action<Dictionary<string, string?>>? configure = null, string? connection = null, Action<IServiceCollection>? services = null)
+
     {
         return await EngineHost.StartAsync(
             connection ?? await EngineHost.DatabaseAsync(postgres),
@@ -212,10 +340,11 @@ public sealed class ObserverTests(PostgresFixture postgres) : IClassFixture<Post
                 configuration["Hermes:Observer:Enabled"] = "true";
                 configure?.Invoke(configuration);
             },
-            services: services =>
+            services: collection =>
             {
-                Providers(services);
-                services.AddSingleton<IDeliveryObserver>(observer);
+                Providers(collection);
+                collection.AddSingleton<IDeliveryObserver>(observer);
+                services?.Invoke(collection);
             });
     }
 

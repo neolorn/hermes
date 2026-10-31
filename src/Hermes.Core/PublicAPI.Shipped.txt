@@ -155,6 +155,8 @@ Hermes.Core.DeliveryExport.Destination.init -> void
 Hermes.Core.DeliveryExport.Equals(Hermes.Core.DeliveryExport? other) -> bool
 Hermes.Core.DeliveryExport.Erased.get -> bool
 Hermes.Core.DeliveryExport.Erased.init -> void
+Hermes.Core.DeliveryExport.IdempotencyKey.get -> string?
+Hermes.Core.DeliveryExport.IdempotencyKey.init -> void
 Hermes.Core.DeliveryExport.Kind.get -> string!
 Hermes.Core.DeliveryExport.Kind.init -> void
 Hermes.Core.DeliveryExport.LastMovedAt.get -> System.DateTimeOffset
@@ -184,6 +186,8 @@ Hermes.Core.DeliveryNotice.Delivery.get -> Hermes.Core.DeliveryId
 Hermes.Core.DeliveryNotice.Delivery.init -> void
 Hermes.Core.DeliveryNotice.DeliveryNotice() -> void
 Hermes.Core.DeliveryNotice.Equals(Hermes.Core.DeliveryNotice? other) -> bool
+Hermes.Core.DeliveryNotice.IdempotencyKey.get -> string?
+Hermes.Core.DeliveryNotice.IdempotencyKey.init -> void
 Hermes.Core.DeliveryNotice.Kind.get -> string!
 Hermes.Core.DeliveryNotice.Kind.init -> void
 Hermes.Core.DeliveryNotice.Person.get -> string?

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Hermes.Core;
 
-/// <summary>A status a delivery reached; it carries no destination or content, and never prints the person.</summary>
+/// <summary>A status a delivery reached; it carries no destination or content, and never prints the person or the idempotency key.</summary>
 public sealed record DeliveryNotice
 {
     /// <summary>The send.</summary>
@@ -33,6 +33,9 @@ public sealed record DeliveryNotice
 
     /// <summary>When the status was reached.</summary>
     public required DateTimeOffset At { get; init; }
+
+    /// <summary>The idempotency key the send was recorded with, as the host gave it, or none where it had none or its person was erased.</summary>
+    public string? IdempotencyKey { get; init; }
 
     private bool PrintMembers(StringBuilder builder)
     {

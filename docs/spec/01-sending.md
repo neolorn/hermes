@@ -890,7 +890,22 @@ clocks agree as `06` MSG-OPS-003 says, so two never deliver one notice at once. 
 older than `Hermes:Retention:Record` is dropped and logged by the retention job
 (MSG-SEND-019). An application with it off writes no notice.
 
-*Source: M-005*
+A notice carries the idempotency key its send was recorded with (MSG-SEND-009), none
+where the send had none, so a host that keyed its send with a reference of its own finds
+its own record of the delivery. The notice reads the key from its delivery, which keeps
+it, not from the send's idempotency row, which lapses while a delivery's outcome can
+still come. It is one of the delivery's values (MSG-SEND-018): protected, opened in its
+own row alone, and gone with the delivery's content (MSG-SEND-019) or with the person at
+an erasure (MSG-SEND-020); a notice written after that carries none. Where the key does
+not open when its notice is to be told, the notice answers as check 1 answers for a
+delivery's values, save that a notice is never ended: one answering `Erased` is told
+without the key; one answering `Rejected`, or in a format neither `0x01` nor kept for a
+later release, is told without the key and raises `content-rejected`; one held
+(`KeyUnavailable`, a throw or no answer within `Hermes:Dispatch:Timeout`, a protector
+not registered, a format kept for a later release) is not told, and is told at a later
+run as one the observer did not take (M-028, M-029, M-030).
+
+*Source: M-005, M-028, M-029, M-030*
 
 **Acceptance criteria**
 1. No delivery is attempted after reaching a final status, none moves from a final
@@ -899,19 +914,30 @@ older than `Hermes:Retention:Record` is dropped and logged by the retention job
    and told of a report's move only after the status it moved from.
 3. An observer that keeps throwing raises the alert once its oldest notice passes the
    threshold.
+4. A notice of a send recorded with an idempotency key carries the key, also after the
+   key's row has lapsed and for a move a provider's report makes; a notice of a send
+   recorded without one carries none, and so does one written after the delivery's
+   content has gone.
+5. The key a delivery keeps cannot be read from the database without the content keys,
+   and opens in its own row alone.
+6. A notice whose key answers `Erased` is told without it; one whose key answers
+   `Rejected` is told without it and raises `content-rejected`; one whose key is held
+   is not told, and is told with its key at a run after the key opens.
 
 ---
 
 ## 6. Content, retention and erasure
 
 **MSG-SEND-018** — A send's content SHALL be rendered when the send is recorded, and
-every destination, unsubscribe address and rendered content SHALL be stored only as a
-content protector's output, bound to its row and its person.
+every destination, unsubscribe address, rendered content and idempotency key a delivery
+keeps SHALL be stored only as a content protector's output, bound to its row and its
+person.
 
-**Values (M-007, M-026).** Each channel's template is rendered in the send's language
-when `SendAsync` records it (`03`), the in-app channel's in every declared language
-(`02` MSG-INAPP-002), so a template changed afterwards does not change a recorded send.
-Each destination, each rendered part and an email's unsubscribe address is stored as an
+**Values (M-007, M-026, M-030).** Each channel's template is rendered in the send's
+language when `SendAsync` records it (`03`), the in-app channel's in every declared
+language (`02` MSG-INAPP-002), so a template changed afterwards does not change a
+recorded send. Each destination, each rendered part, an email's unsubscribe address and
+the idempotency key a delivery keeps of its send (MSG-SEND-017) is stored as an
 envelope: the format byte `0x01`, the protector's `Id` as its length in one byte and its
 ASCII bytes, then the protector's output. The format bytes `0x02` to `0x0F` are kept for
 later releases: a value in one of them cannot open yet here (MSG-SEND-006), since a
@@ -922,16 +948,17 @@ as `Rejected`. A person's values are protected by the last registered protector'
 row or field does not open: `<table>` is `deliveries` for a delivery's values and
 `subscriptions` for a push subscription's and `entries` for an in-app entry's, whatever
 the tables are called; `<row id>` is the row's identifier in lower-case hexadecimal,
-hyphenated 8-4-4-4-12; `<field>` is `destination`, `unsubscribe` (the email's one-click
-address, made with its token at the send and kept for the header, `02` MSG-EMAIL-006), a
-rendered part's name (`03` MSG-TPL-001: `subject`, `text`, `html`, `title`, `body`,
-`url`, `tag`, `icon`, `badge`), an in-app part's name and its language's declared tag
-joined by `.` (`title.en`, `body.ar`), `target` for an in-app delivery's or entry's
-target values, or for a subscription `endpoint`, `p256dh` or `auth`; a layout two
-releases share and never change (`08` section 8); an anonymous recipient's values are
-always protected by the library's own protector, whatever protector is registered. A
-value is opened by the protector its envelope names. A host protector's `Id` SHALL NOT
-be `messaging`, or startup fails with `messaging.startup.declarationinvalid`.
+hyphenated 8-4-4-4-12; `<field>` is `destination`, `idempotencykey` (the key a delivery
+keeps of its send), `unsubscribe` (the email's one-click address, made with its token at
+the send and kept for the header, `02` MSG-EMAIL-006), a rendered part's name (`03`
+MSG-TPL-001: `subject`, `text`, `html`, `title`, `body`, `url`, `tag`, `icon`, `badge`),
+an in-app part's name and its language's declared tag joined by `.` (`title.en`,
+`body.ar`), `target` for an in-app delivery's or entry's target values, or for a
+subscription `endpoint`, `p256dh` or `auth`; a layout two releases share and never
+change (`08` section 8); an anonymous recipient's values are always protected by the
+library's own protector, whatever protector is registered. A value is opened by the
+protector its envelope names. A host protector's `Id` SHALL NOT be `messaging`, or
+startup fails with `messaging.startup.declarationinvalid`.
 
 The library's own protector, `Id` `messaging`, writes the `contentKeys` version (4
 bytes, big-endian), a random 12-byte nonce, the AES-256-GCM ciphertext and its 16-byte
@@ -953,10 +980,11 @@ registered, or in a format kept for a later release, holds the delivery for a ke
 delivery stores no hash of its destination: a lookup by destination computes the keyed
 hash from the opened value at that moment.
 
-*Source: M-005, M-007, M-020*
+*Source: M-005, M-007, M-020, M-030*
 
 **Acceptance criteria**
-1. No destination, unsubscribe address or rendered content is stored in plain text.
+1. No destination, unsubscribe address, rendered content or kept idempotency key is
+   stored in plain text.
 2. A template changed after a send leaves that send's content as rendered.
 3. A protected value copied into another delivery's row, or a row whose person reference
    is changed in the database, does not open, and its delivery ends `failed` with the
@@ -967,10 +995,12 @@ hash from the opened value at that moment.
 **MSG-SEND-019** — The library's data SHALL be deleted when its time is up, each period
 configuration.
 
-**Values (M-005, M-007, M-008, M-009, M-026).** The retention job deletes, in batches:
+**Values (M-005, M-007, M-008, M-009, M-026, M-029, M-030).** The retention job deletes,
+in batches:
 - a delivery's content, destination and unsubscribe address `Hermes:Retention:Content`
   (default 30 days) after it reached its final status (for `sent`, after its last move);
-  a delivery not yet final keeps them;
+  a delivery not yet final keeps them; the idempotency key a delivery keeps goes with
+  them (MSG-SEND-017);
 - a delivery's record `Hermes:Retention:Record` (default 365 days) after the same
   instant, keeping until then the kind, category, channel, statuses with their instants,
   attempts, the provider reference and the person reference, so an erasure still finds
@@ -1025,15 +1055,16 @@ waits for a check-8 transaction holding one of their rows (MSG-SEND-014), so its
 statements see any place that transaction took (an `inflight` delivery's late outcome
 then changes nothing, MSG-SEND-007); it deletes their preferences, push subscriptions,
 in-app entries and idempotency rows, and deletes the content, destination, unsubscribe
-address and person reference of every delivery for them, whatever its status, keeping
-the rest of each record until its retention ends. Their pending observer notices, and
-the notices of the deliveries it cancels, are kept for the observer with no person
-reference, so the host still learns how each delivery ended. The deliveries it cancels
-release their limit places as any cancellation does (MSG-SEND-014); it then deletes the
-limit places keyed by their reference's hash, and clears the delivery link of the other
-places their deliveries took, so no kept place ties a kept record to a destination hash.
-Suppressions and the other limit places stay: they hold no destination and nothing of
-the person, and a suppression keeps the person's refusal in force.
+address, idempotency key (MSG-SEND-017) and person reference of every delivery for them,
+whatever its status, keeping the rest of each record until its retention ends. Their
+pending observer notices, and the notices of the deliveries it cancels, are kept for the
+observer with no person reference and no idempotency key, so the host still learns how
+each delivery ended. The deliveries it cancels release their limit places as any
+cancellation does (MSG-SEND-014); it then deletes the limit places keyed by their
+reference's hash, and clears the delivery link of the other places their deliveries
+took, so no kept place ties a kept record to a destination hash. Suppressions and the
+other limit places stay: they hold no destination and nothing of the person, and a
+suppression keeps the person's refusal in force.
 
 `ISubjects.ExportAsync(person)` answers a `Result<SubjectExport>` (`04` MSG-LIB-002), or
 `messaging.key.unavailable` or `messaging.release.newer` as erasure does: the person's
@@ -1043,27 +1074,27 @@ kind, category, the instants it was written and read, and its parts in every lan
 holds with its target and target values, its values answering as a delivery's do below;
 their live idempotency rows, each with its kind, key and instant; and every delivery
 whose record names them, each with its kind, channel, status and instants, and with its
-destination and content while it holds them, one past content retention being marked so
-and carrying neither, a value whose protector answers `Erased` being marked erased and
-carrying no destination and no content, and one that does not open under its binding
-being marked rejected, carrying no destination and no content, and raising
-`content-rejected`; a value that cannot open yet (MSG-SEND-006), a protector call that
-throws or does not answer within `Hermes:Dispatch:Timeout` included, answers the export
-`messaging.key.unavailable`. The export runs in one transaction at `READ COMMITTED`
-whose `lock_timeout` is `Hermes:Dispatch:Timeout`, a timeout letting the database's
-error through as for erasure, takes the person's locks shared, then reads the migration
-history as erasure does and the person's rows, and commits; it opens the values after,
-outside any transaction, so its protector calls hold no lock and no session idle; an
-erasure committed after its read leaves the export as it read, its values answering
-`Erased` only where the person's key was erased (a host's protector over per-person
-keys, `04` MSG-LIB-005).
+destination, its content and the idempotency key it keeps (M-030) while it holds them,
+one past content retention being marked so and carrying none of the three, a value whose
+protector answers `Erased` being marked erased and carrying none of the three, and one
+that does not open under its binding being marked rejected, carrying none of the three,
+and raising `content-rejected`; a value that cannot open yet (MSG-SEND-006), a protector
+call that throws or does not answer within `Hermes:Dispatch:Timeout` included, answers
+the export `messaging.key.unavailable`. The export runs in one transaction at `READ
+COMMITTED` whose `lock_timeout` is `Hermes:Dispatch:Timeout`, a timeout letting the
+database's error through as for erasure, takes the person's locks shared, then reads the
+migration history as erasure does and the person's rows, and commits; it opens the
+values after, outside any transaction, so its protector calls hold no lock and no
+session idle; an erasure committed after its read leaves the export as it read, its
+values answering `Erased` only where the person's key was erased (a host's protector
+over per-person keys, `04` MSG-LIB-005).
 
 *Falling back to another channel (designed for, not built).* A kind may later declare an
 ordered list of channels where the next is used when a delivery on one ends in a status
 the list names; the deliveries of a send already share its identifier, so a fallback is
 a new delivery of the same send and changes no table.
 
-*Source: M-004, M-005, M-007, M-020*
+*Source: M-004, M-005, M-007, M-020, M-028, M-029, M-030*
 
 **Acceptance criteria**
 1. After erasure, nothing the library holds names the person or holds a destination, an

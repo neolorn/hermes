@@ -1438,6 +1438,126 @@ MSG-ENG-011; `implementation-plan.md` (phase 11, and the inputs waited on).
 
 ---
 
+## M-028 — A delivery notice carries its send's idempotency key
+
+> **Amended.** M-029: the member is an optional property declared last, not a
+> positional one; the key is kept as the send's content is, protected and gone with it,
+> and an export shows it. M-030: each delivery keeps it, as one of its values.
+
+**Date:** 2026-10-31 · **Status:** accepted · **Amends:** M-005
+
+A host that hands the library another component's messages keys each send with that
+component's own reference (`01` MSG-SEND-009), and has to give each outcome back under
+that reference. The first host to do so found that nothing the observer is told names
+it: a `DeliveryNotice` carries the library's `SendId` alone, and `IMessages.ReadAsync`
+answers deliveries, not the key. The host would have to keep a table of its own from
+each receipt's `SendId` to its key: a second record of every send, beside the
+library's, with a retention and an erasure of its own to keep in step.
+
+- **A notice carries the key its send was recorded with,**
+  `DeliveryNotice.IdempotencyKey`, none where the send had none. It is the host's own
+  value, given back as given.
+- **The key is kept with the send,** not read from its idempotency row: the row lapses
+  after `Hermes:Idempotency:Window`, while a delivery's outcome can come later (a
+  provider's report moving `sent` to `delivered` or `failed`). It is kept for as long
+  as the send's record.
+- **It goes with the person.** The library already treats a key as the person's (it is
+  exported and erased with them, MSG-SEND-020), since a host may put anything in it.
+  An erasure deletes the key kept with the person's sends, and the notices kept for the
+  observer carry none, as they carry no person reference.
+- **A notice still carries no destination and no content.**
+
+*Rejected:* a host table from `SendId` to key (every host that keys its sends would keep
+the same second record); `IMessages.ReadAsync` answering the key (a lookup per notice,
+and nothing to look up once the row has lapsed); a new positional member placed other
+than last (it would reorder what every reader of a notice already deconstructs).
+
+**Propagated to:** `01` MSG-SEND-017, MSG-SEND-020; `04` MSG-LIB-005;
+`implementation-plan.md` (phase 12).
+
+---
+
+## M-029 — Phase 12's questions: the notice's key, kept as content
+
+> **Amended.** M-030: each delivery keeps the key, as one of its values, not the send.
+
+**Date:** 2026-10-31 · **Status:** accepted · **Amends:** M-028
+
+Phase 12 built M-028 and asked four questions.
+
+- **The member is an optional property declared last,** as `Person` and `Reason` are.
+  `DeliveryNotice` is not a positional record: its constructor takes nothing, so the
+  addition changes no host's code. M-028's "last positional member", and its rejection
+  of another position, rested on a wrong reading of the type, and the plan's "change to
+  the constructor" with them. The release notes rightly say the constructor is
+  unchanged.
+- **No backfill.** A send recorded before the migration carries no key in its notices,
+  even where its idempotency row is still live. Copying keys forward would make a
+  migration that only adds rewrite rows, to serve the sends in flight across one
+  upgrade. The release notes say so.
+- **The key is kept as the send's content is.** M-028 kept it in clear for
+  `Hermes:Retention:Record` (365 days by default). Its idempotency row holds it for
+  `Hermes:Idempotency:Window` (a day), and the send's content is protected and goes
+  after `Hermes:Retention:Content` (30 days). A host may put anything in a key, which is
+  why the library already treats it as the person's. It is now a protected value (M-007,
+  `06` MSG-OPS-008), opened in its own row alone, and it goes when the last of the
+  send's deliveries' content goes (MSG-SEND-019) or with the person (MSG-SEND-020). A
+  notice written after that carries none; outcomes come well inside the content's
+  retention.
+- **An export shows it.** What an erasure deletes, an export shows: each delivery's
+  export carries the key its send keeps, while kept (`DeliveryExport.IdempotencyKey`).
+- **`10` names it** in the row of a leaked database copy, protected as the content is.
+
+*Rejected:* keeping the key in clear and naming the risk in `10` alone (a year of a
+host's values readable from a copy, where the library protects everything else a send
+carried); deleting it with its idempotency row (an outcome after a day, a provider's
+report among them, would lose its key).
+
+**Propagated to:** `01` MSG-SEND-017, MSG-SEND-019, MSG-SEND-020; `04` MSG-LIB-005;
+`10`; `implementation-plan.md` (phase 12).
+
+---
+
+## M-030 — Phase 12's second questions: the key, one of a delivery's values
+
+**Date:** 2026-10-31 · **Status:** accepted · **Amends:** M-028, M-029
+
+M-029 made the key kept with a send a protected value. Phase 12 asked which table and
+field bind it, and what the observer does when it does not open. A send's row holds
+nothing of its recipient and no protector's value, so protecting a key there would need
+a binding, a person, a key version and a re-protection of its own, for one field.
+
+- **Each delivery keeps the key, as one of its values.** It is kept as the delivery's
+  destination is: protected for the delivery's person, bound to
+  `deliveries:<row id>:idempotencykey`, opened by the protector its envelope names, its
+  `contentKeys` version in the delivery's existing column, re-protected with the
+  delivery's other values, and deleted with its content at `Hermes:Retention:Content`
+  and at an erasure. The send's row keeps no key. A send on two channels keeps the key
+  twice, once in each delivery, each bound to its own row.
+- **A notice whose key does not open** answers as check 1 does for a delivery's values,
+  save that a notice is never ended: `Erased` is told without the key, as a notice after
+  an erasure is; `Rejected`, or a format neither `0x01` nor kept for a later release, is
+  told without the key and raises `content-rejected`; a held key (`KeyUnavailable`, a
+  throw or no answer in time, a protector not registered, a format kept for a later
+  release) holds the notice for the next run, as one the observer did not take, so a
+  hold that lasts raises `observer-failing` past `Hermes:Observer:LagThreshold`.
+- **The export** shows the key as one of the delivery's values, under the rules it
+  already has for them: marked past content retention, erased or rejected, it carries
+  none; a key that cannot open yet answers the export `messaging.key.unavailable`.
+- **The name** `idempotencykey` joins the fields of `08` section 8, a layout two
+  releases share and never change.
+
+*Rejected:* a protected value on the send's row (a binding without a person, a
+key-version column and a re-protection of its own, for one field); holding a notice
+whose key was erased or rejected (it would never open, and the delivery's later notices
+would wait behind it for ever); telling a held notice without its key (the host would
+lose its key for good over a moment's outage).
+
+**Propagated to:** `01` MSG-SEND-017 to MSG-SEND-020; `04` MSG-LIB-005; `08` section 8;
+`10`; `implementation-plan.md` (phase 12).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1469,3 +1589,6 @@ MSG-ENG-011; `implementation-plan.md` (phase 11, and the inputs waited on).
 | Phase 9's question: the release set reads the development inbox too | M-025 |
 | The in-application list | M-026 |
 | Release candidates until the final 1.0.0 | M-027 |
+| A delivery notice carries its send's idempotency key | M-028 |
+| Phase 12's questions: the notice's key, kept as content | M-029 |
+| Phase 12's second questions: the key, one of a delivery's values | M-030 |

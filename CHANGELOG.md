@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.2] - 2026-10-31
+
+### Added
+
+- `DeliveryNotice.IdempotencyKey`, the key the notice's send was recorded with, its last
+  member; a notice prints it no more than it prints the person
+- The migration `SendIdempotencyKey`, which gives each delivery the idempotency key of its
+  send, protected as its destination is and gone with its content, so a notice carries the
+  key after the key's row has lapsed; it drops and rewrites nothing
+- A notice whose key answers erased is told without it, one whose key does not open under
+  its binding is told without it and raises `content-rejected`, and one whose key cannot
+  open yet is told at a later run
+- `DeliveryExport.IdempotencyKey`, its last member: the key a delivery keeps of its send,
+  carried while the delivery keeps it, an in-app delivery's after its dispatch included,
+  and none where the delivery is marked past content retention, erased or rejected; an
+  export prints it no more than it prints the destination
+
+### Changed
+
+- An erasure also deletes the idempotency key each of the person's deliveries keeps, and
+  the notices it keeps for the observer carry none
+
 ## [1.0.0-rc.1] - 2026-10-31
 
 ### Added

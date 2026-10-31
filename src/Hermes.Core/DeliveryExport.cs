@@ -6,9 +6,10 @@ using System.Text;
 namespace Hermes.Core;
 
 /// <summary>
-/// A delivery as an export holds it (<c>01</c> MSG-SEND-020): its destination and content
-/// while it holds them, neither once it is past content retention, its values' key was
-/// erased, or a value did not open under its binding. It prints neither.
+/// A delivery as an export holds it (<c>01</c> MSG-SEND-020): its destination, content and the
+/// idempotency key it keeps of its send while it holds them, none of the three once it is past
+/// content retention, its values' key was erased, or a value did not open under its binding.
+/// It prints none of the three.
 /// </summary>
 public sealed record DeliveryExport
 {
@@ -41,6 +42,9 @@ public sealed record DeliveryExport
 
     /// <summary>Whether a value did not open under its binding, so it carries no destination or content.</summary>
     public required bool Rejected { get; init; }
+
+    /// <summary>The idempotency key it keeps of its send, as the host gave it, or none where the send had none or it is marked as above.</summary>
+    public string? IdempotencyKey { get; init; }
 
     private bool PrintMembers(StringBuilder builder)
     {
