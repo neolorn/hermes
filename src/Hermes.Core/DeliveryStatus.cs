@@ -13,7 +13,7 @@ public enum DeliveryStatus
     [JsonStringEnumMemberName("inflight")]
     InFlight,
 
-    /// <summary>Accepted by the provider; final, moving once by a report.</summary>
+    /// <summary>Accepted by the provider, or, in-app, its entry written; final, moving once by a report or, in-app, a read.</summary>
     [JsonStringEnumMemberName("sent")]
     Sent,
 
@@ -56,4 +56,8 @@ public enum DeliveryStatus
     /// <summary>A push to a person with no live subscription, or whose every subscription is gone.</summary>
     [JsonStringEnumMemberName("nosubscription")]
     NoSubscription,
+
+    /// <summary>An in-app delivery whose entry the person marked read; final.</summary>
+    [JsonStringEnumMemberName("read")]
+    Read,
 }

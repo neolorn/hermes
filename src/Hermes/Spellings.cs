@@ -12,12 +12,12 @@ namespace Hermes;
 /// </summary>
 internal static class Spellings
 {
-    private static readonly string[] Channels = ["email", "sms", "push"];
+    private static readonly string[] Channels = ["email", "sms", "push", "inapp"];
 
     private static readonly string[] Statuses =
     [
         "waiting", "inflight", "sent", "delivered", "failed", "cancelled", "expired",
-        "suppressed", "optedout", "noconsent", "limited", "balancefloor", "nosubscription",
+        "suppressed", "optedout", "noconsent", "limited", "balancefloor", "nosubscription", "read",
     ];
 
     private static readonly string[] Classes = ["accepted", "transient", "permanent", "gone"];

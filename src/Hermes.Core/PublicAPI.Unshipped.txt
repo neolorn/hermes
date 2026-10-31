@@ -1,4 +1,6 @@
 #nullable enable
+Hermes.Core.Channel.InApp = 3 -> Hermes.Core.Channel
+Hermes.Core.DeliveryStatus.Read = 13 -> Hermes.Core.DeliveryStatus
 Hermes.Core.EntryId
 Hermes.Core.EntryId.Deconstruct(out System.Guid Value) -> void
 Hermes.Core.EntryId.EntryId() -> void

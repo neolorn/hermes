@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `IInApp` and its types, `InAppPage`, `InAppEntry` and `EntryId`, for a person's
   in-application list, and `SubjectExport.Entries`, each of the person's entries as
   `InAppEntryExport`; none prints a part, a target or a target value
+- The channel `inapp` and the status `read`, and the migration `InAppList`, which adds the
+  in-app list's table and a column for an in-app delivery's parts, and drops or rewrites
+  nothing
 
 ## [1.1.0] - 2026-10-29
 

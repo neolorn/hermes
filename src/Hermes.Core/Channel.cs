@@ -16,4 +16,8 @@ public enum Channel
     /// <summary>Browser push, through Web Push.</summary>
     [JsonStringEnumMemberName("push")]
     Push,
+
+    /// <summary>The in-application list: an entry written to the person's list, in the library's own store.</summary>
+    [JsonStringEnumMemberName("inapp")]
+    InApp,
 }

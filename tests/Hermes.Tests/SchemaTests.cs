@@ -126,8 +126,10 @@ public sealed class SchemaTests(PostgresFixture postgres) : IClassFixture<Postgr
         Assert.Equal(PostgresErrorCodes.CheckViolation, refusal.SqlState);
     }
 
-    [Fact]
-    public async Task Insert_DeliveryInsideTheClosedSets_IsTaken()
+    [Theory]
+    [InlineData("sms", "failed", "claimlost")]
+    [InlineData("inapp", "read", null)]
+    public async Task Insert_DeliveryInsideTheClosedSets_IsTaken(string channel, string status, string? reason)
     {
         string connection = await postgres.NewDatabaseAsync();
         Assert.Null(await SchemaMigration.ApplyAsync(connection, [], TestContext.Current.CancellationToken));
@@ -138,7 +140,7 @@ public sealed class SchemaTests(PostgresFixture postgres) : IClassFixture<Postgr
             await send.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
         }
 
-        await using NpgsqlCommand command = Delivery(database, "sms", "failed", "claimlost");
+        await using NpgsqlCommand command = Delivery(database, channel, status, reason);
 
         Assert.Equal(1, await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
     }
