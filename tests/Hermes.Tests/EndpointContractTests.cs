@@ -43,6 +43,9 @@ public sealed class EndpointContractTests
         Assert.DoesNotContain("GET /notifications/messages/{id} 400", given);
         Assert.DoesNotContain("GET /notifications/messages/{id} 200 body limit", given);
         Assert.DoesNotContain("GET /notifications/messages 401", given);
+        Assert.Contains("GET /notifications/inapp 200 body entries.targetValues", given);
+        Assert.Contains("GET /notifications/inapp/unread 503 body code", given);
+        Assert.Contains("POST /notifications/inapp/read 401 body details", given);
     }
 
     [Fact]

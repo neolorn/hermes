@@ -14,4 +14,7 @@ namespace Hermes.Endpoints;
 [JsonSerializable(typeof(PublicKeyBody))]
 [JsonSerializable(typeof(SubscriptionBody))]
 [JsonSerializable(typeof(RemovalBody))]
+[JsonSerializable(typeof(EntriesBody))]
+[JsonSerializable(typeof(UnreadBody))]
+[JsonSerializable(typeof(EmptyBody))]
 internal sealed partial class EndpointJson : JsonSerializerContext;

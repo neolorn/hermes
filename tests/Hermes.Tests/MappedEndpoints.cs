@@ -36,6 +36,8 @@ internal static class MappedEndpoints
         [$"PUT {Endpoints.Prefix}/preferences/{{category}}/{{channel}}"] = typeof(PreferenceChange),
         [$"POST {Endpoints.Prefix}/push/subscriptions"] = typeof(SubscriptionBody),
         [$"DELETE {Endpoints.Prefix}/push/subscriptions"] = typeof(RemovalBody),
+        [$"POST {Endpoints.Prefix}/inapp/{{id}}/read"] = typeof(EmptyBody),
+        [$"POST {Endpoints.Prefix}/inapp/read"] = typeof(EmptyBody),
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>Each mapped route, with the responses its metadata declares.</summary>
@@ -59,6 +61,7 @@ internal static class MappedEndpoints
                 application.MapHermesUnsubscribe(Endpoints.Prefix);
                 application.MapHermesPushSubscriptions(Endpoints.Prefix);
                 application.MapHermesSmsReports(Endpoints.Prefix);
+                application.MapHermesInApp(Endpoints.Prefix);
             });
 
         // The development inbox maps its group only where the environment is Development (02 MSG-DEV-001).

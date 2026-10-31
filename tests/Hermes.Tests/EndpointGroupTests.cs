@@ -72,6 +72,24 @@ public sealed partial class EndpointGroupTests(PostgresFixture postgres) : IClas
     }
 
     [Fact]
+    public async Task MSG_LIB_004_AC1_TheInAppGroupMappedAloneWorks()
+    {
+        await using DispatchEngine engine = await DispatchEngine.StartAsync(
+            postgres,
+            declare: InApp.Declare,
+            templates: InApp.Templates,
+            services: Endpoints.Identity,
+            map: application => application.MapHermesInApp(Endpoints.Prefix));
+        using HttpClient client = engine.Host.Client();
+
+        using HttpResponseMessage response = await Endpoints.SendAsync(client, HttpMethod.Get, "/inapp/unread", Person);
+        using HttpResponseMessage other = await Endpoints.SendAsync(client, HttpMethod.Get, "/preferences", Person);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, other.StatusCode);
+    }
+
+    [Fact]
     public async Task MSG_LIB_004_AC1_TheSmsReportGroupMappedAloneWorks()
     {
         string connection = await EngineHost.DatabaseAsync(postgres);

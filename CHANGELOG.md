@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Erasing a person deletes their in-app entries and clears their in-app deliveries' parts,
   and their export holds each entry with its parts in every language, its target and its
   target values
+- `MapHermesInApp`, the in-app group: `GET /inapp` in the language of the request's
+  `Accept-Language`, `GET /inapp/unread`, and `POST /inapp/{id}/read` and `POST /inapp/read`,
+  which read an empty object as `application/json` alone, all for the person signed in
 
 ## [1.1.0] - 2026-10-29
 
