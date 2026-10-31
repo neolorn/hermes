@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `messaging.send.nodestination`
 - The in-app pass: the dispatcher writes an in-app delivery's entry to its person's list in
   every environment, with no provider, no rate and no quiet hours, and ends the delivery `sent`
+- `IInApp`, registered scoped: a person's list read a page at a time, newest first, in the
+  language asked for, with an opaque cursor and `messaging.inapp.cursorinvalid` for one that
+  does not read; the unread count; and an entry, or all of them, marked read, which moves
+  each delivery from `sent` to `read` and tells the observer
 
 ## [1.1.0] - 2026-10-29
 

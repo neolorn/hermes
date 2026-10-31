@@ -76,6 +76,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddScoped<ISuppressions, Suppressions>();
         services.AddScoped<IPreferences, Preferences>();
         services.AddScoped<ISubjects, Subjects>();
+        services.AddScoped<IInApp, InAppList>();
         services.AddSingleton<DispatchPasses>();
         services.AddSingleton<IDispatcher, Dispatcher>();
         services.AddSingleton<NoticeDelivery>();
