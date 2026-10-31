@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A notice whose key answers erased is told without it, one whose key does not open under
   its binding is told without it and raises `content-rejected`, and one whose key cannot
   open yet is told at a later run
+- `DeliveryExport.IdempotencyKey`, the key a delivery keeps of its send, its last member,
+  none where the delivery is marked past content retention, erased or rejected; an export
+  prints it no more than it prints the destination
 
 ### Changed
 

@@ -147,7 +147,7 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
     }
 
     [Fact]
-    public async Task MSG_SEND_020_AC2_TheExportHoldsThePersonsPreferencesIdempotencyRowsAndDeliveriesWithTheirDestinationsAndContent()
+    public async Task MSG_SEND_020_AC2_TheExportHoldsThePersonsPreferencesIdempotencyRowsAndDeliveriesWithTheirDestinationsContentAndKeptKeys()
     {
         await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, declare: Declare);
         await engine.Host.SendAsync(LimitTests.ReminderTo(Number));
@@ -172,13 +172,15 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
         Assert.Equal((DeliveryStatus.Waiting, (string?)"someone@example.com"), (email.Status, email.Destination));
         Assert.Equal(new Dictionary<string, string> { ["subject"] = "Subject en 123456", ["text"] = "Text en 123456" }, email.Content);
         Assert.All(export.Deliveries, delivery => Assert.False(delivery.ContentDeleted || delivery.Erased || delivery.Rejected));
+        Assert.Equal((string?)null, reminder.IdempotencyKey);
+        Assert.All(export.Deliveries.Where(delivery => delivery.Kind == EngineHost.Kind), delivery => Assert.Equal("order-1", delivery.IdempotencyKey));
     }
 
     [Fact]
     public async Task MSG_SEND_020_AC2_ADeliveryPastContentRetentionIsExportedMarkedSoWithNoDestinationOrContent()
     {
         await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, declare: Declare);
-        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
+        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { IdempotencyKey = "order-1" })).Value!;
         await engine.Host.DispatchAsync();
         await engine.Host.RunAsync(database =>
         {
@@ -189,7 +191,7 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
 
         DeliveryExport delivery = Assert.Single((await ExportAsync(engine.Host, Person)).Value!.Deliveries);
 
-        Assert.Equal((true, false, false, (string?)null, DeliveryStatus.Sent), (delivery.ContentDeleted, delivery.Erased, delivery.Rejected, delivery.Destination, delivery.Status));
+        Assert.Equal((true, false, false, (string?)null, DeliveryStatus.Sent, (string?)null), (delivery.ContentDeleted, delivery.Erased, delivery.Rejected, delivery.Destination, delivery.Status, delivery.IdempotencyKey));
         Assert.Empty(delivery.Content);
     }
 
@@ -198,7 +200,7 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
     {
         AlertSinkFake alerts = new();
         await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, declare: Declare, services: services => services.AddSingleton<IAlertSink>(alerts));
-        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]))).Value!;
+        SendReceipt receipt = (await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { IdempotencyKey = "order-1" })).Value!;
         await engine.Host.RunAsync(database =>
         {
             NpgsqlCommand command = new("UPDATE messaging.deliveries SET text = set_byte(text, length(text) - 1, get_byte(text, length(text) - 1) # 1) WHERE id = @id", database);
@@ -208,7 +210,7 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
 
         DeliveryExport delivery = Assert.Single((await ExportAsync(engine.Host, Person)).Value!.Deliveries);
 
-        Assert.Equal((false, false, true, (string?)null), (delivery.ContentDeleted, delivery.Erased, delivery.Rejected, delivery.Destination));
+        Assert.Equal((false, false, true, (string?)null, (string?)null), (delivery.ContentDeleted, delivery.Erased, delivery.Rejected, delivery.Destination, delivery.IdempotencyKey));
         Assert.Empty(delivery.Content);
         Assert.Contains(alerts.Calls, call => call is { Raised: true, Condition: "content-rejected", Scope: "deliveries" } && call.Details!["table"] == "deliveries");
     }
@@ -218,12 +220,12 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
     {
         ContentProtectorFake vault = new("vault");
         await using DispatchEngine engine = await DispatchEngine.StartAsync(postgres, declare: Declare, services: services => services.AddSingleton<IContentProtector>(vault));
-        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]));
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]) with { IdempotencyKey = "order-1" });
         vault.Erased = true;
 
         DeliveryExport delivery = Assert.Single((await ExportAsync(engine.Host, Person)).Value!.Deliveries);
 
-        Assert.Equal((false, true, false, (string?)null, DeliveryStatus.Waiting), (delivery.ContentDeleted, delivery.Erased, delivery.Rejected, delivery.Destination, delivery.Status));
+        Assert.Equal((false, true, false, (string?)null, DeliveryStatus.Waiting, (string?)null), (delivery.ContentDeleted, delivery.Erased, delivery.Rejected, delivery.Destination, delivery.Status, delivery.IdempotencyKey));
         Assert.Empty(delivery.Content);
     }
 
@@ -233,7 +235,7 @@ public sealed class SubjectTests(PostgresFixture postgres) : IClassFixture<Postg
         string connection = await EngineHost.DatabaseAsync(postgres);
         await using EngineHost holding = await EngineHost.StartAsync(connection, declare: Declare, services: services => services.AddSingleton<IContentProtector>(new ContentProtectorFake("vault")));
         await using EngineHost lacking = await EngineHost.StartAsync(connection, declare: Declare);
-        await holding.SendAsync(SendTests.Code(channels: [Channel.Sms]));
+        await holding.SendAsync(SendTests.Code(channels: [Channel.Sms]) with { IdempotencyKey = "order-1" });
 
         Result<SubjectExport> exported = await ExportAsync(lacking, Person);
 

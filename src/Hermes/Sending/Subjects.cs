@@ -180,6 +180,13 @@ internal sealed class Subjects(
             }
 
             List<(string Field, byte[] Stored)> stored = [.. Fields(row, channel).Where(field => field.Stored is not null).Select(field => (field.Field, field.Stored!))];
+
+            // The key a delivery keeps opens with its other values, and goes with them (01 MSG-SEND-017).
+            if (stored.Count > 0 && row.IdempotencyKey is { } key)
+            {
+                stored.Add((ContentContext.IdempotencyKey, key));
+            }
+
             Opened opened = await OpenAsync(row.Person, ContentContext.Deliveries, row.Id, stored, current, cancellationToken).ConfigureAwait(false);
             if (opened.Held is { } held)
             {
@@ -195,10 +202,11 @@ internal sealed class Subjects(
                 RecordedAt = row.RecordedAt,
                 LastMovedAt = row.LastMovedAt,
                 Destination = opened.Values?.GetValueOrDefault(Destination),
-                Content = opened.Values is { } values ? values.Where(value => value.Key != Destination).ToDictionary(StringComparer.Ordinal) : new Dictionary<string, string>(StringComparer.Ordinal),
+                Content = opened.Values is { } values ? values.Where(value => value.Key is not (Destination or ContentContext.IdempotencyKey)).ToDictionary(StringComparer.Ordinal) : new Dictionary<string, string>(StringComparer.Ordinal),
                 ContentDeleted = opened.Deleted,
                 Erased = opened.Erased,
                 Rejected = opened.Rejected,
+                IdempotencyKey = opened.Values?.GetValueOrDefault(ContentContext.IdempotencyKey),
             });
         }
 

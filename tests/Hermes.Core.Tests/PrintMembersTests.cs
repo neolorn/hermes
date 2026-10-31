@@ -233,6 +233,31 @@ public sealed class PrintMembersTests
     }
 
     [Fact]
+    public void MSG_LIB_002_DeliveryExportPrintsNeitherItsDestinationNorItsContentNorItsIdempotencyKey()
+    {
+        DeliveryExport delivery = new()
+        {
+            Kind = "order.placed",
+            Channel = Channel.Email,
+            Status = DeliveryStatus.Sent,
+            RecordedAt = DateTimeOffset.UnixEpoch,
+            LastMovedAt = DateTimeOffset.UnixEpoch,
+            Destination = Secret,
+            Content = new Dictionary<string, string> { ["subject"] = "subject-" + Secret },
+            ContentDeleted = false,
+            Erased = false,
+            Rejected = false,
+            IdempotencyKey = "order-7f3a-reference",
+        };
+
+        string printed = delivery.ToString();
+
+        Assert.DoesNotContain(Secret, printed, StringComparison.Ordinal);
+        Assert.DoesNotContain("order-7f3a-reference", printed, StringComparison.Ordinal);
+        Assert.Contains("order.placed", printed, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Fail_Failure_IsNoSuccessAndCarriesIt()
     {
         Failure failure = new() { Code = "messaging.send.unknown", Details = new Dictionary<string, string>() };
