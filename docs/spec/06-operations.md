@@ -298,6 +298,9 @@ release notes SHALL state it.
   `ISubjects` declares, or retires, every kind of the deployment (`01` MSG-SEND-001).
 - **Observer.** A deployment that observes turns `Hermes:Observer:Enabled` on in every
   application (`01` MSG-SEND-017).
+- **The in-app list.** `Hermes:InApp:AlwaysOn` is set alike in every application of the
+  deployment (`02` MSG-INAPP-004), and the host's frontend shows an entry's `title` and
+  `body` as text, never as markup (`05` MSG-API-008).
 - **Jobs.** Each job with a row in the job table (MSG-OPS-004) runs in at least one
   application, the `balance` job where SMS is used, since a job no application runs
   raises no `job-stalled`.
@@ -324,7 +327,8 @@ release notes SHALL state it.
   alert on its key-table timer, which reads the migration history (MSG-OPS-008), so a
   deployment rolls forward rather than back.
 
-*Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020, M-022, M-024*
+*Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020, M-022, M-024,
+M-026*
 
 **Acceptance criteria**
 1. The release notes of each release (`RELEASE-NOTES.md`, `07` MSG-ENG-001) state every
