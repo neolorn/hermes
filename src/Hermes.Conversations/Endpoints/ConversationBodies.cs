@@ -170,3 +170,32 @@ internal sealed record TagsRequest(IReadOnlyList<string>? Tags);
 /// <summary>The body of <c>POST /support/conversations/{id}/snooze</c> (<c>05</c> MSG-API-009).</summary>
 /// <param name="Until">The instant it wakes.</param>
 internal sealed record SnoozeRequest(string? Until);
+
+/// <summary>The answer of <c>GET /support/live</c> (<c>05</c> MSG-API-009).</summary>
+/// <param name="Conversations">The topic's open and snoozed conversations, oldest queued first.</param>
+internal sealed record LivesBody(IReadOnlyList<LiveBody> Conversations);
+
+/// <summary>A conversation of a topic's live view, <c>&lt;live&gt;</c> of <c>05</c> MSG-API-009.</summary>
+/// <param name="Id">The conversation's identifier, lower-case and hyphenated.</param>
+/// <param name="Status">Its status, <c>open</c> or <c>snoozed</c>.</param>
+/// <param name="Assignee">The staff member assigned, a person reference, none while it is queued.</param>
+/// <param name="Place">Its place in the queue, none once assigned.</param>
+/// <param name="Waited">The whole minutes since it was queued.</param>
+internal sealed record LiveBody(string Id, string Status, string? Assignee, int? Place, int Waited);
+
+/// <summary>The answer of <c>GET /support/reports</c> (<c>05</c> MSG-API-009).</summary>
+/// <param name="Topic">The topic's figures as a whole.</param>
+/// <param name="Staff">Each staff member's figures.</param>
+internal sealed record ReportBody(FiguresBody Topic, IReadOnlyList<FiguresBody> Staff);
+
+/// <summary>A report's figures, <c>&lt;figures&gt;</c> of <c>05</c> MSG-API-009, the times in seconds and a figure with no data none.</summary>
+/// <param name="Person">The staff member, none for the topic as a whole.</param>
+/// <param name="Closed">The conversations closed within the period.</param>
+/// <param name="WaitMedian">The median waiting time.</param>
+/// <param name="WaitP90">The 90th percentile of the waiting time.</param>
+/// <param name="HandleMedian">The median handling time.</param>
+/// <param name="HandleP90">The 90th percentile of the handling time.</param>
+/// <param name="Surveys">The surveys answered.</param>
+/// <param name="ResolvedShare">The share of them that say resolved.</param>
+/// <param name="MeanRating">Their mean rating.</param>
+internal sealed record FiguresBody(string? Person, int Closed, double? WaitMedian, double? WaitP90, double? HandleMedian, double? HandleP90, int Surveys, decimal? ResolvedShare, decimal? MeanRating);

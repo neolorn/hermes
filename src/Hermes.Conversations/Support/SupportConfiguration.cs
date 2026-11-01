@@ -292,12 +292,7 @@ internal static partial class SupportConfiguration
             }
         }
 
-        ScopeKind? kind = section["Scope:Kind"] switch
-        {
-            "Organization" => ScopeKind.Organization,
-            "Group" => ScopeKind.Group,
-            _ => null,
-        };
+        ScopeKind? kind = KindOf(section["Scope:Kind"]);
         if (kind is null)
         {
             return (null, key + ":Scope:Kind");
@@ -308,7 +303,36 @@ internal static partial class SupportConfiguration
             return (null, key + ":Scope:Reference");
         }
 
-        return (new SupportTopic(section.Key, zone, hours, exceptions, new ConversationScope { Kind = kind.Value, Reference = reference }), null);
+        // Supervisors are optional, a kind and a reference given together (09 MSG-CONV-005).
+        ConversationScope? supervisors = null;
+        string? supervisorsKind = section["Supervisors:Kind"];
+        string? supervisorsReference = section["Supervisors:Reference"];
+        if (supervisorsKind is not null || supervisorsReference is not null)
+        {
+            if (KindOf(supervisorsKind) is not { } supervising)
+            {
+                return (null, key + ":Supervisors:Kind");
+            }
+
+            if (supervisorsReference is not { Length: >= 1 and <= 128 })
+            {
+                return (null, key + ":Supervisors:Reference");
+            }
+
+            supervisors = new ConversationScope { Kind = supervising, Reference = supervisorsReference };
+        }
+
+        return (new SupportTopic(section.Key, zone, hours, exceptions, new ConversationScope { Kind = kind.Value, Reference = reference }, supervisors), null);
+    }
+
+    private static ScopeKind? KindOf(string? text)
+    {
+        return text switch
+        {
+            "Organization" => ScopeKind.Organization,
+            "Group" => ScopeKind.Group,
+            _ => null,
+        };
     }
 
     /// <summary>A list of <c>HH:mm-HH:mm</c>, sorted, not overlapping, each starting before it ends; none where it is not.</summary>
@@ -357,7 +381,7 @@ internal static partial class SupportConfiguration
     [GeneratedRegex(@"^([01][0-9]|2[0-4]):([0-5][0-9])-([01][0-9]|2[0-4]):([0-5][0-9])\z", RegexOptions.CultureInvariant)]
     private static partial Regex Range();
 
-    [GeneratedRegex(@"^Conversations:Topics:[^:]+:(TimeZone|Scope:Kind|Scope:Reference|Hours:[^:]+(:[^:]+)?|Exceptions:[^:]+(:[^:]+)?)\z", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^Conversations:Topics:[^:]+:(TimeZone|Scope:Kind|Scope:Reference|Supervisors:Kind|Supervisors:Reference|Hours:[^:]+(:[^:]+)?|Exceptions:[^:]+(:[^:]+)?)\z", RegexOptions.CultureInvariant)]
     private static partial Regex TopicKey();
 
     [GeneratedRegex(@"^Conversations:Replies:[^:]+:(Trigger|After|Topics:[^:]+)\z", RegexOptions.CultureInvariant)]

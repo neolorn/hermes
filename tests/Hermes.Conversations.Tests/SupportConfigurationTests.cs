@@ -239,6 +239,31 @@ public sealed class SupportConfigurationTests
         Assert.Null(SupportConfiguration.Read(Hermes(closed), Kinds).Settings!.Topics["billing"].NextOpening(new DateTimeOffset(2026, 11, 2, 7, 30, 0, TimeSpan.Zero)));
     }
 
+    [Fact]
+    public void Read_ATopicsSupervisors_AreItsScopeAndNoneWhereUnset()
+    {
+        Dictionary<string, string?> settings = Topic();
+        Assert.Null(SupportConfiguration.Read(Hermes(settings), Kinds).Settings!.Topics["billing"].Supervisors);
+
+        settings["Hermes:Conversations:Topics:billing:Supervisors:Kind"] = "Organization";
+        settings["Hermes:Conversations:Topics:billing:Supervisors:Reference"] = "leads";
+
+        Assert.Equal(new ConversationScope { Kind = ScopeKind.Organization, Reference = "leads" }, SupportConfiguration.Read(Hermes(settings), Kinds).Settings!.Topics["billing"].Supervisors);
+        Assert.Null(ConversationsConfiguration.UnknownKey(Hermes(settings)));
+    }
+
+    [Theory]
+    [InlineData("Hermes:Conversations:Topics:billing:Supervisors:Kind", "Group", "Conversations:Topics:billing:Supervisors:Reference")]
+    [InlineData("Hermes:Conversations:Topics:billing:Supervisors:Reference", "leads", "Conversations:Topics:billing:Supervisors:Kind")]
+    [InlineData("Hermes:Conversations:Topics:billing:Supervisors:Kind", "Team", "Conversations:Topics:billing:Supervisors:Kind")]
+    public void Read_SupervisorsHalfGivenOrOutsideTheirRule_IsTheirKey(string key, string value, string expected)
+    {
+        Dictionary<string, string?> settings = Topic();
+        settings[key] = value;
+
+        Assert.Equal(expected, SupportConfiguration.Read(Hermes(settings), Kinds).Invalid);
+    }
+
     private static Dictionary<string, string?> Topic(string name = "billing")
     {
         string topic = "Hermes:Conversations:Topics:" + name;

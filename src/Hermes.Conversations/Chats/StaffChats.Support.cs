@@ -259,7 +259,7 @@ internal sealed partial class StaffChats
     internal async Task<bool> CloseSupportAsync(Guid conversation, string? by, CancellationToken cancellationToken)
     {
         MessagingOptions current = options.CurrentValue;
-        return await LibraryTransactions.RunAsync(
+        string? closed = await LibraryTransactions.RunAsync(
             database,
             current,
             async (context, token) =>
@@ -272,21 +272,20 @@ internal sealed partial class StaffChats
                 ConversationRow? row = await LockedConversationAsync(context, conversation, token).ConfigureAwait(false);
                 if (row is null || string.Equals(row.Status, ClosedStatus, StringComparison.Ordinal))
                 {
-                    return false;
+                    return null;
                 }
 
-                bool wasQueued = row.Assignee is null;
-                Closed(row, clock.GetUtcNow(), by);
-                await context.SaveChangesAsync(token).ConfigureAwait(false);
-                await LiveNotices.TellAsync(context, LiveNotices.Closed, row.Id, row.Id, token).ConfigureAwait(false);
-                if (wasQueued)
-                {
-                    await LiveNotices.TellQueueAsync(context, row.Topic!, token).ConfigureAwait(false);
-                }
-
-                return true;
+                await CloseRowAsync(context, row, clock.GetUtcNow(), by, token).ConfigureAwait(false);
+                return row.Topic;
             },
             cancellationToken).ConfigureAwait(false);
+        if (closed is null)
+        {
+            return false;
+        }
+
+        metrics.ConversationsClosed.Add(1, new KeyValuePair<string, object?>("topic", closed));
+        return true;
     }
 
     /// <summary>The support conversation <paramref name="conversation"/>, where <paramref name="person"/> is a member of its topic's scope; none otherwise, or where its topic is no longer configured.</summary>

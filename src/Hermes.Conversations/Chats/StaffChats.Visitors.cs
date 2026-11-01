@@ -258,6 +258,7 @@ internal sealed partial class StaffChats
             return SupportAnswer<ConversationRecord>.Fail(limited, written.RetryAfter);
         }
 
+        metrics.ConversationsStarted.Add(1, new KeyValuePair<string, object?>("topic", topic));
         await assigner.AssignAsync([topic], cancellationToken).ConfigureAwait(false);
         await FireAsync(conversation, triggers, clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
         return SupportAnswer<ConversationRecord>.Of((await CallerRecordAsync(caller, conversation, cancellationToken).ConfigureAwait(false))!);

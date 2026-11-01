@@ -41,6 +41,7 @@ internal sealed partial class StaffChats(
     ConversationsSettings settings,
     SupportAssigner assigner,
     ReplyTemplates replyTemplates,
+    MessagingMetrics metrics,
     TimeProvider clock,
     ILogger<StaffChats> logger) : IConversations
 {
@@ -938,8 +939,9 @@ internal sealed partial class StaffChats(
 
     /// <summary>
     /// The conversation, where <paramref name="person"/> may read it: a group conversation's
-    /// scope answering them as a member, asked now, or a direct one holding them as a
-    /// participant who has not left; none otherwise, or where it is unknown.
+    /// scope answering them as a member, asked now, a support conversation's topic's scope or
+    /// supervisors answering them so, or a direct one holding them as a participant who has not
+    /// left; none otherwise, or where it is unknown.
     /// </summary>
     private async Task<ConversationRow?> ReachAsync(string person, Guid conversation, CancellationToken cancellationToken)
     {
@@ -954,7 +956,7 @@ internal sealed partial class StaffChats(
 
             if (string.Equals(row.Type, SupportType, StringComparison.Ordinal))
             {
-                return await IsSupportMemberAsync(person, row, cancellationToken).ConfigureAwait(false) ? row : null;
+                return await IsSupportMemberAsync(person, row, cancellationToken).ConfigureAwait(false) || await IsSupervisorAsync(person, row, cancellationToken).ConfigureAwait(false) ? row : null;
             }
 
             if (ScopeOf(row) is { } scope)

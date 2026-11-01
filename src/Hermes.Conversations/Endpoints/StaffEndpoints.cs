@@ -158,6 +158,16 @@ internal static class StaffEndpoints
             .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
             .Produces<ErrorBody>(StatusCodes.Status404NotFound)
             .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapGet("/support/live", (Delegate)LiveAsync)
+            .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapGet("/support/reports", (Delegate)ReportsAsync)
+            .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapPut("/support/conversations/{id}/tags", (Delegate)TagsAsync)
             .Produces(StatusCodes.Status204NoContent)
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
@@ -203,6 +213,85 @@ internal static class StaffEndpoints
             .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
             .Produces<ErrorBody>(StatusCodes.Status404NotFound)
             .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+    }
+
+    private static async Task<Results<JsonAnswer<LivesBody>, Refusal>> LiveAsync(HttpContext context)
+    {
+        if (await Identity.PersonAsync(context).ConfigureAwait(false) is not { } person)
+        {
+            return Identity.Unauthenticated();
+        }
+
+        if (Single(context.Request.Query, "topic") is not { } topic)
+        {
+            return RequestBodies.Malformed("topic");
+        }
+
+        return await CallAsync<JsonAnswer<LivesBody>>(context, async conversations =>
+        {
+            Result<IReadOnlyList<LiveConversation>> live = await conversations.LiveAsync(person, topic, context.RequestAborted).ConfigureAwait(false);
+            return live.Failure is { } refused
+                ? Refused(context, refused)
+                : new JsonAnswer<LivesBody>(
+                    new LivesBody([.. live.Value!.Select(each => new LiveBody(each.Conversation.Value.ToString("D"), ConversationSpellings.Of(each.Status), each.Assignee, each.Place, each.Waited))]),
+                    ConversationsJson.Default.LivesBody);
+        }).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<JsonAnswer<ReportBody>, Refusal>> ReportsAsync(HttpContext context)
+    {
+        if (await Identity.PersonAsync(context).ConfigureAwait(false) is not { } person)
+        {
+            return Identity.Unauthenticated();
+        }
+
+        IQueryCollection query = context.Request.Query;
+        if (Single(query, "topic") is not { } topic)
+        {
+            return RequestBodies.Malformed("topic");
+        }
+
+        if (!DateOnly.TryParseExact(Single(query, "from"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly from))
+        {
+            return RequestBodies.Malformed("from");
+        }
+
+        if (!DateOnly.TryParseExact(Single(query, "to"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly through))
+        {
+            return RequestBodies.Malformed("to");
+        }
+
+        return await CallAsync<JsonAnswer<ReportBody>>(context, async conversations =>
+        {
+            Result<IReadOnlyList<ReportFigures>> report = await conversations.ReportAsync(person, topic, from, through, context.RequestAborted).ConfigureAwait(false);
+            if (report.Failure is { } refused)
+            {
+                return Refused(context, refused);
+            }
+
+            IReadOnlyList<ReportFigures> figures = report.Value!;
+            return new JsonAnswer<ReportBody>(new ReportBody(Of(figures[0]), [.. figures.Skip(1).Select(Of)]), ConversationsJson.Default.ReportBody);
+        }).ConfigureAwait(false);
+    }
+
+    /// <summary>The one value of the query parameter <paramref name="name"/>, or none where it is absent or repeated.</summary>
+    private static string? Single(IQueryCollection query, string name)
+    {
+        return query.TryGetValue(name, out StringValues values) && values.Count == 1 ? values[0] : null;
+    }
+
+    private static FiguresBody Of(ReportFigures figures)
+    {
+        return new FiguresBody(
+            figures.Person,
+            figures.Closed,
+            figures.WaitMedian?.TotalSeconds,
+            figures.WaitP90?.TotalSeconds,
+            figures.HandleMedian?.TotalSeconds,
+            figures.HandleP90?.TotalSeconds,
+            figures.Surveys,
+            figures.ResolvedShare,
+            figures.MeanRating);
     }
 
     private static async Task<Results<NoContent, Refusal>> TagsAsync(HttpContext context, string id)
