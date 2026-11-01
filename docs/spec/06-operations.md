@@ -33,7 +33,8 @@ when the host starts, after its groups are mapped.
 The keys under `Hermes:Conversations:` are `Hermes.Conversations`' own: they are checked
 on the raw value at start, as the engine's are, only where conversations are registered
 (`04` MSG-LIB-003), and there a key under it that the package does not know stops the
-start, naming it (M-031).
+start with `messaging.startup.configurationinvalid`, `details.key` naming it. That rule
+is for `Hermes:Conversations:` alone (M-031).
 
 *Source: M-005, M-012, M-031*
 
@@ -45,7 +46,8 @@ start, naming it (M-031).
    outside its rule leaves the last valid value in force and raises the alert.
 3. Configuring `Hermes:Push:AllowedHosts` with one host leaves that host alone allowed.
 4. Where conversations are registered, a key under `Hermes:Conversations:` that
-   `Hermes.Conversations` does not know stops the start.
+   `Hermes.Conversations` does not know stops the start with
+   `messaging.startup.configurationinvalid`, `details.key` naming it.
 
 ---
 

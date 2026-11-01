@@ -15,11 +15,11 @@ project SHALL reference only what this item allows it.
 | `Hermes.Core` | The base class library only |
 | `Hermes.Channels` | `Hermes.Core`; MailKit; Lib.Net.Http.WebPush; the Microsoft.Extensions abstractions of `07` MSG-ENG-009 (its lifecycle services run the startup checks, since reading secrets is asynchronous) |
 | `Hermes` | `Hermes.Core`, `Hermes.Channels`; EF Core, its relational layer and the Npgsql provider; Fluid.Core; ASP.NET Core's shared framework |
-| `Hermes.Testing` | `Hermes.Core`, `Hermes.Channels`, `Hermes` |
+| `Hermes.Testing` | `Hermes.Core`, `Hermes.Channels`, `Hermes`, `Hermes.Conversations` |
 | `Hermes.Cli` (a .NET tool, command `hermes`) | `Hermes` |
 | `Hermes.Development` | `Hermes.Core`, `Hermes.Channels` (and MimeKit through it, for the email it keeps and the links it reads); ASP.NET Core's shared framework |
 | `Hermes.Conversations` | `Hermes.Core`, `Hermes`; ASP.NET Core's shared framework |
-| `tests/Hermes.Tests` | `Hermes`, `Hermes.Testing` and `Hermes.Development`, whose group its endpoint contract test maps and whose routes, bodies, codes and keys the release set reads with the engine's (MSG-LIB-006; `07` MSG-ENG-006), and the test packages of `07` MSG-ENG-009 |
+| `tests/Hermes.Tests` | `Hermes`, `Hermes.Testing`, `Hermes.Development`, whose group its endpoint contract test maps and whose routes, bodies, codes and keys the release set reads with the engine's (MSG-LIB-006; `07` MSG-ENG-006), `Hermes.Conversations`, whose endpoints and hubs its endpoint contract test maps (`07` MSG-ENG-006), and the test packages of `07` MSG-ENG-009 |
 | Any other test project | Its source project, `Hermes.Testing`, and the test packages of `07` MSG-ENG-009 |
 | `tests/Hermes.Repository.Tests` | Every shipped project, whose built assemblies its contract tests read (`07` MSG-ENG-004), and the test packages of `07` MSG-ENG-009 |
 | The sample host and its test project | The packed packages above, and for its tests the test packages of `07` MSG-ENG-009 |
@@ -145,6 +145,7 @@ to print none of them, so a log line that formats one writes none.
 | | `InboxFilter` | `string? To`, `string? Person`, `Channel? Channel`, `string? App`, `string? Kind`, `DateTimeOffset? After` |
 | | `InboxMessage` | `string Id`, `Channel Channel`, `string App`, `DateTimeOffset At`, `string? To`, `string? Person`, `string? Kind`, `string? Category`, `string? Language`, `string Summary`, `string Text`, `IReadOnlyList<string> Links`, `InboxEmail? Email`, `InboxSms? Sms`, `InboxPush? Push` (`02` MSG-DEV-003; `05` MSG-API-007) |
 | | `InboxEmail`, `InboxSms`, `InboxPush`, `InboxNotification` | `InboxEmail`: `EmailAddress From`, `EmailAddress? ReplyTo`, `string Subject`, `string Text`, `string? Html`, `string MessageId`, `Uri? Unsubscribe`, `IReadOnlyList<KeyValuePair<string, string>> Headers`, `string EmlPath` (the `.eml` beside the record). `InboxSms`: `string Sender`, `string Text`, `SmsEncoding Encoding`, `int Segments`, `string DeliveryReference`. `InboxPush`: `PushService Service`, `InboxNotification Notification`, `TimeSpan Ttl`, `PushUrgency Urgency`, `string? Topic`. `InboxNotification`: `string Title`, `string Body`, `string? Url`, `string? Tag`, `string? Lang`, `string? Dir`, `string? Icon`, `string? Badge` |
+| `Hermes.Conversations` | `MessagingConversationsServiceCollectionExtensions` | `AddHermesConversations(IServiceCollection)` answers the `IServiceCollection` (MSG-LIB-003) |
 
 Everything else is internal: the shipped providers, their options, the endpoints'
 request and response types (their wire shape is the contract, `05`), and the tables.
@@ -209,7 +210,9 @@ MSG-OPS-008).
 
 An application **registers conversations** (`09`) where it calls
 `services.AddHermesConversations()` of `Hermes.Conversations`, which it calls after
-`AddHermes`; without `AddHermes` the start fails, naming it. Its keys, under
+`AddHermes`: called without `AddHermes` before it, the call itself throws
+`InvalidOperationException` naming `AddHermes`, a fault of the calling code (`07`
+MSG-ENG-003), so it fails at the call and not at start. Its keys, under
 `Hermes:Conversations:`, are checked at start only where conversations are registered
 (`06` MSG-OPS-001), and the seams conversations need are required only there
 (MSG-LIB-005).
@@ -231,8 +234,9 @@ An application **registers conversations** (`09`) where it calls
    `contentKeys`, and its `SendAsync` throws.
 6. With a host's hosted service registered before `AddHermes` that sends in its
    `StartAsync`, the send is recorded only after the startup checks ran.
-7. A host that calls `AddHermesConversations` once, after `AddHermes`, starts; one that
-   calls it without `AddHermes` does not, and the failure names `AddHermes`.
+7. A host that calls `AddHermesConversations` once, after `AddHermes`, starts; a call to
+   `AddHermesConversations` without `AddHermes` before it throws
+   `InvalidOperationException` naming `AddHermes`, at the call and not at start.
 
 ---
 

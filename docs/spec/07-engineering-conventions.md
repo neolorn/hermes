@@ -46,12 +46,12 @@ packages are released together (`04` MSG-LIB-001). The sample host has an invent
 domain naming no real product or company (checked in review), declares a few kinds in an
 essential and an optional category, captures its messages in the development inbox when
 it runs (`02` MSG-DEV-001) while its tests send through the in-memory providers of
-`Hermes.Testing`, references `Hermes.Conversations` (M-031), maps every endpoint group,
-and runs in the gate (MSG-ENG-012) from packages packed from the same commit into
-`artifacts/packages/`, which `.gitignore` lists, at a version the gate passes it; it
-alone has no lockfile and no locked restore, since its packages change with every
-commit. The sample host and its test project are outside `Hermes.sln`, in
-`samples/Samples.sln`, and `samples/nuget.config` adds `artifacts/packages/` to the
+`Hermes.Testing`, references `Hermes.Conversations` and registers conversations (M-031),
+maps every endpoint group, and runs in the gate (MSG-ENG-012) from packages packed from
+the same commit into `artifacts/packages/`, which `.gitignore` lists, at a version the
+gate passes it; it alone has no lockfile and no locked restore, since its packages
+change with every commit. The sample host and its test project are outside `Hermes.sln`,
+in `samples/Samples.sln`, and `samples/nuget.config` adds `artifacts/packages/` to the
 package sources for them alone, so no other restore needs the folder. Both
 `nuget.config` files carry `packageSourceMapping`: the library's own package identifiers
 from `artifacts/packages/` only (in `samples/nuget.config`), and every other identifier
@@ -95,7 +95,8 @@ latest release when the workflow is written and pinned by that release's full co
    the repository adds to the scanner's configuration that is not of the form above.
 2. The sample host builds from the packages packed from the same commit, and its tests
    pass.
-3. The sample host references `Hermes.Conversations` and starts.
+3. The sample host references `Hermes.Conversations`, registers conversations, and
+   starts.
 
 ---
 
@@ -386,16 +387,17 @@ pushes to the empty default branch before setting its protection), commit messag
 follow Conventional Commits 1.0.0, a `CHANGELOG.md` SHALL follow Keep a Changelog 1.1.0,
 and MinVer SHALL derive the version from the tag.
 
-**Values (M-012, M-015, M-027).**
+**Values (M-012, M-015, M-027, M-031).**
 - **Commit message:** a type of `feat`, `fix`, `refactor`, `perf`, `test`, `docs`,
   `build`, `ci`, `chore`; an optional scope naming the package's area (`core`,
-  `channels`, `engine`, `testing`, `cli`, `sample`); a description in the imperative
-  (checked in review), beginning with a lower-case letter (a name it mentions keeps its
-  own spelling: `add the SMTP provider`), with no full stop, the first line at most 72
-  characters; a body only where the diff cannot explain itself (checked in review), as
-  dash fragments of at most 72 characters, each a reason or a non-obvious consequence; a
-  footer carrying the items the commit implements (`Implements: MSG-SEND-006`) and
-  nothing else; `!` or `BREAKING CHANGE:` for a break of `04` MSG-LIB-006.
+  `channels`, `engine`, `testing`, `cli`, `conversations`, `sample`); a description in
+  the imperative (checked in review), beginning with a lower-case letter (a name it
+  mentions keeps its own spelling: `add the SMTP provider`), with no full stop, the
+  first line at most 72 characters; a body only where the diff cannot explain itself
+  (checked in review), as dash fragments of at most 72 characters, each a reason or a
+  non-obvious consequence; a footer carrying the items the commit implements
+  (`Implements: MSG-SEND-006`) and nothing else; `!` or `BREAKING CHANGE:` for a break
+  of `04` MSG-LIB-006.
 - **Changelog:** every commit that changes behaviour, one of type `feat`, `fix` or
   `perf` or marked `!`, adds its line under `Unreleased` in the same commit (`Added`
   while nothing is released).
@@ -443,7 +445,7 @@ and MinVer SHALL derive the version from the tag.
   targets, not a documented setting, so `04` MSG-LIB-001's criterion 3 is what catches
   an SDK that changes them.
 
-*Source: M-012, M-014, M-015, M-020, M-021, M-022, M-023, M-027*
+*Source: M-012, M-014, M-015, M-020, M-021, M-022, M-023, M-027, M-031*
 
 **Acceptance criteria**
 1. A commit message outside the rule, and a behaviour-changing commit without a
