@@ -23,6 +23,7 @@ internal sealed partial class KeyedTable
     /// <param name="contentKeyVersion">The column recording the <c>contentKeys</c> version of a row's library values, required where it holds values.</param>
     /// <param name="hashVersion">The column recording the <c>hashKeys</c> version of a row's keyed hash, or none.</param>
     /// <param name="erasure">What an erasure does to the person's rows, where it has a person column.</param>
+    /// <param name="ownProtection">Whether its values are protected again by a step of their own (<see cref="IProtectAgain"/>), since what they protect lies outside the row.</param>
     internal KeyedTable(
         string name,
         string context,
@@ -30,7 +31,8 @@ internal sealed partial class KeyedTable
         IReadOnlyList<KeyedValue>? values = null,
         string? contentKeyVersion = null,
         string? hashVersion = null,
-        KeyedErasure erasure = KeyedErasure.Delete)
+        KeyedErasure erasure = KeyedErasure.Delete,
+        bool ownProtection = false)
     {
         Name = Identifier(name, nameof(name));
         Context = Identifier(context, nameof(context));
@@ -55,6 +57,7 @@ internal sealed partial class KeyedTable
         }
 
         Erasure = erasure;
+        OwnProtection = ownProtection;
     }
 
     /// <summary>The table's name in the schema <c>messaging</c>.</summary>
@@ -77,6 +80,9 @@ internal sealed partial class KeyedTable
 
     /// <summary>What an erasure does to the person's rows.</summary>
     internal KeyedErasure Erasure { get; }
+
+    /// <summary>Whether a step of its own protects its values again, the generic one leaving them.</summary>
+    internal bool OwnProtection { get; }
 
     /// <summary>The condition that no row of the table records <c>@version</c> in <paramref name="column"/>.</summary>
     internal string NoRowUnder(string column)

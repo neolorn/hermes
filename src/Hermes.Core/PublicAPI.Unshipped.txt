@@ -1,4 +1,38 @@
 #nullable enable
+Hermes.Core.AttachmentDownload
+Hermes.Core.AttachmentDownload.<Clone>$() -> Hermes.Core.AttachmentDownload!
+Hermes.Core.AttachmentDownload.Attachment.get -> Hermes.Core.AttachmentRecord!
+Hermes.Core.AttachmentDownload.Attachment.init -> void
+Hermes.Core.AttachmentDownload.AttachmentDownload() -> void
+Hermes.Core.AttachmentDownload.Content.get -> System.IO.Stream!
+Hermes.Core.AttachmentDownload.Content.init -> void
+Hermes.Core.AttachmentDownload.Equals(Hermes.Core.AttachmentDownload? other) -> bool
+Hermes.Core.AttachmentId
+Hermes.Core.AttachmentId.AttachmentId() -> void
+Hermes.Core.AttachmentId.AttachmentId(System.Guid Value) -> void
+Hermes.Core.AttachmentId.Deconstruct(out System.Guid Value) -> void
+Hermes.Core.AttachmentId.Equals(Hermes.Core.AttachmentId other) -> bool
+Hermes.Core.AttachmentId.Value.get -> System.Guid
+Hermes.Core.AttachmentId.Value.init -> void
+Hermes.Core.AttachmentRecord
+Hermes.Core.AttachmentRecord.<Clone>$() -> Hermes.Core.AttachmentRecord!
+Hermes.Core.AttachmentRecord.Attachment.get -> Hermes.Core.AttachmentId
+Hermes.Core.AttachmentRecord.Attachment.init -> void
+Hermes.Core.AttachmentRecord.AttachmentRecord() -> void
+Hermes.Core.AttachmentRecord.Equals(Hermes.Core.AttachmentRecord? other) -> bool
+Hermes.Core.AttachmentRecord.MediaType.get -> string!
+Hermes.Core.AttachmentRecord.MediaType.init -> void
+Hermes.Core.AttachmentRecord.Name.get -> string!
+Hermes.Core.AttachmentRecord.Name.init -> void
+Hermes.Core.AttachmentRecord.Size.get -> long
+Hermes.Core.AttachmentRecord.Size.init -> void
+Hermes.Core.AttachmentRecord.Status.get -> Hermes.Core.AttachmentStatus
+Hermes.Core.AttachmentRecord.Status.init -> void
+Hermes.Core.AttachmentStatus
+Hermes.Core.AttachmentStatus.Clean = 1 -> Hermes.Core.AttachmentStatus
+Hermes.Core.AttachmentStatus.Failed = 3 -> Hermes.Core.AttachmentStatus
+Hermes.Core.AttachmentStatus.Infected = 2 -> Hermes.Core.AttachmentStatus
+Hermes.Core.AttachmentStatus.Pending = 0 -> Hermes.Core.AttachmentStatus
 Hermes.Core.AuthorKind
 Hermes.Core.AuthorKind.Library = 2 -> Hermes.Core.AuthorKind
 Hermes.Core.AuthorKind.Person = 0 -> Hermes.Core.AuthorKind
@@ -64,6 +98,12 @@ Hermes.Core.ConversationType
 Hermes.Core.ConversationType.Direct = 2 -> Hermes.Core.ConversationType
 Hermes.Core.ConversationType.Group = 1 -> Hermes.Core.ConversationType
 Hermes.Core.ConversationType.Support = 0 -> Hermes.Core.ConversationType
+Hermes.Core.IAttachmentScanner
+Hermes.Core.IAttachmentScanner.ScanAsync(System.IO.Stream! content, string! mediaType, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.ScanResult>
+Hermes.Core.IAttachmentStore
+Hermes.Core.IAttachmentStore.DeleteAsync(string! key, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Hermes.Core.IAttachmentStore.OpenAsync(string! key, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.IO.Stream?>
+Hermes.Core.IAttachmentStore.PutAsync(string! key, System.IO.Stream! content, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
 Hermes.Core.IConversationMembership
 Hermes.Core.IConversationMembership.IsMemberAsync(string! person, Hermes.Core.ConversationScope! scope, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<bool>
 Hermes.Core.IConversationMembership.MembersAsync(Hermes.Core.ConversationScope! scope, System.Threading.CancellationToken cancellationToken) -> System.Collections.Generic.IAsyncEnumerable<string!>!
@@ -211,11 +251,22 @@ Hermes.Core.SavedReplyRecord.Text.get -> string!
 Hermes.Core.SavedReplyRecord.Text.init -> void
 Hermes.Core.SavedReplyRecord.Topic.get -> string?
 Hermes.Core.SavedReplyRecord.Topic.init -> void
+Hermes.Core.ScanResult
+Hermes.Core.ScanResult.Clean = 0 -> Hermes.Core.ScanResult
+Hermes.Core.ScanResult.Failed = 2 -> Hermes.Core.ScanResult
+Hermes.Core.ScanResult.Infected = 1 -> Hermes.Core.ScanResult
 Hermes.Core.ScopeKind
 Hermes.Core.ScopeKind.Group = 1 -> Hermes.Core.ScopeKind
 Hermes.Core.ScopeKind.Organization = 0 -> Hermes.Core.ScopeKind
 Hermes.Core.TemplateKey.Reply.get -> string?
 Hermes.Core.TemplateKey.Reply.init -> void
+override Hermes.Core.AttachmentDownload.Equals(object? obj) -> bool
+override Hermes.Core.AttachmentDownload.GetHashCode() -> int
+override Hermes.Core.AttachmentDownload.ToString() -> string!
+override Hermes.Core.AttachmentId.GetHashCode() -> int
+override Hermes.Core.AttachmentRecord.Equals(object? obj) -> bool
+override Hermes.Core.AttachmentRecord.GetHashCode() -> int
+override Hermes.Core.AttachmentRecord.ToString() -> string!
 override Hermes.Core.ConversationId.GetHashCode() -> int
 override Hermes.Core.ConversationPage.Equals(object? obj) -> bool
 override Hermes.Core.ConversationPage.GetHashCode() -> int
@@ -247,6 +298,12 @@ override Hermes.Core.SavedReplyId.GetHashCode() -> int
 override Hermes.Core.SavedReplyRecord.Equals(object? obj) -> bool
 override Hermes.Core.SavedReplyRecord.GetHashCode() -> int
 override Hermes.Core.SavedReplyRecord.ToString() -> string!
+static Hermes.Core.AttachmentDownload.operator !=(Hermes.Core.AttachmentDownload? left, Hermes.Core.AttachmentDownload? right) -> bool
+static Hermes.Core.AttachmentDownload.operator ==(Hermes.Core.AttachmentDownload? left, Hermes.Core.AttachmentDownload? right) -> bool
+static Hermes.Core.AttachmentId.operator !=(Hermes.Core.AttachmentId left, Hermes.Core.AttachmentId right) -> bool
+static Hermes.Core.AttachmentId.operator ==(Hermes.Core.AttachmentId left, Hermes.Core.AttachmentId right) -> bool
+static Hermes.Core.AttachmentRecord.operator !=(Hermes.Core.AttachmentRecord? left, Hermes.Core.AttachmentRecord? right) -> bool
+static Hermes.Core.AttachmentRecord.operator ==(Hermes.Core.AttachmentRecord? left, Hermes.Core.AttachmentRecord? right) -> bool
 static Hermes.Core.ConversationId.operator !=(Hermes.Core.ConversationId left, Hermes.Core.ConversationId right) -> bool
 static Hermes.Core.ConversationId.operator ==(Hermes.Core.ConversationId left, Hermes.Core.ConversationId right) -> bool
 static Hermes.Core.ConversationPage.operator !=(Hermes.Core.ConversationPage? left, Hermes.Core.ConversationPage? right) -> bool
@@ -273,6 +330,8 @@ static Hermes.Core.SavedReplyId.operator !=(Hermes.Core.SavedReplyId left, Herme
 static Hermes.Core.SavedReplyId.operator ==(Hermes.Core.SavedReplyId left, Hermes.Core.SavedReplyId right) -> bool
 static Hermes.Core.SavedReplyRecord.operator !=(Hermes.Core.SavedReplyRecord? left, Hermes.Core.SavedReplyRecord? right) -> bool
 static Hermes.Core.SavedReplyRecord.operator ==(Hermes.Core.SavedReplyRecord? left, Hermes.Core.SavedReplyRecord? right) -> bool
+~override Hermes.Core.AttachmentId.Equals(object obj) -> bool
+~override Hermes.Core.AttachmentId.ToString() -> string
 ~override Hermes.Core.ConversationId.Equals(object obj) -> bool
 ~override Hermes.Core.ConversationId.ToString() -> string
 ~override Hermes.Core.MessageId.Equals(object obj) -> bool

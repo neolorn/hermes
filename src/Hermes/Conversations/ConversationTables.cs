@@ -28,7 +28,13 @@ internal static class ConversationTables
     /// <summary>The field of a support conversation's offline address.</summary>
     internal const string Email = "email";
 
-    /// <summary>The field of a support conversation's survey comment (<c>09</c> MSG-CONV-004).</summary>
+    /// <summary>The table an attachment's values are bound to (<c>09</c> MSG-CONV-009).</summary>
+    internal const string Attachments = "attachments";
+
+    /// <summary>The field of an attachment's file name.</summary>
+    internal const string Name = "name";
+
+    /// <summary>The field of an attachment's survey comment (<c>09</c> MSG-CONV-004).</summary>
     internal const string SurveyComment = "surveycomment";
 
     internal static KeyedTable[] All { get; } =
@@ -40,6 +46,9 @@ internal static class ConversationTables
         new KeyedTable("conversations", Conversations, person: "closed_by", erasure: KeyedErasure.Clear),
         new KeyedTable("conversations", Conversations, person: "customer", values: [new KeyedValue("survey_comment", SurveyComment)], contentKeyVersion: "survey_comment_key_version"),
         new KeyedTable("conversations", Conversations, person: "survey_person", erasure: KeyedErasure.Clear),
+        new KeyedTable("attachments", Attachments, person: "owner", values: [new KeyedValue("name", Name)], contentKeyVersion: "content_key_version", erasure: KeyedErasure.Clear, ownProtection: true),
+        new KeyedTable("attachments", Attachments, person: "uploader", erasure: KeyedErasure.Clear),
+        new KeyedTable("attachments", Attachments, hashVersion: "hash_version"),
         new KeyedTable("participants", "participants", person: "person", hashVersion: "hash_version"),
         new KeyedTable("mentions", "mentions", person: "person"),
         new KeyedTable("connections", "connections", person: "person"),

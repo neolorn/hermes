@@ -80,6 +80,8 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
     internal DbSet<SupportReplyRow> SupportReplies => Set<SupportReplyRow>();
 
+    internal DbSet<AttachmentRow> Attachments => Set<AttachmentRow>();
+
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
     {
@@ -724,6 +726,44 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             reply.Property(row => row.Name).HasColumnName("name");
             reply.Property(row => row.Text).HasColumnName("text");
             reply.Property(row => row.CreatedAt).HasColumnName("created_at");
+        });
+
+        modelBuilder.Entity<AttachmentRow>(attachment =>
+        {
+            attachment.ToTable("attachments", table =>
+            {
+                table.HasCheckConstraint("ck_attachments_status", $"status IN ({InList(ConversationSpellings.AllAttachmentStatuses)})");
+                table.HasCheckConstraint("ck_attachments_uploader", "uploader IS NULL OR visitor IS NULL");
+                table.HasCheckConstraint("ck_attachments_size", "size >= 0 AND chunks >= 0 AND scan_attempts >= 0");
+            });
+            attachment.HasKey(row => row.Id).HasName("pk_attachments");
+            attachment.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            attachment.Property(row => row.ConversationId).HasColumnName("conversation_id");
+            attachment.Property(row => row.MessageId).HasColumnName("message_id");
+            attachment.Property(row => row.NamedAt).HasColumnName("named_at");
+            attachment.Property(row => row.Uploader).HasColumnName("uploader");
+            attachment.Property(row => row.Visitor).HasColumnName("visitor");
+            attachment.Property(row => row.HashVersion).HasColumnName("hash_version");
+            attachment.Property(row => row.Owner).HasColumnName("owner");
+            attachment.Property(row => row.Name).HasColumnName("name");
+            attachment.Property(row => row.ContentKeyVersion).HasColumnName("content_key_version");
+            attachment.Property(row => row.MediaType).HasColumnName("media_type");
+            attachment.Property(row => row.Size).HasColumnName("size");
+            attachment.Property(row => row.Chunks).HasColumnName("chunks");
+            attachment.Property(row => row.StoreKey).HasColumnName("store_key");
+            attachment.Property(row => row.Status).HasColumnName("status");
+            attachment.Property(row => row.ScanAttempts).HasColumnName("scan_attempts");
+            attachment.Property(row => row.ScanAt).HasColumnName("scan_at");
+            attachment.Property(row => row.CreatedAt).HasColumnName("created_at");
+            attachment.HasIndex(row => row.ConversationId).HasDatabaseName("ix_attachments_conversation_id");
+            attachment.HasIndex(row => row.MessageId).HasDatabaseName("ix_attachments_message_id");
+            attachment.HasIndex(row => row.Owner).HasDatabaseName("ix_attachments_owner");
+            attachment.HasIndex(row => row.Uploader).HasDatabaseName("ix_attachments_uploader");
+            attachment.HasIndex(row => row.ContentKeyVersion).HasDatabaseName("ix_attachments_content_key_version");
+            attachment.HasIndex(row => row.ScanAt).HasDatabaseName("ix_attachments_scan_at");
+            attachment.HasIndex(row => row.CreatedAt).HasDatabaseName("ix_attachments_created_at");
+            attachment.HasOne<ConversationRow>().WithMany().HasForeignKey(row => row.ConversationId).HasConstraintName("fk_attachments_conversations").OnDelete(DeleteBehavior.SetNull);
+            attachment.HasOne<MessageRow>().WithMany().HasForeignKey(row => row.MessageId).HasConstraintName("fk_attachments_messages").OnDelete(DeleteBehavior.SetNull);
         });
     }
 

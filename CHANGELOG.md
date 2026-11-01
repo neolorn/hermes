@@ -145,6 +145,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   days of the close, its comment protected as the conversation's messages are. The key
   `Support:TranscriptKind` is required where topics are configured, and the page
   `transcript` is checked at start in every declared language
+- The seams `IAttachmentStore` and `IAttachmentScanner` of `Hermes.Core`, with
+  `AttachmentId`, `AttachmentRecord`, `AttachmentDownload`, `AttachmentStatus` and
+  `ScanResult`; and the migration `Attachments`, which adds the table `attachments`, its
+  conversation and message set to none when their rows go, and admits the job
+  `attachment-scans` and the alert `attachment-scan`; no key version an attachment uses is
+  retired, and the retention job leaves its re-protection to the conversations package
 
 ### Fixed
 

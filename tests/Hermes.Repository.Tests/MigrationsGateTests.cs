@@ -34,6 +34,7 @@ public sealed class MigrationsGateTests
             "20261101030513_SupportSide",
             "20261101040645_DeskTools",
             "20261101051157_SupportEnd",
+            "20261101063139_Attachments",
         ];
 
         Assert.True(run.ExitCode == 0, run.Output);
