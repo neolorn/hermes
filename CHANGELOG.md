@@ -137,6 +137,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the counters `hermes.conversations.started` and `hermes.conversations.closed` count
   each start and each close; a snooze, and its wake, push the conversation to its
   assignee
+- The end of a support conversation, through the public group once it is closed: its
+  transcript, every message but notes, oldest first, in the conversation's language,
+  naming no staff member, as plain text of at most 1 MiB with the oldest messages left out
+  past a bound; the transcript sent by email as `Hermes:Conversations:Support:TranscriptKind`
+  at most three times, to the address given; and its survey, answered once within seven
+  days of the close, its comment protected as the conversation's messages are. The key
+  `Support:TranscriptKind` is required where topics are configured, and the page
+  `transcript` is checked at start in every declared language
 
 ### Fixed
 

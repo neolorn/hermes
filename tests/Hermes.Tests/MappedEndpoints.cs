@@ -60,6 +60,8 @@ internal static class MappedEndpoints
         [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/messages"] = BodyMembers.ConversationsBody("EditRequest"),
         [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/read"] = BodyMembers.ConversationsBody("ReadRequest"),
         [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/close"] = typeof(EmptyBody),
+        [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/transcript/email"] = BodyMembers.ConversationsBody("TranscriptEmailRequest"),
+        [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/survey"] = BodyMembers.ConversationsBody("SurveyRequest"),
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>Each mapped route, with the responses its metadata declares.</summary>

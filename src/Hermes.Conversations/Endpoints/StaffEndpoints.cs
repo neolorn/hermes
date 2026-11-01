@@ -952,8 +952,8 @@ internal static class StaffEndpoints
         int status = failure.Code switch
         {
             ChatCodes.ConversationNotFound or ChatCodes.MessageNotFound or ChatCodes.ReplyNotFound => StatusCodes.Status404NotFound,
-            ChatCodes.ConversationInvalid or ChatCodes.MessageInvalid or ChatCodes.ReplyInvalid or Codes.RequestMalformed => StatusCodes.Status400BadRequest,
-            ChatCodes.ConversationFull or ChatCodes.MessageDeleted or ChatCodes.ConversationClosed or ChatCodes.ReplyFull or ChatCodes.ReplyNameExists or SupportCodes.Offline or SupportCodes.NoticeRequired or SupportCodes.AlreadyOpen => StatusCodes.Status409Conflict,
+            ChatCodes.ConversationInvalid or ChatCodes.MessageInvalid or ChatCodes.ReplyInvalid or SupportCodes.SurveyInvalid or Codes.RequestMalformed => StatusCodes.Status400BadRequest,
+            ChatCodes.ConversationFull or ChatCodes.MessageDeleted or ChatCodes.ConversationClosed or ChatCodes.ReplyFull or ChatCodes.ReplyNameExists or SupportCodes.Offline or SupportCodes.NoticeRequired or SupportCodes.AlreadyOpen or SupportCodes.NotClosed or SupportCodes.TranscriptLimit or SupportCodes.SurveyAnswered or SupportCodes.SurveyClosed => StatusCodes.Status409Conflict,
             ChatCodes.MessageNotAuthor or SupportCodes.Blocked => StatusCodes.Status403Forbidden,
             SupportCodes.Limited => StatusCodes.Status429TooManyRequests,
             _ => StatusCodes.Status503ServiceUnavailable,

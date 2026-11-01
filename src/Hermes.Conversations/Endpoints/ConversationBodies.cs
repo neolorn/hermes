@@ -199,3 +199,13 @@ internal sealed record ReportBody(FiguresBody Topic, IReadOnlyList<FiguresBody> 
 /// <param name="ResolvedShare">The share of them that say resolved.</param>
 /// <param name="MeanRating">Their mean rating.</param>
 internal sealed record FiguresBody(string? Person, int Closed, double? WaitMedian, double? WaitP90, double? HandleMedian, double? HandleP90, int Surveys, decimal? ResolvedShare, decimal? MeanRating);
+
+/// <summary>The body of <c>POST /support/conversations/{id}/transcript/email</c> (<c>05</c> MSG-API-010).</summary>
+/// <param name="Email">The address to send the transcript to.</param>
+internal sealed record TranscriptEmailRequest(string? Email);
+
+/// <summary>The body of <c>POST /support/conversations/{id}/survey</c> (<c>05</c> MSG-API-010).</summary>
+/// <param name="Resolved">Whether the conversation resolved the matter.</param>
+/// <param name="Rating">The rating, 1 to 5.</param>
+/// <param name="Comment">A comment of up to 1,000 characters, or none.</param>
+internal sealed record SurveyRequest(bool? Resolved, int? Rating, string? Comment);

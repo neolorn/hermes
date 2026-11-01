@@ -264,6 +264,7 @@ internal sealed class ChatHost : IAsyncDisposable
 
             return ValueTask.FromResult<string?>(key.Kind is null ? null
                 : key.Kind == SupportTests.ReplyKind ? key.Part == "subject" ? "About {{ topic }}" : "{{ text }}"
+                : key.Kind == SupportTests.TranscriptKind ? key.Part == "subject" ? "Your conversation about {{ topic }}" : "{{ transcript }}"
                 : key.Part == "title" ? "A message" : "In a {{ conversationType }} conversation");
         }
     }
