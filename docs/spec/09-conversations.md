@@ -534,7 +534,66 @@ attachment is protected as its message is (MSG-CONV-009), as bytes (`04` MSG-LIB
 storage seam is required where attachments are on; object storage is the expected
 implementation.
 
-*Source: M-011*
+**Switch and bounds (M-037).**
+- `Hermes:Conversations:Attachments:Enabled`, default `false` (`08` section 4).
+- `MaxBytes`, default 10 MiB, from 1 KiB to 50 MiB.
+- `Types`, the allowed media types, default `image/jpeg`, `image/png` and
+  `application/pdf`.
+- A file's declared type must be allowed. For the types the library knows (JPEG, PNG,
+  WebP, GIF, PDF), its first bytes must match it too.
+- Otherwise it answers 400 `messaging.attachment.type`. Over the size it answers 413
+  `messaging.attachment.toolarge`.
+
+**The storage seam (M-037).** `IAttachmentStore` of `Hermes.Core`, required where
+attachments are enabled (`04` MSG-LIB-005):
+- `PutAsync(string key, Stream content, CancellationToken)`;
+- `OpenAsync(string key, CancellationToken)`, answering `Stream?`;
+- `DeleteAsync(string key, CancellationToken)`.
+
+The key is drawn by the library, 128 random bits in base64url, and names nothing. The
+store holds only protected bytes (MSG-CONV-009).
+
+**The scanning seam (M-037).** `IAttachmentScanner` of `Hermes.Core`, required where
+attachments are enabled (`04` MSG-LIB-005):
+`ScanAsync(Stream content, string mediaType, CancellationToken)`, answering `Clean`,
+`Infected` or `Failed`.
+- A new job, `attachment-scans`, runs every 30 seconds under the engine's job claims
+  (`06` MSG-OPS-004), and scans each pending attachment.
+- `Clean` opens it.
+- `Infected` deletes its bytes from the store and marks the row `infected`.
+- `Failed` retries with backoff, up to 5 times, then marks the row `failed` and raises
+  the alert `attachment-scan` (`06` MSG-OPS-006).
+
+**Upload and use (M-037).**
+- An attachment is uploaded on its own, a single-file multipart body, through the staff
+  group's attachments route and, where enabled, the public group's (`05` MSG-API-009,
+  MSG-API-010). It answers 201 with `id`, `name`, `mediaType`, `size` and `status`
+  (`pending`).
+- A message names up to 10 of its writer's attachments in `attachments`. An attachment
+  is named by one message only.
+- One not named within 24 hours is deleted by the `attachment-scans` job.
+
+**Download (M-037).**
+- The attachment route streams it through the library after the conversation's access
+  check, never as a link to the store, with `Content-Disposition: attachment`, its media
+  type, and `X-Content-Type-Options: nosniff`.
+- While pending it answers 409 `messaging.attachment.pending`. Infected or failed, it
+  answers 409 `messaging.attachment.refused`.
+- A visitor never reaches one in a `note`.
+
+**Retention (M-037).** An attachment goes, from the store and its row, with its message
+whenever the message goes (MSG-CONV-009). A store deletion that fails is retried by the
+`attachment-scans` job until it succeeds.
+
+*Source: M-011, M-037*
+
+**Acceptance criteria**
+1. Nothing opens before a clean scan. Infected is deleted and refused, and failed raises
+   the alert.
+2. A file of a refused type, or one whose bytes deny its declared type, is refused, and
+   one over `MaxBytes` answers 413.
+3. Downloads stream after the access check, with `nosniff` and as an attachment.
+4. An unnamed upload is gone after 24 hours.
 
 ---
 
@@ -644,7 +703,20 @@ untouched.
 - A survey's comment is under the conversation's key, its context
   `conversations:<id>:surveycomment` (MSG-CONV-004, M-036).
 
-*Source: M-011, M-032, M-034, M-036*
+**Attachments (M-037).**
+- An attachment's bytes are protected in chunks of 64 KiB. Each chunk is an envelope
+  under the key of its message's protection, bound to `attachments:<id>:chunk:<n>`, so
+  no whole file is held in memory. The chunks are stored through the storage seam
+  (MSG-CONV-007).
+- The file name (1 to 255 characters, with path separators and control characters
+  refused) is a protected value of the row.
+- Key retirement keeps an attachment's key version in use. Re-protection reads and
+  rewrites its chunks through the store, under the rule that the engine knows each table
+  (`06` MSG-OPS-002).
+- An attachment goes, from the store and its row, with its message whenever the message
+  goes, and when an erasure clears its message's text.
+
+*Source: M-011, M-032, M-034, M-036, M-037*
 
 **Acceptance criteria**
 1. A message's protected text copied to another row does not open. A key version a
@@ -652,6 +724,10 @@ untouched.
 2. Erasing an author clears their messages' text, which then reads `Erased`, with the
    library's protector and a host's alike, and removes their participant and mention
    rows. Other messages are untouched.
+3. The store holds only protected chunks, and a chunk moved to another attachment does
+   not open.
+4. Erasure and the message's going delete the stored bytes, and a key version an
+   attachment uses is never retired.
 
 ---
 

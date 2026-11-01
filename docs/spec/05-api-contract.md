@@ -324,13 +324,15 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | `GET /conversations/group/{kind}/{reference}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline", "tags", "snoozedUntil" }`: the scope's conversation, created the first time a member opens it; **400** `messaging.conversation.invalid`, `details.field` `kind`, for a kind that does not read; **400** `messaging.request.malformed`, `details.member` `reference`, for a reference outside 1 to 128 characters; **404** `messaging.conversation.notfound` for a person who is not a member; **503** as for `GET /inapp` |
 | `GET /conversations/{id}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline", "tags", "snoozedUntil" }`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `GET /conversations/{id}/messages` | | **200** `{ "messages": [ <message> ] }`, newest first, or oldest first from `after`; query `before` or `after`, a message's identifier, and `size`, 1 to 100, default 50; **400** `messaging.request.malformed`, `details.member` `before`, `after` or `size`, for one outside its rule; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
-| `POST /conversations/{id}/messages` | `{ "text", "type", "replyTo", "mentions" }` | **201** `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }`; **400** `messaging.message.invalid`, `details.field` `text`, `mentions`, `replyTo` or `type`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `POST /conversations/{id}/messages` | `{ "text", "type", "replyTo", "mentions", "attachments" }` | **201** `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }`; **400** `messaging.message.invalid`, `details.field` `text`, `mentions`, `replyTo` or `type`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `PUT /conversations/{id}/messages/{messageId}` | `{ "text" }` | **204**; **400** `messaging.message.invalid`, `details.field` `text`; **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound`; **409** `messaging.message.deleted` for a deleted message; **503** as for `GET /inapp` |
 | `DELETE /conversations/{id}/messages/{messageId}` | | **204**, a message already deleted included; **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `POST /conversations/{id}/read` | `{ "messageId" }` | **204**; **404** `messaging.message.notfound` for a message the conversation does not hold, or `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `PUT /conversations/{id}/mute` | `{ "muted" }` | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `POST /conversations/{id}/participants` | `{ "participants" }` | **204**; **400** `messaging.conversation.invalid`, `details.field` `type`, for a group conversation; **404** `messaging.conversation.notfound`; **409** `messaging.conversation.full` past 16 participants; **503** as for `GET /inapp` |
 | `POST /conversations/{id}/leave` | `{ }` | **204**; **400** `messaging.conversation.invalid`, `details.field` `type`, for a group conversation; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `POST /conversations/{id}/attachments` | A single-file multipart body | **201** `{ "id", "name", "mediaType", "size", "status" }`, `status` `pending`; **400** `messaging.attachment.type` for a type not allowed, or bytes that do not match it; **404** `messaging.conversation.notfound`; **413** `messaging.attachment.toolarge` over `MaxBytes`; **503** as for `GET /inapp` |
+| `GET /conversations/{id}/attachments/{attachmentId}` | | **200** the file, streamed, its media type, with `Content-Disposition: attachment` and `X-Content-Type-Options: nosniff`; **404** `messaging.conversation.notfound`; **409** `messaging.attachment.pending` while it is pending, or `messaging.attachment.refused` once infected or failed; **503** as for `GET /inapp` |
 | `GET /support/queue` | | **200** `{ "conversations": [ <conversation> ] }`: the topic's queued conversations, oldest first; query `topic`; **400** `messaging.request.malformed`, `details.member` `topic`, for a topic not configured |
 | `PUT /support/availability` | `{ "available" }` | **204**; **503** as for `GET /inapp` |
 | `POST /support/conversations/{id}/transfer` | `{ "person", "topic" }`, one of the two | **204**; **400** `messaging.conversation.invalid`, `details.field` `person` for a person outside the topic's scope, or `topic` for a topic not configured; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
@@ -396,11 +398,14 @@ person outside its scope, answer 404 `messaging.reply.notfound` on every replies
 never 403. A topic's supervisors (M-036) read its live view through `GET /support/live`,
 and its reports through `GET /support/reports`, with `topic`, `from` and `to`; a person
 who supervises no topic named answers 404 `messaging.conversation.notfound` (`09`
-MSG-CONV-005). In `<live>`, `assignee` is a person reference, `place` is `null` once the
-conversation is assigned, and `waited` is the whole minutes since it was queued; in
-`<figures>`, `person` is the staff member, `null` for the topic as a whole, the times
-are in seconds, and a figure with no data is `null`; `from` and `to` are dates,
-`yyyy-MM-dd`, both included.
+MSG-CONV-005). Where attachments are enabled (M-037), an attachment is uploaded on its
+own, then named by a message in `attachments`, up to 10 of its writer's, each named by
+one message only; it opens only after a clean scan, and streams through the library
+after the conversation's access check (`09` MSG-CONV-007). In `<live>`, `assignee` is a
+person reference, `place` is `null` once the conversation is assigned, and `waited` is
+the whole minutes since it was queued; in `<figures>`, `person` is the staff member,
+`null` for the topic as a whole, the times are in seconds, and a figure with no data is
+`null`; `from` and `to` are dates, `yyyy-MM-dd`, both included.
 
 **The staff hub (M-033).** The group also maps the staff hub at `/live`, so the host's
 authorization covers it too (`09` MSG-CONV-008). The person comes from
@@ -418,7 +423,7 @@ it missed from the messages route with `after`, since every push follows the sto
 | `conversation` | The server | `conversation`: one added to the person's list, as `<conversation>` |
 | `Typing` | The client | `conversationId` |
 
-*Source: M-032, M-033, M-034, M-035, M-036*
+*Source: M-032, M-033, M-034, M-035, M-036, M-037*
 
 **Acceptance criteria**
 1. Each route does what its operation does, and the endpoint contract test finds exactly
@@ -461,7 +466,9 @@ refusals are the engine's, as MSG-API-001 gives. `MapHermesPublicConversations` 
 the group's `RouteGroupBuilder`. Once a support conversation is closed (M-036), its
 visitor or customer reads its transcript, has it sent by email at most three times, to
 the `email` they give, and answers its survey once, within seven days of the close;
-`comment` is optional (`09` MSG-CONV-004).
+`comment` is optional (`09` MSG-CONV-004). Where enabled, the public group takes
+attachments too, as the staff group does, and a visitor never reaches one in a `note`
+(M-037; `09` MSG-CONV-007).
 
 **The public hub.** The group also maps the public hub at `/live`, authenticated by the
 same cookie (`09` MSG-CONV-008). Its payloads are the staff hub's shapes, a
@@ -477,7 +484,7 @@ conversation's without `tags` and `snoozedUntil`.
 | `closed` | The server | `conversationId` |
 | `Typing` | The client | `conversationId` |
 
-*Source: M-034, M-035, M-036*
+*Source: M-034, M-035, M-036, M-037*
 
 **Acceptance criteria**
 1. The contract test finds exactly the public routes and hub.

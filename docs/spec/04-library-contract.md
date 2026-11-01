@@ -296,7 +296,7 @@ prefix and answering the group's `RouteGroupBuilder`:
 **MSG-LIB-005** — A host SHALL supply what only it knows through the seams of
 MSG-LIB-002, and the library SHALL refuse to start without a required one.
 
-**Values (M-005, M-006, M-007, M-026, M-031, M-032).**
+**Values (M-005, M-006, M-007, M-026, M-031, M-032, M-037).**
 
 | Seam | Required | `details.key` |
 |---|---|---|
@@ -308,6 +308,8 @@ MSG-LIB-002, and the library SHALL refuse to start without a required one.
 | `ITemplateSource` | No: the library's own is used (`03` MSG-TPL-006) | |
 | `IDeliveryObserver` | Where `Hermes:Observer:Enabled` and `Hermes:Dispatch:Enabled` are both on (`01` MSG-SEND-017) | `deliveryObserver` |
 | `IConversationMembership` | Where conversations are registered (MSG-LIB-003; `09` MSG-CONV-006) | `conversationMembership` |
+| `IAttachmentStore` | Where attachments are enabled (`Hermes:Conversations:Attachments:Enabled`; `09` MSG-CONV-007) | `attachmentStore` |
+| `IAttachmentScanner` | Where attachments are enabled (`Hermes:Conversations:Attachments:Enabled`; `09` MSG-CONV-007) | `attachmentScanner` |
 | `IAlertSink` | No: the library's own logs each condition at the error level | |
 | `TimeProvider` | No: the system clock | |
 
@@ -320,7 +322,7 @@ where conversations are registered (MSG-LIB-003), and joins the table above, wit
 `details.key`, in the phase that adds it; missing there, it stops the start with
 `messaging.startup.declarationmissing` and that key.
 
-*Source: M-005, M-006, M-007, M-022, M-026, M-031, M-032*
+*Source: M-005, M-006, M-007, M-022, M-026, M-031, M-032, M-037*
 
 **Acceptance criteria**
 1. Each required seam, missing where it is required, stops the start naming it.
