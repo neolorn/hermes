@@ -116,6 +116,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `waiting` and `closing`, and closes a support conversation silent for
   `Support:CloseAfter` with a `system` message without text; only a staff member's, a
   visitor's or a customer's `text` restarts the silence
+- The migration `SupportEnd`, which adds to `conversations` a support conversation's
+  survey (`survey_at`, `survey_resolved`, `survey_rating`, `survey_comment` with
+  `survey_comment_key_version`, and `survey_person`) and `transcript_sends`; the comment
+  is protected as the conversation's messages are, protected again when the content keys
+  turn and deleted with a customer's conversation, and erasing the staff member rated
+  empties `survey_person` and keeps the survey; it drops and rewrites nothing
+- The library's page `transcript`, in `en` and `ar`, whose one part is `text`
+- The counters `hermes.conversations.started` and `hermes.conversations.closed`, each
+  tagged `topic`
 
 ### Fixed
 

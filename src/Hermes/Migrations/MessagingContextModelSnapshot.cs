@@ -143,6 +143,30 @@ namespace Hermes.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
+                    b.Property<DateTimeOffset?>("SurveyAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("survey_at");
+
+                    b.Property<byte[]>("SurveyComment")
+                        .HasColumnType("bytea")
+                        .HasColumnName("survey_comment");
+
+                    b.Property<int?>("SurveyCommentKeyVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("survey_comment_key_version");
+
+                    b.Property<string>("SurveyPerson")
+                        .HasColumnType("text")
+                        .HasColumnName("survey_person");
+
+                    b.Property<int?>("SurveyRating")
+                        .HasColumnType("integer")
+                        .HasColumnName("survey_rating");
+
+                    b.Property<bool?>("SurveyResolved")
+                        .HasColumnType("boolean")
+                        .HasColumnName("survey_resolved");
+
                     b.PrimitiveCollection<string[]>("Tags")
                         .IsRequired()
                         .HasColumnType("text[]")
@@ -151,6 +175,12 @@ namespace Hermes.Migrations
                     b.Property<string>("Topic")
                         .HasColumnType("text")
                         .HasColumnName("topic");
+
+                    b.Property<int>("TranscriptSends")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("transcript_sends");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -185,12 +215,21 @@ namespace Hermes.Migrations
                     b.HasIndex("SnoozedUntil")
                         .HasDatabaseName("ix_conversations_snoozed_until");
 
+                    b.HasIndex("SurveyCommentKeyVersion")
+                        .HasDatabaseName("ix_conversations_survey_comment_key_version");
+
+                    b.HasIndex("SurveyPerson")
+                        .HasDatabaseName("ix_conversations_survey_person");
+
                     b.HasIndex("WaitingAt")
                         .HasDatabaseName("ix_conversations_waiting_at");
 
                     b.HasIndex("ScopeKind", "ScopeReference")
                         .IsUnique()
                         .HasDatabaseName("ux_conversations_scope");
+
+                    b.HasIndex("Topic", "ClosedAt")
+                        .HasDatabaseName("ix_conversations_topic_closed_at");
 
                     b.HasIndex("Topic", "QueuedAt", "Id")
                         .HasDatabaseName("ix_conversations_topic_queued_at");
@@ -207,7 +246,13 @@ namespace Hermes.Migrations
 
                             t.HasCheckConstraint("ck_conversations_status", "status IN ('open', 'snoozed', 'closed')");
 
+                            t.HasCheckConstraint("ck_conversations_survey", "(survey_at IS NULL) = (survey_rating IS NULL) AND (survey_at IS NULL) = (survey_resolved IS NULL)");
+
+                            t.HasCheckConstraint("ck_conversations_survey_rating", "survey_rating IS NULL OR survey_rating BETWEEN 1 AND 5");
+
                             t.HasCheckConstraint("ck_conversations_topic", "(type = 'support') = (topic IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_conversations_transcript_sends", "transcript_sends BETWEEN 0 AND 3");
 
                             t.HasCheckConstraint("ck_conversations_type", "type IN ('support', 'group', 'direct')");
                         });

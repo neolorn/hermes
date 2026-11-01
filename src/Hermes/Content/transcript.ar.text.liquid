@@ -1,0 +1,9 @@
+نص محادثتك بشأن {{ topic }}
+فُتحت {{ openedAt | format_date: "g" }}. أُغلقت {{ closedAt | format_date: "g" }}.
+{%- if omitted > 0 %}
+لم تُدرج {{ omitted }} من الرسائل الأقدم.
+{%- endif %}
+{% for message in messages %}
+{{ message.sentAt | format_date: "g" }}، {% case message.author %}{% when "visitor" %}أنت{% when "staff" %}الدعم{% else %}رد آلي{% endcase %}:
+{{ message.text }}
+{% endfor %}

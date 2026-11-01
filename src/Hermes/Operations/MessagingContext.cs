@@ -527,6 +527,9 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
                 table.HasCheckConstraint("ck_conversations_scope", "(type = 'group') = (scope_kind IS NOT NULL) AND (scope_kind IS NULL) = (scope_reference IS NULL)");
                 table.HasCheckConstraint("ck_conversations_topic", "(type = 'support') = (topic IS NOT NULL)");
                 table.HasCheckConstraint("ck_conversations_email", "(email IS NULL) OR offline");
+                table.HasCheckConstraint("ck_conversations_survey_rating", "survey_rating IS NULL OR survey_rating BETWEEN 1 AND 5");
+                table.HasCheckConstraint("ck_conversations_survey", "(survey_at IS NULL) = (survey_rating IS NULL) AND (survey_at IS NULL) = (survey_resolved IS NULL)");
+                table.HasCheckConstraint("ck_conversations_transcript_sends", "transcript_sends BETWEEN 0 AND 3");
             });
             conversation.HasKey(row => row.Id).HasName("pk_conversations");
             conversation.HasIndex(row => new { row.ScopeKind, row.ScopeReference }).IsUnique().HasDatabaseName("ux_conversations_scope");
@@ -564,6 +567,16 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             conversation.HasIndex(row => row.WaitingAt).HasDatabaseName("ix_conversations_waiting_at");
             conversation.HasIndex(row => row.ClosingAt).HasDatabaseName("ix_conversations_closing_at");
             conversation.HasIndex(row => row.CloseAt).HasDatabaseName("ix_conversations_close_at");
+            conversation.Property(row => row.SurveyAt).HasColumnName("survey_at");
+            conversation.Property(row => row.SurveyResolved).HasColumnName("survey_resolved");
+            conversation.Property(row => row.SurveyRating).HasColumnName("survey_rating");
+            conversation.Property(row => row.SurveyComment).HasColumnName("survey_comment");
+            conversation.Property(row => row.SurveyCommentKeyVersion).HasColumnName("survey_comment_key_version");
+            conversation.Property(row => row.SurveyPerson).HasColumnName("survey_person");
+            conversation.Property(row => row.TranscriptSends).HasColumnName("transcript_sends").HasDefaultValue(0);
+            conversation.HasIndex(row => row.SurveyPerson).HasDatabaseName("ix_conversations_survey_person");
+            conversation.HasIndex(row => row.SurveyCommentKeyVersion).HasDatabaseName("ix_conversations_survey_comment_key_version");
+            conversation.HasIndex(row => new { row.Topic, row.ClosedAt }).HasDatabaseName("ix_conversations_topic_closed_at");
         });
 
         modelBuilder.Entity<ParticipantRow>(participant =>

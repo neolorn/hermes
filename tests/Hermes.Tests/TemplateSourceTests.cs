@@ -38,6 +38,19 @@ public sealed class TemplateSourceTests
         Assert.Equal("replies/welcome.ar.text.liquid", TemplateSources.RelativePath(new TemplateKey { Reply = "welcome", Language = "ar", Part = "text" }));
     }
 
+    [Theory]
+    [InlineData("en")]
+    [InlineData("ar")]
+    public async Task ReadAsync_TheTranscriptPage_IsTheLibrarysOwnInEachShippedLanguage(string language)
+    {
+        TemplateSources sources = new(null, Path.Combine(Path.GetTempPath(), "no-such-folder"), []);
+
+        string? text = await sources.ReadAsync(new TemplateKey { Page = "transcript", Language = language, Part = "text" }, TestContext.Current.CancellationToken);
+
+        Assert.Contains("{{ topic }}", text, StringComparison.Ordinal);
+        Assert.Contains("{% for message in messages %}", text, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task MSG_CONV_003_AC3_TheLibrarysOwnSourceServesAReplyFromReplies()
     {
