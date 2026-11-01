@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -147,6 +148,55 @@ public sealed class TestingDoublesTests
         Assert.Same(provider.GetRequiredService<InMemoryPushProvider>(), provider.GetRequiredService<IPushProvider>());
         Assert.Same(later, provider.GetRequiredService<ISecretSource>());
         Assert.NotSame(later, provider.GetRequiredService<FixedSecretSource>());
+    }
+
+    [Fact]
+    public async Task MSG_LIB_008_InMemoryAttachmentStore_KeepsWhatItIsGivenUnderItsKeyUntilDeleted()
+    {
+        InMemoryAttachmentStore store = new();
+        using (MemoryStream given = new([1, 2, 3]))
+        {
+            await store.PutAsync("key-1", given, TestContext.Current.CancellationToken);
+        }
+
+        Stream opened = (await store.OpenAsync("key-1", TestContext.Current.CancellationToken))!;
+        await using (opened)
+        {
+            using MemoryStream read = new();
+            await opened.CopyToAsync(read, TestContext.Current.CancellationToken);
+            Assert.Equal([1, 2, 3], read.ToArray());
+        }
+
+        Assert.Equal(1, store.Count);
+        Assert.Null(await store.OpenAsync("key-2", TestContext.Current.CancellationToken));
+        await store.DeleteAsync("key-1", TestContext.Current.CancellationToken);
+        await store.DeleteAsync("key-1", TestContext.Current.CancellationToken);
+        Assert.Null(await store.OpenAsync("key-1", TestContext.Current.CancellationToken));
+        Assert.Equal(0, store.Count);
+    }
+
+    [Fact]
+    public async Task MSG_LIB_008_FixedAttachmentScanner_ReadsEachFileAndAnswersItsResult()
+    {
+        using MemoryStream file = new(new byte[100_000]);
+        Assert.Equal(ScanResult.Clean, await new FixedAttachmentScanner().ScanAsync(file, "application/pdf", TestContext.Current.CancellationToken));
+        Assert.Equal(file.Length, file.Position);
+        file.Position = 0;
+        Assert.Equal(ScanResult.Infected, await new FixedAttachmentScanner(ScanResult.Infected).ScanAsync(file, "application/pdf", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public void AddHermesTesting_TheAttachmentsDoubles_AreOneSingletonByTheirTypeAndSeamAndALaterOneReplacesThem()
+    {
+        ServiceCollection services = new();
+        services.AddHermesTesting();
+        IAttachmentScanner later = new FixedAttachmentScanner(ScanResult.Failed);
+        services.AddSingleton(later);
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        Assert.Same(provider.GetRequiredService<InMemoryAttachmentStore>(), provider.GetRequiredService<IAttachmentStore>());
+        Assert.Equal(ScanResult.Clean, provider.GetRequiredService<FixedAttachmentScanner>().Answer);
+        Assert.Same(later, provider.GetRequiredService<IAttachmentScanner>());
     }
 
     /// <summary>A dispatcher whose rounds take the numbers given, in order, honouring its token as the library's does.</summary>

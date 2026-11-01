@@ -178,6 +178,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each, their attachments' bytes deleted by `attachment-scans`. `IConversations.EndScopeAsync`
   deletes an ended scope's group conversation with every row of it, and a person's export
   holds their conversations, their own messages and their survey, naming nobody else
+- `InMemoryAttachmentStore` and `FixedAttachmentScanner(ScanResult answer = ScanResult.Clean)`
+  in `Hermes.Testing`, the attachments' seams for a host's tests and the sample host, which
+  `AddHermesTesting` registers as singletons by their own types and by their seams, a
+  later registration of a seam replacing its double
 
 ### Fixed
 

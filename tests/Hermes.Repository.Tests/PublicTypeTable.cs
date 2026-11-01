@@ -65,7 +65,7 @@ internal static class PublicTypeTable
         [Packages.Testing] =
         [
             "InMemoryEmailProvider", "InMemorySmsProvider", "InMemoryPushProvider", "FixedSecretSource", "TestDispatcher",
-            "MessagingTestDatabase", "MessagingTestingServiceCollectionExtensions",
+            "MessagingTestDatabase", "MessagingTestingServiceCollectionExtensions", "InMemoryAttachmentStore", "FixedAttachmentScanner",
         ],
         [Packages.Cli] = [],
         [Packages.Development] =

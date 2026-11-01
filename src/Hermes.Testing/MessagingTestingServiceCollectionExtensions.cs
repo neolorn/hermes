@@ -21,7 +21,11 @@ public static class MessagingTestingServiceCollectionExtensions
     /// registering them, so only a test's passes dispatch and each delivers the pending notices
     /// after its deliveries. A secret source the host registers after this call replaces
     /// <see cref="FixedSecretSource"/>. The in-memory providers are used in place of the
-    /// development inbox's too, whichever of the two calls comes first.
+    /// development inbox's too, whichever of the two calls comes first. One
+    /// <see cref="InMemoryAttachmentStore"/> and one <see cref="FixedAttachmentScanner"/>
+    /// answering <see cref="ScanResult.Clean"/> are registered likewise, for conversations
+    /// where attachments are enabled; a store or scanner the host registers after this call
+    /// replaces them.
     /// </summary>
     /// <param name="services">The host's services.</param>
     /// <param name="configure">Sets the source's secrets, as a test sets <c>connection</c> before the host starts.</param>
@@ -44,6 +48,14 @@ public static class MessagingTestingServiceCollectionExtensions
         services.AddSingleton<IPushProvider>(push);
         services.AddSingleton(secrets);
         services.AddSingleton<ISecretSource>(secrets);
+
+        // The attachments' seams, which conversations resolve only where attachments are enabled (09 MSG-CONV-007).
+        InMemoryAttachmentStore store = new();
+        FixedAttachmentScanner scanner = new();
+        services.AddSingleton(store);
+        services.AddSingleton<IAttachmentStore>(store);
+        services.AddSingleton(scanner);
+        services.AddSingleton<IAttachmentScanner>(scanner);
 
         services.TryAddSingleton<TestProviders>();
         services.AddSingleton<TestPasses>();
