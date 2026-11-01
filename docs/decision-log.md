@@ -2312,6 +2312,91 @@ This entry settles the map's C20 to C23, C28 to C31 and L19.
 
 ---
 
+## M-036 — Phase 18: the end of support
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-CONV-004, MSG-CONV-005
+
+**TL;DR.**
+- A closed support conversation offers its transcript as plain text: to download, or by
+  email as a send of a host-declared kind.
+- It also offers a survey: resolved or not, a rating of 1 to 5, and an optional comment,
+  answered once within seven days.
+- Supervisors are the members of a scope each topic names. They see the topic's live
+  conversations and its reports, computed when read.
+
+This entry settles the map's C24 to C27, C32 and C33.
+
+- **The transcript (C24).**
+  - It is rendered from the conversation's messages, every type but `note`, oldest
+    first, in the conversation's language (M-035).
+  - It is rendered through a page template, `transcript`, with the library's own in each
+    declared language (`03` MSG-TPL-006). A host source may answer it instead.
+  - The values are the topic, the instants opened and closed, and each message's author
+    kind, instant and text. Staff are named only as `staff`, never by reference.
+  - It is plain text, UTF-8, at most 1 MB. Past that, the oldest messages are left out,
+    and the transcript says so.
+  - `GET {public}/support/conversations/{id}/transcript` serves it to the visitor (by
+    cookie) or the customer, as an attachment, for a closed conversation only. Otherwise
+    it answers 409 `messaging.support.notclosed`.
+- **By email (C25).**
+  - `POST {public}/support/conversations/{id}/transcript/email` sends it as the kind
+    `Hermes:Conversations:Support:TranscriptKind`. The kind is required where topics are
+    configured, and checked at start like `AwayKind`.
+  - The send goes to a visitor's given `email`, as `Recipient.Anonymous`, or to the
+    customer as their person. The kind's values are `topic`, `closedAt` and `transcript`,
+    the rendered text.
+  - At most 3 sends per conversation. The fourth answers 429 `messaging.support.limited`.
+  - Every check of `01` applies to the send.
+- **The survey (C26, C27).**
+  - `POST {public}/support/conversations/{id}/survey` takes `resolved` (a boolean),
+    `rating` (1 to 5) and an optional `comment` (up to 1,000 characters).
+  - The survey is answered once: a second answers 409 `messaging.support.surveyanswered`.
+    It is answered within 7 days of the close: after that it answers 409
+    `messaging.support.surveyclosed`.
+  - It rates the staff member assigned when the conversation closed. A conversation never
+    assigned keeps its survey with no staff member.
+  - The comment is a protected value of the conversation, under the same key as its
+    messages (`conversations:<id>:surveycomment`). It is kept and erased with the
+    conversation.
+- **Supervisors (C32).**
+  - Each topic gains `Supervisors`, a membership scope (kind and reference, as `Scope`).
+    Its members supervise the topic, through `IsMemberAsync` on every call.
+  - A supervisor reads every conversation of the topic, notes included, as its staff do.
+  - `GET {staff}/support/live?topic=` answers the topic's open and snoozed conversations,
+    each with its status, assignee, place and minutes waited. It is over HTTP: the client
+    reads it again.
+  - A person who supervises no topic named answers 404 `messaging.conversation.notfound`.
+- **Reports (C33).**
+  - `GET {staff}/support/reports?topic=&from=&to=` is for the topic's supervisors. The
+    period is whole days in the topic's time zone, at most 92.
+  - It answers, per staff member and for the topic as a whole:
+    - conversations closed;
+    - the median and 90th percentile of waiting time (queued to assigned) and of handling
+      time (assigned to closed);
+    - surveys answered, the share resolved, and the mean rating.
+  - Everything is computed when read, from the conversations' rows. Nothing is
+    aggregated or stored.
+  - Two counters join `08` section 8: `hermes.conversations.started` and
+    `hermes.conversations.closed`, each tagged `topic`.
+- **Phase 18's criteria.**
+  1. The transcript holds every message but notes, in the conversation's language, names
+     no staff member, and is served only for a closed conversation, only to its visitor
+     or customer.
+  2. Emailing it sends the declared kind, at most three times.
+  3. The survey is taken once, within seven days, and its comment is protected.
+  4. Only a supervisor of the topic reads its live view and reports. A supervisor reads
+     notes.
+  5. Reports give the medians, the 90th percentiles, the survey figures per staff member
+     and topic, over a period of at most 92 days.
+
+**Propagated to:**
+- `03` MSG-TPL-006 (the page `transcript`);
+- `05` (the routes);
+- `08` sections 1, 4 and 8;
+- `09` MSG-CONV-004, MSG-CONV-005, with their criteria.
+
+---
+
 # Index
 
 | Title | Entry |
@@ -2351,3 +2436,4 @@ This entry settles the map's C20 to C23, C28 to C31 and L19.
 | Phase 15: the live connection | M-033 |
 | Phase 16: support's public side | M-034 |
 | Phase 17: automatic replies and desk tools | M-035 |
+| Phase 18: the end of support | M-036 |
