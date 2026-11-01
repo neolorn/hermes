@@ -2698,6 +2698,38 @@ This entry settles the map's C5, C56 and L18.
 - `09` MSG-CONV-010, with its criteria;
 - `10` section 1 and MSG-THR-001.
 
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - Criterion 4 is `01` MSG-SEND-020's, and criteria 5 and 6 are `10` MSG-THR-001's, so
+>   `09` MSG-CONV-010 keeps criteria 1 to 3.
+> - `ConversationExport` is `ConversationId Conversation`, `ConversationType Type`,
+>   `string? Topic`, `DateTimeOffset OpenedAt`, `DateTimeOffset? ClosedAt`,
+>   `IReadOnlyList<ConversationMessageExport> Messages` and `SurveyExport? Survey`.
+>   `ConversationMessageExport` is `DateTimeOffset SentAt`, `string Author`,
+>   `string? Text`, `bool Erased`, `bool Rejected` and
+>   `IReadOnlyList<AttachmentExport> Attachments`; `AttachmentExport` is `string Name`,
+>   `string MediaType` and `long Size`; `SurveyExport` is `bool Resolved`, `int Rating`
+>   and `string? Comment`.
+> - The export holds the person's support conversations as the customer, and their own
+>   messages in the staff chats where they wrote. `Author` is `person` for the person's
+>   own messages, `staff` for a staff member's and `library` for an `automatic` or
+>   `system` message.
+> - A message's text and a survey's comment answer as a delivery's values do: marked
+>   erased, or marked rejected and raising `content-rejected`, with no text; one that
+>   cannot open yet answers the export `messaging.key.unavailable`.
+> - `EndScopeAsync` answers `Result`, and no route maps it.
+> - A visitor's acknowledgement goes with their last conversation.
+> - A deleted attachment's store key waits in `attachment_deletions` (`key`, `attempts`,
+>   `next_at`) for `attachment-scans`.
+> - `06` MSG-OPS-007 names the host frontend's duty to show a message's text, a file name
+>   and a topic's name as text.
+> - A threat row's identifier is each requirement its control names, as the threat
+>   model's test reads it. A reply to a message retention deleted reads `replyTo` none,
+>   and a read position on one reads as the latest earlier message.
+>
+> Propagated to `01` MSG-SEND-020; `04` MSG-LIB-002; `06` MSG-OPS-002, MSG-OPS-004,
+> MSG-OPS-007; `08` section 8; `09` MSG-CONV-010; `10` MSG-THR-001;
+> `implementation-plan.md` (phase 20).
+
 ---
 
 ## M-039 — Phase 21: the contract and release candidate `1.0.0-rc.3`

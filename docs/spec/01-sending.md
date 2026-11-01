@@ -1097,12 +1097,16 @@ values answering `Erased` only where the person's key was erased (a host's prote
 over per-person keys, `04` MSG-LIB-005).
 
 Where conversations are registered, the export also answers the person's conversations
-(M-038) in `Conversations`, null otherwise, as `09` MSG-CONV-010 gives them: each one's
-id, type, topic and opened and closed instants; for a support conversation every message
-but notes, for a staff chat the person's own messages only; each message's instant,
-author kind and text; its attachments' names, media types and sizes, never their bytes;
-and the person's survey answer. Others' references never appear: a staff author reads
-`staff`, as in the transcript.
+(M-038) in `Conversations`, null otherwise, as `09` MSG-CONV-010 gives them: their
+support conversations as the customer, with every message but notes, and the staff chats
+where they wrote, with their own messages only; each one's id, type, topic and opened
+and closed instants; each message's instant, author (`person` for the person's own,
+`staff` for a staff member's, `library` for an `automatic` or `system` message) and
+text; its attachments' names, media types and sizes, never their bytes; and the person's
+survey answer. Others' references never appear. A message's text and a survey's comment
+answer as a delivery's values do above: marked erased, or marked rejected and raising
+`content-rejected`, with no text; one that cannot open yet answers the export
+`messaging.key.unavailable`.
 
 *Falling back to another channel (designed for, not built).* A kind may later declare an
 ordered list of channels where the next is used when a delivery on one ends in a status
@@ -1131,3 +1135,4 @@ a new delivery of the same send and changes no table.
 5. With a migration this release does not know in the history, an erasure and an export
    change nothing and answer `messaging.release.newer` naming it, also where a key
    version in use is not held.
+6. A person's export holds their conversations as above, and nobody else's references.

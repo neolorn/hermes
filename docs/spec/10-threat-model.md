@@ -71,6 +71,9 @@ control SHALL have the test its requirement gives.
 1. Every control above that the library itself carries has a test carrying the
    identifier of the requirement that names it; the host's own controls, the redaction
    of request logs and the clocks are the deployment's (`06` MSG-OPS-007).
+2. Each threat row's control has a passing test carrying the identifier of each
+   requirement it names (M-038).
+3. No log line holds message text or attachment bytes.
 
 ---
 
