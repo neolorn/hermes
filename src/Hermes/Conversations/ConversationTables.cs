@@ -11,7 +11,7 @@ namespace Hermes.Conversations;
 /// connections to the staff hub. In support (M-034): a customer's support conversations
 /// deleted at their erasure with every row of them, its offline address protected under
 /// their key; an assignee's and a closer's reference emptied at theirs; a staff member's
-/// availability and a person's blocks deleted at theirs; and the visitors' and source
+/// availability, a person's blocks and their own saved replies deleted at theirs; and the visitors' and source
 /// addresses' keyed hashes, each recording its <c>hashKeys</c> version.
 /// </summary>
 internal static class ConversationTables
@@ -42,5 +42,6 @@ internal static class ConversationTables
         new KeyedTable("support_blocks", "support_blocks", person: "person", hashVersion: "hash_version"),
         new KeyedTable("support_acknowledgements", "support_acknowledgements", hashVersion: "hash_version"),
         new KeyedTable("support_counters", "support_counters", hashVersion: "hash_version"),
+        new KeyedTable("support_replies", "support_replies", person: "person"),
     ];
 }

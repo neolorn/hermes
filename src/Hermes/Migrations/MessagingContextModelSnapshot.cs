@@ -68,6 +68,10 @@ namespace Hermes.Migrations
                         .HasColumnType("text")
                         .HasColumnName("assignee");
 
+                    b.Property<DateTimeOffset?>("CloseAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("close_at");
+
                     b.Property<DateTimeOffset?>("ClosedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("closed_at");
@@ -75,6 +79,10 @@ namespace Hermes.Migrations
                     b.Property<string>("ClosedBy")
                         .HasColumnType("text")
                         .HasColumnName("closed_by");
+
+                    b.Property<DateTimeOffset?>("ClosingAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closing_at");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -91,6 +99,10 @@ namespace Hermes.Migrations
                     b.Property<int?>("EmailKeyVersion")
                         .HasColumnType("integer")
                         .HasColumnName("email_key_version");
+
+                    b.Property<string>("Language")
+                        .HasColumnType("text")
+                        .HasColumnName("language");
 
                     b.Property<DateTimeOffset?>("LastMessageAt")
                         .HasColumnType("timestamp with time zone")
@@ -109,6 +121,11 @@ namespace Hermes.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("queued_at");
 
+                    b.PrimitiveCollection<string[]>("RepliesFired")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("replies_fired");
+
                     b.Property<string>("ScopeKind")
                         .HasColumnType("text")
                         .HasColumnName("scope_kind");
@@ -117,10 +134,19 @@ namespace Hermes.Migrations
                         .HasColumnType("text")
                         .HasColumnName("scope_reference");
 
+                    b.Property<DateTimeOffset?>("SnoozedUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("snoozed_until");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("status");
+
+                    b.PrimitiveCollection<string[]>("Tags")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("tags");
 
                     b.Property<string>("Topic")
                         .HasColumnType("text")
@@ -131,20 +157,36 @@ namespace Hermes.Migrations
                         .HasColumnType("text")
                         .HasColumnName("type");
 
+                    b.Property<DateTimeOffset?>("WaitingAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("waiting_at");
+
                     b.HasKey("Id")
                         .HasName("pk_conversations");
 
                     b.HasIndex("Assignee")
                         .HasDatabaseName("ix_conversations_assignee");
 
+                    b.HasIndex("CloseAt")
+                        .HasDatabaseName("ix_conversations_close_at");
+
                     b.HasIndex("ClosedBy")
                         .HasDatabaseName("ix_conversations_closed_by");
+
+                    b.HasIndex("ClosingAt")
+                        .HasDatabaseName("ix_conversations_closing_at");
 
                     b.HasIndex("Customer")
                         .HasDatabaseName("ix_conversations_customer");
 
                     b.HasIndex("EmailKeyVersion")
                         .HasDatabaseName("ix_conversations_email_key_version");
+
+                    b.HasIndex("SnoozedUntil")
+                        .HasDatabaseName("ix_conversations_snoozed_until");
+
+                    b.HasIndex("WaitingAt")
+                        .HasDatabaseName("ix_conversations_waiting_at");
 
                     b.HasIndex("ScopeKind", "ScopeReference")
                         .IsUnique()
@@ -507,6 +549,53 @@ namespace Hermes.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Hermes.Conversations.SupportReplyRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Person")
+                        .HasColumnType("text")
+                        .HasColumnName("person");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("text");
+
+                    b.Property<string>("Topic")
+                        .HasColumnType("text")
+                        .HasColumnName("topic");
+
+                    b.HasKey("Id")
+                        .HasName("pk_support_replies");
+
+                    b.HasIndex("Person", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_support_replies_person_name")
+                        .HasFilter("person IS NOT NULL");
+
+                    b.HasIndex("Topic", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_support_replies_topic_name")
+                        .HasFilter("topic IS NOT NULL");
+
+                    b.ToTable("support_replies", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_support_replies_owner", "(topic IS NULL) <> (person IS NULL)");
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Operations.AlertState", b =>
                 {
                     b.Property<string>("Condition")
@@ -577,7 +666,7 @@ namespace Hermes.Migrations
 
                     b.ToTable("jobs", "messaging", t =>
                         {
-                            t.HasCheckConstraint("ck_jobs_name", "name IN ('observer', 'balance', 'retention', 'subscriptions', 'watch')");
+                            t.HasCheckConstraint("ck_jobs_name", "name IN ('observer', 'balance', 'retention', 'subscriptions', 'watch', 'conversation-timers')");
                         });
                 });
 

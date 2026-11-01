@@ -147,6 +147,8 @@ Hermes.Core.ParticipantRecord.Person.init -> void
 Hermes.Core.ScopeKind
 Hermes.Core.ScopeKind.Group = 1 -> Hermes.Core.ScopeKind
 Hermes.Core.ScopeKind.Organization = 0 -> Hermes.Core.ScopeKind
+Hermes.Core.TemplateKey.Reply.get -> string?
+Hermes.Core.TemplateKey.Reply.init -> void
 override Hermes.Core.ConversationId.GetHashCode() -> int
 override Hermes.Core.ConversationPage.Equals(object? obj) -> bool
 override Hermes.Core.ConversationPage.GetHashCode() -> int

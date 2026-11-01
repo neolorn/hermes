@@ -33,6 +33,23 @@ public sealed class TemplateSourceTests
     }
 
     [Fact]
+    public void RelativePath_AnAutomaticReplysKey_IsUnderRepliesByItsNameLanguageAndPart()
+    {
+        Assert.Equal("replies/welcome.ar.text.liquid", TemplateSources.RelativePath(new TemplateKey { Reply = "welcome", Language = "ar", Part = "text" }));
+    }
+
+    [Fact]
+    public async Task MSG_CONV_003_AC3_TheLibrarysOwnSourceServesAReplyFromReplies()
+    {
+        using TempFolder folder = new();
+        Write(folder, "templates/replies/welcome.en.text.liquid", "Hello from the folder");
+        TemplateSources sources = new(null, Path.Combine(folder.Path, "templates"), []);
+
+        Assert.Equal("Hello from the folder", await sources.ReadAsync(new TemplateKey { Reply = "welcome", Language = "en", Part = "text" }, TestContext.Current.CancellationToken));
+        Assert.Null(await sources.ReadAsync(new TemplateKey { Reply = "missing", Language = "en", Part = "text" }, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task MSG_TPL_006_AC1_AFolderNamedByTemplatesPathIsTheOneRead()
     {
         using TempFolder folder = new();

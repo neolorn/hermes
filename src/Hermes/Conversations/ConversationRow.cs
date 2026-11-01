@@ -61,4 +61,25 @@ internal sealed class ConversationRow
 
     /// <summary>The <c>contentKeys</c> version the library's protector wrote the address under, or none.</summary>
     public int? EmailKeyVersion { get; set; }
+
+    /// <summary>A support conversation's tags, each declared when it was put (<c>09</c> MSG-CONV-005).</summary>
+    public string[] Tags { get; set; } = [];
+
+    /// <summary>The visitor's or the customer's language, matched to a declared one when it started (<c>09</c> MSG-CONV-003).</summary>
+    public string? Language { get; set; }
+
+    /// <summary>The automatic reply rules that fired on it, each at most once.</summary>
+    public string[] RepliesFired { get; set; } = [];
+
+    /// <summary>The instant a snoozed conversation wakes, or none.</summary>
+    public DateTimeOffset? SnoozedUntil { get; set; }
+
+    /// <summary>The instant the next <c>waiting</c> rule fires, or none.</summary>
+    public DateTimeOffset? WaitingAt { get; set; }
+
+    /// <summary>The instant the <c>closing</c> rule fires before an automatic close, or none once it fired.</summary>
+    public DateTimeOffset? ClosingAt { get; set; }
+
+    /// <summary>The instant an open or snoozed support conversation closes for its silence, or none.</summary>
+    public DateTimeOffset? CloseAt { get; set; }
 }

@@ -84,6 +84,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starts or gains participants, or a support conversation is assigned to them
 - An offline conversation's address that does not open under its binding sends nothing
   and raises `content-rejected` for `conversations`
+- The migration `DeskTools`, which adds to `conversations` a support conversation's tags,
+  language, the automatic replies fired and its timers' instants, the table
+  `support_replies` of saved replies, a person's own deleted at their erasure, and the
+  job `conversation-timers` to the job table; it drops and rewrites nothing
+- `TemplateKey.Reply`, naming an automatic reply's template with `Kind` and `Page` none;
+  the library's own source reads it from `replies/<name>.<language>.text.liquid`. A host
+  `ITemplateSource` that reads `Kind == null` as a page must now also read `Reply`
 
 ### Fixed
 

@@ -7,7 +7,13 @@ namespace Hermes.Operations;
 internal sealed class JobRow
 {
     /// <summary>The jobs with a row, <c>dispatch</c> having none (<c>08</c> section 8).</summary>
-    internal static IReadOnlyList<string> Names { get; } = ["observer", "balance", "retention", "subscriptions", "watch"];
+    internal static IReadOnlyList<string> Names { get; } = ["observer", "balance", "retention", "subscriptions", "watch", ConversationTimers];
+
+    /// <summary>The job of conversations' timers, run where conversations are registered (<c>09</c> MSG-CONV-005).</summary>
+    internal const string ConversationTimers = "conversation-timers";
+
+    /// <summary>The interval of <see cref="ConversationTimers"/>.</summary>
+    internal static TimeSpan ConversationTimersInterval { get; } = TimeSpan.FromSeconds(30);
 
     public required string Name { get; set; }
 

@@ -7,6 +7,9 @@ internal static class Codes
 
     internal const string DeclarationMissing = "messaging.startup.declarationmissing";
 
+    /// <summary>An automatic reply rule's template missing in a declared language (<c>09</c> MSG-CONV-003).</summary>
+    internal const string TemplateMissing = "messaging.startup.templatemissing";
+
     internal const string ConfigurationInvalid = "messaging.startup.configurationinvalid";
 
     internal const string SecretUnavailable = "messaging.startup.secretunavailable";

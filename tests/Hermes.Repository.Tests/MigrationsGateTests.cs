@@ -32,6 +32,7 @@ public sealed class MigrationsGateTests
             "20261101011311_Conversations",
             "20261101022730_LiveConnection",
             "20261101030513_SupportSide",
+            "20261101040645_DeskTools",
         ];
 
         Assert.True(run.ExitCode == 0, run.Output);
