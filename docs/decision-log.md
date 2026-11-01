@@ -1659,6 +1659,18 @@ rules every later phase follows; each later phase gets its own entry before it s
 - `09` preamble (the criteria come with each phase);
 - `implementation-plan.md` (release 2's phases).
 
+> **Amended.** 2026-11-01, on the review of its propagation: called without `AddHermes`,
+> `AddHermesConversations` itself throws `InvalidOperationException` naming it, a fault
+> of the calling code (MSG-ENG-003), at the call and not at start; a key under
+> `Hermes:Conversations:` that the package does not know fails the start with
+> `messaging.startup.configurationinvalid`, `details.key` the key, a rule for that
+> section alone, so "as elsewhere" above was wrong, since no other key the library does
+> not know fails a start; `Hermes.Testing` may reference `Hermes.Conversations`, so its
+> grant has a use; `tests/Hermes.Tests` references it, for the endpoint contract test;
+> and `conversations` joins the commit scopes of MSG-ENG-011. Propagated to `04`
+> MSG-LIB-001, MSG-LIB-003; `06` MSG-OPS-001; `07` MSG-ENG-011; `08` sections 1 and 4;
+> `implementation-plan.md` (phase 13).
+
 ---
 
 ## M-032 — Phase 14: the model and staff chats

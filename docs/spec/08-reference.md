@@ -17,7 +17,7 @@ MSG-OPS-002).
 |---|---|---|---|
 | `messaging.startup.declarationinvalid` | (startup) | A kind, category, template, page or protector `Id` is malformed, or two host protectors share one `Id` (`04` MSG-LIB-005; `01` MSG-SEND-001, MSG-SEND-002, MSG-SEND-018; `02` MSG-EMAIL-002, MSG-SMS-002, MSG-INAPP-001; `03` MSG-TPL-004) | `declaration` (for a protector, its `Id`), `field` (for a protector, `Id`) |
 | `messaging.startup.declarationmissing` | (startup) | A required seam is not registered (`04` MSG-LIB-005) | `key` |
-| `messaging.startup.configurationinvalid` | (startup) | A configuration value is outside its rule (`06` MSG-OPS-001; `03` MSG-TPL-003) | `key` |
+| `messaging.startup.configurationinvalid` | (startup) | A configuration value is outside its rule, or a key under `Conversations:` that `Hermes.Conversations` does not know (`06` MSG-OPS-001; `03` MSG-TPL-003) | `key` |
 | `messaging.startup.secretunavailable` | (startup) | A secret a used part needs, or a version still in use of a key a used part needs, is not answered (`06` MSG-OPS-008) | `key` |
 | `messaging.startup.secretinvalid` | (startup) | A secret is outside its form, or a version's check value differs from the one recorded (`06` MSG-OPS-008) | `key` |
 | `messaging.startup.schemamismatch` | (startup) | The database lacks a migration of the release (`06` MSG-OPS-002) | `migration` |
@@ -106,12 +106,14 @@ Every key is under the configuration section `Hermes`. A key marked "start only"
 effect at the next start (`06` MSG-OPS-001). "Where email is used" means where the
 channel is used as `04` MSG-LIB-003 defines it; so for SMS and push. The keys of the
 engine, every key but those under `Email:`, `Sms:` and `Push:` and `Dispatch:Timeout`,
-which the shipped providers read wherever they are used, are read and checked only where
-`AddHermes` is registered (`04` MSG-LIB-003); the keys under `DevelopmentInbox:` only
-where the development inbox acts (`02` MSG-DEV-001). A key holding a list takes its
-default only where none of its items is configured. A number in a rule is a whole number
-unless the rule says a decimal number, which is read in the invariant culture, `.` its
-separator; a length in characters is counted as `00` section 1.5 gives.
+which the shipped providers read wherever they are used, and those under
+`Conversations:`, are read and checked only where `AddHermes` is registered (`04`
+MSG-LIB-003); the keys under `Conversations:` only where `AddHermesConversations` is
+registered (`04` MSG-LIB-003); the keys under `DevelopmentInbox:` only where the
+development inbox acts (`02` MSG-DEV-001). A key holding a list takes its default only
+where none of its items is configured. A number in a rule is a whole number unless the
+rule says a decimal number, which is read in the invariant culture, `.` its separator; a
+length in characters is counted as `00` section 1.5 gives.
 
 | Key | Default | Rule |
 |---|---|---|
