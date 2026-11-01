@@ -6,6 +6,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
+using Hermes.Core;
+
 using Xunit;
 
 namespace Hermes.Conversations.Tests;
@@ -118,6 +120,22 @@ public sealed class StaffEndpointTests(PostgresFixture postgres) : IClassFixture
         string id = first.RootElement.GetProperty("id").GetString()!;
         using HttpResponseMessage leave = await chat.SendAsync(HttpMethod.Post, $"/conversations/{id}/leave", "amal", "{ }");
         Assert.Equal(("messaging.conversation.invalid", "type"), await FieldAsync(leave));
+    }
+
+    [Fact]
+    public async Task OpenGroup_AReferenceOutsideItsBound_Is400NamingIt()
+    {
+        await using ChatHost chat = await ChatHost.StartAsync(postgres);
+        string longest = new('r', 128);
+        chat.Membership.Add(MembershipFake.Organization(longest), "amal");
+
+        using HttpResponseMessage within = await chat.SendAsync(HttpMethod.Get, "/conversations/group/organization/" + longest, "amal");
+        using HttpResponseMessage over = await chat.SendAsync(HttpMethod.Get, "/conversations/group/organization/" + longest + "r", "amal");
+        Result<ConversationRecord> called = await chat.CallAsync(chats => chats.OpenGroupAsync("amal", MembershipFake.Organization(longest + "r"), default));
+
+        Assert.Equal(HttpStatusCode.OK, within.StatusCode);
+        Assert.Equal(("messaging.request.malformed", "reference"), await MemberAsync(over));
+        Assert.Equal("reference", called.Failure?.Details["member"]);
     }
 
     private static async Task<JsonDocument> JsonAsync(HttpResponseMessage response)

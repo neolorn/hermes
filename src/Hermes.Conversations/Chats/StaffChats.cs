@@ -204,6 +204,11 @@ internal sealed class StaffChats(
     {
         Begin(person);
         ArgumentNullException.ThrowIfNull(scope);
+        if (!IsReference(scope.Reference))
+        {
+            return Result.Fail<ConversationRecord>(Malformed("reference"));
+        }
+
         if (!await membership.IsMemberAsync(person, scope, cancellationToken).ConfigureAwait(false))
         {
             return Result.Fail<ConversationRecord>(NotFound());

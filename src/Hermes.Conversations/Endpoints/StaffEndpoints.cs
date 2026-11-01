@@ -185,6 +185,11 @@ internal static class StaffEndpoints
             return Refusal.Of(StatusCodes.Status400BadRequest, ChatCodes.ConversationInvalid, ("field", "kind"));
         }
 
+        if (!StaffChats.IsReference(reference))
+        {
+            return RequestBodies.Malformed("reference");
+        }
+
         return await CallAsync<JsonAnswer<ConversationBody>>(context, async conversations =>
         {
             Result<ConversationRecord> opened = await conversations.OpenGroupAsync(person, new ConversationScope { Kind = scopeKind, Reference = reference }, context.RequestAborted).ConfigureAwait(false);

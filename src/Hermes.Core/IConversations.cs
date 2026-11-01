@@ -40,7 +40,7 @@ public interface IConversations
     /// <param name="person">The person reference.</param>
     /// <param name="scope">The scope.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The conversation; or a failure: <c>messaging.conversation.notfound</c> for a person who is not a member.</returns>
+    /// <returns>The conversation; or a failure: <c>messaging.conversation.notfound</c> for a person who is not a member; <c>messaging.request.malformed</c> (<c>member</c> <c>reference</c>) for a scope reference outside 1 to 128 characters.</returns>
     /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
     /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
