@@ -2641,6 +2641,8 @@ This entry settles the map's C42 to C46.
 > - The file name's context field is `name`. `attachments` joins `01` MSG-SEND-018's
 >   tables, with the fields `name` and `chunk:<n>`, the one field that carries an index
 >   after a colon.
+> - The public attachment routes declare 503 as for `GET /inapp`, as every public route
+>   that takes a person's lock does (M-034).
 >
 > Propagated to `01` MSG-SEND-018; `04` MSG-LIB-002; `05` MSG-API-009, MSG-API-010; `06`
 > MSG-OPS-004; `08` sections 1, 2, 4, 5 and 8; `09` MSG-CONV-007, MSG-CONV-009;
