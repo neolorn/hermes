@@ -20,7 +20,7 @@ internal static class PublicTypeTable
             "Send",
             "SendValue", "SendValue.PlainText", "SendValue.WholeNumber", "SendValue.DecimalNumber", "SendValue.Flag", "SendValue.Instant", "SendValue.List",
             "Recipient", "Recipient.Person", "Recipient.Anonymous",
-            "SendId", "DeliveryId", "EntryId",
+            "SendId", "DeliveryId", "EntryId", "ConversationId", "MessageId", "ParticipantId",
             "SendReceipt", "DeliveryReceipt",
             "SendRecord", "DeliveryRecord", "AttemptRecord", "CallRecord",
             "Result", "Result`1", "Failure",
@@ -29,10 +29,12 @@ internal static class PublicTypeTable
             "CategoryPreferences", "ChannelPreference",
             "SubjectExport", "SubscriptionExport", "DeliveryExport", "InAppEntryExport", "IdempotencyKeyExport",
             "InAppPage", "InAppEntry",
+            "ConversationScope", "ConversationPage", "ConversationRecord", "ParticipantRecord", "MessagePage", "MessageRecord",
             "Channel", "DeliveryStatus", "AttemptClass", "AttemptReason", "PushUrgency", "PushService", "PushPlatform", "SmsEncoding", "SmsReportOutcome", "ConsentAnswer",
+            "ConversationType", "ConversationStatus", "MessageType", "ScopeKind", "AuthorKind",
 
             // Operations.
-            "IMessages", "IPreferences", "ISuppressions", "ISubjects", "IInApp",
+            "IMessages", "IPreferences", "ISuppressions", "ISubjects", "IInApp", "IConversations",
 
             // Provider contracts.
             "Attempt", "Attempt.Accepted", "Attempt.Transient", "Attempt.Permanent", "Attempt.Gone",
@@ -45,6 +47,7 @@ internal static class PublicTypeTable
             // Seams a host supplies.
             "ISecretSource", "SecretVersions", "SecretVersion",
             "IRecipientIdentity",
+            "IConversationMembership",
             "IConsentSource", "ConsentQuery",
             "IContentProtector", "UnprotectResult", "UnprotectResult.Opened", "UnprotectResult.Erased", "UnprotectResult.KeyUnavailable", "UnprotectResult.Rejected",
             "ITemplateSource", "TemplateKey",

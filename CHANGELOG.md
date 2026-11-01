@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   naming it, and where conversations are registered a key under `Hermes:Conversations:`
   the package does not know stops the start with `messaging.startup.configurationinvalid`
 - The sample host registers conversations
+- `IConversations`, a person's direct and group conversations, with `ConversationId`,
+  `MessageId`, `ParticipantId`, `ConversationScope`, the conversation and message records
+  and pages, and the enumerations `ConversationType`, `ConversationStatus`, `MessageType`,
+  `ScopeKind` and `AuthorKind`; and `IConversationMembership`, the seam that answers who
+  belongs to the host's organizations and groups, none of whose records prints a person
+  reference or a text
 
 ### Fixed
 

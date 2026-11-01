@@ -282,4 +282,46 @@ public sealed class PrintMembersTests
         Assert.Equal("receipt", valued.Value);
         Assert.Null(valued.Failure);
     }
+
+    [Fact]
+    public void MSG_LIB_002_TheConversationRecordsPrintNoPersonReferenceTextOrScope()
+    {
+        const string Text = "words-7f3a of a staff chat";
+        ParticipantRecord participant = new() { Participant = new ParticipantId(Guid.CreateVersion7()), Person = Secret };
+        ConversationRecord conversation = new()
+        {
+            Conversation = new ConversationId(Guid.CreateVersion7()),
+            Type = ConversationType.Group,
+            Scope = new ConversationScope { Kind = ScopeKind.Group, Reference = Secret },
+            Participants = [participant],
+            Unread = 3,
+            Muted = true,
+            LastAt = DateTimeOffset.UnixEpoch,
+        };
+        MessageRecord message = new()
+        {
+            Message = new MessageId(Guid.CreateVersion7()),
+            AuthorKind = AuthorKind.Person,
+            Author = Secret,
+            Type = MessageType.Text,
+            Text = Text,
+            Mentions = [Secret],
+            SentAt = DateTimeOffset.UnixEpoch,
+            Erased = false,
+        };
+
+        string[] printed =
+        [
+            participant.ToString(),
+            conversation.ToString(),
+            message.ToString(),
+            new ConversationPage { Conversations = [conversation] }.ToString(),
+            new MessagePage { Messages = [message] }.ToString(),
+        ];
+
+        Assert.All(printed, line => Assert.DoesNotContain(Secret, line, StringComparison.Ordinal));
+        Assert.All(printed, line => Assert.DoesNotContain(Text, line, StringComparison.Ordinal));
+        Assert.Contains("Unread = 3", printed[1], StringComparison.Ordinal);
+        Assert.Contains("Type = Text", printed[2], StringComparison.Ordinal);
+    }
 }
