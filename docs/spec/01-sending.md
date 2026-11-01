@@ -959,9 +959,11 @@ delivery's or entry's target values, for a subscription `endpoint`, `p256dh` or 
 for a message `text`, or for a support conversation `email`, its offline form's address,
 or `surveycomment`, its survey's comment (`09` MSG-CONV-004, M-036); a layout two
 releases share and never change (`08` section 8); an anonymous recipient's values are
-always protected by the library's own protector, whatever protector is registered. A
-value is opened by the protector its envelope names. A host protector's `Id` SHALL NOT
-be `messaging`, or startup fails with `messaging.startup.declarationinvalid`.
+always protected by the library's own protector, whatever protector is registered, and a
+support visitor's values are protected as an anonymous recipient's are, with no person,
+bound to their row (`09` MSG-CONV-009, M-034). A value is opened by the protector its
+envelope names. A host protector's `Id` SHALL NOT be `messaging`, or startup fails with
+`messaging.startup.declarationinvalid`.
 
 The library's own protector, `Id` `messaging`, writes the `contentKeys` version (4
 bytes, big-endian), a random 12-byte nonce, the AES-256-GCM ciphertext and its 16-byte
