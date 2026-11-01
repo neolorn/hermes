@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,7 +31,8 @@ internal sealed partial class RetentionKeys(
     HeldKeys keys,
     IOptionsMonitor<MessagingOptions> options,
     TimeProvider clock,
-    ILogger<RetentionKeys> logger)
+    ILogger<RetentionKeys> logger,
+    IEnumerable<KeyedTable> tables)
 {
     private const string Deliveries = """
         SELECT * FROM messaging.deliveries
@@ -75,16 +77,16 @@ internal sealed partial class RetentionKeys(
         """;
 
     private const string NoContentRow = """
-        SELECT NOT EXISTS (SELECT 1 FROM messaging.deliveries WHERE content_key_version = @version)
+        NOT EXISTS (SELECT 1 FROM messaging.deliveries WHERE content_key_version = @version)
            AND NOT EXISTS (SELECT 1 FROM messaging.subscriptions WHERE content_key_version = @version)
-           AND NOT EXISTS (SELECT 1 FROM messaging.entries WHERE content_key_version = @version) AS "Value"
+           AND NOT EXISTS (SELECT 1 FROM messaging.entries WHERE content_key_version = @version)
         """;
 
     private const string NoHash = """
-        SELECT NOT EXISTS (SELECT 1 FROM messaging.idempotency WHERE hash_version = @version)
+        NOT EXISTS (SELECT 1 FROM messaging.idempotency WHERE hash_version = @version)
            AND NOT EXISTS (SELECT 1 FROM messaging.suppressions WHERE hash_version = @version)
            AND NOT EXISTS (SELECT 1 FROM messaging.places WHERE hash_version = @version)
-           AND NOT EXISTS (SELECT 1 FROM messaging.subscriptions WHERE hash_version = @version) AS "Value"
+           AND NOT EXISTS (SELECT 1 FROM messaging.subscriptions WHERE hash_version = @version)
         """;
 
     private const string NoWaitingToken = """
@@ -106,6 +108,9 @@ internal sealed partial class RetentionKeys(
 
     private static readonly string[] Judged = [KeyNeeds.ContentKeys, KeyNeeds.HashKeys, KeyNeeds.TokenKeys, KeyNeeds.PushVapidKeys];
 
+    /// <summary>The other tables holding values, hashes or person references (M-031).</summary>
+    private readonly IReadOnlyList<KeyedTable> keyed = [.. tables];
+
     private enum Again
     {
         Protected,
@@ -114,9 +119,10 @@ internal sealed partial class RetentionKeys(
     }
 
     /// <summary>
-    /// Protects again, in batches, the values of every delivery, subscription and in-app entry under a
-    /// <c>contentKeys</c> version below this process's write version, renewing the claim after
-    /// each; false where a renewal finds the claim no longer the run's.
+    /// Protects again, in batches, the values of every delivery, subscription, in-app entry and
+    /// row of a keyed table under a <c>contentKeys</c> version below this process's write
+    /// version, renewing the claim after each; false where a renewal finds the claim no longer
+    /// the run's.
     /// </summary>
     internal async Task<bool> ProtectAgainAsync(Func<Task<bool>> renew, CancellationToken cancellationToken)
     {
@@ -125,9 +131,22 @@ internal sealed partial class RetentionKeys(
             return true;
         }
 
-        return await RunAsync(content.WriteVersion, Deliveries, renew, (context, row, token) => DeliveryAsync(context, (DeliveryRow)row, content.WriteVersion, token), context => context.Deliveries, cancellationToken).ConfigureAwait(false)
+        if (!(await RunAsync(content.WriteVersion, Deliveries, renew, (context, row, token) => DeliveryAsync(context, (DeliveryRow)row, content.WriteVersion, token), context => context.Deliveries, cancellationToken).ConfigureAwait(false)
             && await RunAsync(content.WriteVersion, Subscriptions, renew, (context, row, token) => SubscriptionAsync(context, (SubscriptionRow)row, content.WriteVersion, token), context => context.Subscriptions, cancellationToken).ConfigureAwait(false)
-            && await RunAsync(content.WriteVersion, Entries, renew, (context, row, token) => EntryAsync(context, (EntryRow)row, content.WriteVersion, token), context => context.Entries, cancellationToken).ConfigureAwait(false);
+            && await RunAsync(content.WriteVersion, Entries, renew, (context, row, token) => EntryAsync(context, (EntryRow)row, content.WriteVersion, token), context => context.Entries, cancellationToken).ConfigureAwait(false)))
+        {
+            return false;
+        }
+
+        foreach (KeyedTable table in keyed.Where(table => table.Values.Count > 0))
+        {
+            if (!await RunKeyedAsync(table, content.WriteVersion, renew, cancellationToken).ConfigureAwait(false))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>Marks retired each version nothing needs, one transaction a version, renewing the claim after each; false where a renewal finds the claim no longer the run's.</summary>
@@ -371,6 +390,102 @@ internal sealed partial class RetentionKeys(
         return changed == 1 ? Again.Protected : Again.Left;
     }
 
+    /// <summary>Runs the batches of a keyed table, as <see cref="RunAsync{TRow}"/> runs those of the tables the engine knows; answers false where the claim was lost.</summary>
+    private async Task<bool> RunKeyedAsync(KeyedTable table, int write, Func<Task<bool>> renew, CancellationToken cancellationToken)
+    {
+        MessagingOptions current = options.CurrentValue;
+        int batch = current.Jobs.BatchSize;
+        Guid after = Guid.Empty;
+        int protectedRows = 0;
+        while (true)
+        {
+            (int Read, Guid Last, bool Stop) outcome = await LibraryTransactions.RunAsync(
+                database,
+                current,
+                async (context, token) =>
+                {
+                    if (await SchemaCheck.UnknownAsync(context, token).ConfigureAwait(false) is not null)
+                    {
+                        return (0, after, true);
+                    }
+
+                    List<KeyedRow> rows = await ReadKeyedAsync(context, table, write, after, batch, token).ConfigureAwait(false);
+                    Guid last = after;
+                    foreach (KeyedRow row in rows)
+                    {
+                        last = row.Id;
+                        switch (await KeyedAsync(context, table, row, write, token).ConfigureAwait(false))
+                        {
+                            case Again.Protected:
+                                protectedRows++;
+                                break;
+                            case Again.Refused:
+                                return (rows.Count, last, true);
+                            default:
+                                break;
+                        }
+                    }
+
+                    return (rows.Count, last, false);
+                },
+                cancellationToken).ConfigureAwait(false);
+            after = outcome.Last;
+            if (!await renew().ConfigureAwait(false))
+            {
+                return false;
+            }
+
+            if (outcome.Stop || outcome.Read < batch)
+            {
+                break;
+            }
+        }
+
+        if (protectedRows > 0)
+        {
+            ProtectedAgain(logger, protectedRows);
+        }
+
+        return true;
+    }
+
+    /// <summary>A batch of a keyed table's rows to protect again, read in <paramref name="context"/>'s transaction.</summary>
+    private static async Task<List<KeyedRow>> ReadKeyedAsync(MessagingContext context, KeyedTable table, int write, Guid after, int batch, CancellationToken cancellationToken)
+    {
+        List<KeyedLine> lines = await context.Database.SqlQueryRaw<KeyedLine>(
+            table.SelectToProtectAgain(),
+            new NpgsqlParameter("write", write),
+            new NpgsqlParameter("after", after),
+            new NpgsqlParameter("batch", batch)).ToListAsync(cancellationToken).ConfigureAwait(false);
+        return [.. lines.GroupBy(line => line.Id).Select(row => new KeyedRow(row.Key, row.First().Person, [.. row.OrderBy(line => line.Position).Select(line => line.Value)]))];
+    }
+
+    /// <summary>A keyed table's row's values protected again together, in one update conditional on each still being the one read.</summary>
+    private async Task<Again> KeyedAsync(MessagingContext context, KeyedTable table, KeyedRow row, int write, CancellationToken cancellationToken)
+    {
+        List<NpgsqlParameter> parameters = [new NpgsqlParameter("id", row.Id), new NpgsqlParameter("version", write)];
+        for (int index = 0; index < table.Values.Count; index++)
+        {
+            byte[]? stored = row.Values[index];
+            byte[]? again = null;
+            if (stored is not null)
+            {
+                (Again outcome, byte[]? made) = await AgainAsync(row.Person, stored, ContentContext.Of(table.Context, row.Id, table.Values[index].Field), cancellationToken).ConfigureAwait(false);
+                if (outcome != Again.Protected)
+                {
+                    return outcome;
+                }
+
+                again = made;
+            }
+
+            parameters.Add(Bytes("v" + index.ToString(CultureInfo.InvariantCulture), again));
+            parameters.Add(Bytes("was" + index.ToString(CultureInfo.InvariantCulture), stored));
+        }
+
+        return await context.Database.ExecuteSqlRawAsync(table.ProtectAgain(), parameters, cancellationToken).ConfigureAwait(false) == 1 ? Again.Protected : Again.Left;
+    }
+
     /// <summary>A library value opened and protected again under the write version; left where it is not the library's or does not open, refused where no value can be reserved.</summary>
     private async Task<(Again Outcome, byte[]? Stored)> AgainAsync(string? person, byte[] stored, string context, CancellationToken cancellationToken)
     {
@@ -389,18 +504,29 @@ internal sealed partial class RetentionKeys(
         return made.Stored is null ? (Again.Refused, null) : (Again.Protected, ContentEnvelope.Wrap(LibraryProtector.LibraryId, made.Stored));
     }
 
+    /// <summary>
+    /// The statement answering whether no row records <c>@version</c>: <paramref name="known"/>
+    /// over the tables the engine knows, and the same over each keyed table that records
+    /// <paramref name="column"/>'s version.
+    /// </summary>
+    internal static string NoRowUnder(string known, IEnumerable<KeyedTable> tables, Func<KeyedTable, string?> column)
+    {
+        IEnumerable<string> others = tables.Select(table => column(table) is { } named ? table.NoRowUnder(named) : null).OfType<string>();
+        return "SELECT " + string.Join(" AND ", [known.Trim(), .. others]) + " AS \"Value\"";
+    }
+
     /// <summary>Whether nothing needs <paramref name="candidate"/>, read in the marking transaction.</summary>
-    private static async Task<bool> UnneededAsync(MessagingContext context, KeyVersion candidate, DateTimeOffset now, TimeSpan retireAfter, TimeSpan interval, CancellationToken cancellationToken)
+    private async Task<bool> UnneededAsync(MessagingContext context, KeyVersion candidate, DateTimeOffset now, TimeSpan retireAfter, TimeSpan interval, CancellationToken cancellationToken)
     {
         NpgsqlParameter version = new("version", candidate.Version);
         switch (candidate.Key)
         {
             case KeyNeeds.ContentKeys:
-                return await IsAsync(context, NoContentRow, [version], cancellationToken).ConfigureAwait(false);
+                return await IsAsync(context, NoRowUnder(NoContentRow, keyed, table => table.ContentKeyVersion), [version], cancellationToken).ConfigureAwait(false);
             case KeyNeeds.PushVapidKeys:
                 return await IsAsync(context, NoSubscription, [version], cancellationToken).ConfigureAwait(false);
             case KeyNeeds.HashKeys:
-                return await IsAsync(context, NoHash, [version], cancellationToken).ConfigureAwait(false)
+                return await IsAsync(context, NoRowUnder(NoHash, keyed, table => table.HashVersion), [version], cancellationToken).ConfigureAwait(false)
                     && await NoTokenNeedsAsync(context, candidate, now, retireAfter, interval, cancellationToken).ConfigureAwait(false);
             default:
                 return await NoTokenNeedsAsync(context, candidate, now, retireAfter, interval, cancellationToken).ConfigureAwait(false);
