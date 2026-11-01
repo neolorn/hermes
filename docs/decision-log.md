@@ -1914,6 +1914,146 @@ C40 and C47 to C49. C50 (the public hub) is phase 16's.
 
 ---
 
+## M-034 — Phase 16: support's public side
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-CONV-001, MSG-CONV-002, MSG-CONV-009, MSG-CONV-010, MSG-CONV-011
+
+**TL;DR.**
+- A visitor is known by a reference the library draws, kept in an HttpOnly cookie and
+  stored only as a keyed hash.
+- A signed-in customer is their person.
+- Topics are configuration. Each one has hours in a time zone and the membership scope
+  whose members staff it.
+- A queued conversation goes at once to the available member with the fewest open
+  conversations. With nobody available, the visitor gets the offline form, answered by
+  email.
+- A visitor acknowledges the host's privacy notice before writing.
+- The public side is limited by counters in the database, and staff can block a visitor.
+
+This entry settles the map's C7, C12 to C19, C50 to C52 and C57 to C60.
+
+- **The visitor (C7, C50).**
+  - **The reference.** The public side draws `visitor:` followed by 128 random bits in
+    base64url on the first call that needs one.
+  - **The cookie.** The reference is kept in `hermes_visitor`: HttpOnly, Secure,
+    SameSite Lax, path the public prefix, renewed on use, and living as long as
+    `Retention:Visitor`.
+  - **Storage.** It is a bearer credential, so the database holds only its keyed hash,
+    under a new domain, `visitor` (`08` section 8).
+  - **The public hub.** It is authenticated by the same cookie.
+- **A signed-in customer (C51, C52).**
+  - Where `IRecipientIdentity` answers a person on the public side, the conversation is
+    that person's: no cookie, no notice, and protection under their key through the host
+    protector.
+  - A visitor's conversation is protected through the library protector, with the visitor
+    reference as its person, as `01` MSG-SEND-018 protects anonymous values.
+  - Staff replies are under the same key (MSG-CONV-009).
+- **Topics (C12, C13).**
+  - Each topic is configuration, `Hermes:Conversations:Topics:<name>`, its name under
+    `08` section 3's name rule. It has:
+    - `TimeZone` (IANA);
+    - `Hours`, from `Monday` to `Sunday`, each a list of `HH:mm-HH:mm`;
+    - `Exceptions`, by date, each `Closed` or its own list;
+    - `Scope`: a kind and a reference for the membership seam (M-032).
+  - The staff of a topic are its scope's members.
+  - A topic's display name is the host frontend's.
+- **Who answers (C14, C15, C16).**
+  - **Available.** A staff member is available while they hold a staff-hub connection
+    (M-033), have set themselves available, and hold fewer open support conversations
+    than `Hermes:Conversations:Support:Limit` (default 3).
+  - **Being set available.** Through `PUT {staff}/support/availability`, stored in an
+    `agents` table, which holds a person reference, so M-031's rule applies.
+  - **Assignment.** It is automatic. When a conversation is queued, or a member frees up,
+    the oldest queued conversation of each topic goes to the available member with the
+    fewest open conversations. Ties go to the one longest since their last assignment.
+  - **The queue.** It is first in, first out per topic.
+  - **The visitor's place.** It is in the conversation's read, and pushed over the
+    public hub as `place(position)` (C17).
+- **Offline (C18).** Outside a topic's hours, or within them while no member is
+  available, starting a conversation answers **409** `messaging.support.offline`, and the
+  visitor uses the offline form instead.
+  - The form takes an email address and the text. It becomes a conversation flagged
+    `offline`, queued like any other.
+  - Staff replies to it are sent through sending, as the kind named by
+    `Hermes:Conversations:Support:OfflineReplyKind`, to `Recipient.Anonymous` with that
+    address. The key is required where topics are configured.
+  - The address is a protected value of the conversation.
+- **Transfer (C19).** A staff member transfers to another member of the topic's scope,
+  assigned at once, or to another topic's queue. The receiver does not accept.
+- **The privacy notice (C57).**
+  - The notice's text is the host's. The library records the acknowledgement: the
+    visitor's hash, the version, the instant and the language.
+  - The version is `Hermes:Conversations:Support:NoticeVersion`, required where topics
+    are configured.
+  - A visitor's message before an acknowledgement of the current version answers **409**
+    `messaging.support.noticerequired`. A signed-in customer is never asked.
+- **Limits (C58, C59).**
+  - Counters live in the database, across processes, as MSG-SEND-014 counts. Each is a
+    key under `Hermes:Conversations:Limits:`:
+    - per visitor, conversations started per day (`VisitorStarts`, default 5) and
+      messages per minute (`VisitorMessages`, default 20);
+    - per source address, conversations started per hour (`SourceStarts`, default 20).
+  - Over a limit answers **429** `messaging.support.limited` with `Retry-After`.
+  - The source address is the request's remote address, as the host's forwarded-headers
+    set-up gives it. IPv6 is grouped by its /64. The address is stored as a keyed hash
+    under a new domain, `source`.
+- **Blocking (C60).**
+  - Staff block a visitor or a customer by their conversation, until an instant or until
+    lifted, and lift the block.
+  - A blocked one starting or writing answers **403** `messaging.support.blocked`.
+  - Blocking by address is not offered, since addresses are shared.
+  - The `blocks` table holds a person reference or a visitor hash, so M-031's rule
+    applies.
+- **The routes.**
+  - **Public.** `MapHermesPublicConversations(this IEndpointRouteBuilder routes, string
+    prefix)` answers its `RouteGroupBuilder`, with:
+    - `GET {prefix}/support/topics`: each topic, open now or offline;
+    - `POST {prefix}/support/notice` with `version`;
+    - `POST {prefix}/support/conversations` with `topic` and `text`: **201**;
+    - `POST {prefix}/support/offline` with `topic`, `email` and `text`: **201**;
+    - `GET {prefix}/support/conversations/current`: the open conversation, with its
+      place;
+    - `GET` and `POST {prefix}/support/conversations/{id}/messages` (with `after`, as
+      M-033);
+    - `POST {prefix}/support/conversations/{id}/read` and `.../close`;
+    - the hub `{prefix}/live`: `message`, `messageChanged`, `typing`, `place`,
+      `assigned` and `closed`, and `Typing` from the client.
+  - **Staff, on M-032's group.**
+    - `GET {staff}/support/queue?topic=`;
+    - `PUT {staff}/support/availability`;
+    - `POST {staff}/support/conversations/{id}/transfer` with `person` or `topic`;
+    - `POST {staff}/support/conversations/{id}/close`;
+    - `POST` and `DELETE {staff}/support/conversations/{id}/block`.
+
+    A staff member writes `text` or `note` in a support conversation they are assigned,
+    through M-032's messages route. A visitor never sees a `note`, in reads or pushes.
+- **Erasure (C55, support part).** Erasing a person deletes their support conversations
+  with every row of them. A visitor's conversations go by retention (phase 20).
+
+**Phase 16's criteria.**
+1. FIFO per topic, to the available member with the fewest open conversations, within
+   the topic's hours and exceptions in its time zone.
+2. The visitor's place is right and pushed.
+3. A transfer moves the conversation.
+4. Outside hours, or with nobody available, the start answers `offline`, and the
+   offline form's conversation is answered by email of `OfflineReplyKind`.
+5. No visitor message is taken before the current notice is acknowledged. A customer is
+   never asked.
+6. The visitor's reference is never stored in clear, and another browser's cookie
+   opens nothing.
+7. Each limit answers 429 at its edge, across two processes.
+8. A blocked visitor is refused until the block ends or is lifted.
+9. A visitor never receives a `note`.
+10. Erasing a customer deletes their support conversations.
+
+**Propagated to:**
+- `05` (the public routes and hub, the staff support routes);
+- `08` sections 1, 4 and 8 (codes, keys, domains, tables);
+- `09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-009, MSG-CONV-010, MSG-CONV-011, with
+  their criteria.
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1951,3 +2091,4 @@ C40 and C47 to C49. C50 (the public hub) is phase 16's.
 | Release 2: its phases, and where conversations live | M-031 |
 | Phase 14: the model and staff chats | M-032 |
 | Phase 15: the live connection | M-033 |
+| Phase 16: support's public side | M-034 |
