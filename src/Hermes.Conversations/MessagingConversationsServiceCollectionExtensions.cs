@@ -48,6 +48,7 @@ public static class MessagingConversationsServiceCollectionExtensions
         services.TryAddScoped<IConversations>(provider => provider.GetRequiredService<StaffChats>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ConversationsStartup>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, LiveListener>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ConversationTimersJob>());
         return services;
     }
 }

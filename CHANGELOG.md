@@ -102,6 +102,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instant are on staff bodies only. The keys `Hermes:Conversations:Replies`,
   `Support:CloseAfter` and `Support:CloseWarning` are read at start, and every automatic
   reply rule's template is checked in every declared language
+- Automatic replies: each rule under `Hermes:Conversations:Replies` writes one `automatic`
+  message, by the library, in the conversation's language, read from `Accept-Language` at
+  its start, else the default language: `started` on every conversation created queued,
+  `unavailable` and `outsidehours` on an offline form's, `waiting` once a queued
+  conversation has waited its `After`, and `closing` before an automatic close; once per
+  conversation, in name order where two fire at once, never emailed, and a reply that
+  fails to render or to be protected writes nothing, is logged and counts as fired. A
+  reply's template reads `topic`, `place`, `wait` and `opens`, a value that is none being
+  false and empty
+- The job `conversation-timers`, every 30 seconds under the engine's job claims where
+  `Hermes:Jobs:Enabled` is on: it wakes snoozed conversations at their instant, fires
+  `waiting` and `closing`, and closes a support conversation silent for
+  `Support:CloseAfter` with a `system` message without text; only a staff member's, a
+  visitor's or a customer's `text` restarts the silence
 
 ### Fixed
 

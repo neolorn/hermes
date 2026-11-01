@@ -40,6 +40,7 @@ internal sealed partial class StaffChats(
     IMessages messages,
     ConversationsSettings settings,
     SupportAssigner assigner,
+    ReplyTemplates replyTemplates,
     TimeProvider clock,
     ILogger<StaffChats> logger) : IConversations
 {
@@ -70,7 +71,7 @@ internal sealed partial class StaffChats(
         SELECT * FROM messaging.conversations AS c
         WHERE ((c.type = 'direct' AND EXISTS (SELECT 1 FROM messaging.participants AS p WHERE p.conversation_id = c.id AND p.person = @person AND p.left_at IS NULL))
             OR (c.type = 'group' AND (c.scope_kind, c.scope_reference) IN (SELECT kind, reference FROM unnest(@kinds, @references) AS scopes(kind, reference)))
-            OR (c.type = 'support' AND c.status = 'open' AND c.assignee = @person))
+            OR (c.type = 'support' AND c.status IN ('open', 'snoozed') AND c.assignee = @person))
           AND (NOT @after OR (COALESCE(c.last_message_at, c.created_at), c.id) < (@last_at, @id))
         ORDER BY COALESCE(c.last_message_at, c.created_at) DESC, c.id DESC
         LIMIT @limit
@@ -472,6 +473,11 @@ internal sealed partial class StaffChats(
 
                 ConversationRow tracked = await context.Conversations.SingleAsync(each => each.Id == reached.Id, token).ConfigureAwait(false);
                 tracked.LastMessageAt = now;
+                if (support && type == MessageType.Text)
+                {
+                    Silence(tracked, now);
+                }
+
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
                 await LiveNotices.TellAsync(context, LiveNotices.Message, reached.Id, id, token).ConfigureAwait(false);
                 return new Written(row, null);

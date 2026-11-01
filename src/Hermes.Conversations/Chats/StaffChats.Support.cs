@@ -150,6 +150,7 @@ internal sealed partial class StaffChats
                 row.Assignee = null;
                 row.AssignedAt = null;
                 row.QueuedAt = now;
+                row.WaitingAt = WaitingOf(row);
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
                 await LiveNotices.TellQueueAsync(context, to.Name, token).ConfigureAwait(false);
                 if (wasQueued && !string.Equals(left, to.Name, StringComparison.Ordinal))
@@ -275,9 +276,7 @@ internal sealed partial class StaffChats
                 }
 
                 bool wasQueued = row.Assignee is null;
-                row.Status = ClosedStatus;
-                row.ClosedAt = clock.GetUtcNow();
-                row.ClosedBy = by;
+                Closed(row, clock.GetUtcNow(), by);
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
                 await LiveNotices.TellAsync(context, LiveNotices.Closed, row.Id, row.Id, token).ConfigureAwait(false);
                 if (wasQueued)

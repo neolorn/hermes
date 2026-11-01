@@ -84,10 +84,56 @@ internal sealed class ReplyTemplates(TemplateRenderer renderer)
         Dictionary<string, FluidValue> fluid = new(StringComparer.OrdinalIgnoreCase);
         foreach ((string name, SendValue? value) in values)
         {
-            fluid[name] = value is null ? NilValue.Instance : TemplateValues.Of(value, maxSteps) ?? NilValue.Instance;
+            fluid[name] = value is null ? NoneValue.Instance : TemplateValues.Of(value, maxSteps) ?? NoneValue.Instance;
         }
 
         Rendering rendering = await renderer.RenderAsync(part.Template, fluid, html: false, RenderBudget.Units(Chats.StaffChats.MostTextCharacters + 1), SendLanguage.Culture(language), zone).ConfigureAwait(false);
         return rendering.Text is { Length: >= 1 and <= Chats.StaffChats.MostTextCharacters } text ? text : null;
+    }
+
+    /// <summary>
+    /// A reply's value that is none (<c>09</c> MSG-CONV-003): given, so strict rendering reads
+    /// it, but false in a condition, nothing in an output, and blank to <c>default</c>.
+    /// </summary>
+    private sealed class NoneValue : FluidValue
+    {
+        internal static readonly NoneValue Instance = new();
+
+        public override FluidValues Type => FluidValues.String;
+
+        public override bool Equals(FluidValue other)
+        {
+            return other is NoneValue || other.IsNil() || (other.Type == FluidValues.String && other.ToStringValue().Length == 0);
+        }
+
+        public override bool ToBooleanValue()
+        {
+            return false;
+        }
+
+        public override decimal ToNumberValue()
+        {
+            return 0;
+        }
+
+        public override object ToObjectValue()
+        {
+            return string.Empty;
+        }
+
+        public override string ToStringValue()
+        {
+            return string.Empty;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            return obj is NoneValue;
+        }
+
+        public override int GetHashCode()
+        {
+            return 0;
+        }
     }
 }

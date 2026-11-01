@@ -218,6 +218,27 @@ public sealed class SupportConfigurationTests
         Assert.Equal("Conversations:Support:CloseWarning", SupportConfiguration.Read(Hermes(settings), Kinds).Invalid);
     }
 
+    [Fact]
+    public void NextOpening_IsTheNextRangesStartInTheTopicsZoneAndNoneWithoutHours()
+    {
+        SupportTopic topic = SupportConfiguration.Read(Hermes(Topic()), Kinds).Settings!.Topics["billing"];
+        TimeSpan berlin = TimeSpan.FromHours(1);
+
+        // Monday 2 November 2026: before the morning, in the lunch gap, and after the day, whose next range is Thursday's.
+        Assert.Equal(new DateTimeOffset(2026, 11, 2, 9, 0, 0, berlin), topic.NextOpening(new DateTimeOffset(2026, 11, 2, 7, 30, 0, TimeSpan.Zero)));
+        Assert.Equal(new DateTimeOffset(2026, 11, 2, 13, 0, 0, berlin), topic.NextOpening(new DateTimeOffset(2026, 11, 2, 11, 30, 0, TimeSpan.Zero)));
+        Assert.Equal(new DateTimeOffset(2026, 11, 5, 9, 0, 0, berlin), topic.NextOpening(new DateTimeOffset(2026, 11, 2, 16, 30, 0, TimeSpan.Zero)));
+        Assert.Equal(berlin, topic.NextOpening(new DateTimeOffset(2026, 11, 2, 16, 30, 0, TimeSpan.Zero))!.Value.Offset);
+
+        Dictionary<string, string?> closed = Topic();
+        foreach (string key in closed.Keys.Where(key => key.Contains(":Hours:", StringComparison.Ordinal) || key.Contains(":Exceptions:", StringComparison.Ordinal)).ToList())
+        {
+            closed.Remove(key);
+        }
+
+        Assert.Null(SupportConfiguration.Read(Hermes(closed), Kinds).Settings!.Topics["billing"].NextOpening(new DateTimeOffset(2026, 11, 2, 7, 30, 0, TimeSpan.Zero)));
+    }
+
     private static Dictionary<string, string?> Topic(string name = "billing")
     {
         string topic = "Hermes:Conversations:Topics:" + name;

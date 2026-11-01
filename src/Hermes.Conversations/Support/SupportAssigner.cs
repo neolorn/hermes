@@ -134,6 +134,7 @@ internal sealed class SupportAssigner(
         bool queued = conversation.Assignee is null;
         conversation.Assignee = person;
         conversation.AssignedAt = now;
+        conversation.WaitingAt = null;
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await context.Database.ExecuteSqlRawAsync(
             Join,

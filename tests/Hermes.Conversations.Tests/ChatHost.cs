@@ -257,6 +257,7 @@ internal sealed class ChatHost : IAsyncDisposable
                 {
                     "missing" => null,
                     "broken" => "{{ topic ",
+                    "long" => "{% for i in (1..4001) %}x{% endfor %}",
                     _ => reply + " " + key.Language + ": {{ topic }} {{ place }} {{ wait }} {{ opens }}",
                 });
             }

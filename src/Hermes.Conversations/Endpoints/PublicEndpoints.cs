@@ -227,7 +227,9 @@ internal static class PublicEndpoints
         SupportCaller caller = (await CallerAsync(context, path, draw: true).ConfigureAwait(false))!;
         return await CallAsync<CreatedAnswer<PublicConversationBody>>(context, async chats =>
         {
-            SupportAnswer<ConversationRecord> started = await chats.StartSupportAsync(caller, topic!, text!, email, Source(context), context.RequestAborted).ConfigureAwait(false);
+            MessagingOptions current = context.RequestServices.GetRequiredService<IOptionsMonitor<MessagingOptions>>().CurrentValue;
+            string language = InAppEndpoints.Language(context.Request.Headers.AcceptLanguage, current.Languages) ?? current.DefaultLanguage ?? current.Languages.FirstOrDefault() ?? string.Empty;
+            SupportAnswer<ConversationRecord> started = await chats.StartSupportAsync(caller, topic!, text!, email, Source(context), language, context.RequestAborted).ConfigureAwait(false);
             return started.Failure is { } refused
                 ? Refused(context, refused, started.RetryAfter)
                 : new CreatedAnswer<PublicConversationBody>(StaffEndpoints.OfPublic(started.Value!), ConversationsJson.Default.PublicConversationBody);

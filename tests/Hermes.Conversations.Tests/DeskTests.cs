@@ -157,6 +157,11 @@ public sealed class DeskTests(PostgresFixture postgres) : IClassFixture<Postgres
         Assert.Equal("snoozed", staff.GetProperty("status").GetString());
         Assert.True(DateTimeOffset.Parse(staff.GetProperty("snoozedUntil").GetString()!, CultureInfo.InvariantCulture) > DateTimeOffset.UtcNow.AddMinutes(59));
 
+        // A snoozed conversation stays the visitor's current one and on its assignee's list.
+        using HttpResponseMessage current = await visitor.SendAsync(HttpMethod.Get, "/support/conversations/current");
+        Assert.Equal(("snoozed", conversation.ToString("D")), ((await Browser.JsonAsync(current)).GetProperty("status").GetString(), (await Browser.JsonAsync(current)).GetProperty("id").GetString()));
+        using HttpResponseMessage listed = await chat.SendAsync(HttpMethod.Get, "/conversations", "amal");
+        Assert.Contains((await Browser.JsonAsync(listed)).GetProperty("conversations").EnumerateArray(), each => each.GetProperty("id").GetString() == conversation.ToString("D"));
         // A staff member may still write in it, and the visitor's message wakes it at once.
         using HttpResponseMessage written = await visitor.SendAsync(HttpMethod.Post, $"/support/conversations/{conversation:D}/messages", """{ "text": "Still there?" }""");
         Assert.Equal(HttpStatusCode.Created, written.StatusCode);
