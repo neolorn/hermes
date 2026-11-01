@@ -30,6 +30,7 @@ public sealed class MigrationsGateTests
             "20261031014230_InAppList",
             "20261031160450_SendIdempotencyKey",
             "20261101011311_Conversations",
+            "20261101022730_LiveConnection",
         ];
 
         Assert.True(run.ExitCode == 0, run.Output);

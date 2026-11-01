@@ -7,7 +7,7 @@ namespace Hermes.Conversations;
 /// The conversations' tables as key retirement, re-protection and erasure know them (<c>06</c>
 /// MSG-OPS-002, M-031): a message's text protected under its author's key, its author, text
 /// and version emptied at the author's erasure; a person's participant and mention rows
-/// deleted at theirs (<c>09</c> MSG-CONV-009).
+/// deleted at theirs (<c>09</c> MSG-CONV-009), and their connections to the staff hub.
 /// </summary>
 internal static class ConversationTables
 {
@@ -22,5 +22,6 @@ internal static class ConversationTables
         new KeyedTable("messages", Messages, person: "author", values: [new KeyedValue("text", Text)], contentKeyVersion: "content_key_version", erasure: KeyedErasure.Clear),
         new KeyedTable("participants", "participants", person: "person"),
         new KeyedTable("mentions", "mentions", person: "person"),
+        new KeyedTable("connections", "connections", person: "person"),
     ];
 }

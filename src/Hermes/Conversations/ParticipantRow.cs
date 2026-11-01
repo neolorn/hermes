@@ -20,6 +20,9 @@ internal sealed class ParticipantRow
 
     public bool Muted { get; set; }
 
+    /// <summary>The message the person was last told of while away, until their read position passes it (<c>09</c> MSG-CONV-008).</summary>
+    public Guid? AwayTold { get; set; }
+
     public required DateTimeOffset JoinedAt { get; set; }
 
     /// <summary>The instant they left a direct conversation, or none while they are in it.</summary>

@@ -68,6 +68,8 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
     internal DbSet<MentionRow> Mentions => Set<MentionRow>();
 
+    internal DbSet<ConnectionRow> Connections => Set<ConnectionRow>();
+
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
     {
@@ -535,11 +537,14 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             participant.HasIndex(row => new { row.ConversationId, row.Person }).IsUnique().HasDatabaseName("ux_participants_conversation_person");
             participant.HasIndex(row => row.Person).HasDatabaseName("ix_participants_person");
             participant.HasIndex(row => row.ReadPosition).HasDatabaseName("ix_participants_read_position");
+            participant.HasOne<MessageRow>().WithMany().HasForeignKey(row => row.AwayTold).HasConstraintName("fk_participants_messages_away_told").OnDelete(DeleteBehavior.SetNull);
+            participant.HasIndex(row => row.AwayTold).HasDatabaseName("ix_participants_away_told");
             participant.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
             participant.Property(row => row.ConversationId).HasColumnName("conversation_id");
             participant.Property(row => row.Person).HasColumnName("person");
             participant.Property(row => row.ReadPosition).HasColumnName("read_position");
             participant.Property(row => row.Muted).HasColumnName("muted");
+            participant.Property(row => row.AwayTold).HasColumnName("away_told");
             participant.Property(row => row.JoinedAt).HasColumnName("joined_at");
             participant.Property(row => row.LeftAt).HasColumnName("left_at");
         });
@@ -579,6 +584,18 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             mention.HasIndex(row => row.Person).HasDatabaseName("ix_mentions_person");
             mention.Property(row => row.MessageId).HasColumnName("message_id");
             mention.Property(row => row.Person).HasColumnName("person");
+        });
+
+        modelBuilder.Entity<ConnectionRow>(connection =>
+        {
+            connection.ToTable("connections");
+            connection.HasKey(row => row.Id).HasName("pk_connections");
+            connection.HasIndex(row => row.Person).HasDatabaseName("ix_connections_person");
+            connection.HasIndex(row => row.LastSeenAt).HasDatabaseName("ix_connections_last_seen_at");
+            connection.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            connection.Property(row => row.Person).HasColumnName("person");
+            connection.Property(row => row.Process).HasColumnName("process");
+            connection.Property(row => row.LastSeenAt).HasColumnName("last_seen_at");
         });
     }
 

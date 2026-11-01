@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A group conversation's scope reference is 1 to 128 characters, as a person reference is;
   outside it, the group route answers `messaging.request.malformed`, `member` `reference`
 - The sample host maps the in-app group
+- The migration `LiveConnection`, which adds the table `connections`, each staff-hub
+  connection's person, process and last-seen instant, deleted at its person's erasure, and
+  to each participant the message they were last told of while away; it drops and
+  rewrites nothing
 
 ### Fixed
 
