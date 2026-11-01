@@ -1807,6 +1807,101 @@ C35 to C38, C41, C53 to C55 (staff part) and C61.
 
 ---
 
+## M-033 — Phase 15: the live connection
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-CONV-005, MSG-CONV-006, MSG-CONV-008
+
+**TL;DR.** The staff side gets a SignalR hub that pushes what HTTP wrote, after it is stored,
+to the participants connected to any process. Processes tell each other through `NOTIFY`
+on a listening connection of the package's own, carrying identifiers that name no person.
+Typing is relayed and never stored. Presence is a connection, shown in direct
+conversations. A person who is away hears of a direct message or a mention through
+sending, once per conversation until they read it. This entry settles the map's C34, C39,
+C40 and C47 to C49. C50 (the public hub) is phase 16's.
+
+- **The hub (C47).**
+  - **Route.** `MapHermesStaffConversations` also maps the staff hub at `{prefix}/live`,
+    inside the same `RouteGroupBuilder`, so the host's authorization covers it.
+  - **Person.** The person comes from `IRecipientIdentity` at connect, and a connection
+    without one is refused.
+  - **Server to client:**
+    - `message(conversationId, message)`: a new message, in the shape the messages
+      route answers;
+    - `messageChanged(conversationId, message)`: an edit or a delete;
+    - `read(conversationId, participantId, messageId)`;
+    - `typing(conversationId, participantId)`;
+    - `presence(participantId, online)`;
+    - `conversation(conversation)`: one added to the person's list.
+  - **Client to server.** One method only, `Typing(conversationId)`: writes stay HTTP.
+  - **Surface.** The hub's route, methods and shapes are surface (M-031).
+- **Catching up.** The messages route gains `after={messageId}`, which answers oldest
+  first. A client that reconnects reads from its last message, since every push follows
+  the store.
+- **Fan-out (C48).**
+  - **The channel.** After a write commits, the write sends `NOTIFY messaging_conversations`
+    with `<event>:<conversationId>:<id>`. The event is `message`, `changed`, `read`,
+    `typing` or `presence`. The id is a message's or a participant's, never a person
+    reference.
+  - **Listening.** Each process listens on a connection of the package's own, opened from
+    `listenConnection` where set and else the library's connection (MSG-OPS-003).
+    Dispatch and conversations never wait on each other.
+  - **Who receives.** Each process pushes to its own connections whose person may read
+    the conversation now. For a direct conversation, that is the participants not left.
+    For a group conversation, it is the scope's members from one `MembersAsync` call per
+    event, intersected with the persons connected to that process.
+- **Typing (C34).**
+  - `Typing` is relayed to the conversation's other connected readers, and never stored.
+  - A client sends it at most every 3 seconds while typing. A receiver shows it for 5
+    seconds after the last one.
+  - A person whose participant row does not exist yet gets one written first.
+- **Read indicators (C34).** Moving a read position (phase 14) sends `read` to the other
+  readers.
+- **Presence (C39).**
+  - A person is online while they hold a staff-hub connection on any process.
+  - The `connections` table holds each connection's person, process and last-seen
+    instant. A process refreshes its rows every 30 seconds, and a row older than 90
+    seconds is gone.
+  - Presence is shown in direct conversations only: as each participant's `online` in
+    the conversation's read, and as `presence` pushes to the other participants. Group
+    conversations show none.
+  - `connections` holds a person reference, so M-031's standing rule applies:
+    erasure deletes the rows.
+- **Away notices (C40, C49).**
+  - **Who.** A participant of a direct conversation, or a person mentioned in a group
+    conversation, who holds no staff-hub connection when the message is written and has
+    not muted the conversation, is told through sending. A mention is told even where
+    the conversation is muted (M-032).
+  - **How often.** Once per person per conversation, until their read position passes
+    the message that was told. The send's idempotency key is
+    `conversation:<id>:away:<participantId>:<messageId>`.
+  - **The kind.** It is the one named by `Hermes:Conversations:AwayKind`. It must be a
+    declared kind, or the start fails naming the key. Unset, no away notice is sent.
+  - **Values.** The kind's values are the conversation's identifier and type, the
+    message's identifier, and whether the person was mentioned. The text is never
+    included: it is protected, and a notice must not carry it.
+  - The kind's own channels, preferences and quiet hours apply, as for any send.
+- **Phase 15's criteria.**
+  1. A message written through process A reaches a client connected to process B, after
+     it is stored.
+  2. A client that reconnects reads what it missed with `after`.
+  3. `NOTIFY`'s payload holds no person reference or text.
+  4. A non-member connected to the hub receives nothing of a group conversation, and a
+     member the seam stops answering for receives nothing from the next event.
+  5. Typing reaches the others and is never stored.
+  6. Presence turns offline within 90 seconds of a process stopping.
+  7. An away participant is told once until they read. A mention is told through a
+     mute. A connected one is not told.
+  8. `AwayKind` naming an undeclared kind fails the start.
+  9. The contract test finds the hub's route and methods.
+
+**Propagated to:**
+- `05` (the hub, `after`);
+- `06` MSG-OPS-003 (the listening connection);
+- `08` sections 4 (`AwayKind`) and 8 (the channel, the `connections` table);
+- `09` MSG-CONV-005, MSG-CONV-006, MSG-CONV-008, with their criteria.
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1843,3 +1938,4 @@ C35 to C38, C41, C53 to C55 (staff part) and C61.
 | Phase 12's second questions: the key, one of a delivery's values | M-030 |
 | Release 2: its phases, and where conversations live | M-031 |
 | Phase 14: the model and staff chats | M-032 |
+| Phase 15: the live connection | M-033 |
