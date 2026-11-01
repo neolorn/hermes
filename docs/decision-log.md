@@ -2666,6 +2666,24 @@ This entry settles the map's C42 to C46.
 > MSG-OPS-004; `08` sections 1, 2, 4, 5 and 8; `09` MSG-CONV-007, MSG-CONV-009;
 > `implementation-plan.md` (phase 19).
 
+> **Amended.** 2026-11-01, before phase 19's build:
+> - `attachments` holds `id`; `conversation_id` and `message_id`, each a foreign key set
+>   to null when its row goes, so the job still deletes the stored bytes; `named_at`;
+>   `uploader` (a person reference, none for a visitor), `visitor` (keyed hash) with
+>   `hash_version`, and `owner` (the person whose key protects it, none for a
+>   visitor's); `name` (protected) with `content_key_version`, which covers the chunks
+>   too; `media_type`, `size`, `chunks`, `store_key`; `status`, `scan_attempts`,
+>   `scan_at` (the next attempt) and `created_at`.
+> - The `attachment-scans` job removes, deleting the stored bytes first and retrying a
+>   failed deletion at its next pass, the rows whose conversation went, whose message
+>   went or was deleted, whose name an erasure cleared, or that were never named within
+>   24 hours. An infected row keeps its row without its bytes.
+> - The bytes are one stored object per attachment, its 64 KiB chunks each an envelope
+>   bound to `attachments:<id>:chunk:<n>`, framed by length and streamed, never held
+>   whole. Re-protection writes a new object under a new key, then deletes the old.
+>
+> Propagated to `08` section 8; `09` MSG-CONV-007.
+
 ---
 
 # Index
