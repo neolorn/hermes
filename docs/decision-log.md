@@ -1851,10 +1851,16 @@ C35 to C38, C41, C53 to C55 (staff part) and C61.
 > - Erasing an author also clears their messages' text, which then reads `Erased`, as a
 >   delivery's content is deleted, whichever protector wrote it.
 > - `messages` joins `01` MSG-SEND-018's context and `content-rejected`'s scope.
+> - `<message>` and `MessageRecord` gain `authorKind` (`AuthorKind`): `person`,
+>   `visitor`, or `library` for an `automatic` or `system` message. `author` is the
+>   person reference only where it is `person`. `visitor` comes with this phase's
+>   enumeration.
+> - `AddHermesConversations` registers `IConversations` as a scoped service, as
+>   `AddHermes` registers `IInApp`.
 >
-> Propagated to `01` MSG-SEND-018; `04` MSG-LIB-002, MSG-LIB-004, MSG-LIB-005; `05`
-> MSG-API-009; `08` sections 1, 2, 3 and 5; `09` MSG-CONV-006, MSG-CONV-009;
-> `implementation-plan.md` (phase 14).
+> Propagated to `01` MSG-SEND-018; `04` MSG-LIB-002, MSG-LIB-003, MSG-LIB-004,
+> MSG-LIB-005; `05` MSG-API-009; `08` sections 1, 2, 3 and 5; `09` MSG-CONV-006,
+> MSG-CONV-009; `implementation-plan.md` (phase 14).
 
 ---
 
