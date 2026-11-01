@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   after `AddHermes`; called without `AddHermes`, it throws `InvalidOperationException`
   naming it, and where conversations are registered a key under `Hermes:Conversations:`
   the package does not know stops the start with `messaging.startup.configurationinvalid`
+- The sample host registers conversations
 
 ## [1.0.0-rc.2] - 2026-10-31
 

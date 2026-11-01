@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -21,9 +22,9 @@ namespace Bakery.Tests;
 /// The bakery's site in the test process, on a database whose migrations
 /// <see cref="MessagingTestDatabase"/> applied, sending through the in-memory providers of
 /// <c>AddHermesTesting</c>, which are used in place of the development inbox's; the inbox's
-/// folder is one of the test's own.
+/// folder is one of the test's own; <paramref name="settings"/> adds configuration of a test's own.
 /// </summary>
-internal sealed class BakeryFactory(string connection) : WebApplicationFactory<Program>
+internal sealed class BakeryFactory(string connection, IReadOnlyDictionary<string, string>? settings = null) : WebApplicationFactory<Program>
 {
     /// <summary>The development inbox's folder, which the in-memory providers leave empty.</summary>
     internal string InboxFolder { get; } = Path.Combine(Path.GetTempPath(), "bakery-tests", Guid.NewGuid().ToString("N"));
@@ -66,6 +67,11 @@ internal sealed class BakeryFactory(string connection) : WebApplicationFactory<P
     {
         builder.UseSetting("ConnectionStrings:Bakery", connection);
         builder.UseSetting("Hermes:DevelopmentInbox:Folder", InboxFolder);
+        foreach ((string key, string value) in settings ?? new Dictionary<string, string>())
+        {
+            builder.UseSetting(key, value);
+        }
+
         builder.ConfigureServices(services => services.AddHermesTesting(secrets => secrets.SetSecret(
             "connection",
             new SecretVersions { Versions = [new SecretVersion { Version = 1, Value = Encoding.UTF8.GetBytes(connection) }] })));

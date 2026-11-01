@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Bakery;
 
 using Hermes;
+using Hermes.Conversations;
 using Hermes.Core;
 using Hermes.Development;
 using Hermes.Testing;
@@ -29,6 +30,7 @@ secrets.SetSecret("connection", new SecretVersions { Versions = [new SecretVersi
 builder.Services.AddSingleton<ISecretSource>(secrets);
 builder.AddHermesDevelopmentInbox();
 builder.Services.AddHermes(builder.Configuration, Notices.Declare);
+builder.Services.AddHermesConversations();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IRecipientIdentity, CustomerIdentity>();
 builder.Services.AddSingleton<Customers>();
