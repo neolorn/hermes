@@ -16,8 +16,8 @@ internal static class ConversationsConfiguration
     /// <summary>The section's name under <c>Hermes</c>, as <c>08</c> section 4 spells its keys.</summary>
     internal const string Section = "Conversations";
 
-    /// <summary>The keys the package knows, as <c>08</c> section 4 spells them.</summary>
-    internal static IReadOnlySet<string> Known { get; } = new HashSet<string>(StringComparer.Ordinal) { AwayKind };
+    /// <summary>The fixed keys the package knows, as <c>08</c> section 4 spells them; a topic's keys follow its pattern.</summary>
+    internal static IReadOnlySet<string> Known { get; } = new HashSet<string>([AwayKind, .. Support.SupportConfiguration.Fixed], StringComparer.Ordinal);
 
     /// <summary>The kind a person who is away is told of a conversation's message as (<c>09</c> MSG-CONV-008).</summary>
     internal const string AwayKind = "Conversations:AwayKind";
@@ -31,7 +31,7 @@ internal static class ConversationsConfiguration
     internal static string? UnknownKey(IConfiguration hermes)
     {
         ArgumentNullException.ThrowIfNull(hermes);
-        return Keys(hermes.GetSection(Section), Section).Where(key => !Known.Contains(key)).Order(StringComparer.Ordinal).FirstOrDefault();
+        return Keys(hermes.GetSection(Section), Section).Where(key => !Known.Contains(key) && !Support.SupportConfiguration.IsTopicKey(key)).Order(StringComparer.Ordinal).FirstOrDefault();
     }
 
     /// <summary>

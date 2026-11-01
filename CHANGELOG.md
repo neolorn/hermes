@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it drops nothing and writes each existing message's owner from its author. Erasing a
   customer deletes their support conversations with every row of them, and erasing a staff
   member empties their references and keeps the text a customer's key protects
+- Support's keys under `Hermes:Conversations:`, read at start: each topic under
+  `Topics:<name>` with its time zone, its weekly hours and dated exceptions, and the scope
+  whose members staff it; `Support:Limit`, `Support:OfflineReplyKind` and
+  `Support:NoticeVersion`, the last two required where topics are configured; the
+  `Limits:` of visitors and source addresses; and `Retention:Visitor`. A value outside its
+  rule stops the start with `messaging.startup.configurationinvalid` naming its key
 
 ### Fixed
 
