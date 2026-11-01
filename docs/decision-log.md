@@ -2586,6 +2586,42 @@ This entry settles the map's C42 to C46.
 - `08` sections 1, 4, 5 and 8;
 - `09` MSG-CONV-007, MSG-CONV-009, with their criteria.
 
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - The public group's routes are `POST /support/conversations/{id}/attachments` and
+>   `GET /support/conversations/{id}/attachments/{attachmentId}`, answering as the staff
+>   group's do with no 503, where `Hermes:Conversations:Attachments:Public` (default
+>   `false`) is on.
+> - A message lists its attachments: `<message>` gains `"attachments": [ <attachment> ]`,
+>   `<attachment>` being `{ "id", "name", "mediaType", "size", "status" }`, and
+>   `MessageRecord` gains `IReadOnlyList<AttachmentRecord> Attachments`. More than 10,
+>   another writer's, one already named, or one unknown answers 400
+>   `messaging.message.invalid`, `field` `attachments`.
+> - An attachment the conversation does not hold answers 404
+>   `messaging.attachment.notfound`. A file name outside its rule, or a body that is not
+>   one file, answers 400 `messaging.attachment.invalid`, `field` `name` or `file`.
+>   Where attachments are disabled, the routes answer 404
+>   `messaging.conversation.notfound`.
+> - `04` MSG-LIB-002 gives the two seams, `ScanResult` (`Clean`, `Infected`, `Failed`),
+>   `AttachmentId`, `AttachmentRecord`, `AttachmentDownload`, `AttachmentStatus`, the
+>   `attachments` of `WriteAsync`, and `IConversations`' `UploadAttachmentAsync` and
+>   `OpenAttachmentAsync`. The seams' `details.key` are `attachmentStore` and
+>   `attachmentScanner`.
+> - An attachment's status is `pending`, `clean`, `infected` or `failed`, an enumeration
+>   of `08` section 2.
+> - `attachment-scans` is turned on by `Hermes:Jobs:Enabled`, where attachments are
+>   enabled, and has its row in `06` MSG-OPS-004's table.
+> - `attachment-scan` is raised when an attachment is marked `failed` after its fifth
+>   failed scan, with no scope, and clears when a later scan answers `Clean` or
+>   `Infected`; its detail is `attachment`. Its row comes last in `08` section 5, and the
+>   implementer lands its code with phase 19.
+> - The file name's context field is `name`. `attachments` joins `01` MSG-SEND-018's
+>   tables, with the fields `name` and `chunk:<n>`, the one field that carries an index
+>   after a colon.
+>
+> Propagated to `01` MSG-SEND-018; `04` MSG-LIB-002; `05` MSG-API-009, MSG-API-010; `06`
+> MSG-OPS-004; `08` sections 1, 2, 4, 5 and 8; `09` MSG-CONV-007, MSG-CONV-009;
+> `implementation-plan.md` (phase 19).
+
 ---
 
 # Index

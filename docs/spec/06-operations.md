@@ -193,11 +193,7 @@ nothing twice when several processes run it.
 | `subscriptions` (`02` MSG-PUSH-006) | Every `Hermes:Jobs:SubscriptionsInterval` | `Hermes:Jobs:Enabled` |
 | `watch` (MSG-OPS-005, MSG-OPS-006, MSG-OPS-007, MSG-OPS-008; `01` MSG-SEND-017, MSG-SEND-018; `02` MSG-SMS-004, MSG-PUSH-005) | Every `Hermes:Dispatch:Interval` | `Hermes:Jobs:Enabled` |
 | `conversation-timers` (`09` MSG-CONV-003, MSG-CONV-005) | Every 30 seconds: it fires the `waiting` and `closing` rules, wakes snoozed conversations and closes silent ones (M-035) | `Hermes:Jobs:Enabled`, where conversations are registered |
-
-`Hermes.Conversations` also adds the job `attachment-scans` (`09` MSG-CONV-007), which
-runs every 30 seconds under the claims below: it scans each pending attachment, deletes
-one not named by a message within 24 hours, and retries a store deletion that failed
-(M-037).
+| `attachment-scans` (`09` MSG-CONV-007) | Every 30 seconds: it scans each pending attachment, deletes one not named by a message within 24 hours, and retries a store deletion that failed (M-037) | `Hermes:Jobs:Enabled`, where attachments are enabled |
 
 The dispatcher's work is claimed delivery by delivery (`01` MSG-SEND-007), and it has no
 row in the job table; `dispatch-lag` watches it (MSG-OPS-005). Every other job holds a

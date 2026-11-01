@@ -559,6 +559,7 @@ implementation.
 
 **Switch and bounds (M-037).**
 - `Hermes:Conversations:Attachments:Enabled`, default `false` (`08` section 4).
+- `Public`, default `false`: whether the public group takes attachments too.
 - `MaxBytes`, default 10 MiB, from 1 KiB to 50 MiB.
 - `Types`, the allowed media types, default `image/jpeg`, `image/png` and
   `application/pdf`.
@@ -566,6 +567,11 @@ implementation.
   WebP, GIF, PDF), its first bytes must match it too.
 - Otherwise it answers 400 `messaging.attachment.type`. Over the size it answers 413
   `messaging.attachment.toolarge`.
+- A file name outside its rule (MSG-CONV-009) answers 400
+  `messaging.attachment.invalid`, `field` `name`, and a body that is not one file the
+  same with `field` `file`.
+- Where attachments are disabled, or the public group's are, its attachment routes
+  answer 404 `messaging.conversation.notfound`.
 
 **The storage seam (M-037).** `IAttachmentStore` of `Hermes.Core`, required where
 attachments are enabled (`04` MSG-LIB-005):
@@ -578,8 +584,8 @@ store holds only protected bytes (MSG-CONV-009).
 
 **The scanning seam (M-037).** `IAttachmentScanner` of `Hermes.Core`, required where
 attachments are enabled (`04` MSG-LIB-005):
-`ScanAsync(Stream content, string mediaType, CancellationToken)`, answering `Clean`,
-`Infected` or `Failed`.
+`ScanAsync(Stream content, string mediaType, CancellationToken)`, answering a
+`ScanResult`, `Clean`, `Infected` or `Failed` (`04` MSG-LIB-002).
 - A new job, `attachment-scans`, runs every 30 seconds under the engine's job claims
   (`06` MSG-OPS-004), and scans each pending attachment.
 - `Clean` opens it.
@@ -589,11 +595,14 @@ attachments are enabled (`04` MSG-LIB-005):
 
 **Upload and use (M-037).**
 - An attachment is uploaded on its own, a single-file multipart body, through the staff
-  group's attachments route and, where enabled, the public group's (`05` MSG-API-009,
-  MSG-API-010). It answers 201 with `id`, `name`, `mediaType`, `size` and `status`
-  (`pending`).
+  group's `/conversations/{id}/attachments` and, where `Public` is on, the public
+  group's `/support/conversations/{id}/attachments` (`05` MSG-API-009, MSG-API-010).
+  It answers 201 with `id`, `name`, `mediaType`, `size` and `status` (`pending`).
 - A message names up to 10 of its writer's attachments in `attachments`. An attachment
-  is named by one message only.
+  is named by one message only. More than 10, another writer's, one already named, or
+  one unknown answers 400 `messaging.message.invalid`, `field` `attachments`.
+- A message lists its attachments, each with `id`, `name`, `mediaType`, `size` and
+  `status`: `pending`, `clean`, `infected` or `failed` (`08` section 2).
 - One not named within 24 hours is deleted by the `attachment-scans` job.
 
 **Download (M-037).**
@@ -601,8 +610,10 @@ attachments are enabled (`04` MSG-LIB-005):
   check, never as a link to the store, with `Content-Disposition: attachment`, its media
   type, and `X-Content-Type-Options: nosniff`.
 - While pending it answers 409 `messaging.attachment.pending`. Infected or failed, it
-  answers 409 `messaging.attachment.refused`.
-- A visitor never reaches one in a `note`.
+  answers 409 `messaging.attachment.refused`. One the conversation does not hold
+  answers 404 `messaging.attachment.notfound`.
+- A visitor never reaches one in a `note`: it answers them as one the conversation does
+  not hold.
 
 **Retention (M-037).** An attachment goes, from the store and its row, with its message
 whenever the message goes (MSG-CONV-009). A store deletion that fails is retried by the
@@ -736,7 +747,7 @@ untouched.
   no whole file is held in memory. The chunks are stored through the storage seam
   (MSG-CONV-007).
 - The file name (1 to 255 characters, with path separators and control characters
-  refused) is a protected value of the row.
+  refused) is a protected value of the row, its context `attachments:<id>:name`.
 - Key retirement keeps an attachment's key version in use. Re-protection reads and
   rewrites its chunks through the store, under the rule that the engine knows each table
   (`06` MSG-OPS-002).
