@@ -2136,9 +2136,14 @@ This entry settles the map's C7, C12 to C19, C50 to C52 and C57 to C60.
 >   two releases (`00`).
 > - The contract test maps each conversations group under its own prefix.
 > - `conversations` joins `01` MSG-SEND-018's context and `content-rejected`'s scope.
+> - A transfer to a person outside the topic's scope answers 400
+>   `messaging.conversation.invalid`, field `person`; to a topic not configured, the
+>   same with field `topic`.
+> - The offline form also answers `messaging.support.noticerequired` for a visitor who
+>   has not acknowledged the current notice.
 >
 > Propagated to `01` MSG-SEND-018; `04` MSG-LIB-002, MSG-LIB-004; `05` MSG-API-009,
-> MSG-API-010; `07` MSG-ENG-006; `08` sections 4, 5 and 8; `09` MSG-CONV-001,
+> MSG-API-010; `07` MSG-ENG-006; `08` sections 1, 4, 5 and 8; `09` MSG-CONV-001,
 > MSG-CONV-002, MSG-CONV-009, MSG-CONV-010, MSG-CONV-011; `implementation-plan.md`
 > (phase 16).
 

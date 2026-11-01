@@ -163,7 +163,8 @@ visitor uses the offline form instead.
 
 **Transfer (M-034).** A staff member transfers a conversation to another member of the
 topic's scope, assigned at once, or to another topic's queue. The receiver does not
-accept.
+accept. A transfer to a person outside the topic's scope, or to a topic not configured,
+answers 400 `messaging.conversation.invalid`, `details.field` `person` or `topic`.
 
 *Source: M-011, M-034*
 
@@ -454,8 +455,8 @@ accepted the host's notice when the account was made, and is shown none.
   language.
 - The version is `Hermes:Conversations:Support:NoticeVersion`, required where topics are
   configured.
-- A visitor's message before an acknowledgement of the current version answers 409
-  `messaging.support.noticerequired`. A signed-in customer is never asked.
+- A visitor's message, or offline form, before an acknowledgement of the current version
+  answers 409 `messaging.support.noticerequired`. A signed-in customer is never asked.
 
 **Erasure (M-034).** Erasing a person (`01` MSG-SEND-020) deletes their support
 conversations with every row of them. A visitor's conversations go by retention (plan

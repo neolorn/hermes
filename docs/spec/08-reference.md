@@ -44,14 +44,14 @@ MSG-OPS-002).
 | `messaging.inbox.notfound` | 404 | A message the development inbox does not hold, or none that matches (`05` MSG-API-007) | |
 | `messaging.inbox.notlocal` | 403 | A request to the development inbox from another machine or under another host name (`02` MSG-DEV-005) | |
 | `messaging.conversation.notfound` | 404 | A conversation that is unknown, or that the person may not read: not a participant, not a member of its scope, or one who left; never 403, so nobody learns a conversation exists (`09` MSG-CONV-006; `05` MSG-API-009) | |
-| `messaging.conversation.invalid` | 400 | A conversation's request outside its rule: a direct conversation's participants, a scope's kind that does not read, or a route for direct conversations alone used on a group conversation (`09` MSG-CONV-006; `05` MSG-API-009) | `field`: `participants`, `kind` or `type` |
+| `messaging.conversation.invalid` | 400 | A conversation's request outside its rule: a direct conversation's participants, a scope's kind that does not read, a route for direct conversations alone used on a group conversation, or a transfer to a person outside the topic's scope or to a topic not configured (`09` MSG-CONV-002, MSG-CONV-006; `05` MSG-API-009) | `field`: `participants`, `kind`, `type`, `person` or `topic` |
 | `messaging.conversation.full` | 409 | A direct conversation's participants past 16 (`09` MSG-CONV-001, MSG-CONV-006) | |
 | `messaging.message.notfound` | 404 | A message the conversation does not hold (`05` MSG-API-009) | |
 | `messaging.message.invalid` | 400 | A message's text, mentions, reply or type outside its rule (`09` MSG-CONV-001, MSG-CONV-006) | `field`: `text`, `mentions`, `replyTo` or `type` |
 | `messaging.message.notauthor` | 403 | Editing or deleting another person's message, which the person can see, so nothing leaks (`09` MSG-CONV-006) | |
 | `messaging.message.deleted` | 409 | Editing a deleted message (`09` MSG-CONV-006) | |
 | `messaging.support.offline` | 409 | Starting a support conversation outside its topic's hours, or within them while no member is available (`09` MSG-CONV-002; `05` MSG-API-010) | |
-| `messaging.support.noticerequired` | 409 | A visitor's message before an acknowledgement of the current privacy notice (`09` MSG-CONV-010; `05` MSG-API-010) | |
+| `messaging.support.noticerequired` | 409 | A visitor's message, or offline form, before an acknowledgement of the current privacy notice (`09` MSG-CONV-010; `05` MSG-API-010) | |
 | `messaging.support.limited` | 429 | A visitor or a source address over a limit of `Conversations:Limits:` (`09` MSG-CONV-011; `05` MSG-API-010); answered with `Retry-After` | |
 | `messaging.support.blocked` | 403 | A blocked visitor or customer starting or writing (`09` MSG-CONV-011; `05` MSG-API-010) | |
 | `messaging.request.malformed` | 400 | A body, a query parameter or a header that does not read (`05` MSG-API-001, MSG-API-007, MSG-API-008, MSG-API-009) | `member` |
