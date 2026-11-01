@@ -2169,8 +2169,12 @@ This entry settles the map's C7, C12 to C19, C50 to C52 and C57 to C60.
 > - A visitor or a customer holds one open conversation per topic: a second start on the
 >   same topic answers 409 `messaging.support.alreadyopen`, with `details.conversation`.
 >   `current` answers the newest open one.
-> - Support's storage columns join `08` section 8: `conversations.customer`, the offline
->   `email` with its key version, `messages.owner`, and the hash version columns.
+> - Support's storage columns join `08` section 8: `conversations.customer`,
+>   `conversations.email` and `conversations.email_key_version`, `messages.owner`, and
+>   `hash_version` on `participants`, `support_blocks`, `support_counters` and
+>   `support_acknowledgements`. `messages.owner` holds the person reference whose key
+>   protects the text: the author in a staff chat, the customer in a customer's support
+>   conversation, and none in a visitor's.
 >   Signed-in customers are limited as visitors are, counted by their person's keyed
 >   hash. Assignment runs only within hours: on queueing, a member freeing up, setting
 >   themselves available or connecting, and every 30 seconds. A topic is `open` within
