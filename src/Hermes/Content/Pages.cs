@@ -12,6 +12,9 @@ internal static class Pages
 
     internal const string UnsubscribeInvalid = "unsubscribeinvalid";
 
+    /// <summary>A closed support conversation's transcript, whose one part is <c>text</c>, checked at start by the conversations package where topics are configured (<c>09</c> MSG-CONV-004).</summary>
+    internal const string Transcript = "transcript";
+
     /// <summary>The page's category label.</summary>
     internal const string Category = "category";
 

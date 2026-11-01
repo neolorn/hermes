@@ -77,7 +77,7 @@ public sealed class ConversationTableTests(PostgresFixture postgres) : IClassFix
     }
 
     [Fact]
-    public async Task MSG_CONV_009_AC1_ACustomersSupportTextAndOfflineAddressAreProtectedAgainForTheCustomer()
+    public async Task MSG_CONV_009_AC1_ACustomersSupportTextOfflineAddressAndSurveyCommentAreProtectedAgainForTheCustomer()
     {
         string connection = await EngineHost.DatabaseAsync(postgres);
         Guid conversation = Guid.CreateVersion7();
@@ -96,6 +96,8 @@ public sealed class ConversationTableTests(PostgresFixture postgres) : IClassFix
         Assert.Equal(2, await ScalarAsync<int>(two, database => With(new NpgsqlCommand("SELECT content_key_version FROM messaging.messages WHERE id = @id", database), message)));
         Assert.Equal("customer@example.com", await OpenForAsync(two, Customer, database => With(new NpgsqlCommand("SELECT email FROM messaging.conversations WHERE id = @id", database), conversation), ContentContext.Of(ContentContext.Conversations, conversation, "email")));
         Assert.Equal("a staff reply", await OpenForAsync(two, Customer, database => With(new NpgsqlCommand("SELECT text FROM messaging.messages WHERE id = @id", database), message), ContentContext.Of(ContentContext.Messages, message, "text")));
+        Assert.Equal(2, await ScalarAsync<int>(two, database => With(new NpgsqlCommand("SELECT survey_comment_key_version FROM messaging.conversations WHERE id = @id", database), conversation)));
+        Assert.Equal("quick and kind", await OpenForAsync(two, Customer, database => With(new NpgsqlCommand("SELECT survey_comment FROM messaging.conversations WHERE id = @id", database), conversation), ContentContext.Of(ContentContext.Conversations, conversation, "surveycomment")));
         Assert.Contains("contentKeys:1", await RetiredAsync(two));
     }
 
@@ -110,7 +112,8 @@ public sealed class ConversationTableTests(PostgresFixture postgres) : IClassFix
 
         Assert.Null((await host.WithSubjectsAsync(subjects => subjects.EraseAsync(Staff, TestContext.Current.CancellationToken).AsTask())).Failure);
 
-        Assert.Equal(0L, await ScalarAsync<long>(host, database => With(new NpgsqlCommand("SELECT count(*) FROM messaging.conversations WHERE id = @id AND (assignee IS NOT NULL OR closed_by IS NOT NULL)", database), conversation)));
+        Assert.Equal(0L, await ScalarAsync<long>(host, database => With(new NpgsqlCommand("SELECT count(*) FROM messaging.conversations WHERE id = @id AND (assignee IS NOT NULL OR closed_by IS NOT NULL OR survey_person IS NOT NULL)", database), conversation)));
+        Assert.Equal(4, await ScalarAsync<int>(host, database => With(new NpgsqlCommand("SELECT survey_rating FROM messaging.conversations WHERE id = @id", database), conversation)));
         Assert.Equal(0L, await ScalarAsync<long>(host, database => new NpgsqlCommand("SELECT count(*) FROM messaging.support_agents", database)));
         Assert.Equal(1L, await ScalarAsync<long>(host, database => With(new NpgsqlCommand("SELECT count(*) FROM messaging.messages WHERE id = @id AND author IS NULL AND owner IS NOT NULL AND text IS NOT NULL", database), message)));
     }
@@ -163,12 +166,13 @@ public sealed class ConversationTableTests(PostgresFixture postgres) : IClassFix
         host.Uses(Customer, Staff, "customer@example.com", "a staff reply");
         byte[] email = await ProtectAsync(host, Customer, "customer@example.com", ContentContext.Of(ContentContext.Conversations, conversation, "email"));
         byte[] text = await ProtectAsync(host, Customer, "a staff reply", ContentContext.Of(ContentContext.Messages, message, "text"));
+        byte[] comment = await ProtectAsync(host, Customer, "quick and kind", ContentContext.Of(ContentContext.Conversations, conversation, "surveycomment"));
         await host.RunAsync(database =>
         {
             NpgsqlCommand command = new(
                 """
-                INSERT INTO messaging.conversations (id, type, origin, status, created_at, topic, assignee, queued_at, assigned_at, offline, closed_at, closed_by, customer, email, email_key_version)
-                VALUES (@conversation, 'support', 'web', 'closed', now(), 'billing', @staff, now(), now(), true, now(), @staff, @customer, @email, @email_version);
+                INSERT INTO messaging.conversations (id, type, origin, status, created_at, topic, assignee, queued_at, assigned_at, offline, closed_at, closed_by, customer, email, email_key_version, survey_at, survey_resolved, survey_rating, survey_comment, survey_comment_key_version, survey_person)
+                VALUES (@conversation, 'support', 'web', 'closed', now(), 'billing', @staff, now(), now(), true, now(), @staff, @customer, @email, @email_version, now(), true, 4, @comment, @comment_version, @staff);
                 INSERT INTO messaging.participants (id, conversation_id, person, muted, joined_at) VALUES (gen_random_uuid(), @conversation, @customer, false, now());
                 INSERT INTO messaging.participants (id, conversation_id, person, muted, joined_at) VALUES (gen_random_uuid(), @conversation, @staff, false, now());
                 INSERT INTO messaging.messages (id, conversation_id, author_kind, author, owner, type, text, content_key_version, sent_at)
@@ -184,6 +188,8 @@ public sealed class ConversationTableTests(PostgresFixture postgres) : IClassFix
             command.Parameters.AddWithValue("email_version", Messages.LibraryVersion(email)!.Value);
             command.Parameters.AddWithValue("text", text);
             command.Parameters.AddWithValue("text_version", Messages.LibraryVersion(text)!.Value);
+            command.Parameters.AddWithValue("comment", comment);
+            command.Parameters.AddWithValue("comment_version", Messages.LibraryVersion(comment)!.Value);
             return command;
         });
     }
