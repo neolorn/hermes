@@ -23,6 +23,201 @@ namespace Hermes.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Hermes.Conversations.ConversationRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_message_at");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("origin");
+
+                    b.Property<string>("ScopeKind")
+                        .HasColumnType("text")
+                        .HasColumnName("scope_kind");
+
+                    b.Property<string>("ScopeReference")
+                        .HasColumnType("text")
+                        .HasColumnName("scope_reference");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_conversations");
+
+                    b.HasIndex("ScopeKind", "ScopeReference")
+                        .IsUnique()
+                        .HasDatabaseName("ux_conversations_scope");
+
+                    b.ToTable("conversations", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_conversations_origin", "origin IN ('web')");
+
+                            t.HasCheckConstraint("ck_conversations_scope", "(type = 'group') = (scope_kind IS NOT NULL) AND (scope_kind IS NULL) = (scope_reference IS NULL)");
+
+                            t.HasCheckConstraint("ck_conversations_scope_kind", "scope_kind IN ('organization', 'group')");
+
+                            t.HasCheckConstraint("ck_conversations_status", "status IN ('open', 'snoozed', 'closed')");
+
+                            t.HasCheckConstraint("ck_conversations_type", "type IN ('support', 'group', 'direct')");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Conversations.MentionRow", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id");
+
+                    b.Property<string>("Person")
+                        .HasColumnType("text")
+                        .HasColumnName("person");
+
+                    b.HasKey("MessageId", "Person")
+                        .HasName("pk_mentions");
+
+                    b.HasIndex("Person")
+                        .HasDatabaseName("ix_mentions_person");
+
+                    b.ToTable("mentions", "messaging");
+                });
+
+            modelBuilder.Entity("Hermes.Conversations.MessageRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Author")
+                        .HasColumnType("text")
+                        .HasColumnName("author");
+
+                    b.Property<string>("AuthorKind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("author_kind");
+
+                    b.Property<int?>("ContentKeyVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("content_key_version");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateTimeOffset?>("EditedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("edited_at");
+
+                    b.Property<Guid?>("ReplyTo")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reply_to");
+
+                    b.Property<DateTimeOffset>("SentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sent_at");
+
+                    b.Property<byte[]>("Text")
+                        .HasColumnType("bytea")
+                        .HasColumnName("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_messages");
+
+                    b.HasIndex("Author")
+                        .HasDatabaseName("ix_messages_author");
+
+                    b.HasIndex("ContentKeyVersion")
+                        .HasDatabaseName("ix_messages_content_key_version");
+
+                    b.HasIndex("ReplyTo")
+                        .HasDatabaseName("ix_messages_reply_to");
+
+                    b.HasIndex("ConversationId", "SentAt", "Id")
+                        .HasDatabaseName("ix_messages_conversation_sent_at");
+
+                    b.ToTable("messages", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_messages_author_kind", "author_kind IN ('person', 'visitor', 'library')");
+
+                            t.HasCheckConstraint("ck_messages_type", "type IN ('text', 'note', 'automatic', 'system')");
+                        });
+                });
+
+            modelBuilder.Entity("Hermes.Conversations.ParticipantRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTimeOffset>("JoinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("joined_at");
+
+                    b.Property<DateTimeOffset?>("LeftAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("left_at");
+
+                    b.Property<bool>("Muted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("muted");
+
+                    b.Property<string>("Person")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("person");
+
+                    b.Property<Guid?>("ReadPosition")
+                        .HasColumnType("uuid")
+                        .HasColumnName("read_position");
+
+                    b.HasKey("Id")
+                        .HasName("pk_participants");
+
+                    b.HasIndex("Person")
+                        .HasDatabaseName("ix_participants_person");
+
+                    b.HasIndex("ReadPosition")
+                        .HasDatabaseName("ix_participants_read_position");
+
+                    b.HasIndex("ConversationId", "Person")
+                        .IsUnique()
+                        .HasDatabaseName("ux_participants_conversation_person");
+
+                    b.ToTable("participants", "messaging");
+                });
+
             modelBuilder.Entity("Hermes.Operations.AlertState", b =>
                 {
                     b.Property<string>("Condition")
@@ -1001,6 +1196,48 @@ namespace Hermes.Migrations
 
                             t.HasCheckConstraint("ck_suppressions_hash_version", "hash_version >= 1");
                         });
+                });
+
+            modelBuilder.Entity("Hermes.Conversations.MentionRow", b =>
+                {
+                    b.HasOne("Hermes.Conversations.MessageRow", null)
+                        .WithMany()
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_mentions_messages");
+                });
+
+            modelBuilder.Entity("Hermes.Conversations.MessageRow", b =>
+                {
+                    b.HasOne("Hermes.Conversations.ConversationRow", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_messages_conversations");
+
+                    b.HasOne("Hermes.Conversations.MessageRow", null)
+                        .WithMany()
+                        .HasForeignKey("ReplyTo")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_messages_messages");
+                });
+
+            modelBuilder.Entity("Hermes.Conversations.ParticipantRow", b =>
+                {
+                    b.HasOne("Hermes.Conversations.ConversationRow", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_participants_conversations");
+
+                    b.HasOne("Hermes.Conversations.MessageRow", null)
+                        .WithMany()
+                        .HasForeignKey("ReadPosition")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_participants_messages");
                 });
 
             modelBuilder.Entity("Hermes.Sending.AttemptRow", b =>

@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ScopeKind` and `AuthorKind`; and `IConversationMembership`, the seam that answers who
   belongs to the host's organizations and groups, none of whose records prints a person
   reference or a text
+- The migration `Conversations`, which adds the tables `conversations`, `participants`,
+  `messages` and `mentions` to the engine's schema; it drops and rewrites nothing. A
+  message's text is protected under its author's key and bound to its row, the retention
+  job protects it again as it does a delivery's values, no key version a message uses is
+  retired, and erasing a person clears the text of their messages and deletes their
+  participant and mention rows
 
 ### Fixed
 

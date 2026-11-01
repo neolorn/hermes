@@ -3,6 +3,7 @@ using System.Linq;
 
 using Hermes.Channels;
 using Hermes.Content;
+using Hermes.Conversations;
 using Hermes.Core;
 using Hermes.Endpoints;
 using Hermes.Operations;
@@ -77,6 +78,13 @@ public static class MessagingServiceCollectionExtensions
         services.AddScoped<IPreferences, Preferences>();
         services.AddScoped<ISubjects, Subjects>();
         services.AddScoped<IInApp, InAppList>();
+
+        // The conversations' tables are the engine's, known to key retirement and erasure wherever the engine is (06 MSG-OPS-002).
+        foreach (KeyedTable table in ConversationTables.All)
+        {
+            services.AddSingleton(table);
+        }
+
         services.AddSingleton<DispatchPasses>();
         services.AddSingleton<IDispatcher, Dispatcher>();
         services.AddSingleton<NoticeDelivery>();

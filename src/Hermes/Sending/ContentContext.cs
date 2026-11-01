@@ -17,6 +17,9 @@ internal static class ContentContext
     /// <summary>The table an in-app entry's values are bound to, whatever the table is called.</summary>
     internal const string Entries = "entries";
 
+    /// <summary>The table a conversation message's values are bound to, whatever the table is called (<c>09</c> MSG-CONV-009).</summary>
+    internal const string Messages = "messages";
+
     /// <summary>The field of the idempotency key a delivery keeps of its send (<c>01</c> MSG-SEND-017).</summary>
     internal const string IdempotencyKey = "idempotencykey";
 
