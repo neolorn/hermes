@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `GET /conversations` of the staff conversations group declares its 503, which it answers
+  when the person's locks are not had in time
 - `Hermes:Languages` set item by item through a web host's test factory, which gives the
   list itself an empty value, no longer stops the start
 

@@ -36,7 +36,8 @@ internal static class StaffEndpoints
     {
         group.MapGet("/conversations", (Delegate)ListAsync)
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
-            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized);
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapPost("/conversations/direct", (Delegate)StartAsync)
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
             .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
