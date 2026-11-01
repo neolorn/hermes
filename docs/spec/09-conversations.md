@@ -68,13 +68,34 @@ message read, and it moves forward only. A conversation's unread count is its me
 after it that are neither the person's own nor deleted. A reply names a message of the
 same conversation, deleted or not; any other answers 400.
 
-*Source: M-011, M-032*
+**The visitor (M-034).**
+- **The reference.** The public side draws `visitor:` followed by 128 random bits in
+  base64url on the first call that needs one.
+- **The cookie.** The reference is kept in the cookie `hermes_visitor`: HttpOnly, Secure,
+  SameSite Lax, its path the public prefix, renewed on use, and living as long as
+  `Hermes:Conversations:Retention:Visitor` (MSG-CONV-010).
+- **Storage.** The reference is a bearer credential, so the database holds only its keyed
+  hash, under the domain `visitor` (`08` section 8).
+- **The public hub.** It is authenticated by the same cookie (MSG-CONV-008).
+
+**A signed-in customer (M-034).** Where `IRecipientIdentity` answers a person on the
+public side, the conversation is that person's: no cookie and no notice (MSG-CONV-010),
+and its values are protected under their key (MSG-CONV-009).
+
+**Notes in support (M-034).** A staff member writes `text` or `note` in a support
+conversation they are assigned, through `05` MSG-API-009's messages route. A visitor
+never sees a `note`, in reads or pushes.
+
+*Source: M-011, M-032, M-034*
 
 **Acceptance criteria**
 1. Each bound is refused at its edge: a text of 0 or 4,001 characters, a 33rd mention, a
    mention outside the conversation, a reply into another conversation, and a `note` in
    a `group` or `direct` conversation.
 2. The read position moves forward only, and the unread counts follow it.
+3. The visitor's reference is never stored in clear, and another browser's cookie opens
+   nothing.
+4. A visitor never receives a `note`.
 
 ---
 
@@ -93,7 +114,53 @@ available staff member with room for it, within the hours the deployment sets.
 - **Outside hours, or when nobody can take it:** an offline form takes the message and
   an email address, and becomes a conversation answered by email through sending.
 
-*Source: M-011*
+**Topics (M-034).** Each topic is configuration, `Hermes:Conversations:Topics:<name>`
+(`08` section 4), with:
+- `TimeZone`, an IANA time zone;
+- `Hours`, from `Monday` to `Sunday`, each a list of `HH:mm-HH:mm`;
+- `Exceptions`, by date, each `Closed` or its own list;
+- `Scope`, a kind and a reference for the membership seam (MSG-CONV-006).
+
+The staff of a topic are its scope's members. A topic's display name is the host
+frontend's.
+
+**Who answers (M-034).**
+- **Available.** A staff member is available while they hold a staff-hub connection
+  (MSG-CONV-008), have set themselves available, and hold fewer open support
+  conversations than `Hermes:Conversations:Support:Limit` (default 3).
+- **Being set available.** Through the staff group's availability route (`05`
+  MSG-API-009), stored in the `agents` table. It holds a person reference, so the rule
+  that the engine knows each table applies (`06` MSG-OPS-002).
+- **Assignment.** It is automatic. When a conversation is queued, or a member frees up,
+  the oldest queued conversation of each topic goes to the available member with the
+  fewest open conversations. Ties go to the one longest since their last assignment.
+- **The queue.** It is first in, first out per topic.
+- **The visitor's place.** It is in the conversation's read, and pushed over the public
+  hub as `place` (`05` MSG-API-010).
+
+**Offline (M-034).** Outside a topic's hours, or within them while no member is
+available, starting a conversation answers 409 `messaging.support.offline`, and the
+visitor uses the offline form instead.
+- The form takes an email address and the text. It becomes a conversation flagged
+  `offline`, queued like any other.
+- Staff replies to it are sent through sending, as the kind named by
+  `Hermes:Conversations:Support:OfflineReplyKind`, to `Recipient.Anonymous` with that
+  address. The key is required where topics are configured.
+- The address is a protected value of the conversation.
+
+**Transfer (M-034).** A staff member transfers a conversation to another member of the
+topic's scope, assigned at once, or to another topic's queue. The receiver does not
+accept.
+
+*Source: M-011, M-034*
+
+**Acceptance criteria**
+1. FIFO per topic, to the available member with the fewest open conversations, within
+   the topic's hours and exceptions in its time zone.
+2. The visitor's place is right and pushed.
+3. A transfer moves the conversation.
+4. Outside hours, or with nobody available, the start answers `offline`, and the
+   offline form's conversation is answered by email of `OfflineReplyKind`.
 
 ---
 
@@ -340,7 +407,14 @@ MSG-INAPP-001), so an erasure cannot race it. Erasing a person (`01` MSG-SEND-02
 Their messages stay as rows, and their text reads `Erased`. Everyone else's messages are
 untouched.
 
-*Source: M-011, M-032*
+**Support (M-034).**
+- A signed-in customer's conversation (MSG-CONV-001) is protected under their key,
+  through the host protector (`04` MSG-LIB-005).
+- A visitor's conversation is protected through the library protector, with the visitor
+  reference as its person, as `01` MSG-SEND-018 protects anonymous values.
+- Staff replies are under the same key.
+
+*Source: M-011, M-032, M-034*
 
 **Acceptance criteria**
 1. A message's protected text copied to another row does not open. A key version a
@@ -361,14 +435,51 @@ the organization exists). A visitor without an account is shown a privacy notice
 their first message, and their acknowledgement is recorded; a person with an account
 accepted the host's notice when the account was made, and is shown none.
 
-*Source: M-011*
+**The privacy notice (M-034).**
+- The notice's text is the host's. The library records the acknowledgement: the
+  visitor's hash, the version, the instant and the language.
+- The version is `Hermes:Conversations:Support:NoticeVersion`, required where topics are
+  configured.
+- A visitor's message before an acknowledgement of the current version answers 409
+  `messaging.support.noticerequired`. A signed-in customer is never asked.
+
+**Erasure (M-034).** Erasing a person (`01` MSG-SEND-020) deletes their support
+conversations with every row of them. A visitor's conversations go by retention (plan
+phase 20).
+
+*Source: M-011, M-034*
+
+**Acceptance criteria**
+1. No visitor message is taken before the current notice is acknowledged. A customer is
+   never asked.
+2. Erasing a customer deletes their support conversations.
 
 ---
 
 **MSG-CONV-011** — The public side SHALL be limited per visitor and per source address,
 and staff SHALL be able to block a visitor.
 
-*Source: M-011*
+**Values (M-034).**
+- **Limits.** Counters live in the database, across processes, as `01` MSG-SEND-014
+  counts. Each is a key under `Hermes:Conversations:Limits:` (`08` section 4):
+  - per visitor, conversations started per day (`VisitorStarts`, default 5) and messages
+    per minute (`VisitorMessages`, default 20);
+  - per source address, conversations started per hour (`SourceStarts`, default 20).
+- Over a limit answers 429 `messaging.support.limited` with `Retry-After`.
+- **The source address.** It is the request's remote address, as the host's
+  forwarded-headers set-up gives it. IPv6 is grouped by its /64. The address is stored
+  as a keyed hash under the domain `source` (`08` section 8).
+- **Blocking.** Staff block a visitor or a customer by their conversation, until an
+  instant or until lifted, and lift the block. A blocked one starting or writing answers
+  403 `messaging.support.blocked`. Blocking by address is not offered, since addresses
+  are shared. The `blocks` table holds a person reference or a visitor hash, so the rule
+  that the engine knows each table applies (`06` MSG-OPS-002).
+
+*Source: M-011, M-034*
+
+**Acceptance criteria**
+1. Each limit answers 429 at its edge, across two processes.
+2. A blocked visitor is refused until the block ends or is lifted.
 
 ---
 
