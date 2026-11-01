@@ -281,7 +281,13 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
         Assert.Equal((HttpStatusCode.TooManyRequests, "messaging.support.limited"), (third.StatusCode, await CodeAsync(third)));
         Assert.True(third.Headers.RetryAfter?.Delta > TimeSpan.Zero);
 
-        // Per visitor: three messages a minute, the start's own not counted.
+        // Per visitor: three messages a minute, the start's own not counted. The minute's window is
+        // fixed, so the four writes wait until they all fall in one.
+        while (DateTimeOffset.UtcNow.Second >= 50)
+        {
+            await Task.Delay(200, TestContext.Current.CancellationToken);
+        }
+
         for (int index = 0; index < 3; index++)
         {
             using HttpResponseMessage written = await (index % 2 == 0 ? visitor : again).SendAsync(HttpMethod.Post, $"/support/conversations/{first:D}/messages", """{ "text": "More" }""");
