@@ -43,6 +43,13 @@ MSG-OPS-002).
 | `messaging.unsubscribe.invalid` | 404 | An unsubscribe token that does not verify (`05` MSG-API-005) | |
 | `messaging.inbox.notfound` | 404 | A message the development inbox does not hold, or none that matches (`05` MSG-API-007) | |
 | `messaging.inbox.notlocal` | 403 | A request to the development inbox from another machine or under another host name (`02` MSG-DEV-005) | |
+| `messaging.conversation.notfound` | 404 | A conversation that is unknown, or that the person may not read: not a participant, not a member of its scope, or one who left; never 403, so nobody learns a conversation exists (`09` MSG-CONV-006; `05` MSG-API-009) | |
+| `messaging.conversation.invalid` | 400 | A conversation's request outside its rule (`09` MSG-CONV-006; `05` MSG-API-009) | `field` |
+| `messaging.conversation.full` | 409 | A direct conversation's participants past 16 (`09` MSG-CONV-001, MSG-CONV-006) | |
+| `messaging.message.notfound` | 404 | A message the conversation does not hold (`05` MSG-API-009) | |
+| `messaging.message.invalid` | 400 | A message's text, mentions, reply or type outside its rule (`09` MSG-CONV-001, MSG-CONV-006) | `field`: `text`, `mentions`, `replyTo` or `type` |
+| `messaging.message.notauthor` | 403 | Editing or deleting another person's message, which the person can see, so nothing leaks (`09` MSG-CONV-006) | |
+| `messaging.message.deleted` | 409 | Editing a deleted message (`09` MSG-CONV-006) | |
 | `messaging.request.malformed` | 400 | A body, a query parameter or a header that does not read (`05` MSG-API-001, MSG-API-007, MSG-API-008) | `member` |
 | `messaging.request.unauthenticated` | 401 | No signed-in person where one is needed (`05` MSG-API-002) | |
 | `messaging.request.toolarge` | 413 | A body over 16 KiB (`05` MSG-API-001, MSG-API-005, MSG-API-006) | |
@@ -74,7 +81,7 @@ MSG-OPS-002).
 
 ---
 
-## 3. Delivery statuses
+## 3. Delivery and conversation statuses
 
 A **final** status is one after which no attempt is made. Of the final statuses, `sent`
 alone may move once more, by a provider's report or feedback, to `delivered` or
@@ -97,6 +104,15 @@ MSG-SEND-017).
 | `balancefloor` | `BalanceFloor` | Yes | An SMS of an optional category, checked while the balance is below the floor |
 | `nosubscription` | `NoSubscription` | Yes | A push to a person with no live subscription, or whose every subscription is gone |
 | `read` | `Read` | Yes | An in-app delivery whose entry the person marked read (`02` MSG-INAPP-003) |
+
+A conversation's status is one of a fixed set (`09` MSG-CONV-001); the statuses of desk
+work are tags, not statuses (`09` MSG-CONV-005):
+
+| Status | Meaning |
+|---|---|
+| `open` | Open. A queued support conversation is `open` with no assignee; `group` and `direct` conversations are always `open` in release 2 |
+| `snoozed` | Snoozed (`09` MSG-CONV-005) |
+| `closed` | Closed |
 
 ---
 
@@ -298,7 +314,8 @@ These names are stored, or shared by the processes of two releases, and never ch
 | `messaging` | The schema (`06` MSG-OPS-002) and the library protector's `Id` (`01` MSG-SEND-018) |
 | `messaging.__migrations_history` | The migration history table (`06` MSG-OPS-002) |
 | `messaging_dispatch` | The notification channel a send wakes the dispatchers on (`01` MSG-SEND-004) |
-| `deliveries`, `subscriptions`, `entries`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018) |
+| `deliveries`, `subscriptions`, `entries`, `messages`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth`, and a message's `text` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018; `09` MSG-CONV-001) |
+| `conversations`, `participants`, `messages`, `mentions` | The conversations' tables (`09` MSG-CONV-001) |
 | `email`, `sms`, `push-endpoint`, `push-topic`, `person`, `idempotency` | The keyed hash's domains (`06` MSG-OPS-008) |
 | `sms-report`, `idempotency` | The texts that begin the unkeyed lock keys (`01` MSG-SEND-009; `02` MSG-SMS-004) |
 | `sms-report-hold` | The text of the lock the held reports are counted under (`02` MSG-SMS-004) |

@@ -92,6 +92,7 @@ to print none of them, so a log line that formats one writes none.
 | `EmailAddress` | `string Address`, `string? DisplayName` |
 | `CategoryPreferences`, `ChannelPreference` | `string Category`, `bool Essential`, `IReadOnlyList<ChannelPreference> Channels`; `Channel Channel`, `bool On` |
 | `InAppPage`, `InAppEntry` | `IReadOnlyList<InAppEntry> Entries`, `string? Next` (the next page's cursor, none on the last); `EntryId Entry`, `string Kind`, `string Category`, `DateTimeOffset WrittenAt`, `DateTimeOffset? ReadAt`, `string Language` (the one it reads in), `string Title`, `string? Body`, `string? Target`, `IReadOnlyDictionary<string, SendValue> TargetValues` (`02` MSG-INAPP-003) |
+| `ConversationScope` | `ScopeKind Kind`, `string Reference`: a scope of the membership seam, `ScopeKind` having the members `Organization` and `Group` (`09` MSG-CONV-006) |
 | `SubjectExport` | `IReadOnlyList<CategoryPreferences> Preferences`; `IReadOnlyList<SubscriptionExport> Subscriptions`, each `PushService Service`, `DateTimeOffset MadeAt`, `DateTimeOffset? LastAcceptedAt`; `IReadOnlyList<DeliveryExport> Deliveries`, each `string Kind`, `Channel Channel`, `DeliveryStatus Status`, `DateTimeOffset RecordedAt`, `DateTimeOffset LastMovedAt`, `string? Destination`, `IReadOnlyDictionary<string, string> Content` (by part), `bool ContentDeleted` (past content retention, so it carries no destination or content), `bool Erased` (its values' key was erased, so it carries no destination or content), `bool Rejected` (a value did not open under its binding, so it carries none either), `string? IdempotencyKey` (the key it keeps of its send, while kept, none where it is marked as above; declared last, M-029, M-030); `IReadOnlyList<InAppEntryExport> Entries`, each `string Kind`, `string Category`, `DateTimeOffset WrittenAt`, `DateTimeOffset? ReadAt`, `IReadOnlyDictionary<string, string> Content` (by part and language, `title.en`), `string? Target`, `IReadOnlyDictionary<string, SendValue> TargetValues`, `bool Erased` and `bool Rejected` (as for a delivery, so it carries no content or target values); `IReadOnlyList<IdempotencyKeyExport> IdempotencyKeys`, each `string Kind`, `string Key`, `DateTimeOffset RecordedAt`, the person's live idempotency rows (`01` MSG-SEND-020) |
 | Enumerations | `Channel`, `DeliveryStatus`, `AttemptClass`, `AttemptReason`, `PushUrgency`, `PushService`, `PushPlatform`, `SmsEncoding`, `SmsReportOutcome`, `ConsentAnswer`, with the members of `08` sections 2, 3 and 6 that are built |
 
@@ -104,6 +105,7 @@ to print none of them, so a log line that formats one writes none.
 | `ISuppressions` | `AddAsync(Channel channel, string destination, string category, ...)` and `RemoveAsync(...)` with the same parameters answer `Result` (`01` MSG-SEND-012) |
 | `ISubjects` | `EraseAsync(string person, ...)` answers `Result` (erasing a person the library holds nothing of succeeds and does nothing, save where it answers `messaging.release.newer` or `messaging.key.unavailable`, `01` MSG-SEND-020; it waits for every open transaction that recorded a send for the person, so a host never calls it while such a transaction of its own is open, `01` MSG-SEND-004); `ExportAsync(string person, ...)` answers `Result<SubjectExport>` (`01` MSG-SEND-020) |
 | `IInApp` | `ListAsync(string person, string? language, string? cursor, int? size, ...)` answers `Result<InAppPage>`; `UnreadCountAsync(string person, ...)` answers `int`; `MarkReadAsync(string person, EntryId entry, ...)` answers `Result`; `MarkAllReadAsync(string person, ...)` answers `int`, the number of entries it marked (`02` MSG-INAPP-003) |
+| `IConversations` | Implemented by `Hermes.Conversations`: each operation of a person's direct and group conversations, one for each route of `05` MSG-API-009 that is thin over it (`09` MSG-CONV-006) |
 
 **Provider contracts** (`Hermes.Core`):
 
@@ -127,6 +129,7 @@ to print none of them, so a log line that formats one writes none.
 | `ITemplateSource` | `ReadAsync(TemplateKey, ...)` answers `string?`, none for a key it does not recognise, so a later key's shape never breaks a source; `TemplateKey` is `string? Kind`, `Channel? Channel`, `string? Page` (the first two or the last set), `string Language`, `string Part` (`03` MSG-TPL-006) |
 | `IDeliveryObserver` | `ObserveAsync(DeliveryNotice, ...)` answers `ValueTask`; a notice is taken when it returns, and not taken when it throws or runs past `Hermes:Dispatch:Timeout` (`01` MSG-SEND-017). `DeliveryNotice`: `SendId Send`, `DeliveryId Delivery`, `string Kind`, `string Category`, `Channel Channel`, `string? Person`, `DeliveryStatus Status`, `AttemptReason? Reason`, `DateTimeOffset At`, `string? IdempotencyKey` (the key its send was recorded with, none where it had none, `01` MSG-SEND-017, M-028); never a destination or content |
 | `IAlertSink` | `RaiseAsync(string condition, string? scope, IReadOnlyDictionary<string, string> details, ...)` and `ClearAsync(string condition, string? scope, ...)` answer `ValueTask`, the condition, scope and details as `08` section 5 gives them; a call a pass or job makes is bounded by `Hermes:Dispatch:Timeout` (`06` MSG-OPS-006; `01` MSG-SEND-007) |
+| `IConversationMembership` | `IsMemberAsync(string person, ConversationScope scope, ...)` answers `bool`; `MembersAsync(ConversationScope scope, ...)` answers `IAsyncEnumerable<string>`; `ScopesAsync(string person, ...)` answers `IAsyncEnumerable<ConversationScope>`; the library caches no answer, and every read and write of a group conversation asks `IsMemberAsync` (`09` MSG-CONV-006) |
 
 **Registration and the rest:**
 
@@ -150,7 +153,7 @@ to print none of them, so a log line that formats one writes none.
 Everything else is internal: the shipped providers, their options, the endpoints'
 request and response types (their wire shape is the contract, `05`), and the tables.
 
-*Source: M-004, M-005, M-008, M-012, M-020, M-024, M-026, M-031*
+*Source: M-004, M-005, M-008, M-012, M-020, M-024, M-026, M-031, M-032*
 
 **Acceptance criteria**
 1. The build fails when a public member is added or removed without its public API file

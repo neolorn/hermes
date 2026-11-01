@@ -34,7 +34,47 @@ deleted). Each participant has a read position. Where it runs (which application
 the staff side and which the public side) is the host's choice (`00` MSG-OVR-001): the
 two sides are separate endpoint and connection groups, mapped separately.
 
-*Source: M-011*
+**The tables (M-032).** They live in the engine's folder `Conversations` and its schema,
+each under the rule that the engine knows it (`06` MSG-OPS-002):
+- `conversations`: its type (`support`, `group`, `direct`); its origin, `web` being the
+  only value in release 2; its status; for a `group` conversation, its scope (a kind and
+  a reference, unique together, MSG-CONV-006); and its created and last-message
+  instants. Support's columns come with plan phase 16 (MSG-CONV-002).
+- `participants`: a person in a conversation, with their read position, their mute, and
+  the instants they joined and left.
+- `messages`: its author, its type, its protected text, the message it replies to, and
+  its sent, edited and deleted instants.
+- `mentions`: a message's mentioned persons, one row each.
+
+A person reference is held as the in-app list holds an entry's (`02` MSG-INAPP-001).
+Each protected value's context follows `08` section 8's form, a message's text being
+`messages:<id>:text` (MSG-CONV-009).
+
+**Statuses and types (M-032).** A conversation's status is one of the fixed set of `08`
+section 3. A queued support conversation is `open` with no assignee, and `group` and
+`direct` conversations are always `open` in release 2; the statuses of desk work
+(MSG-CONV-005) are tags, not statuses. The message types, `text`, `note`, `automatic`
+and `system`, are an open enumeration, and `call` is not reserved (MSG-CONV-012). In a
+`group` or `direct` conversation a person writes `text` alone, and a `note` answers 400.
+The library writes no `system` message in plan phase 14.
+
+**Bounds (M-032).** These are fixed values, not configuration keys:
+- a text is 1 to 4,000 characters, counted in UTF-16 code units, as .NET counts;
+- a message mentions at most 32 distinct persons;
+- a direct conversation holds at most 16 participants.
+
+**Read position and replies (M-032).** A read position is the identifier of the last
+message read, and it moves forward only. A conversation's unread count is its messages
+after it that are neither the person's own nor deleted. A reply names a message of the
+same conversation, deleted or not; any other answers 400.
+
+*Source: M-011, M-032*
+
+**Acceptance criteria**
+1. Each bound is refused at its edge: a text of 0 or 4,001 characters, a 33rd mention, a
+   mention outside the conversation, a reply into another conversation, and a `note` in
+   a `group` or `direct` conversation.
+2. The read position moves forward only, and the unread counts follow it.
 
 ---
 
@@ -108,12 +148,62 @@ message, editing and deleting one's own messages, muting, presence, and a push
 notification to a member who is away (a send of a kind the host declares) are part of
 the model.
 
+**The membership seam (M-032).** `IConversationMembership` of `Hermes.Core` (`04`
+MSG-LIB-002, MSG-LIB-005) is required where conversations are registered. It answers
+whether a person is a member of a scope, a scope's members, and a person's scopes, a
+scope (`ConversationScope`) being a kind, `Organization` or `Group`, and a reference. The
+library caches none of its answers: every read and write of a group conversation asks
+`IsMemberAsync`.
+
+**Group conversations (M-032).** There is one per scope. It is created the first time a
+member opens it, and opening it again creates nothing more. A member's participant row
+(read position, mute) is written the first time they read or write it.
+
+**Direct conversations (M-032).**
+- A person starts one by naming 1 to 15 others: distinct references, and not themselves.
+- Any participant may add others, up to 16 in all.
+- A participant may leave. Leaving ends their access at once, and their messages stay.
+- Someone who left comes back only by being added again.
+- The library does not check that a named reference exists. The host's authorization on
+  the staff group decides who may use it (`05` MSG-API-009).
+
+**Access (M-032).** Anyone who is not a participant of a direct conversation, or has left
+it, and anyone who is not a member of a group conversation's scope, is answered
+`messaging.conversation.notfound` (404), never 403, so nobody learns a conversation
+exists.
+
+**Mentions (M-032).** A mention is a list of person references sent with the message,
+never parsed from the text. In a direct conversation each one is a participant; in a
+group conversation each one is a member, checked through the seam. Mute silences a
+conversation's notices except the person's own mentions (MSG-CONV-008).
+
+**Edits and deletes (M-032).**
+- A person edits or deletes only their own `text` messages, at any time; another
+  person's answers 403 `messaging.message.notauthor`, since the person can see it.
+- An edit replaces the text and sets the edited instant. No history is kept.
+- A delete clears the text and its mentions and sets the deleted instant. The row stays,
+  and reads answer it as deleted with no text.
+- Editing a deleted message answers 409 `messaging.message.deleted`.
+
+**The routes (M-032).** `05` MSG-API-009's routes are each thin over one operation of
+`IConversations` (`04` MSG-LIB-002), for the person `IRecipientIdentity` answers.
+
 *Search (designed for).* Messages are encrypted under per-person keys (MSG-CONV-009), so
 the database cannot search them. Search comes through a later seam that keeps an index
 under the same protection; the model needs no change for it, and its design is made in
 the release that builds it.
 
-*Source: M-011, M-020*
+*Source: M-011, M-020, M-032*
+
+**Acceptance criteria**
+1. In a group conversation, a non-member's every read and write answers 404. A member
+   the seam no longer answers for is refused on the next call.
+2. In a direct conversation, a non-participant answers 404, and so does one who left, at
+   once. Participants can be added up to 16, and the 17th answers 409.
+3. Edits and deletes work on one's own messages only. Another person's answers 403. A
+   deleted message reads with no text, and editing it answers 409.
+4. Each route does what its operation does, and the endpoint contract test finds exactly
+   these routes.
 
 ---
 
@@ -162,7 +252,23 @@ unreadable. A staff chat's messages are each under their author's key. Encryptio
 rest, not end to end: staff must read support conversations, hand them over, search them
 and send transcripts.
 
-*Source: M-011*
+**Staff chats (M-032).** A staff chat message's text is protected under its author's key,
+through the engine's content protection (`01` MSG-SEND-018), and bound to its row. A
+write for a person takes their person lock shared, as the in-app list does (`02`
+MSG-INAPP-001), so an erasure cannot race it. Erasing a person (`01` MSG-SEND-020):
+- deletes their participant and mention rows;
+- handles their author references as the engine handles a delivery's person reference.
+
+Their messages stay as rows, and their text, no longer opening, reads `Erased`. Everyone
+else's messages are untouched.
+
+*Source: M-011, M-032*
+
+**Acceptance criteria**
+1. A message's protected text copied to another row does not open. A key version a
+   message uses is never retired.
+2. Erasing an author makes their messages read `Erased` and removes their participant
+   and mention rows. Other messages are untouched.
 
 ---
 

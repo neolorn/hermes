@@ -308,3 +308,36 @@ MSG-SEND-017); the library serves no socket.
 2. `POST /inapp/{id}/read` for another person's entry answers 404 and changes nothing;
    for the person's own, 204, and `GET /inapp/unread` then answers one fewer.
 3. A `POST /inapp/read` sent as a form is answered 415 and marks nothing.
+
+---
+
+## 8. Staff conversations (`MapHermesStaffConversations`)
+
+**MSG-API-009** — The staff conversations group of `Hermes.Conversations` SHALL let the
+person signed in read and write the direct and group conversations `09` MSG-CONV-006
+lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-002).
+
+| Method and route | Body | Answers |
+|---|---|---|
+| `GET /conversations` | | **200**: the person's direct conversations they have not left and the existing group conversations of their scopes, newest activity first, each with its unread count, its mute and its last instant; query `cursor` and `size` |
+| `POST /conversations/direct` | `{ "participants" }` | **201** |
+| `GET /conversations/group/{kind}/{reference}` | | **200**: the scope's conversation, created the first time a member opens it; **404** `messaging.conversation.notfound` for a person who is not a member |
+| `GET /conversations/{id}` | | **200**; **404** `messaging.conversation.notfound` |
+| `GET /conversations/{id}/messages` | | **200**: the messages, newest first; query `before`, and `size`, 1 to 100, default 50; **404** `messaging.conversation.notfound` |
+| `POST /conversations/{id}/messages` | `{ "text", "replyTo", "mentions" }` | **201**; **400** `messaging.message.invalid`, `details.field` `text`, `mentions`, `replyTo` or `type`; **404** `messaging.conversation.notfound` |
+| `PUT /conversations/{id}/messages/{messageId}` | `{ "text" }` | **400** `messaging.message.invalid`, `details.field` `text`; **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound`; **409** `messaging.message.deleted` for a deleted message |
+| `DELETE /conversations/{id}/messages/{messageId}` | | **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound` |
+| `POST /conversations/{id}/read` | `{ "messageId" }` | **404** `messaging.conversation.notfound` |
+| `PUT /conversations/{id}/mute` | `{ "muted" }` | **404** `messaging.conversation.notfound` |
+| `POST /conversations/{id}/participants` | `{ "participants" }` | **409** `messaging.conversation.full` past 16 participants; **404** `messaging.conversation.notfound` |
+| `POST /conversations/{id}/leave` | | **404** `messaging.conversation.notfound` |
+
+Every route needs a signed-in person (MSG-API-002), the one `IRecipientIdentity`
+answers. A route naming a conversation the person may not read answers 404
+`messaging.conversation.notfound`, never 403 (`09` MSG-CONV-006). The participants and
+leave routes are for direct conversations alone. Bodies and refusals are the engine's,
+as MSG-API-001 gives. `MapHermesStaffConversations` answers the group's
+`RouteGroupBuilder`, to which the host adds the authorization that decides who may use
+it (`09` MSG-CONV-006).
+
+*Source: M-032*
