@@ -287,6 +287,74 @@ public sealed class AttachmentTests(PostgresFixture postgres) : IClassFixture<Po
     }
 
     [Fact]
+    public async Task MSG_CONV_010_AC1_NoPublicUploadIsTakenBeforeTheCurrentNoticeIsAcknowledged()
+    {
+        await using ChatHost chat = await StartAsync();
+        await using HubConnection amal = await SupportTests.AvailableAsync(chat, "amal");
+        Browser visitor = await SupportTests.AcknowledgedAsync(chat, "192.0.2.1");
+        Guid conversation = await visitor.StartAsync();
+
+        // A second process shows a newer notice, which this visitor has not acknowledged.
+        await using ChatHost renewed = await StartAsync(configuration => configuration["Hermes:Conversations:Support:NoticeVersion"] = "v2", shared: chat);
+        Browser same = new(renewed, source: "192.0.2.1") { Cookie = visitor.Cookie };
+        using HttpResponseMessage refused = await same.SendAsync(HttpMethod.Post, $"/support/conversations/{conversation:D}/attachments", () => File(Png(1_000), "photo.png", "image/png"));
+        Assert.Equal((HttpStatusCode.Conflict, "messaging.support.noticerequired"), (refused.StatusCode, await CodeAsync(refused)));
+        Assert.Empty(store.Objects);
+
+        using HttpResponseMessage acknowledged = await same.AcknowledgeAsync("v2");
+        using HttpResponseMessage taken = await same.SendAsync(HttpMethod.Post, $"/support/conversations/{conversation:D}/attachments", () => File(Png(1_000), "photo.png", "image/png"));
+        Assert.Equal(HttpStatusCode.Created, taken.StatusCode);
+    }
+
+    [Fact]
+    public async Task MSG_CONV_011_AC2_ABlockedVisitorsUploadIsRefusedAsTheirMessageIs()
+    {
+        await using ChatHost chat = await StartAsync();
+        await using HubConnection amal = await SupportTests.AvailableAsync(chat, "amal");
+        Browser visitor = await SupportTests.AcknowledgedAsync(chat, "192.0.2.1");
+        Guid conversation = await visitor.StartAsync();
+        Assert.True((await chat.CallAsync(chats => chats.BlockAsync("amal", new ConversationId(conversation), null, default))).IsSuccess);
+
+        using HttpResponseMessage refused = await visitor.SendAsync(HttpMethod.Post, $"/support/conversations/{conversation:D}/attachments", () => File(Png(1_000), "photo.png", "image/png"));
+        Assert.Equal((HttpStatusCode.Forbidden, "messaging.support.blocked"), (refused.StatusCode, await CodeAsync(refused)));
+        Assert.Empty(store.Objects);
+        Assert.Equal(0L, await CountAsync(chat, database => new NpgsqlCommand("SELECT count(*) FROM messaging.attachments", database)));
+
+        Assert.True((await chat.CallAsync(chats => chats.UnblockAsync("amal", new ConversationId(conversation), default))).IsSuccess);
+        using HttpResponseMessage lifted = await visitor.SendAsync(HttpMethod.Post, $"/support/conversations/{conversation:D}/attachments", () => File(Png(1_000), "photo.png", "image/png"));
+        Assert.Equal(HttpStatusCode.Created, lifted.StatusCode);
+    }
+
+    [Fact]
+    public async Task MSG_CONV_011_AC1_EachPublicUploadCountsAsAMessageTowardTheVisitorsLimit()
+    {
+        await using ChatHost chat = await StartAsync(configuration => configuration["Hermes:Conversations:Limits:VisitorMessages"] = "2");
+        await using HubConnection amal = await SupportTests.AvailableAsync(chat, "amal");
+        Browser visitor = await SupportTests.AcknowledgedAsync(chat, "192.0.2.1");
+        Guid conversation = await visitor.StartAsync();
+        string route = $"/support/conversations/{conversation:D}/attachments";
+
+        // The minute's window is fixed, so the calls wait until they all fall in one.
+        while (DateTimeOffset.UtcNow.Second >= 50)
+        {
+            await Task.Delay(500, TestContext.Current.CancellationToken);
+        }
+
+        using HttpResponseMessage first = await visitor.SendAsync(HttpMethod.Post, route, () => File(Png(1_000), "one.png", "image/png"));
+        using HttpResponseMessage second = await visitor.SendAsync(HttpMethod.Post, $"/support/conversations/{conversation:D}/messages", """{ "text": "And a word" }""");
+        Assert.Equal((HttpStatusCode.Created, HttpStatusCode.Created), (first.StatusCode, second.StatusCode));
+
+        using HttpResponseMessage third = await visitor.SendAsync(HttpMethod.Post, route, () => File(Png(1_000), "two.png", "image/png"));
+        Assert.Equal((HttpStatusCode.TooManyRequests, "messaging.support.limited"), (third.StatusCode, await CodeAsync(third)));
+        Assert.True(third.Headers.RetryAfter?.Delta > TimeSpan.Zero);
+        Assert.Single(store.Objects);
+
+        // A file refused for its type is refused before it is counted.
+        using HttpResponseMessage typed = await visitor.SendAsync(HttpMethod.Post, route, () => File("words"u8.ToArray(), "notes.txt", "text/plain"));
+        Assert.Equal("messaging.attachment.type", await CodeAsync(typed));
+    }
+
+    [Fact]
     public async Task MSG_CONV_007_AC4_AnUnnamedUploadIsGoneAfter24Hours()
     {
         await using ChatHost chat = await StartAsync();

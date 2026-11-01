@@ -96,20 +96,31 @@ internal sealed partial class StaffChats
         return stays ? await DownloadAsync(row, current, cancellationToken).ConfigureAwait(false) : Result.Fail<AttachmentDownload>(NotFound());
     }
 
-    /// <summary>Uploads the caller's attachment to their open conversation, where the public group takes attachments.</summary>
-    internal async Task<Result<AttachmentRecord>> CallerUploadAsync(SupportCaller caller, Guid conversation, string name, string mediaType, Stream content, CancellationToken cancellationToken)
+    /// <summary>
+    /// Uploads the caller's attachment to their open conversation, where the public group takes
+    /// attachments, under the public message write's protections, before any byte is stored: a
+    /// blocked caller, or a visitor before the current notice is acknowledged, is refused as a
+    /// message is, and each upload counts as one message toward the caller's messages limit.
+    /// </summary>
+    internal async Task<SupportAnswer<AttachmentRecord>> CallerUploadAsync(SupportCaller caller, Guid conversation, string name, string mediaType, Stream content, CancellationToken cancellationToken)
     {
         ready.ThrowIfNotReady();
         ConversationRow? reached = settings.Attachments.Public ? await CallerConversationAsync(caller, conversation, cancellationToken).ConfigureAwait(false) : null;
         if (reached is null || string.Equals(reached.Status, ClosedStatus, StringComparison.Ordinal))
         {
-            return Result.Fail<AttachmentRecord>(NotFound());
+            return SupportAnswer<AttachmentRecord>.Fail(NotFound());
+        }
+
+        if (await RefusedCallerAsync(caller, cancellationToken).ConfigureAwait(false) is { } refused)
+        {
+            return SupportAnswer<AttachmentRecord>.Fail(refused);
         }
 
         (byte[] hash, int hashVersion) = caller.Counted(hashes);
         Uploader uploader = caller.Customer is { } customer ? new(customer, null, null, customer) : new(null, hash, hashVersion, null);
         MessagingOptions current = options.CurrentValue;
-        return await UploadAsync(
+        TimeSpan? retryAfter = null;
+        Result<AttachmentRecord> uploaded = await UploadAsync(
             reached.Id,
             uploader,
             name,
@@ -120,7 +131,20 @@ internal sealed partial class StaffChats
                 await LockCallerAsync(context, current, caller, token).ConfigureAwait(false);
                 return await CallerConversations(context, caller).AnyAsync(each => each.Id == reached.Id && each.Status != ClosedStatus, token).ConfigureAwait(false);
             },
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            admit: token => LibraryTransactions.RunAsync(
+                database,
+                current,
+                async (context, inner) =>
+                {
+                    await LockCallerAsync(context, current, caller, inner).ConfigureAwait(false);
+                    retryAfter = await CountAsync(context, VisitorMessagesKind, hash, hashVersion, clock.GetUtcNow(), TimeSpan.FromMinutes(1), settings.Support.VisitorMessages, inner).ConfigureAwait(false);
+                    return retryAfter is null ? null : Plain(SupportCodes.Limited);
+                },
+                token)).ConfigureAwait(false);
+        return uploaded.Failure is { } failed
+            ? SupportAnswer<AttachmentRecord>.Fail(failed, retryAfter)
+            : SupportAnswer<AttachmentRecord>.Of(uploaded.Value!);
     }
 
     /// <summary>Opens a clean attachment of the caller's conversation, never one in a <c>note</c>, where the public group takes attachments.</summary>
@@ -188,7 +212,8 @@ internal sealed partial class StaffChats
     /// Checks a file's name and type, streams it to the store in protected chunks, and writes
     /// its row, pending its scan, where <paramref name="stays"/> still finds the conversation
     /// open to the uploader under their locks; its bytes are deleted again where it is refused
-    /// after they were stored.
+    /// after they were stored. Where given, <paramref name="admit"/> is asked once the file's
+    /// checks pass and before any byte is stored, its refusal answered.
     /// </summary>
     private async Task<Result<AttachmentRecord>> UploadAsync(
         Guid conversation,
@@ -197,7 +222,8 @@ internal sealed partial class StaffChats
         string mediaType,
         Stream content,
         Func<MessagingContext, CancellationToken, Task<bool>> stays,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<CancellationToken, Task<Failure?>>? admit = null)
     {
         if (!AttachmentFiles.IsName(name))
         {
@@ -220,6 +246,11 @@ internal sealed partial class StaffChats
         if (read > bounds.MaxBytes)
         {
             return Result.Fail<AttachmentRecord>(Plain(ChatCodes.AttachmentTooLarge));
+        }
+
+        if (admit is not null && await admit(cancellationToken).ConfigureAwait(false) is { } refused)
+        {
+            return Result.Fail<AttachmentRecord>(refused);
         }
 
         Guid id = Guid.CreateVersion7();

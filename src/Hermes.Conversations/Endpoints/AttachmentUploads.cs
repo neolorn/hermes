@@ -1,9 +1,11 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 
 using Hermes.Conversations.Attachments;
 using Hermes.Conversations.Chats;
+using Hermes.Conversations.Support;
 using Hermes.Core;
 using Hermes.Endpoints;
 
@@ -30,7 +32,7 @@ internal static class AttachmentUploads
 
     internal static async Task<Results<CreatedAnswer<AttachmentBody>, Refusal>> UploadAsync(
         HttpContext context,
-        Func<string, string, Stream, Task<Result<AttachmentRecord>>> upload,
+        Func<string, string, Stream, Task<SupportAnswer<AttachmentRecord>>> upload,
         Func<Guid, Task> forget)
     {
         if (!MediaTypeHeaderValue.TryParse(context.Request.ContentType, out MediaTypeHeaderValue? type)
@@ -59,9 +61,14 @@ internal static class AttachmentUploads
                 return NotOneFile();
             }
 
-            Result<AttachmentRecord> uploaded = await upload(name, section.ContentType ?? string.Empty, section.Body).ConfigureAwait(false);
+            SupportAnswer<AttachmentRecord> uploaded = await upload(name, section.ContentType ?? string.Empty, section.Body).ConfigureAwait(false);
             if (uploaded.Failure is { } refused)
             {
+                if (uploaded.RetryAfter is { } wait)
+                {
+                    context.Response.Headers.RetryAfter = Math.Max(1, (int)Math.Ceiling(wait.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+                }
+
                 return StaffEndpoints.Refused(context, refused);
             }
 

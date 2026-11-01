@@ -795,7 +795,11 @@ internal static class StaffEndpoints
 
         return await CallAsync<CreatedAnswer<AttachmentBody>>(context, conversations => AttachmentUploads.UploadAsync(
             context,
-            (name, type, content) => conversations.UploadAttachmentAsync(person, new ConversationId(conversation), name, type, content, context.RequestAborted).AsTask(),
+            async (name, type, content) =>
+            {
+                Result<AttachmentRecord> uploaded = await conversations.UploadAttachmentAsync(person, new ConversationId(conversation), name, type, content, context.RequestAborted).ConfigureAwait(false);
+                return uploaded.Failure is { } refused ? SupportAnswer<AttachmentRecord>.Fail(refused) : SupportAnswer<AttachmentRecord>.Of(uploaded.Value!);
+            },
             attachment => context.RequestServices.GetRequiredService<StaffChats>().ForgetAsync(attachment, context.RequestAborted))).ConfigureAwait(false);
     }
 

@@ -164,6 +164,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   object, then deleting the old. Both seams are required where attachments are enabled,
   the start stopping with `messaging.startup.declarationmissing` (`key` `attachmentStore`
   or `attachmentScanner`)
+- A public upload takes the public message write's protections before any byte is
+  stored: it counts as one message toward the caller's limit, answering
+  `messaging.support.limited` with `Retry-After` past it, and a block or a notice not yet
+  acknowledged refuses it as it refuses a message
 
 ### Fixed
 

@@ -94,8 +94,11 @@ internal static class PublicEndpoints
             .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapPost("/support/conversations/{id}/attachments", (HttpContext context, string id) => UploadAsync(context, path, id))
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status403Forbidden)
             .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status409Conflict)
             .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
+            .Produces<ErrorBody>(StatusCodes.Status429TooManyRequests)
             .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapGet("/support/conversations/{id}/attachments/{attachmentId}", (HttpContext context, string id, string attachmentId) => DownloadAsync(context, path, id, attachmentId))
             .Produces<ErrorBody>(StatusCodes.Status404NotFound)
