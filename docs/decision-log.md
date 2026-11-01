@@ -2534,8 +2534,11 @@ This entry settles the map's C24 to C27, C32 and C33.
 > - `conversations` gains `survey_comment_key_version` (as `email_key_version`) and
 >   `transcript_sends`, an integer from 0 to 3 counting the transcript's emails, since
 >   idempotency rows lapse and cannot count.
+> - `IConversations.ReportAsync` takes `DateOnly from, DateOnly through`, both included,
+>   since CA1716 refuses `to`, a Visual Basic keyword, on an interface member. The HTTP
+>   query keeps `from` and `to`.
 >
-> Propagated to `08` section 8; `09` MSG-CONV-004.
+> Propagated to `04` MSG-LIB-002; `08` section 8; `09` MSG-CONV-004.
 
 ---
 
