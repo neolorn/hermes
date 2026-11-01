@@ -102,13 +102,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instant are on staff bodies only. The keys `Hermes:Conversations:Replies`,
   `Support:CloseAfter` and `Support:CloseWarning` are read at start, and every automatic
   reply rule's template is checked in every declared language
-- `GET /support/queue` and every public route that starts or names a conversation declare
-  the 503 they answer where a person's locks are not had in time
 
 ### Fixed
 
 - `GET /conversations` of the staff conversations group declares its 503, which it answers
   when the person's locks are not had in time
+- `GET /support/queue` and every public route that starts or names a conversation declare
+  the 503 they answer where a person's locks are not had in time
+- A block's `until` given through the staff group is read in UTC, as written, on a host
+  whose time zone is not UTC
 - `Hermes:Languages` set item by item through a web host's test factory, which gives the
   list itself an empty value, no longer stops the start
 
