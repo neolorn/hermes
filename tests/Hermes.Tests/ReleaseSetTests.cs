@@ -52,6 +52,31 @@ public sealed class ReleaseSetTests
     }
 
     [Fact]
+    public void MSG_LIB_006_AC3_TheCurrentSetHoldsTheHubsRoutesMethodsAndPayloadShapes()
+    {
+        ReleaseSet current = ReleaseSet.Current(ReleaseSet.Root());
+
+        Assert.Contains($"HUB {Endpoints.StaffPrefix}/live", current[ReleaseSet.Hubs]);
+        Assert.Contains($"HUB {Endpoints.PublicPrefix}/live", current[ReleaseSet.Hubs]);
+        Assert.Contains($"HUB {Endpoints.StaffPrefix}/live server message conversationId,message", current[ReleaseSet.Hubs]);
+        Assert.Contains($"HUB {Endpoints.StaffPrefix}/live client Typing conversationId", current[ReleaseSet.Hubs]);
+        Assert.Contains("MessageBody.attachments: AttachmentBody[]", current[ReleaseSet.Bodies]);
+        Assert.Contains(ReleaseSet.Hubs, ReleaseSet.FileSections);
+    }
+
+    [Fact]
+    public void MSG_LIB_006_AC3_AHubMethodRemovedNeedsAMajorReleaseAndOneAddedAMinor()
+    {
+        const string Sent = "HUB /staff/live server message conversationId,message";
+        const string Called = "HUB /staff/live client Typing conversationId";
+        ReleaseSet baseline = ReleaseSet.Of((ReleaseSet.Hubs, [Sent]));
+
+        Assert.Equal(ReleaseNeeds.Major, ReleaseComparison.Compare(baseline, ReleaseSet.Of((ReleaseSet.Hubs, [Called]))).Level);
+        Assert.Equal(ReleaseNeeds.Minor, ReleaseComparison.Compare(baseline, ReleaseSet.Of((ReleaseSet.Hubs, [Sent, Called]))).Level);
+        Assert.Equal([Sent], ReleaseSet.Read(ReleaseSet.Of((ReleaseSet.Hubs, [Sent])).ToJson())[ReleaseSet.Hubs]);
+    }
+
+    [Fact]
     public void MSG_LIB_006_AC1_EveryPublicInterfaceOfTheContractsIsOneAHostImplementsOrOneTheLibraryDoes()
     {
         Type[] interfaces = [.. typeof(Channel).Assembly.GetExportedTypes().Where(type => type.IsInterface)];
