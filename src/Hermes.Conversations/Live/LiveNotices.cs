@@ -13,8 +13,8 @@ namespace Hermes.Conversations.Live;
 /// <summary>
 /// The notification a conversation's write tells every process on (<c>09</c> MSG-CONV-008;
 /// <c>08</c> section 8): <c>NOTIFY messaging_conversations</c> with
-/// <c>&lt;event&gt;:&lt;conversationId&gt;:&lt;id&gt;</c>, the id a message's or a participant's,
-/// never a person reference or a text.
+/// <c>&lt;event&gt;:&lt;conversationId&gt;:&lt;id&gt;</c>, the id a message's or a participant's, or for
+/// support's events the conversation's own, never a person reference or a text.
 /// </summary>
 internal static class LiveNotices
 {
@@ -36,7 +36,24 @@ internal static class LiveNotices
     /// <summary>A participant's presence changed; the id is the participant's.</summary>
     internal const string Presence = "presence";
 
+    /// <summary>A support conversation's queue moved; the id is the conversation's.</summary>
+    internal const string Place = "place";
+
+    /// <summary>A support conversation was assigned; the id is the conversation's.</summary>
+    internal const string Assigned = "assigned";
+
+    /// <summary>A support conversation was closed; the id is the conversation's.</summary>
+    internal const string Closed = "closed";
+
+    /// <summary>A conversation was added to a person's list; the id is the conversation's.</summary>
+    internal const string Conversation = "conversation";
+
     private const string Notify = "SELECT pg_notify('messaging_conversations', @payload)";
+
+    private const string NotifyQueue = """
+        SELECT pg_notify('messaging_conversations', 'place:' || id::text || ':' || id::text)
+        FROM messaging.conversations WHERE type = 'support' AND topic = @topic AND status = 'open' AND assignee IS NULL
+        """;
 
     /// <summary>The payload of <paramref name="kind"/> in <paramref name="conversation"/> for <paramref name="id"/>.</summary>
     internal static string Payload(string kind, Guid conversation, Guid id)
@@ -49,11 +66,17 @@ internal static class LiveNotices
     {
         string[] parts = payload.Split(':');
         return parts.Length == 3
-            && parts[0] is Message or Changed or Moved or Typing or Presence
+            && parts[0] is Message or Changed or Moved or Typing or Presence or Place or Assigned or Closed or Conversation
             && Guid.TryParseExact(parts[1], "D", out Guid conversation)
             && Guid.TryParseExact(parts[2], "D", out Guid id)
             ? (parts[0], conversation, id)
             : null;
+    }
+
+    /// <summary>Tells the processes that the place of each queued conversation of <paramref name="topic"/> moved, when the transaction commits.</summary>
+    internal static async Task TellQueueAsync(MessagingContext context, string topic, CancellationToken cancellationToken)
+    {
+        await context.Database.ExecuteSqlRawAsync(NotifyQueue, [new NpgsqlParameter("topic", topic)], cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Tells the processes of <paramref name="kind"/> when <paramref name="context"/>'s transaction commits, or at once outside one.</summary>

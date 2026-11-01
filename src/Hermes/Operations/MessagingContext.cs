@@ -70,6 +70,14 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
     internal DbSet<ConnectionRow> Connections => Set<ConnectionRow>();
 
+    internal DbSet<SupportAgentRow> SupportAgents => Set<SupportAgentRow>();
+
+    internal DbSet<SupportBlockRow> SupportBlocks => Set<SupportBlockRow>();
+
+    internal DbSet<SupportAcknowledgementRow> SupportAcknowledgements => Set<SupportAcknowledgementRow>();
+
+    internal DbSet<SupportCounterRow> SupportCounters => Set<SupportCounterRow>();
+
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
     {
@@ -515,6 +523,8 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
                 table.HasCheckConstraint("ck_conversations_status", $"status IN ({InList(ConversationSpellings.AllStatuses)})");
                 table.HasCheckConstraint("ck_conversations_scope_kind", $"scope_kind IN ({InList(ConversationSpellings.AllScopeKinds)})");
                 table.HasCheckConstraint("ck_conversations_scope", "(type = 'group') = (scope_kind IS NOT NULL) AND (scope_kind IS NULL) = (scope_reference IS NULL)");
+                table.HasCheckConstraint("ck_conversations_topic", "(type = 'support') = (topic IS NOT NULL)");
+                table.HasCheckConstraint("ck_conversations_email", "(email IS NULL) OR offline");
             });
             conversation.HasKey(row => row.Id).HasName("pk_conversations");
             conversation.HasIndex(row => new { row.ScopeKind, row.ScopeReference }).IsUnique().HasDatabaseName("ux_conversations_scope");
@@ -526,16 +536,36 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             conversation.Property(row => row.ScopeReference).HasColumnName("scope_reference");
             conversation.Property(row => row.CreatedAt).HasColumnName("created_at");
             conversation.Property(row => row.LastMessageAt).HasColumnName("last_message_at");
+            conversation.HasIndex(row => new { row.Topic, row.QueuedAt, row.Id }).HasDatabaseName("ix_conversations_topic_queued_at");
+            conversation.HasIndex(row => row.Assignee).HasDatabaseName("ix_conversations_assignee");
+            conversation.HasIndex(row => row.ClosedBy).HasDatabaseName("ix_conversations_closed_by");
+            conversation.HasIndex(row => row.Customer).HasDatabaseName("ix_conversations_customer");
+            conversation.HasIndex(row => row.EmailKeyVersion).HasDatabaseName("ix_conversations_email_key_version");
+            conversation.Property(row => row.Topic).HasColumnName("topic");
+            conversation.Property(row => row.Assignee).HasColumnName("assignee");
+            conversation.Property(row => row.QueuedAt).HasColumnName("queued_at");
+            conversation.Property(row => row.AssignedAt).HasColumnName("assigned_at");
+            conversation.Property(row => row.Offline).HasColumnName("offline");
+            conversation.Property(row => row.ClosedAt).HasColumnName("closed_at");
+            conversation.Property(row => row.ClosedBy).HasColumnName("closed_by");
+            conversation.Property(row => row.Customer).HasColumnName("customer");
+            conversation.Property(row => row.Email).HasColumnName("email");
+            conversation.Property(row => row.EmailKeyVersion).HasColumnName("email_key_version");
         });
 
         modelBuilder.Entity<ParticipantRow>(participant =>
         {
-            participant.ToTable("participants");
+            participant.ToTable("participants", table => table.HasCheckConstraint("ck_participants_who", "(person IS NULL) <> (visitor IS NULL) AND (visitor IS NULL) = (hash_version IS NULL)"));
             participant.HasKey(row => row.Id).HasName("pk_participants");
             participant.HasOne<ConversationRow>().WithMany().HasForeignKey(row => row.ConversationId).HasConstraintName("fk_participants_conversations").OnDelete(DeleteBehavior.Cascade);
             participant.HasOne<MessageRow>().WithMany().HasForeignKey(row => row.ReadPosition).HasConstraintName("fk_participants_messages").OnDelete(DeleteBehavior.SetNull);
             participant.HasIndex(row => new { row.ConversationId, row.Person }).IsUnique().HasDatabaseName("ux_participants_conversation_person");
             participant.HasIndex(row => row.Person).HasDatabaseName("ix_participants_person");
+            participant.HasIndex(row => new { row.ConversationId, row.Visitor }).IsUnique().HasDatabaseName("ux_participants_conversation_visitor");
+            participant.HasIndex(row => row.Visitor).HasDatabaseName("ix_participants_visitor");
+            participant.HasIndex(row => row.HashVersion).HasDatabaseName("ix_participants_hash_version");
+            participant.Property(row => row.Visitor).HasColumnName("visitor");
+            participant.Property(row => row.HashVersion).HasColumnName("hash_version");
             participant.HasIndex(row => row.ReadPosition).HasDatabaseName("ix_participants_read_position");
             participant.HasOne<MessageRow>().WithMany().HasForeignKey(row => row.AwayTold).HasConstraintName("fk_participants_messages_away_told").OnDelete(DeleteBehavior.SetNull);
             participant.HasIndex(row => row.AwayTold).HasDatabaseName("ix_participants_away_told");
@@ -567,6 +597,8 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             message.Property(row => row.ConversationId).HasColumnName("conversation_id");
             message.Property(row => row.AuthorKind).HasColumnName("author_kind");
             message.Property(row => row.Author).HasColumnName("author");
+            message.HasIndex(row => row.Owner).HasDatabaseName("ix_messages_owner");
+            message.Property(row => row.Owner).HasColumnName("owner");
             message.Property(row => row.Type).HasColumnName("type");
             message.Property(row => row.Text).HasColumnName("text");
             message.Property(row => row.ContentKeyVersion).HasColumnName("content_key_version");
@@ -596,6 +628,62 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             connection.Property(row => row.Person).HasColumnName("person");
             connection.Property(row => row.Process).HasColumnName("process");
             connection.Property(row => row.LastSeenAt).HasColumnName("last_seen_at");
+        });
+
+        modelBuilder.Entity<SupportAgentRow>(agent =>
+        {
+            agent.ToTable("support_agents");
+            agent.HasKey(row => row.Id).HasName("pk_support_agents");
+            agent.HasIndex(row => row.Person).IsUnique().HasDatabaseName("ux_support_agents_person");
+            agent.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            agent.Property(row => row.Person).HasColumnName("person");
+            agent.Property(row => row.Available).HasColumnName("available");
+            agent.Property(row => row.LastAssignedAt).HasColumnName("last_assigned_at");
+            agent.Property(row => row.ChangedAt).HasColumnName("changed_at");
+        });
+
+        modelBuilder.Entity<SupportBlockRow>(block =>
+        {
+            block.ToTable("support_blocks", table => table.HasCheckConstraint("ck_support_blocks_who", "(person IS NULL) <> (visitor IS NULL) AND (visitor IS NULL) = (hash_version IS NULL)"));
+            block.HasKey(row => row.Id).HasName("pk_support_blocks");
+            block.HasIndex(row => row.Person).HasDatabaseName("ix_support_blocks_person");
+            block.HasIndex(row => row.Visitor).HasDatabaseName("ix_support_blocks_visitor");
+            block.HasIndex(row => row.HashVersion).HasDatabaseName("ix_support_blocks_hash_version");
+            block.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            block.Property(row => row.Person).HasColumnName("person");
+            block.Property(row => row.Visitor).HasColumnName("visitor");
+            block.Property(row => row.HashVersion).HasColumnName("hash_version");
+            block.Property(row => row.Until).HasColumnName("until");
+            block.Property(row => row.BlockedAt).HasColumnName("blocked_at");
+        });
+
+        modelBuilder.Entity<SupportAcknowledgementRow>(acknowledgement =>
+        {
+            acknowledgement.ToTable("support_acknowledgements");
+            acknowledgement.HasKey(row => row.Id).HasName("pk_support_acknowledgements");
+            acknowledgement.HasIndex(row => new { row.Visitor, row.Version }).HasDatabaseName("ix_support_acknowledgements_visitor_version");
+            acknowledgement.HasIndex(row => row.HashVersion).HasDatabaseName("ix_support_acknowledgements_hash_version");
+            acknowledgement.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            acknowledgement.Property(row => row.Visitor).HasColumnName("visitor");
+            acknowledgement.Property(row => row.HashVersion).HasColumnName("hash_version");
+            acknowledgement.Property(row => row.Version).HasColumnName("version");
+            acknowledgement.Property(row => row.AcknowledgedAt).HasColumnName("acknowledged_at");
+            acknowledgement.Property(row => row.Language).HasColumnName("language");
+        });
+
+        modelBuilder.Entity<SupportCounterRow>(counter =>
+        {
+            counter.ToTable("support_counters", table => table.HasCheckConstraint("ck_support_counters_kind", "kind IN ('visitor-starts', 'visitor-messages', 'source-starts')"));
+            counter.HasKey(row => row.Id).HasName("pk_support_counters");
+            counter.HasIndex(row => new { row.Kind, row.Hash, row.WindowStart }).IsUnique().HasDatabaseName("ux_support_counters_kind_hash_window");
+            counter.HasIndex(row => row.WindowStart).HasDatabaseName("ix_support_counters_window_start");
+            counter.HasIndex(row => row.HashVersion).HasDatabaseName("ix_support_counters_hash_version");
+            counter.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            counter.Property(row => row.Kind).HasColumnName("kind");
+            counter.Property(row => row.Hash).HasColumnName("hash");
+            counter.Property(row => row.HashVersion).HasColumnName("hash_version");
+            counter.Property(row => row.WindowStart).HasColumnName("window_start");
+            counter.Property(row => row.Count).HasColumnName("count");
         });
     }
 

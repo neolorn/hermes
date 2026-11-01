@@ -67,6 +67,11 @@ internal static class ConversationSpellings
         return (ConversationType)Index(Types, spelling);
     }
 
+    internal static ConversationStatus StatusOf(string spelling)
+    {
+        return (ConversationStatus)Index(Statuses, spelling);
+    }
+
     internal static MessageType MessageTypeOf(string spelling)
     {
         return (MessageType)Index(MessageTypes, spelling);

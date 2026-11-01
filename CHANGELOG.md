@@ -50,11 +50,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   participant's `online`; the messages route's `after`, oldest first; and away notices, sent
   as the kind `Hermes:Conversations:AwayKind` names to a person away from a conversation,
   once until they read, an undeclared kind stopping the start
+- The migration `SupportSide`, which adds support's columns to `conversations`, a
+  visitor's keyed hash to `participants` beside its person, each message's owner (the
+  person whose key protects its text, its author until now), and the tables
+  `support_agents`, `support_blocks`, `support_acknowledgements` and `support_counters`;
+  it drops nothing and writes each existing message's owner from its author. Erasing a
+  customer deletes their support conversations with every row of them, and erasing a staff
+  member empties their references and keeps the text a customer's key protects
+- Support's keys under `Hermes:Conversations:`, read at start: each topic under
+  `Topics:<name>` with its time zone, its weekly hours and dated exceptions, and the scope
+  whose members staff it; `Support:Limit`, `Support:OfflineReplyKind` and
+  `Support:NoticeVersion`, the last two required where topics are configured; the
+  `Limits:` of visitors and source addresses; and `Retention:Visitor`. A value outside its
+  rule stops the start with `messaging.startup.configurationinvalid` naming its key
+- Support: `MapHermesPublicConversations` maps the public conversations group, where a
+  visitor, known by the HttpOnly cookie `messaging_visitor` and held only as a keyed hash,
+  or a signed-in customer acknowledges the privacy notice, starts a conversation of a
+  topic or leaves one through the offline form, and reads and writes their own, never
+  seeing a note; a queued conversation goes, within its topic's hours, to the available
+  member of the topic's scope with the fewest open conversations, first in, first out;
+  outside hours or with nobody available the start answers `messaging.support.offline`;
+  limits per visitor and per source address answer `messaging.support.limited` with
+  `Retry-After`, across processes; and staff set themselves available, read a topic's
+  queue, transfer, close and block through the staff group, the support conversations
+  assigned to them in their list. `ConversationRecord` gains `Topic`, `Status`, `Place`
+  and `Offline`, and `IConversations` support's members. An offline conversation's
+  replies are sent by email as `Hermes:Conversations:Support:OfflineReplyKind`
+- Support's live connection: `MapHermesPublicConversations` also maps the public hub at
+  `/live`, authenticated by the visitor's cookie or the signed-in customer, which pushes a
+  message, its edit or delete, typing, the visitor's place in the queue, an assignment and
+  a close, never a note; the staff hub pushes a support conversation's events to its
+  assignee alone, and `conversation` to a person when a direct conversation they are in
+  starts or gains participants, or a support conversation is assigned to them
+- An offline conversation's address that does not open under its binding sends nothing
+  and raises `content-rejected` for `conversations`
 
 ### Fixed
 
 - `GET /conversations` of the staff conversations group declares its 503, which it answers
   when the person's locks are not had in time
+- A block's `until` given through the staff group is read in UTC, as written, on a host
+  whose time zone is not UTC
 - `Hermes:Languages` set item by item through a web host's test factory, which gives the
   list itself an empty value, no longer stops the start
 

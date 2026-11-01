@@ -20,6 +20,13 @@ internal sealed class MessageRow
     /// <summary>The author's person reference, or none for the library and once the author is erased.</summary>
     public string? Author { get; set; }
 
+    /// <summary>
+    /// The person whose key protects the text: its author in a staff chat, the customer in a
+    /// customer's support conversation, none for a visitor's (<c>09</c> MSG-CONV-009). Key
+    /// retirement protects the text again for them, and their erasure clears it.
+    /// </summary>
+    public string? Owner { get; set; }
+
     /// <summary><c>text</c>, <c>note</c>, <c>automatic</c> or <c>system</c>.</summary>
     public required string Type { get; set; }
 

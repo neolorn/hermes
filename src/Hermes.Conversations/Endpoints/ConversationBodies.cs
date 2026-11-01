@@ -11,11 +11,15 @@ internal sealed record ConversationsBody(IReadOnlyList<ConversationBody> Convers
 /// <param name="Id">The conversation's identifier, lower-case and hyphenated.</param>
 /// <param name="Type">Its type, as <c>08</c> section 2 spells it.</param>
 /// <param name="Scope">A group conversation's scope, or none.</param>
-/// <param name="Participants">A direct conversation's participants who have not left; none for a group conversation.</param>
+/// <param name="Participants">A direct conversation's participants who have not left; none for a group or support conversation.</param>
 /// <param name="Unread">The messages after the person's read position that are neither theirs nor deleted.</param>
 /// <param name="Muted">Whether the person muted it.</param>
 /// <param name="LastAt">The instant of its last message, or of its creation where it has none.</param>
-internal sealed record ConversationBody(string Id, string Type, ScopeBody? Scope, IReadOnlyList<ParticipantBody> Participants, int Unread, bool Muted, string LastAt);
+/// <param name="Topic">A support conversation's topic, none for another.</param>
+/// <param name="Status">A support conversation's status, as <c>08</c> section 3 spells it, none for another.</param>
+/// <param name="Place">A queued support conversation's place in its topic's queue, none once assigned and for another.</param>
+/// <param name="Offline">Whether a support conversation came through the offline form, none for another.</param>
+internal sealed record ConversationBody(string Id, string Type, ScopeBody? Scope, IReadOnlyList<ParticipantBody> Participants, int Unread, bool Muted, string LastAt, string? Topic, string? Status, int? Place, bool? Offline);
 
 /// <summary>A group conversation's scope (<c>05</c> MSG-API-009).</summary>
 /// <param name="Kind">The scope's kind, as <c>08</c> section 2 spells it.</param>
@@ -79,3 +83,44 @@ internal sealed record ReadRequest(string? MessageId);
 /// <summary>The body of <c>PUT /conversations/{id}/mute</c> (<c>05</c> MSG-API-009).</summary>
 /// <param name="Muted">Whether the conversation is muted.</param>
 internal sealed record MuteRequest(bool? Muted);
+
+/// <summary>The answer of <c>GET /support/queue</c> (<c>05</c> MSG-API-009).</summary>
+/// <param name="Conversations">The topic's queued conversations, oldest first.</param>
+internal sealed record QueueBody(IReadOnlyList<ConversationBody> Conversations);
+
+/// <summary>The body of <c>PUT /support/availability</c> (<c>05</c> MSG-API-009).</summary>
+/// <param name="Available">Whether the staff member is available.</param>
+internal sealed record AvailabilityRequest(bool? Available);
+
+/// <summary>The body of <c>POST /support/conversations/{id}/transfer</c> (<c>05</c> MSG-API-009), one of its members given.</summary>
+/// <param name="Person">The member it goes to.</param>
+/// <param name="Topic">The topic whose queue it goes to.</param>
+internal sealed record TransferRequest(string? Person, string? Topic);
+
+/// <summary>The body of <c>POST /support/conversations/{id}/block</c> (<c>05</c> MSG-API-009).</summary>
+/// <param name="Until">The instant the block ends, or none until it is lifted.</param>
+internal sealed record BlockRequest(string? Until);
+
+/// <summary>The answer of <c>GET /support/topics</c> (<c>05</c> MSG-API-010).</summary>
+/// <param name="Topics">Each topic.</param>
+internal sealed record TopicsBody(IReadOnlyList<TopicBody> Topics);
+
+/// <summary>A topic of the public side (<c>05</c> MSG-API-010).</summary>
+/// <param name="Name">The topic's name.</param>
+/// <param name="Open">Whether it is within its hours with a member available.</param>
+internal sealed record TopicBody(string Name, bool Open);
+
+/// <summary>The body of <c>POST /support/notice</c> (<c>05</c> MSG-API-010).</summary>
+/// <param name="Version">The version of the notice acknowledged.</param>
+internal sealed record NoticeRequest(string? Version);
+
+/// <summary>The body of <c>POST /support/conversations</c> (<c>05</c> MSG-API-010).</summary>
+/// <param name="Topic">The topic.</param>
+/// <param name="Text">The first message's text.</param>
+internal sealed record StartRequest(string? Topic, string? Text);
+
+/// <summary>The body of <c>POST /support/offline</c> (<c>05</c> MSG-API-010).</summary>
+/// <param name="Topic">The topic.</param>
+/// <param name="Email">The address replies are sent to.</param>
+/// <param name="Text">The message's text.</param>
+internal sealed record OfflineRequest(string? Topic, string? Email, string? Text);

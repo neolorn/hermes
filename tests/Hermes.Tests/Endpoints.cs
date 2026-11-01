@@ -15,6 +15,20 @@ internal static class Endpoints
 {
     internal const string Prefix = "/notifications";
 
+    /// <summary>The prefix the contract test maps the staff conversations group under, since it shares relative routes with the public group (<c>07</c> MSG-ENG-006).</summary>
+    internal const string StaffPrefix = "/staff";
+
+    /// <summary>The prefix the contract test maps the public conversations group under.</summary>
+    internal const string PublicPrefix = "/public";
+
+    /// <summary>The prefix the contract test maps the group of the section headed <paramref name="heading"/> under: each conversations group its own, every other group <paramref name="prefix"/>.</summary>
+    internal static string PrefixOf(string heading, string prefix)
+    {
+        return heading.Contains("MapHermesStaffConversations", System.StringComparison.Ordinal) ? StaffPrefix
+            : heading.Contains("MapHermesPublicConversations", System.StringComparison.Ordinal) ? PublicPrefix
+            : prefix;
+    }
+
     /// <summary>Registers the identity seam that answers a request's <c>X-Person</c> header.</summary>
     internal static void Identity(IServiceCollection services)
     {

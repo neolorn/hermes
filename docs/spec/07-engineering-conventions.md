@@ -256,7 +256,7 @@ each declaring the responses `05` gives it.
 whose route, method names and payload shapes are public surface (`04` MSG-LIB-006); the
 contract test below finds each from the phase that adds it.
 
-*Source: M-012, M-025, M-031*
+*Source: M-012, M-025, M-031, M-034*
 
 **Acceptance criteria**
 1. A contract test in `tests/Hermes.Tests`, which maps every group of `05`, the
@@ -265,7 +265,8 @@ contract test below finds each from the phase that adds it.
    statuses of `05`, and finds each request and response body's members, read from the
    library's serializer contexts as the release gate reads them (`04` MSG-LIB-006), to
    be those `05` gives; and it finds each hub's route, method names and payload shapes
-   to be those `05` gives (M-031).
+   to be those `05` gives (M-031). It maps each group of `Hermes.Conversations` under a
+   prefix of its own, since the staff and public groups share relative routes (M-034).
 
 ---
 

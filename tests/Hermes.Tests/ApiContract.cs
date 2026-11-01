@@ -52,7 +52,7 @@ internal static partial class ApiContract
     internal static SortedSet<string> Read(string text, string prefix)
     {
         ArgumentNullException.ThrowIfNull(text);
-        List<(string Prose, List<string[]> Rows)> sections = Sections(text, out Dictionary<string, string> shapes);
+        List<(string Heading, string Prose, List<string[]> Rows)> sections = Sections(text, out Dictionary<string, string> shapes);
         Func<string, IReadOnlyList<string>?> shape = null!;
         shape = name => shapes.TryGetValue(name, out string? sketch) ? BodyMembers.OfSketch(sketch, shape) : null;
         string refusal = sections.SelectMany(section => Backticked(section.Prose)).First(token => token.StartsWith("{ \"code\"", StringComparison.Ordinal));
@@ -61,8 +61,9 @@ internal static partial class ApiContract
         Dictionary<(string Method, string Path, int Status), string?> answers = [];
         List<(string Method, string Path, int Status, string From, string FromPath)> asFor = [];
         SortedSet<string> lines = new(StringComparer.Ordinal);
-        foreach ((string prose, List<string[]> rows) in sections)
+        foreach ((string heading, string prose, List<string[]> rows) in sections)
         {
+            string under = Endpoints.PrefixOf(heading, prefix);
             bool signedIn = prose.Contains(SignedIn, StringComparison.Ordinal) || prose.Contains(EverySignedIn, StringComparison.Ordinal);
             foreach (string[] row in rows)
             {
@@ -72,20 +73,20 @@ internal static partial class ApiContract
                 {
                     string method = route.Groups["method"].Value;
                     string path = route.Groups["path"].Value;
-                    string name = $"{method} {prefix}{path}";
+                    string name = $"{method} {under}{path}";
                     lines.Add(name);
                     if (read is not null)
                     {
                         lines.UnionWith(BodyMembers.OfSketch(read).Select(member => $"{name} request {member}"));
                         foreach (int status in JsonRefusals)
                         {
-                            answers[(method, path, status)] = refusal;
+                            answers[(method, under + path, status)] = refusal;
                         }
                     }
 
                     if (signedIn && !answered.Contains(NoneSignedIn, StringComparison.Ordinal))
                     {
-                        answers[(method, path, 401)] = refusal;
+                        answers[(method, under + path, 401)] = refusal;
                     }
 
                     foreach ((int status, string segment) in Statuses(answered))
@@ -93,7 +94,7 @@ internal static partial class ApiContract
                         Match from = AsFor().Match(segment);
                         if (from.Success)
                         {
-                            asFor.Add((method, path, status, from.Groups["method"].Value, from.Groups["path"].Success ? from.Groups["path"].Value : path));
+                            asFor.Add((method, under + path, status, from.Groups["method"].Value, from.Groups["path"].Success ? prefix + from.Groups["path"].Value : under + path));
                             continue;
                         }
 
@@ -101,7 +102,7 @@ internal static partial class ApiContract
                         string? body = tokens.Any(token => token.StartsWith("messaging.", StringComparison.Ordinal)) ? refusal
                             : tokens.FirstOrDefault() is { } first && first.StartsWith('{') ? first
                             : null;
-                        answers[(method, path, status)] = body ?? answers.GetValueOrDefault((method, path, status));
+                        answers[(method, under + path, status)] = body ?? answers.GetValueOrDefault((method, under + path, status));
                     }
                 }
             }
@@ -114,7 +115,7 @@ internal static partial class ApiContract
 
         foreach (((string method, string path, int status), string? body) in answers)
         {
-            string name = $"{method} {prefix}{path} {status.ToString(CultureInfo.InvariantCulture)}";
+            string name = $"{method} {path} {status.ToString(CultureInfo.InvariantCulture)}";
             lines.Add(name);
             if (body is not null)
             {
@@ -145,9 +146,10 @@ internal static partial class ApiContract
     /// the inbox's section holds none here, since <see cref="InboxSection"/> reads its tables by
     /// their own rules.
     /// </summary>
-    private static List<(string Prose, List<string[]> Rows)> Sections(string text, out Dictionary<string, string> shapes)
+    private static List<(string Heading, string Prose, List<string[]> Rows)> Sections(string text, out Dictionary<string, string> shapes)
     {
-        List<(string Prose, List<string[]> Rows)> sections = [];
+        List<(string Heading, string Prose, List<string[]> Rows)> sections = [];
+        string heading = string.Empty;
         shapes = new(StringComparer.Ordinal);
         List<string> prose = [];
         List<string[]> rows = [];
@@ -158,7 +160,8 @@ internal static partial class ApiContract
         {
             if (line.StartsWith("## ", StringComparison.Ordinal))
             {
-                sections.Add((string.Join(' ', prose), rows));
+                sections.Add((heading, string.Join(' ', prose), rows));
+                heading = line;
                 prose = [];
                 rows = [];
                 inbox = line.Contains(InboxSection.Heading, StringComparison.Ordinal);
@@ -189,7 +192,7 @@ internal static partial class ApiContract
             }
         }
 
-        sections.Add((string.Join(' ', prose), rows));
+        sections.Add((heading, string.Join(' ', prose), rows));
         return sections;
     }
 

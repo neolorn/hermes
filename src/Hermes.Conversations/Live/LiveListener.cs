@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
+using Hermes.Conversations.Support;
 using Hermes.Operations;
 
 using Microsoft.Extensions.Hosting;
@@ -20,13 +21,15 @@ namespace Hermes.Conversations.Live;
 /// opened from <c>listenConnection</c> where the deployment gives one and from the library's
 /// connection otherwise, apart from the dispatcher's, so dispatch and conversations never wait
 /// on each other; each notification pushed in its order. It also refreshes this process's
-/// connections every 30 seconds and removes those past their lifetime.
+/// connections every 30 seconds and removes those past their lifetime, then assigns what support
+/// can assign and removes support's counters past their windows (<c>09</c> MSG-CONV-002, MSG-CONV-011).
 /// </summary>
 internal sealed partial class LiveListener(
     MessagingDatabase database,
     MessagingReady ready,
     LivePush push,
     LivePresence presence,
+    SupportAssigner assigner,
     TimeProvider clock,
     ILogger<LiveListener> logger) : IHostedService, IDisposable
 {
@@ -133,6 +136,8 @@ internal sealed partial class LiveListener(
                 try
                 {
                     await presence.RefreshAsync(token).ConfigureAwait(false);
+                    await assigner.AssignAsync(null, token).ConfigureAwait(false);
+                    await assigner.PruneAsync(token).ConfigureAwait(false);
                 }
                 catch (Exception failure) when (failure is not OperationCanceledException || !token.IsCancellationRequested)
                 {

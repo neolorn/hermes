@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Hermes.Conversations.Live;
+using Hermes.Conversations.Support;
 using Hermes.Core;
 using Hermes.Operations;
 using Hermes.Sending;
@@ -38,6 +39,7 @@ internal sealed partial class StaffChats(
     IConversationMembership membership,
     IMessages messages,
     ConversationsSettings settings,
+    SupportAssigner assigner,
     TimeProvider clock,
     ILogger<StaffChats> logger) : IConversations
 {
@@ -67,7 +69,8 @@ internal sealed partial class StaffChats(
     private const string Page = """
         SELECT * FROM messaging.conversations AS c
         WHERE ((c.type = 'direct' AND EXISTS (SELECT 1 FROM messaging.participants AS p WHERE p.conversation_id = c.id AND p.person = @person AND p.left_at IS NULL))
-            OR (c.type = 'group' AND (c.scope_kind, c.scope_reference) IN (SELECT kind, reference FROM unnest(@kinds, @references) AS scopes(kind, reference))))
+            OR (c.type = 'group' AND (c.scope_kind, c.scope_reference) IN (SELECT kind, reference FROM unnest(@kinds, @references) AS scopes(kind, reference)))
+            OR (c.type = 'support' AND c.status = 'open' AND c.assignee = @person))
           AND (NOT @after OR (COALESCE(c.last_message_at, c.created_at), c.id) < (@last_at, @id))
         ORDER BY COALESCE(c.last_message_at, c.created_at) DESC, c.id DESC
         LIMIT @limit
@@ -206,6 +209,7 @@ internal sealed partial class StaffChats(
                 }
 
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
+                await LiveNotices.TellAsync(context, LiveNotices.Conversation, row.Id, row.Id, token).ConfigureAwait(false);
                 return (await RecordsAsync(context, person, clock.GetUtcNow(), [row], token).ConfigureAwait(false))[0];
             },
             cancellationToken).ConfigureAwait(false);
@@ -378,9 +382,20 @@ internal sealed partial class StaffChats(
             return Result.Fail<MessageRecord>(Invalid(ChatCodes.MessageInvalid, "text"));
         }
 
-        if (type != MessageType.Text)
+        bool support = string.Equals(reached.Type, SupportType, StringComparison.Ordinal);
+        if (support && (!string.Equals(reached.Assignee, person, StringComparison.Ordinal) || !string.Equals(reached.Status, OpenStatus, StringComparison.Ordinal)))
+        {
+            return Result.Fail<MessageRecord>(NotFound());
+        }
+
+        if (type != MessageType.Text && !(support && type == MessageType.Note))
         {
             return Result.Fail<MessageRecord>(Invalid(ChatCodes.MessageInvalid, "type"));
+        }
+
+        if (support && mentions is { Count: > 0 })
+        {
+            return Result.Fail<MessageRecord>(Invalid(ChatCodes.MessageInvalid, "mentions"));
         }
 
         string[] mentioned = [.. (mentions ?? []).Distinct(StringComparer.Ordinal)];
@@ -403,7 +418,8 @@ internal sealed partial class StaffChats(
 
         MessagingOptions current = options.CurrentValue;
         Guid id = Guid.CreateVersion7();
-        Protected made = await ProtectAsync(person, text, id, current, cancellationToken).ConfigureAwait(false);
+        string? owner = support ? reached.Customer : person;
+        Protected made = await ProtectAsync(owner, text, id, current, cancellationToken).ConfigureAwait(false);
         if (made.Failure is { } unavailable)
         {
             return Result.Fail<MessageRecord>(unavailable);
@@ -441,7 +457,8 @@ internal sealed partial class StaffChats(
                     ConversationId = reached.Id,
                     AuthorKind = Person,
                     Author = person,
-                    Type = ConversationSpellings.Of(MessageType.Text),
+                    Owner = owner,
+                    Type = ConversationSpellings.Of(type),
                     Text = made.Stored,
                     ContentKeyVersion = made.Version,
                     ReplyTo = replyTo?.Value,
@@ -465,7 +482,17 @@ internal sealed partial class StaffChats(
             return Result.Fail<MessageRecord>(refused);
         }
 
-        await AwayAsync(person, reached, id, mentioned, cancellationToken).ConfigureAwait(false);
+        if (support)
+        {
+            if (reached.Offline && type == MessageType.Text)
+            {
+                await OfflineReplyAsync(reached, id, text, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        else
+        {
+            await AwayAsync(person, reached, id, mentioned, cancellationToken).ConfigureAwait(false);
+        }
 
         return Result.Success(Of(written.Row!, text, erased: false, [.. mentioned.Order(StringComparer.Ordinal)]));
     }
@@ -491,7 +518,7 @@ internal sealed partial class StaffChats(
         }
 
         MessagingOptions current = options.CurrentValue;
-        Protected made = await ProtectAsync(person, text, message.Value, current, cancellationToken).ConfigureAwait(false);
+        Protected made = await ProtectAsync(found!.Owner, text, message.Value, current, cancellationToken).ConfigureAwait(false);
         if (made.Failure is { } unavailable)
         {
             return Result.Fail(unavailable);
@@ -696,6 +723,7 @@ internal sealed partial class StaffChats(
                 }
 
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
+                await LiveNotices.TellAsync(context, LiveNotices.Conversation, reached.Id, reached.Id, token).ConfigureAwait(false);
                 return null;
             },
             cancellationToken).ConfigureAwait(false);
@@ -815,7 +843,7 @@ internal sealed partial class StaffChats(
             async (context, token) =>
             {
                 string[] candidates = direct
-                    ? [.. await context.Participants.Where(each => each.ConversationId == reached.Id && each.LeftAt == null && each.Person != author).Select(each => each.Person).ToListAsync(token).ConfigureAwait(false)]
+                    ? [.. await context.Participants.Where(each => each.ConversationId == reached.Id && each.LeftAt == null && each.Person != author).Select(each => each.Person!).ToListAsync(token).ConfigureAwait(false)]
                     : [.. mentioned.Where(each => !string.Equals(each, author, StringComparison.Ordinal))];
                 await LockAsync(context, current, candidates, token).ConfigureAwait(false);
                 DateTimeOffset now = clock.GetUtcNow();
@@ -918,6 +946,11 @@ internal sealed partial class StaffChats(
                 return null;
             }
 
+            if (string.Equals(row.Type, SupportType, StringComparison.Ordinal))
+            {
+                return await IsSupportMemberAsync(person, row, cancellationToken).ConfigureAwait(false) ? row : null;
+            }
+
             if (ScopeOf(row) is { } scope)
             {
                 return await membership.IsMemberAsync(person, scope, cancellationToken).ConfigureAwait(false) ? row : null;
@@ -938,7 +971,7 @@ internal sealed partial class StaffChats(
     /// </summary>
     private async Task<bool> StaysAsync(MessagingContext context, ConversationRow reached, string person, CancellationToken cancellationToken)
     {
-        if (string.Equals(reached.Type, Group, StringComparison.Ordinal))
+        if (string.Equals(reached.Type, Group, StringComparison.Ordinal) || string.Equals(reached.Type, SupportType, StringComparison.Ordinal))
         {
             await JoinAsync(context, reached.Id, person, clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
             return true;
@@ -1004,7 +1037,7 @@ internal sealed partial class StaffChats(
     /// <param name="now">The instant a connection row is fresh from, less 90 seconds.</param>
     /// <param name="rows">The conversations.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    private static async Task<List<ConversationRecord>> RecordsAsync(MessagingContext context, string person, DateTimeOffset now, IReadOnlyList<ConversationRow> rows, CancellationToken cancellationToken)
+    internal static async Task<List<ConversationRecord>> RecordsAsync(MessagingContext context, string person, DateTimeOffset now, IReadOnlyList<ConversationRow> rows, CancellationToken cancellationToken)
     {
         Guid[] ids = [.. rows.Select(row => row.Id)];
         List<ParticipantRow> participants = await context.Participants.AsNoTracking()
@@ -1012,7 +1045,7 @@ internal sealed partial class StaffChats(
             .ToListAsync(cancellationToken).ConfigureAwait(false);
         List<UnreadCount> unread = await context.Database.SqlQueryRaw<UnreadCount>(Unread, new NpgsqlParameter("person", person), new NpgsqlParameter("ids", ids))
             .ToListAsync(cancellationToken).ConfigureAwait(false);
-        string[] persons = [.. participants.Select(each => each.Person).Distinct(StringComparer.Ordinal)];
+        string[] persons = [.. participants.Where(each => each.Person != null).Select(each => each.Person!).Distinct(StringComparer.Ordinal)];
         DateTimeOffset fresh = now - LivePresence.Lifetime;
         HashSet<string> online = [.. await context.Connections.AsNoTracking()
             .Where(each => persons.Contains(each.Person) && each.LastSeenAt >= fresh)
@@ -1030,11 +1063,15 @@ internal sealed partial class StaffChats(
                 Type = ConversationSpellings.TypeOf(row.Type),
                 Scope = ScopeOf(row),
                 Participants = direct
-                    ? [.. participants.Where(each => each.ConversationId == row.Id && each.LeftAt is null).OrderBy(each => each.JoinedAt).ThenBy(each => each.Person, StringComparer.Ordinal).Select(each => new ParticipantRecord { Participant = new ParticipantId(each.Id), Person = each.Person, Online = online.Contains(each.Person) })]
+                    ? [.. participants.Where(each => each.ConversationId == row.Id && each.LeftAt is null && each.Person != null).OrderBy(each => each.JoinedAt).ThenBy(each => each.Person, StringComparer.Ordinal).Select(each => new ParticipantRecord { Participant = new ParticipantId(each.Id), Person = each.Person!, Online = online.Contains(each.Person!) })]
                     : [],
                 Unread = unread.FirstOrDefault(each => each.Conversation == row.Id)?.Count ?? 0,
                 Muted = mine?.Muted ?? false,
                 LastAt = row.LastMessageAt ?? row.CreatedAt,
+                Topic = row.Topic,
+                Status = row.Topic is null ? null : ConversationSpellings.StatusOf(row.Status),
+                Place = row.Topic is null ? null : await PlaceAsync(context, row, cancellationToken).ConfigureAwait(false),
+                Offline = row.Topic is null ? null : row.Offline,
             });
         }
 
@@ -1048,8 +1085,8 @@ internal sealed partial class StaffChats(
         await AdvisoryLocks.TakeAsync(context, keys, shared: true, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Protects <paramref name="text"/> under <paramref name="person"/>'s key, bound to the message's row, bounded by <c>Hermes:Dispatch:Timeout</c>.</summary>
-    private async Task<Protected> ProtectAsync(string person, string text, Guid message, MessagingOptions current, CancellationToken cancellationToken)
+    /// <summary>Protects <paramref name="text"/> under <paramref name="person"/>'s key, or as an anonymous recipient's value where none, bound to the message's row, bounded by <c>Hermes:Dispatch:Timeout</c>.</summary>
+    private async Task<Protected> ProtectAsync(string? person, string text, Guid message, MessagingOptions current, CancellationToken cancellationToken)
     {
         string context = ContentContext.Of(ContentContext.Messages, message, ConversationTables.Text);
         try
@@ -1085,10 +1122,10 @@ internal sealed partial class StaffChats(
         return new Failure { Code = Codes.KeyUnavailable, Details = new Dictionary<string, string>(alerted, StringComparer.Ordinal) { ["key"] = key } };
     }
 
-    /// <summary>Opens a message's text, bounded by <c>Hermes:Dispatch:Timeout</c>, for its author; a text deleted or erased opens to none.</summary>
+    /// <summary>Opens a message's text, bounded by <c>Hermes:Dispatch:Timeout</c>, for its owner; a text deleted or erased opens to none.</summary>
     private async Task<Opened> OpenAsync(MessageRow row, MessagingOptions current, CancellationToken cancellationToken)
     {
-        bool erased = string.Equals(row.AuthorKind, Person, StringComparison.Ordinal) && row.Author is null;
+        bool erased = string.Equals(row.AuthorKind, Person, StringComparison.Ordinal) && row.Author is null && row.Text is null;
         if (row.Text is not { } stored)
         {
             return new Opened(null, erased, Rejected: false, Held: null);
@@ -1099,7 +1136,7 @@ internal sealed partial class StaffChats(
         {
             using CancellationTokenSource bound = new(current.Dispatch.Timeout, clock);
             using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(bound.Token, cancellationToken);
-            opening = await protection.OpenAsync(row.Author, stored, ContentContext.Of(ContentContext.Messages, row.Id, ConversationTables.Text), linked.Token)
+            opening = await protection.OpenAsync(row.Owner, stored, ContentContext.Of(ContentContext.Messages, row.Id, ConversationTables.Text), linked.Token)
                 .AsTask()
                 .WaitAsync(current.Dispatch.Timeout, clock, cancellationToken)
                 .ConfigureAwait(false);

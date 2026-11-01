@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 
 namespace Hermes.Conversations.Tests;
 
-/// <summary>What the staff hub pushes to one connection, each push with its method and arguments, in order.</summary>
+/// <summary>What a hub pushes to one connection, each push with its method and arguments, in order.</summary>
 internal sealed class HubInbox
 {
     private readonly ConcurrentQueue<(string Method, JsonElement[] Arguments)> received = new();
@@ -32,6 +32,9 @@ internal sealed class HubInbox
         inbox.On(hub, "typing", 2);
         inbox.On(hub, "presence", 2);
         inbox.On(hub, "conversation", 1);
+        inbox.On(hub, "place", 1);
+        inbox.On(hub, "assigned", 1);
+        inbox.On(hub, "closed", 1);
         return inbox;
     }
 

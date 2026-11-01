@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 
 using Hermes.Conversations.Chats;
+using Hermes.Conversations.Support;
 using Hermes.Core;
 
 using Microsoft.AspNetCore.Http;
@@ -17,7 +18,7 @@ namespace Hermes.Conversations.Live;
 /// <c>messageChanged</c>, <c>read</c>, <c>typing</c>, <c>presence</c> and <c>conversation</c>,
 /// and takes <see cref="Typing"/> alone from the client: writes stay HTTP.
 /// </summary>
-internal sealed class StaffHub(IServiceProvider services, LiveConnections connections, LivePresence presence) : Hub
+internal sealed class StaffHub(IServiceProvider services, LiveConnections connections, LivePresence presence, SupportAssigner assigner) : Hub
 {
     /// <summary>A new message: <c>conversationId</c>, <c>message</c>.</summary>
     internal const string MessageMethod = "message";
@@ -57,6 +58,9 @@ internal sealed class StaffHub(IServiceProvider services, LiveConnections connec
         }
 
         await presence.ConnectAsync(Context.ConnectionId, person, Context.ConnectionAborted).ConfigureAwait(false);
+
+        // A member who connects may take what support has queued (09 MSG-CONV-002).
+        await assigner.AssignAsync(null, Context.ConnectionAborted).ConfigureAwait(false);
         await base.OnConnectedAsync().ConfigureAwait(false);
     }
 
