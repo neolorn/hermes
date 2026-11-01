@@ -20,21 +20,23 @@ internal static partial class HubContract
 {
     private const string Header = "| Hub method |";
 
-    /// <summary>The hubs <paramref name="text"/>, a chapter in the form of <c>05</c>, gives, their routes under <paramref name="prefix"/>.</summary>
+    /// <summary>The hubs <paramref name="text"/>, a chapter in the form of <c>05</c>, gives, their routes under their group's prefix (<see cref="Endpoints.PrefixOf"/>).</summary>
     internal static IEnumerable<string> Read(string text, string prefix)
     {
         string? route = null;
+        string under = prefix;
         bool inTable = false;
         foreach (string line in text.Split('\n').Select(line => line.TrimEnd('\r')))
         {
             if (line.StartsWith("## ", StringComparison.Ordinal))
             {
                 route = null;
+                under = Endpoints.PrefixOf(line, prefix);
             }
 
             if (HubRoute().Match(line) is { Success: true } named)
             {
-                route = $"HUB {prefix}{named.Groups["route"].Value}";
+                route = $"HUB {under}{named.Groups["route"].Value}";
                 yield return route;
             }
 
@@ -54,7 +56,8 @@ internal static partial class HubContract
             {
                 string[] cells = [.. line.Trim().Trim('|').Split('|').Select(cell => cell.Trim())];
                 string side = cells[1].Contains("client", StringComparison.OrdinalIgnoreCase) ? "client" : "server";
-                string[] arguments = [.. Backticked().Matches(cells[2]).Select(match => match.Groups["token"].Value).Where(token => !token.StartsWith('<'))];
+                // The arguments are the backticked names before the cell's first colon, which begins their description.
+                string[] arguments = [.. Backticked().Matches(cells[2].Split(':')[0]).Select(match => match.Groups["token"].Value).Where(token => !token.StartsWith('<'))];
                 yield return $"{route} {side} {Backticked().Match(cells[0]).Groups["token"].Value} {string.Join(',', arguments)}";
             }
         }

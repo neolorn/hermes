@@ -132,11 +132,11 @@ public sealed class EndpointContractTests
         SortedSet<string> mapped = MappedEndpoints.Lines();
 
         Assert.Empty(ApiContract.Violations(given, mapped));
-        Assert.Contains("HUB /notifications/live", mapped);
-        Assert.Contains("HUB /notifications/live server message conversationId,message", mapped);
-        Assert.Contains("HUB /notifications/live server presence participantId,online", mapped);
-        Assert.Contains("HUB /notifications/live client Typing conversationId", mapped);
-        Assert.Equal(8, mapped.Count(line => line.StartsWith("HUB ", StringComparison.Ordinal)));
+        Assert.Contains("HUB /staff/live", mapped);
+        Assert.Contains("HUB /staff/live server message conversationId,message", mapped);
+        Assert.Contains("HUB /staff/live server presence participantId,online", mapped);
+        Assert.Contains("HUB /staff/live client Typing conversationId", mapped);
+        Assert.Equal(8, mapped.Count(line => line.StartsWith("HUB /staff/", StringComparison.Ordinal)));
     }
 
     [Fact]
@@ -146,14 +146,50 @@ public sealed class EndpointContractTests
         string text = ApiContract.Text();
         Assert.Contains(Typing, text, StringComparison.Ordinal);
 
-        IReadOnlyList<string> violations = Compare(text.Replace(Typing, Typing.Replace("`conversationId`", "`conversationId`, `draft`", StringComparison.Ordinal), StringComparison.Ordinal));
+        // The staff hub's table comes first; the public hub's holds the same row.
+        int row = text.IndexOf(Typing, StringComparison.Ordinal);
+        IReadOnlyList<string> violations = Compare(text.Remove(row, Typing.Length).Insert(row, Typing.Replace("`conversationId`", "`conversationId`, `draft`", StringComparison.Ordinal)));
 
         Assert.Equal(
             [
-                "05 gives HUB /notifications/live client Typing conversationId,draft, which the mapped endpoints do not.",
-                "The mapped endpoints give HUB /notifications/live client Typing conversationId, which 05 does not.",
+                "05 gives HUB /staff/live client Typing conversationId,draft, which the mapped endpoints do not.",
+                "The mapped endpoints give HUB /staff/live client Typing conversationId, which 05 does not.",
             ],
             violations);
+    }
+
+    [Fact]
+    public void MSG_API_010_AC1_TheContractTestFindsExactlyThePublicRoutesAndHub()
+    {
+        SortedSet<string> given = ApiContract.Read();
+        SortedSet<string> mapped = MappedEndpoints.Lines();
+
+        Assert.Empty(ApiContract.Violations(given, mapped));
+        Assert.Contains("POST /public/support/conversations 201 body offline", given);
+        Assert.Contains("POST /public/support/conversations 429 body code", given);
+        Assert.Contains("POST /public/support/offline request email", given);
+        Assert.Contains("GET /public/support/topics 200 body topics.open", given);
+        Assert.Contains("POST /public/support/conversations/{id}/close 415 body code", given);
+        Assert.Contains("POST /staff/support/conversations/{id}/close 503 body code", given);
+        Assert.DoesNotContain("POST /public/support/conversations 401", given);
+        Assert.DoesNotContain("POST /public/support/conversations/{id}/close 503", given);
+        Assert.Contains("HUB /public/live server place position", mapped);
+        Assert.Contains("HUB /public/live client Typing conversationId", mapped);
+        Assert.Equal(8, mapped.Count(line => line.StartsWith("HUB /public/", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void MSG_API_010_AC1_APublicRoute05DoesNotGiveIsFound()
+    {
+        string text = ApiContract.Text();
+        int section = text.IndexOf("## 9. Public conversations", StringComparison.Ordinal);
+        int row = text.IndexOf("| `POST /support/conversations/{id}/close` |", section, StringComparison.Ordinal);
+        Assert.True(section >= 0 && row > section);
+
+        IReadOnlyList<string> violations = Compare(text.Remove(row, text.IndexOf('\n', row) + 1 - row));
+
+        Assert.Contains("The mapped endpoints give POST /public/support/conversations/{id}/close, which 05 does not.", violations);
+        Assert.DoesNotContain(violations, violation => violation.Contains("/staff/", StringComparison.Ordinal));
     }
 
     [Theory]

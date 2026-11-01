@@ -39,13 +39,23 @@ internal static class MappedEndpoints
         [$"DELETE {Endpoints.Prefix}/push/subscriptions"] = typeof(RemovalBody),
         [$"POST {Endpoints.Prefix}/inapp/{{id}}/read"] = typeof(EmptyBody),
         [$"POST {Endpoints.Prefix}/inapp/read"] = typeof(EmptyBody),
-        [$"POST {Endpoints.Prefix}/conversations/direct"] = BodyMembers.ConversationsBody("ParticipantsRequest"),
-        [$"POST {Endpoints.Prefix}/conversations/{{id}}/messages"] = BodyMembers.ConversationsBody("MessageRequest"),
-        [$"PUT {Endpoints.Prefix}/conversations/{{id}}/messages/{{messageId}}"] = BodyMembers.ConversationsBody("EditRequest"),
-        [$"POST {Endpoints.Prefix}/conversations/{{id}}/read"] = BodyMembers.ConversationsBody("ReadRequest"),
-        [$"PUT {Endpoints.Prefix}/conversations/{{id}}/mute"] = BodyMembers.ConversationsBody("MuteRequest"),
-        [$"POST {Endpoints.Prefix}/conversations/{{id}}/participants"] = BodyMembers.ConversationsBody("ParticipantsRequest"),
-        [$"POST {Endpoints.Prefix}/conversations/{{id}}/leave"] = typeof(EmptyBody),
+        [$"POST {Endpoints.StaffPrefix}/conversations/direct"] = BodyMembers.ConversationsBody("ParticipantsRequest"),
+        [$"POST {Endpoints.StaffPrefix}/conversations/{{id}}/messages"] = BodyMembers.ConversationsBody("MessageRequest"),
+        [$"PUT {Endpoints.StaffPrefix}/conversations/{{id}}/messages/{{messageId}}"] = BodyMembers.ConversationsBody("EditRequest"),
+        [$"POST {Endpoints.StaffPrefix}/conversations/{{id}}/read"] = BodyMembers.ConversationsBody("ReadRequest"),
+        [$"PUT {Endpoints.StaffPrefix}/conversations/{{id}}/mute"] = BodyMembers.ConversationsBody("MuteRequest"),
+        [$"POST {Endpoints.StaffPrefix}/conversations/{{id}}/participants"] = BodyMembers.ConversationsBody("ParticipantsRequest"),
+        [$"POST {Endpoints.StaffPrefix}/conversations/{{id}}/leave"] = typeof(EmptyBody),
+        [$"PUT {Endpoints.StaffPrefix}/support/availability"] = BodyMembers.ConversationsBody("AvailabilityRequest"),
+        [$"POST {Endpoints.StaffPrefix}/support/conversations/{{id}}/transfer"] = BodyMembers.ConversationsBody("TransferRequest"),
+        [$"POST {Endpoints.StaffPrefix}/support/conversations/{{id}}/close"] = typeof(EmptyBody),
+        [$"POST {Endpoints.StaffPrefix}/support/conversations/{{id}}/block"] = BodyMembers.ConversationsBody("BlockRequest"),
+        [$"POST {Endpoints.PublicPrefix}/support/notice"] = BodyMembers.ConversationsBody("NoticeRequest"),
+        [$"POST {Endpoints.PublicPrefix}/support/conversations"] = BodyMembers.ConversationsBody("StartRequest"),
+        [$"POST {Endpoints.PublicPrefix}/support/offline"] = BodyMembers.ConversationsBody("OfflineRequest"),
+        [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/messages"] = BodyMembers.ConversationsBody("EditRequest"),
+        [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/read"] = BodyMembers.ConversationsBody("ReadRequest"),
+        [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/close"] = typeof(EmptyBody),
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>Each mapped route, with the responses its metadata declares.</summary>
@@ -77,7 +87,8 @@ internal static class MappedEndpoints
                 application.MapHermesPushSubscriptions(Endpoints.Prefix);
                 application.MapHermesSmsReports(Endpoints.Prefix);
                 application.MapHermesInApp(Endpoints.Prefix);
-                application.MapHermesStaffConversations(Endpoints.Prefix);
+                application.MapHermesStaffConversations(Endpoints.StaffPrefix);
+                application.MapHermesPublicConversations(Endpoints.PublicPrefix);
             });
 
         // The development inbox maps its group only where the environment is Development (02 MSG-DEV-001).
