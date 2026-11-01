@@ -337,6 +337,24 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
     }
 
     [Fact]
+    public async Task Block_AnUntilThroughTheRoute_IsReadInUtcWhateverTheHostsZone()
+    {
+        await using ChatHost chat = await StartAsync();
+        await using HubConnection amal = await AvailableAsync(chat, "amal");
+        Browser visitor = await AcknowledgedAsync(chat, "192.0.2.1");
+        Guid conversation = await visitor.StartAsync();
+        DateTimeOffset until = DateTimeOffset.UtcNow.AddHours(1);
+
+        using HttpResponseMessage blocked = await chat.SendAsync(HttpMethod.Post, $"/support/conversations/{conversation:D}/block", "amal", $$"""{ "until": "{{until.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture)}}" }""");
+        Assert.Equal(HttpStatusCode.NoContent, blocked.StatusCode);
+
+        DateTimeOffset stored = new((DateTime)(await chat.ScalarAsync(database => new NpgsqlCommand("SELECT until FROM messaging.support_blocks", database)))!);
+        Assert.True((stored - until).Duration() < TimeSpan.FromSeconds(1));
+        using HttpResponseMessage written = await visitor.SendAsync(HttpMethod.Post, $"/support/conversations/{conversation:D}/messages", """{ "text": "Let me in" }""");
+        Assert.Equal(HttpStatusCode.Forbidden, written.StatusCode);
+    }
+
+    [Fact]
     public async Task Start_ASecondOnTheSameTopic_IsAlreadyOpenNamingTheOpenOneAndCurrentIsTheNewest()
     {
         await using ChatHost chat = await StartAsync();

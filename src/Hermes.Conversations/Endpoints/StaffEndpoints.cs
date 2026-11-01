@@ -254,7 +254,7 @@ internal static class StaffEndpoints
         DateTimeOffset? until = null;
         if (body!.Until is { } text)
         {
-            if (!DateTimeOffset.TryParseExact(text, Instants, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out DateTimeOffset read))
+            if (!DateTimeOffset.TryParseExact(text, Instants, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTimeOffset read))
             {
                 return RequestBodies.Malformed("until");
             }
