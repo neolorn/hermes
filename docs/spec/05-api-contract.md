@@ -337,6 +337,8 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | `POST /support/conversations/{id}/close` | `{ }` | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `POST /support/conversations/{id}/block` | `{ "until" }` | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `DELETE /support/conversations/{id}/block` | | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `PUT /support/conversations/{id}/tags` | `{ "tags" }`, the whole set | **204**; **400** `messaging.conversation.invalid`, `details.field` `tags`, for an undeclared tag; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `POST /support/conversations/{id}/snooze` | `{ "until" }`, 5 minutes to 30 days ahead | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 
 | Shape | Members |
 |---|---|
@@ -372,7 +374,11 @@ answers the group's `RouteGroupBuilder`, to which the host adds the authorizatio
 decides who may use it (`09` MSG-CONV-006). The support routes (M-034) work support's
 queue (`09` MSG-CONV-002, MSG-CONV-011); a staff member writes `text` or `note` in a
 support conversation they are assigned through the messages route, and a visitor never
-sees a `note` (`09` MSG-CONV-001).
+sees a `note` (`09` MSG-CONV-001). The desk routes (M-035) put the declared tags on a
+support conversation the staff member may read, the whole set at once, and snooze one
+until an instant (`09` MSG-CONV-005). Staff of a topic manage its shared saved replies,
+and each person their own, through `GET`, `POST`, `PUT` and `DELETE /support/replies`,
+with `topic` or `mine` (`09` MSG-CONV-005).
 
 **The staff hub (M-033).** The group also maps the staff hub at `/live`, so the host's
 authorization covers it too (`09` MSG-CONV-008). The person comes from
@@ -390,7 +396,7 @@ it missed from the messages route with `after`, since every push follows the sto
 | `conversation` | The server | `conversation`: one added to the person's list, as `<conversation>` |
 | `Typing` | The client | `conversationId` |
 
-*Source: M-032, M-033, M-034*
+*Source: M-032, M-033, M-034, M-035*
 
 **Acceptance criteria**
 1. Each route does what its operation does, and the endpoint contract test finds exactly

@@ -21,6 +21,7 @@ MSG-OPS-002).
 | `messaging.startup.secretunavailable` | (startup) | A secret a used part needs, or a version still in use of a key a used part needs, is not answered (`06` MSG-OPS-008) | `key` |
 | `messaging.startup.secretinvalid` | (startup) | A secret is outside its form, or a version's check value differs from the one recorded (`06` MSG-OPS-008) | `key` |
 | `messaging.startup.schemamismatch` | (startup) | The database lacks a migration of the release (`06` MSG-OPS-002) | `migration` |
+| `messaging.startup.templatemissing` | (startup) | An automatic reply rule's template missing in a declared language (`03` MSG-TPL-004; `09` MSG-CONV-003) | `rule`, `language` |
 | `messaging.send.nodestination` | (result) | A channel the send names has no destination, or the send is left with no channel (`01` MSG-SEND-003; `02` MSG-INAPP-001) | `channel`, where there is one |
 | `messaging.send.destinationinvalid` | (result) | A destination does not read (`01` MSG-SEND-003) | `channel` |
 | `messaging.send.destinationnotallowed` | (result) | A phone number outside `Sms:AllowedPrefixes` (`02` MSG-SMS-002) | `channel` |
@@ -44,7 +45,7 @@ MSG-OPS-002).
 | `messaging.inbox.notfound` | 404 | A message the development inbox does not hold, or none that matches (`05` MSG-API-007) | |
 | `messaging.inbox.notlocal` | 403 | A request to the development inbox from another machine or under another host name (`02` MSG-DEV-005) | |
 | `messaging.conversation.notfound` | 404 | A conversation that is unknown, or that the person may not read: not a participant, not a member of its scope, or one who left; never 403, so nobody learns a conversation exists (`09` MSG-CONV-006; `05` MSG-API-009) | |
-| `messaging.conversation.invalid` | 400 | A conversation's request outside its rule: a direct conversation's participants, a scope's kind that does not read, a route for direct conversations alone used on a group conversation, or a transfer to a person outside the topic's scope or to a topic not configured (`09` MSG-CONV-002, MSG-CONV-006; `05` MSG-API-009) | `field`: `participants`, `kind`, `type`, `person` or `topic` |
+| `messaging.conversation.invalid` | 400 | A conversation's request outside its rule: a direct conversation's participants, a scope's kind that does not read, a route for direct conversations alone used on a group conversation, a transfer to a person outside the topic's scope or to a topic not configured, or an undeclared tag (`09` MSG-CONV-002, MSG-CONV-005, MSG-CONV-006; `05` MSG-API-009) | `field`: `participants`, `kind`, `type`, `person`, `topic` or `tags` |
 | `messaging.conversation.full` | 409 | A direct conversation's participants past 16 (`09` MSG-CONV-001, MSG-CONV-006) | |
 | `messaging.message.notfound` | 404 | A message the conversation does not hold (`05` MSG-API-009) | |
 | `messaging.message.invalid` | 400 | A message's text, mentions, reply or type outside its rule (`09` MSG-CONV-001, MSG-CONV-006) | `field`: `text`, `mentions`, `replyTo` or `type` |
@@ -244,6 +245,12 @@ length in characters is counted as `00` section 1.5 gives.
 | `Conversations:Limits:VisitorMessages` | `20` | Messages a visitor writes per minute, 1 to 10,000 (`09` MSG-CONV-011) |
 | `Conversations:Limits:SourceStarts` | `20` | Conversations started per hour from one source address, 1 to 10,000 (`09` MSG-CONV-011) |
 | `Conversations:Retention:Visitor` | `365.00:00:00` | How long a visitor's conversation is kept after it closes, and the visitor's cookie lives (`09` MSG-CONV-001, MSG-CONV-010); 1 day to 10 years |
+| `Conversations:Replies:<name>:Trigger` | none; required for each rule | `started`, `unavailable`, `waiting`, `outsidehours` or `closing`; `<name>` under `01` MSG-SEND-001's name rule (`09` MSG-CONV-003) |
+| `Conversations:Replies:<name>:Topics` | none: every topic | The topics the rule serves, each a configured topic (`09` MSG-CONV-003) |
+| `Conversations:Replies:<name>:After` | none; required for a `waiting` rule | 1 minute to 1 hour, how long a queued conversation waits before the rule fires (`09` MSG-CONV-003) |
+| `Conversations:Tags` | none: no tag | The tags staff put on a support conversation, at most 50 names, each under `01` MSG-SEND-001's name rule (`09` MSG-CONV-005) |
+| `Conversations:Support:CloseAfter` | `1.00:00:00` | 1 hour to 30 days, the silence after which an open or snoozed support conversation closes (`09` MSG-CONV-005) |
+| `Conversations:Support:CloseWarning` | `00:05:00` | 1 minute to 1 hour, and shorter than `Conversations:Support:CloseAfter`: how long before an automatic close the `closing` rule fires (`09` MSG-CONV-003, MSG-CONV-005) |
 | `DevelopmentInbox:Folder` | `hermes-inbox` in the operating system's temporary folder | An absolute path (`02` MSG-DEV-002); start only |
 | `DevelopmentInbox:KeepFor` | `7.00:00:00` | 1 hour to 90 days; start only |
 | `DevelopmentInbox:MaxMessages` | `1000` | 10 to 100,000; start only |
@@ -339,10 +346,10 @@ These names are stored, or shared by the processes of two releases, and never ch
 | `messaging_visitor` | The cookie that keeps a visitor's reference in their browser (`09` MSG-CONV-001) |
 | `messaging_conversations`; `message`, `changed`, `read`, `typing`, `presence` | The notification channel a conversation's write tells the processes on, and the events of its payload `<event>:<conversationId>:<id>` (`09` MSG-CONV-008) |
 | `deliveries`, `subscriptions`, `entries`, `messages`, `conversations`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth`, a message's `text`, and a support conversation's `email` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018; `09` MSG-CONV-001, MSG-CONV-002) |
-| `conversations`, `participants`, `messages`, `mentions`, `connections`, `support_agents`, `support_blocks`, `support_acknowledgements`, `support_counters` | The conversations' tables (`09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-006, MSG-CONV-010, MSG-CONV-011) |
+| `conversations`, `participants`, `messages`, `mentions`, `connections`, `support_agents`, `support_blocks`, `support_acknowledgements`, `support_counters`, `support_replies` | The conversations' tables (`09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-005, MSG-CONV-006, MSG-CONV-010, MSG-CONV-011) |
 | `email`, `sms`, `push-endpoint`, `push-topic`, `person`, `idempotency`, `visitor`, `source` | The keyed hash's domains (`06` MSG-OPS-008; `09` MSG-CONV-001, MSG-CONV-011) |
 | `sms-report`, `idempotency` | The texts that begin the unkeyed lock keys (`01` MSG-SEND-009; `02` MSG-SMS-004) |
 | `sms-report-hold` | The text of the lock the held reports are counted under (`02` MSG-SMS-004) |
 | `messaging-key-check` | The text a key version's check value is made from (`06` MSG-OPS-008) |
-| `dispatch`, `observer`, `balance`, `retention`, `subscriptions`, `watch` | The jobs (`06` MSG-OPS-004); all but `dispatch` have a row in the job table and are what `job-stalled` names |
+| `dispatch`, `observer`, `balance`, `retention`, `subscriptions`, `watch`, `conversation-timers` | The jobs (`06` MSG-OPS-004; `09` MSG-CONV-005); all but `dispatch` have a row in the job table and are what `job-stalled` names |
 | `unsubscribe`, `unsubscribed`, `unsubscribeinvalid` | The library's pages (`03` MSG-TPL-006) |

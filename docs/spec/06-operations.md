@@ -182,7 +182,7 @@ other (M-033).
 host's process, each turned on or off per application by configuration, and SHALL do
 nothing twice when several processes run it.
 
-**Values (M-005, M-007, M-026).**
+**Values (M-005, M-007, M-026, M-035).**
 
 | Job | Runs | Turned on by |
 |---|---|---|
@@ -192,6 +192,11 @@ nothing twice when several processes run it.
 | `retention` (MSG-OPS-008; `01` MSG-SEND-019; `02` MSG-INAPP-005) | Daily at `Hermes:Jobs:RetentionAt`, in `Hermes:TimeZone` | `Hermes:Jobs:Enabled` |
 | `subscriptions` (`02` MSG-PUSH-006) | Every `Hermes:Jobs:SubscriptionsInterval` | `Hermes:Jobs:Enabled` |
 | `watch` (MSG-OPS-005, MSG-OPS-006, MSG-OPS-007, MSG-OPS-008; `01` MSG-SEND-017, MSG-SEND-018; `02` MSG-SMS-004, MSG-PUSH-005) | Every `Hermes:Dispatch:Interval` | `Hermes:Jobs:Enabled` |
+
+`Hermes.Conversations` adds the job `conversation-timers` (`09` MSG-CONV-003,
+MSG-CONV-005), which runs every 30 seconds where conversations are registered, under the
+claims below: it fires the `waiting` and `closing` rules, wakes snoozed conversations and
+closes silent ones (M-035).
 
 The dispatcher's work is claimed delivery by delivery (`01` MSG-SEND-007), and it has no
 row in the job table; `dispatch-lag` watches it (MSG-OPS-005). Every other job holds a
@@ -225,7 +230,7 @@ report route keeps under `Hermes:Sms:ReportHoldMax`. Besides the jobs, every pro
 that registers `AddHermes`, whether or not it runs jobs, keeps the key table current on
 a timer of its own (MSG-OPS-008).
 
-*Source: M-005, M-007, M-008, M-009, M-012, M-022, M-026*
+*Source: M-005, M-007, M-008, M-009, M-012, M-022, M-026, M-035*
 
 **Acceptance criteria**
 1. With `Hermes:Dispatch:Enabled` false, an application records sends, its hosted
