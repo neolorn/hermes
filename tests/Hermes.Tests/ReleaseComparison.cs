@@ -18,7 +18,7 @@ internal static class ReleaseComparison
     private static readonly string[] Compared =
     [
         ReleaseSet.Routes, ReleaseSet.Statuses, ReleaseSet.Bodies, ReleaseSet.Required, ReleaseSet.Codes,
-        ReleaseSet.Keys, ReleaseSet.Spelled, ReleaseSet.Metrics, ReleaseSet.Abstract, ReleaseSet.Surface,
+        ReleaseSet.Keys, ReleaseSet.Spelled, ReleaseSet.Metrics, ReleaseSet.Abstract, ReleaseSet.Surface, ReleaseSet.Hubs,
     ];
 
     /// <summary>What moving from <paramref name="baseline"/> to <paramref name="current"/> needs, with each line that needs more than a patch.</summary>

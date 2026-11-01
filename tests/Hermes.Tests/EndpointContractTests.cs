@@ -126,6 +126,24 @@ public sealed class EndpointContractTests
     }
 
     [Fact]
+    public void MSG_ENG_006_AC2_TheContractTestFindsExactly05sRoutesAndHubsEveryGroupUnderItsPrefix()
+    {
+        SortedSet<string> given = ApiContract.Read();
+        SortedSet<string> mapped = MappedEndpoints.Lines();
+
+        Assert.Empty(ApiContract.Violations(given, mapped));
+        Assert.Equal([.. given.Where(line => line.StartsWith("HUB ", StringComparison.Ordinal))], [.. mapped.Where(line => line.StartsWith("HUB ", StringComparison.Ordinal))]);
+        foreach (string prefix in new[] { Endpoints.Prefix, Endpoints.StaffPrefix, Endpoints.PublicPrefix })
+        {
+            Assert.Contains(mapped, line => line.Contains(" " + prefix + "/", StringComparison.Ordinal));
+        }
+
+        Assert.Contains("POST /staff/conversations/{id}/attachments 413 body code", given);
+        Assert.Contains("GET /public/support/conversations/{id}/attachments/{attachmentId} 409 body code", given);
+        Assert.Equal(["HUB /public/live", "HUB /staff/live"], mapped.Where(line => line.StartsWith("HUB ", StringComparison.Ordinal) && line.Count(each => each == ' ') == 1));
+    }
+
+    [Fact]
     public void MSG_API_009_AC2_TheContractTestFindsTheStaffHubsRouteAndMethods()
     {
         SortedSet<string> given = ApiContract.Read();

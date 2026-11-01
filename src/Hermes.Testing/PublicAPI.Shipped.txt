@@ -1,9 +1,19 @@
 #nullable enable
+Hermes.Testing.FixedAttachmentScanner
+Hermes.Testing.FixedAttachmentScanner.Answer.get -> Hermes.Core.ScanResult
+Hermes.Testing.FixedAttachmentScanner.FixedAttachmentScanner(Hermes.Core.ScanResult answer = Hermes.Core.ScanResult.Clean) -> void
+Hermes.Testing.FixedAttachmentScanner.ScanAsync(System.IO.Stream! content, string! mediaType, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.ScanResult>
 Hermes.Testing.FixedSecretSource
 Hermes.Testing.FixedSecretSource.FixedSecretSource() -> void
 Hermes.Testing.FixedSecretSource.ReadAsync(string! name, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.SecretVersions?>
 Hermes.Testing.FixedSecretSource.RemoveSecret(string! name) -> void
 Hermes.Testing.FixedSecretSource.SetSecret(string! name, Hermes.Core.SecretVersions! versions) -> void
+Hermes.Testing.InMemoryAttachmentStore
+Hermes.Testing.InMemoryAttachmentStore.Count.get -> int
+Hermes.Testing.InMemoryAttachmentStore.DeleteAsync(string! key, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
+Hermes.Testing.InMemoryAttachmentStore.InMemoryAttachmentStore() -> void
+Hermes.Testing.InMemoryAttachmentStore.OpenAsync(string! key, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.IO.Stream?>
+Hermes.Testing.InMemoryAttachmentStore.PutAsync(string! key, System.IO.Stream! content, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
 Hermes.Testing.InMemoryEmailProvider
 Hermes.Testing.InMemoryEmailProvider.AnswerWith(System.Func<Hermes.Core.EmailMessage!, Hermes.Core.Attempt!>! answer) -> void
 Hermes.Testing.InMemoryEmailProvider.InMemoryEmailProvider() -> void

@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Hermes.Core;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 using Xunit;
@@ -65,6 +66,9 @@ public sealed class RegistrationTests(PostgresFixture postgres) : IClassFixture<
             postgres,
             (services, configuration) =>
             {
+                // AddHermesTesting registers both doubles, so the test takes them away to leave the one it means to miss.
+                services.RemoveAll<IAttachmentStore>();
+                services.RemoveAll<IAttachmentScanner>();
                 if (store)
                 {
                     services.AddSingleton<IAttachmentStore>(new StoreFake());

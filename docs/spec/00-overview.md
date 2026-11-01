@@ -162,7 +162,6 @@ the public surface (`04` MSG-LIB-006):
 
 | Designed for, not built | Where its design lives |
 |---|---|
-| Conversations: support chat with a queue, availability, transcripts, a survey, automatic replies, attachments; staff company, team and private chats | `09` |
 | Voice and video in a conversation; customer email in the support inbox; response-time targets; a help center; an AI assistant | `09` MSG-CONV-012 |
 | Push to native phone apps (Firebase Cloud Messaging, Apple Push Notification service) | `02` MSG-PUSH-008 |
 | Safari's declarative Web Push payload | `02` MSG-PUSH-002 |
@@ -172,9 +171,11 @@ the public surface (`04` MSG-LIB-006):
 | Email bounce and complaint feedback | `02` MSG-EMAIL-007 |
 
 The first release candidate, `1.0.0-rc.1`, holds the in-application notification list
-(`02` section 5) with all that came before it (`04` MSG-LIB-006, M-027).
+(`02` section 5) with all that came before it (`04` MSG-LIB-006, M-027). The release
+candidate `1.0.0-rc.3` holds conversations (`09`), in the package
+`Hermes.Conversations`, with all that came before it (M-039).
 
-*Source: M-001, M-004, M-026*
+*Source: M-001, M-004, M-026, M-039*
 
 ---
 

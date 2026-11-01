@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
@@ -196,6 +197,49 @@ public sealed class BakeryTests(PostgresFixture postgres) : IClassFixture<Postgr
     }
 
     [Fact]
+    public async Task SupportConversation_ACustomerLeavesTheOfflineFormWithAFileAndTheStaffsReplyGoesByEmail()
+    {
+        await using BakeryFactory bakery = await BakeryFactory.StartAsync(postgres);
+        using HttpClient customer = await bakery.SignInAsync("c-1");
+        using HttpClient staff = await bakery.SignInAsync("s-1");
+
+        using HttpResponseMessage acknowledged = await customer.PostAsJsonAsync("/help/support/notice", new { version = "2026-11" }, TestContext.Current.CancellationToken);
+        using HttpResponseMessage nobody = await customer.PostAsJsonAsync("/help/support/conversations", new { topic = "orders", text = "Is the rye loaf ready?" }, TestContext.Current.CancellationToken);
+        using HttpResponseMessage form = await customer.PostAsJsonAsync("/help/support/offline", new { topic = "orders", email = "amal@example.com", text = "Is the rye loaf ready?" }, TestContext.Current.CancellationToken);
+        string id = await IdAsync(form);
+        using HttpResponseMessage uploaded = await UploadAsync(customer, $"/help/support/conversations/{id}/attachments", "receipt.pdf", "%PDF-1.7\n"u8.ToArray());
+        string attachment = await IdAsync(uploaded);
+        using HttpResponseMessage named = await customer.PostAsJsonAsync(Route($"/help/support/conversations/{id}/messages"), new { text = "My receipt", attachments = new[] { attachment } }, TestContext.Current.CancellationToken);
+        using HttpResponseMessage pending = await customer.GetAsync(Route($"/help/support/conversations/{id}/attachments/{attachment}"), TestContext.Current.CancellationToken);
+        using HttpResponseMessage taken = await staff.PostAsJsonAsync(Route($"/notifications/support/conversations/{id}/transfer"), new { person = "s-1" }, TestContext.Current.CancellationToken);
+        using HttpResponseMessage replied = await staff.PostAsJsonAsync(Route($"/notifications/conversations/{id}/messages"), new { text = "Yes, it is ready at noon" }, TestContext.Current.CancellationToken);
+        int delivered = await bakery.DispatchAsync();
+
+        Assert.Equal(
+            (HttpStatusCode.NoContent, HttpStatusCode.Conflict, HttpStatusCode.Created, HttpStatusCode.Created, HttpStatusCode.Created),
+            (acknowledged.StatusCode, nobody.StatusCode, form.StatusCode, uploaded.StatusCode, named.StatusCode));
+        Assert.Equal(("messaging.support.offline", "messaging.attachment.pending"), (await CodeAsync(nobody), await CodeAsync(pending)));
+        Assert.Equal((HttpStatusCode.Conflict, HttpStatusCode.NoContent, HttpStatusCode.Created, 1), (pending.StatusCode, taken.StatusCode, replied.StatusCode, delivered));
+        Assert.Equal(1, bakery.Services.GetRequiredService<InMemoryAttachmentStore>().Count);
+        EmailMessage email = Assert.Single(bakery.Services.GetRequiredService<InMemoryEmailProvider>().Received);
+        Assert.Equal(("amal@example.com", "About your question on orders", "Yes, it is ready at noon"), (email.ToAddress, email.Subject, email.Text.Trim()));
+    }
+
+    [Fact]
+    public async Task Hubs_TheStaffsAndThePublicSidesAreMappedAndTheStaffsNeedsASignedInMember()
+    {
+        await using BakeryFactory bakery = await BakeryFactory.StartAsync(postgres);
+        using HttpClient staff = await bakery.SignInAsync("s-1");
+        using HttpClient anonymous = bakery.CreateClient();
+
+        using HttpResponseMessage staffs = await staff.PostAsync(Route("/notifications/live/negotiate?negotiateVersion=1"), null, TestContext.Current.CancellationToken);
+        using HttpResponseMessage publics = await anonymous.PostAsync(Route("/help/live/negotiate?negotiateVersion=1"), null, TestContext.Current.CancellationToken);
+        using HttpResponseMessage refused = await anonymous.PostAsync(Route("/notifications/live/negotiate?negotiateVersion=1"), null, TestContext.Current.CancellationToken);
+
+        Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK, HttpStatusCode.Unauthorized), (staffs.StatusCode, publics.StatusCode, refused.StatusCode));
+    }
+
+    [Fact]
     public async Task InApp_ASignedInCustomer_ReadsTheirListAndAnAnonymousCallerIs401()
     {
         await using BakeryFactory bakery = await BakeryFactory.StartAsync(postgres);
@@ -231,6 +275,28 @@ public sealed class BakeryTests(PostgresFixture postgres) : IClassFixture<Postgr
     private static Uri Route(string path)
     {
         return new Uri(path, UriKind.Relative);
+    }
+
+    /// <summary>Uploads <paramref name="content"/> as a browser does: one PDF file in a <c>multipart/form-data</c> body.</summary>
+    private static async Task<HttpResponseMessage> UploadAsync(HttpClient client, string path, string name, byte[] content)
+    {
+        using MultipartFormDataContent body = [];
+        using ByteArrayContent file = new(content);
+        file.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        body.Add(file, "file", name);
+        return await client.PostAsync(Route(path), body, TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<string> IdAsync(HttpResponseMessage answer)
+    {
+        using JsonDocument body = JsonDocument.Parse(await answer.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        return body.RootElement.GetProperty("id").GetString()!;
+    }
+
+    private static async Task<string?> CodeAsync(HttpResponseMessage answer)
+    {
+        using JsonDocument body = JsonDocument.Parse(await answer.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        return body.RootElement.GetProperty("code").GetString();
     }
 
     private static JsonElement Channel(JsonDocument preferences, string category, string channel)

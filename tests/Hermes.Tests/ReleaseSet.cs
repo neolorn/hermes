@@ -27,7 +27,7 @@ namespace Hermes.Tests;
 /// the routes with their methods and statuses from the test hosts' endpoint metadata, the
 /// development inbox's among them (M-025), each JSON body's members and types from the
 /// library's serializer contexts, the engine's and the inbox's, the codes and the
-/// configuration keys from the built assemblies, the spellings of the enumerations, statuses
+/// configuration keys from the built assemblies, the hubs' routes and methods (M-039), whose payloads are bodies, the spellings of the enumerations, statuses
 /// and alert conditions, the metric names and kinds from a test host's meter, the members a
 /// host must implement on its interfaces, and the public surface from the packages' public API
 /// files; each section a set of lines.
@@ -52,6 +52,9 @@ internal sealed class ReleaseSet
 
     internal const string Abstract = "abstract";
 
+    /// <summary>The hubs: each hub's route, and each method with the side that sends it and its arguments (M-039).</summary>
+    internal const string Hubs = "hubs";
+
     internal const string Surface = "surface";
 
     private static readonly JsonSerializerOptions Written = new() { WriteIndented = true };
@@ -59,7 +62,7 @@ internal sealed class ReleaseSet
     private readonly SortedDictionary<string, SortedSet<string>> sections = new(StringComparer.Ordinal);
 
     /// <summary>The sections the baseline file holds; the public surface is the packages' <c>PublicAPI.Shipped.txt</c>.</summary>
-    internal static IReadOnlyList<string> FileSections { get; } = [Routes, Statuses, Bodies, Required, Codes, Keys, Spelled, Metrics, Abstract];
+    internal static IReadOnlyList<string> FileSections { get; } = [Routes, Statuses, Bodies, Required, Codes, Keys, Spelled, Metrics, Abstract, Hubs];
 
     /// <summary>The interfaces a host implements: the provider contracts and the seams of <c>04</c> MSG-LIB-002.</summary>
     internal static IReadOnlyList<Type> HostImplemented { get; } =
@@ -119,6 +122,7 @@ internal sealed class ReleaseSet
     {
         ReleaseSet set = new();
         AddRoutes(set);
+        set.Add(Hubs, MappedEndpoints.Hubs());
         AddBodies(set);
         set.Add(Codes, CodesOf([typeof(Codes).Assembly, typeof(Channel).Assembly, typeof(Hermes.Channels.MessagingChannelsServiceCollectionExtensions).Assembly, typeof(DevelopmentInbox).Assembly]));
         set.Add(Keys, KeysOf().Select(key => "Hermes:" + key));

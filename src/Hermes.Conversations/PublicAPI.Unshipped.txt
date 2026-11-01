@@ -1,6 +1,1 @@
 #nullable enable
-Hermes.Conversations.MessagingConversationsEndpointRouteBuilderExtensions
-Hermes.Conversations.MessagingConversationsServiceCollectionExtensions
-static Hermes.Conversations.MessagingConversationsEndpointRouteBuilderExtensions.MapHermesPublicConversations(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
-static Hermes.Conversations.MessagingConversationsEndpointRouteBuilderExtensions.MapHermesStaffConversations(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!
-static Hermes.Conversations.MessagingConversationsServiceCollectionExtensions.AddHermesConversations(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

@@ -2863,6 +2863,19 @@ The lead pushes the tag after the merge.
 - `07` MSG-ENG-001, MSG-ENG-006;
 - `implementation-plan.md` (row 21).
 
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - Criterion 1 is `07` MSG-ENG-006's, criterion 2 `04` MSG-LIB-006's, criterion 3 `07`
+>   MSG-ENG-001's and criterion 4 `06` MSG-OPS-007's.
+> - `Hermes.Testing` gains `InMemoryAttachmentStore` and
+>   `FixedAttachmentScanner(ScanResult answer = ScanResult.Clean)`, which
+>   `AddHermesTesting` registers where attachments are enabled, for the sample host and a
+>   host's tests.
+> - Conversations leave `00` MSG-OVR-003's table of what is designed for and not built,
+>   and `09` MSG-CONV-012's row stays for what remains unbuilt.
+>
+> Propagated to `00` MSG-OVR-003; `04` MSG-LIB-002, MSG-LIB-006, MSG-LIB-008; `06`
+> MSG-OPS-007; `07` MSG-ENG-001, MSG-ENG-006; `implementation-plan.md` (phase 21).
+
 ---
 
 # Index

@@ -70,6 +70,13 @@ internal static class MappedEndpoints
         return Read(out _);
     }
 
+    /// <summary>The mapped hubs as lines (<see cref="HubContract"/>), every group's (M-039).</summary>
+    internal static IReadOnlyList<string> Hubs()
+    {
+        Read(out IReadOnlyList<string> hubs);
+        return hubs;
+    }
+
     /// <summary>Each mapped route, with the responses its metadata declares, and in <paramref name="hubs"/> the mapped hubs as lines (<see cref="HubContract"/>).</summary>
     private static IReadOnlyList<(string Route, IReadOnlyList<IProducesResponseTypeMetadata> Responses)> Read(out IReadOnlyList<string> hubs)
     {
