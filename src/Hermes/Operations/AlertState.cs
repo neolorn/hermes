@@ -22,6 +22,7 @@ internal sealed class AlertState
         "key-unavailable",
         "content-rejected",
         "observer-failing",
+        "attachment-scan",
     ];
 
     public required string Condition { get; set; }

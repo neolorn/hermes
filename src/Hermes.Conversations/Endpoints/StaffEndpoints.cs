@@ -118,6 +118,17 @@ internal static class StaffEndpoints
             .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
             .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
             .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapPost("/conversations/{id}/attachments", (Delegate)UploadAsync)
+            .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapGet("/conversations/{id}/attachments/{attachmentId}", (Delegate)DownloadAsync)
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status409Conflict)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapGet("/support/queue", (Delegate)QueueAsync)
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
             .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
@@ -731,6 +742,16 @@ internal static class StaffEndpoints
             return RequestBodies.Malformed("mentions");
         }
 
+        if (body.Attachments is { } named && named.Any(each => each is null))
+        {
+            return RequestBodies.Malformed("attachments");
+        }
+
+        if (!TryAttachments(body.Attachments, out IReadOnlyList<AttachmentId>? attachments))
+        {
+            return Refusal.Of(StatusCodes.Status400BadRequest, ChatCodes.MessageInvalid, ("field", "attachments"));
+        }
+
         MessageId? replyTo = null;
         if (body.ReplyTo is { } reply)
         {
@@ -755,8 +776,54 @@ internal static class StaffEndpoints
 
         return await CallAsync<CreatedAnswer<MessageBody>>(context, async conversations =>
         {
-            Result<MessageRecord> written = await conversations.WriteAsync(person, new ConversationId(conversation), body.Text!, type, replyTo, body.Mentions, context.RequestAborted).ConfigureAwait(false);
+            Result<MessageRecord> written = await conversations.WriteAsync(person, new ConversationId(conversation), body.Text!, type, replyTo, body.Mentions, attachments, context.RequestAborted).ConfigureAwait(false);
             return written.Failure is { } refused ? Refused(context, refused) : new CreatedAnswer<MessageBody>(Of(written.Value!), ConversationsJson.Default.MessageBody);
+        }).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<CreatedAnswer<AttachmentBody>, Refusal>> UploadAsync(HttpContext context, string id)
+    {
+        if (await Identity.PersonAsync(context).ConfigureAwait(false) is not { } person)
+        {
+            return Identity.Unauthenticated();
+        }
+
+        if (!Guid.TryParseExact(id, "D", out Guid conversation))
+        {
+            return NotFound();
+        }
+
+        return await CallAsync<CreatedAnswer<AttachmentBody>>(context, conversations => AttachmentUploads.UploadAsync(
+            context,
+            async (name, type, content) =>
+            {
+                Result<AttachmentRecord> uploaded = await conversations.UploadAttachmentAsync(person, new ConversationId(conversation), name, type, content, context.RequestAborted).ConfigureAwait(false);
+                return uploaded.Failure is { } refused ? SupportAnswer<AttachmentRecord>.Fail(refused) : SupportAnswer<AttachmentRecord>.Of(uploaded.Value!);
+            },
+            attachment => context.RequestServices.GetRequiredService<StaffChats>().ForgetAsync(attachment, context.RequestAborted))).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<AttachmentAnswer, Refusal>> DownloadAsync(HttpContext context, string id, string attachmentId)
+    {
+        if (await Identity.PersonAsync(context).ConfigureAwait(false) is not { } person)
+        {
+            return Identity.Unauthenticated();
+        }
+
+        if (!Guid.TryParseExact(id, "D", out Guid conversation))
+        {
+            return NotFound();
+        }
+
+        if (!Guid.TryParseExact(attachmentId, "D", out Guid attachment))
+        {
+            return Refusal.Of(StatusCodes.Status404NotFound, ChatCodes.AttachmentNotFound);
+        }
+
+        return await CallAsync<AttachmentAnswer>(context, async conversations =>
+        {
+            Result<AttachmentDownload> opened = await conversations.OpenAttachmentAsync(person, new ConversationId(conversation), new AttachmentId(attachment), context.RequestAborted).ConfigureAwait(false);
+            return opened.Failure is { } refused ? Refused(context, refused) : new AttachmentAnswer(opened.Value!);
         }).ConfigureAwait(false);
     }
 
@@ -951,9 +1018,10 @@ internal static class StaffEndpoints
     {
         int status = failure.Code switch
         {
-            ChatCodes.ConversationNotFound or ChatCodes.MessageNotFound or ChatCodes.ReplyNotFound => StatusCodes.Status404NotFound,
-            ChatCodes.ConversationInvalid or ChatCodes.MessageInvalid or ChatCodes.ReplyInvalid or SupportCodes.SurveyInvalid or Codes.RequestMalformed => StatusCodes.Status400BadRequest,
-            ChatCodes.ConversationFull or ChatCodes.MessageDeleted or ChatCodes.ConversationClosed or ChatCodes.ReplyFull or ChatCodes.ReplyNameExists or SupportCodes.Offline or SupportCodes.NoticeRequired or SupportCodes.AlreadyOpen or SupportCodes.NotClosed or SupportCodes.TranscriptLimit or SupportCodes.SurveyAnswered or SupportCodes.SurveyClosed => StatusCodes.Status409Conflict,
+            ChatCodes.ConversationNotFound or ChatCodes.MessageNotFound or ChatCodes.ReplyNotFound or ChatCodes.AttachmentNotFound => StatusCodes.Status404NotFound,
+            ChatCodes.ConversationInvalid or ChatCodes.MessageInvalid or ChatCodes.ReplyInvalid or SupportCodes.SurveyInvalid or Codes.RequestMalformed or ChatCodes.AttachmentType or ChatCodes.AttachmentInvalid => StatusCodes.Status400BadRequest,
+            ChatCodes.ConversationFull or ChatCodes.MessageDeleted or ChatCodes.ConversationClosed or ChatCodes.ReplyFull or ChatCodes.ReplyNameExists or SupportCodes.Offline or SupportCodes.NoticeRequired or SupportCodes.AlreadyOpen or SupportCodes.NotClosed or SupportCodes.TranscriptLimit or SupportCodes.SurveyAnswered or SupportCodes.SurveyClosed or ChatCodes.AttachmentPending or ChatCodes.AttachmentRefused => StatusCodes.Status409Conflict,
+            ChatCodes.AttachmentTooLarge => StatusCodes.Status413PayloadTooLarge,
             ChatCodes.MessageNotAuthor or SupportCodes.Blocked => StatusCodes.Status403Forbidden,
             SupportCodes.Limited => StatusCodes.Status429TooManyRequests,
             _ => StatusCodes.Status503ServiceUnavailable,
@@ -1004,7 +1072,37 @@ internal static class StaffEndpoints
             Text(record.SentAt),
             record.EditedAt is { } edited ? Text(edited) : null,
             record.DeletedAt is { } deleted ? Text(deleted) : null,
-            record.Erased);
+            record.Erased,
+            [.. record.Attachments.Select(Of)]);
+    }
+
+    internal static AttachmentBody Of(AttachmentRecord record)
+    {
+        return new AttachmentBody(record.Attachment.Value.ToString("D"), record.Name, record.MediaType, record.Size, ConversationSpellings.Of(record.Status));
+    }
+
+    /// <summary>The attachments a write's body names, none where it names none; a member that is not an identifier names one unknown.</summary>
+    internal static bool TryAttachments(IReadOnlyList<string>? named, out IReadOnlyList<AttachmentId>? attachments)
+    {
+        attachments = null;
+        if (named is null)
+        {
+            return true;
+        }
+
+        List<AttachmentId> read = [];
+        foreach (string each in named)
+        {
+            if (!Guid.TryParseExact(each, "D", out Guid attachment))
+            {
+                return false;
+            }
+
+            read.Add(new AttachmentId(attachment));
+        }
+
+        attachments = read;
+        return true;
     }
 
     private static string Text(DateTimeOffset instant)

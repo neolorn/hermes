@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Hermes.Core;
 
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 
 using Npgsql;
 
@@ -141,8 +142,8 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
         Assert.Equal(0L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT count(*) FROM messaging.conversations WHERE email::text LIKE '%visitor@example.com%'", database)));
 
         Assert.True((await chat.CallAsync(chats => chats.TransferAsync("amal", new ConversationId(conversation), "amal", null, default))).IsSuccess);
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "We will call", MessageType.Text, null, null, default))).IsSuccess);
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "An inside note", MessageType.Note, null, null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "We will call", MessageType.Text, null, null, null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "An inside note", MessageType.Note, null, null, null, default))).IsSuccess);
 
         Assert.Equal(1L, await chat.ScalarAsync(database => new NpgsqlCommand($"SELECT count(*) FROM messaging.sends WHERE kind = '{ReplyKind}'", database)));
         Assert.Equal("email", await chat.ScalarAsync(database => new NpgsqlCommand("SELECT channel FROM messaging.deliveries", database)));
@@ -163,7 +164,7 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
         });
 
         Assert.True((await chat.CallAsync(chats => chats.TransferAsync("amal", new ConversationId(second), "amal", null, default))).IsSuccess);
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(second), "We will call", MessageType.Text, null, null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(second), "We will call", MessageType.Text, null, null, null, default))).IsSuccess);
 
         Assert.Equal(0L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT count(*) FROM messaging.sends", database)));
         Assert.Equal(1L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT count(*) FROM messaging.alerts WHERE condition = 'content-rejected' AND scope = 'conversations' AND holding", database)));
@@ -213,8 +214,8 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
         await using HubConnection amal = await AvailableAsync(chat, "amal");
         Browser visitor = await AcknowledgedAsync(chat, "192.0.2.1");
         Guid conversation = await visitor.StartAsync();
-        await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Only for staff", MessageType.Note, null, null, default));
-        await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Hello there", MessageType.Text, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Only for staff", MessageType.Note, null, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Hello there", MessageType.Text, null, null, null, default));
 
         using HttpResponseMessage read = await visitor.SendAsync(HttpMethod.Get, $"/support/conversations/{conversation:D}/messages");
         string[] texts = [.. (await Browser.JsonAsync(read)).GetProperty("messages").EnumerateArray().Select(message => message.GetProperty("text").GetString()!)];
@@ -257,7 +258,7 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
         await using HubConnection amal = await AvailableAsync(chat, "amal");
         Browser customer = new(chat, person: "customer-41", source: "192.0.2.1");
         Guid conversation = await customer.StartAsync();
-        await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "A reply", MessageType.Text, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "A reply", MessageType.Text, null, null, null, default));
         Guid kept = await (await AcknowledgedAsync(chat, "192.0.2.2")).StartAsync();
 
         Assert.True((await chat.SubjectsAsync(subjects => subjects.EraseAsync("customer-41", default))).IsSuccess);
@@ -445,7 +446,7 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
         ConversationId id = new(conversation);
 
         Assert.Equal("billing", (await chat.CallAsync(chats => chats.ReadAsync("omar", id, default))).Value!.Topic);
-        Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.WriteAsync("omar", id, "Me too", MessageType.Text, null, null, default))).Failure!.Code);
+        Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.WriteAsync("omar", id, "Me too", MessageType.Text, null, null, null, default))).Failure!.Code);
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.ReadAsync("stranger", id, default))).Failure!.Code);
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.CloseAsync("stranger", id, default))).Failure!.Code);
         Assert.Empty((await chat.CallAsync(chats => chats.QueueAsync("stranger", "billing", default))).Value!.Conversations);
@@ -475,10 +476,11 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
     }
 
     /// <summary>Starts a host with the topics, the reply kind and the team's members; on the database of <paramref name="shared"/> where given.</summary>
-    internal static async Task<ChatHost> StartSupportAsync(PostgresFixture postgres, Action<Dictionary<string, string?>>? configure = null, ChatHost? shared = null)
+    internal static async Task<ChatHost> StartSupportAsync(PostgresFixture postgres, Action<Dictionary<string, string?>>? configure = null, ChatHost? shared = null, Action<IServiceCollection>? services = null)
     {
         ChatHost chat = await ChatHost.StartAsync(
             postgres,
+            services: services,
             shared: shared,
             configure: configuration =>
             {

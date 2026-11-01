@@ -145,9 +145,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   days of the close, its comment protected as the conversation's messages are. The key
   `Support:TranscriptKind` is required where topics are configured, and the page
   `transcript` is checked at start in every declared language
+- The seams `IAttachmentStore` and `IAttachmentScanner` of `Hermes.Core`, with
+  `AttachmentId`, `AttachmentRecord`, `AttachmentDownload`, `AttachmentStatus` and
+  `ScanResult`; and the migration `Attachments`, which adds the table `attachments`, its
+  conversation and message set to none when their rows go, and admits the job
+  `attachment-scans` and the alert `attachment-scan`; no key version an attachment uses is
+  retired, and the retention job leaves its re-protection to the conversations package
+- Attachments, where `Hermes:Conversations:Attachments:Enabled` is on, with `Public` for
+  the public group, `MaxBytes` and `Types`: a single-file upload through either group,
+  its type and first bytes checked, streamed to the host's `IAttachmentStore` as 64 KiB
+  chunks each protected and bound to its attachment, never held whole; named by one of
+  its writer's messages, up to 10 a message; scanned by the job
+  `attachment-scans` through the host's `IAttachmentScanner` before anyone opens it, a
+  fifth failed scan raising the alert `attachment-scan`; streamed after the access check
+  with `nosniff` and as an attachment, a visitor never reaching one in a note; and deleted,
+  bytes first, when unnamed after 24 hours, with its message, its conversation or its
+  owner's erasure. The retention job protects an attachment again by writing a new stored
+  object, then deleting the old. Both seams are required where attachments are enabled,
+  the start stopping with `messaging.startup.declarationmissing` (`key` `attachmentStore`
+  or `attachmentScanner`)
+- A public upload takes the public message write's protections before any byte is
+  stored: it counts as one message toward the caller's limit, answering
+  `messaging.support.limited` with `Retry-After` past it, and a block or a notice not yet
+  acknowledged refuses it as it refuses a message
 
 ### Fixed
 
+- A process that stops past its host's shutdown time no longer leaves the key-table timer's
+  tick running while the host disposes the database's data source, and its stop no
+  longer fails with `OperationCanceledException`
+- The development inbox's tests no longer fail by chance: no value their log check refuses
+  can appear in the inbox folder's random name
 - `GET /conversations` of the staff conversations group declares its 503, which it answers
   when the person's locks are not had in time
 - `GET /support/queue` and every public route that starts or names a conversation declare

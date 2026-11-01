@@ -20,7 +20,7 @@ internal static class PublicTypeTable
             "Send",
             "SendValue", "SendValue.PlainText", "SendValue.WholeNumber", "SendValue.DecimalNumber", "SendValue.Flag", "SendValue.Instant", "SendValue.List",
             "Recipient", "Recipient.Person", "Recipient.Anonymous",
-            "SendId", "DeliveryId", "EntryId", "ConversationId", "MessageId", "ParticipantId", "SavedReplyId",
+            "SendId", "DeliveryId", "EntryId", "ConversationId", "MessageId", "ParticipantId", "SavedReplyId", "AttachmentId",
             "SendReceipt", "DeliveryReceipt",
             "SendRecord", "DeliveryRecord", "AttemptRecord", "CallRecord",
             "Result", "Result`1", "Failure",
@@ -29,9 +29,9 @@ internal static class PublicTypeTable
             "CategoryPreferences", "ChannelPreference",
             "SubjectExport", "SubscriptionExport", "DeliveryExport", "InAppEntryExport", "IdempotencyKeyExport",
             "InAppPage", "InAppEntry",
-            "ConversationScope", "ConversationPage", "ConversationRecord", "ParticipantRecord", "MessagePage", "MessageRecord", "SavedReplyRecord", "LiveConversation", "ReportFigures",
+            "ConversationScope", "ConversationPage", "ConversationRecord", "ParticipantRecord", "MessagePage", "MessageRecord", "SavedReplyRecord", "LiveConversation", "ReportFigures", "AttachmentRecord", "AttachmentDownload",
             "Channel", "DeliveryStatus", "AttemptClass", "AttemptReason", "PushUrgency", "PushService", "PushPlatform", "SmsEncoding", "SmsReportOutcome", "ConsentAnswer",
-            "ConversationType", "ConversationStatus", "MessageType", "ScopeKind", "AuthorKind",
+            "ConversationType", "ConversationStatus", "MessageType", "ScopeKind", "AuthorKind", "AttachmentStatus", "ScanResult",
 
             // Operations.
             "IMessages", "IPreferences", "ISuppressions", "ISubjects", "IInApp", "IConversations",
@@ -48,6 +48,7 @@ internal static class PublicTypeTable
             "ISecretSource", "SecretVersions", "SecretVersion",
             "IRecipientIdentity",
             "IConversationMembership",
+            "IAttachmentStore", "IAttachmentScanner",
             "IConsentSource", "ConsentQuery",
             "IContentProtector", "UnprotectResult", "UnprotectResult.Opened", "UnprotectResult.Erased", "UnprotectResult.KeyUnavailable", "UnprotectResult.Rejected",
             "ITemplateSource", "TemplateKey",

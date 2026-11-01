@@ -49,16 +49,22 @@ MSG-OPS-002).
 | `messaging.conversation.full` | 409 | A direct conversation's participants past 16 (`09` MSG-CONV-001, MSG-CONV-006) | |
 | `messaging.conversation.closed` | 409 | A tag or snooze on a closed conversation (`09` MSG-CONV-005; `05` MSG-API-009) | |
 | `messaging.message.notfound` | 404 | A message the conversation does not hold (`05` MSG-API-009) | |
-| `messaging.message.invalid` | 400 | A message's text, mentions, reply or type outside its rule (`09` MSG-CONV-001, MSG-CONV-006) | `field`: `text`, `mentions`, `replyTo` or `type` |
+| `messaging.message.invalid` | 400 | A message's text, mentions, reply, type or attachments outside its rule (`09` MSG-CONV-001, MSG-CONV-006, MSG-CONV-007) | `field`: `text`, `mentions`, `replyTo`, `type` or `attachments` |
 | `messaging.reply.notfound` | 404 | A saved reply that is unknown, or another person's own, or a topic's replies for a person outside its scope; never 403 (`09` MSG-CONV-005; `05` MSG-API-009) | |
 | `messaging.reply.invalid` | 400 | A saved reply's name or text outside its bounds (`09` MSG-CONV-005; `05` MSG-API-009) | `field`: `name` or `text` |
 | `messaging.reply.full` | 409 | A saved reply past its owner's count, 200 for a topic or 100 for a person (`09` MSG-CONV-005; `05` MSG-API-009) | |
 | `messaging.reply.nameexists` | 409 | A saved reply's name its owner already has (`09` MSG-CONV-005; `05` MSG-API-009) | |
+| `messaging.attachment.type` | 400 | A file whose declared type is not allowed by `Conversations:Attachments:Types`, or whose first bytes do not match a type the library knows (`09` MSG-CONV-007; `05` MSG-API-009) | |
+| `messaging.attachment.toolarge` | 413 | A file over `Conversations:Attachments:MaxBytes` (`09` MSG-CONV-007; `05` MSG-API-009) | |
+| `messaging.attachment.pending` | 409 | An attachment not yet scanned (`09` MSG-CONV-007; `05` MSG-API-009) | |
+| `messaging.attachment.refused` | 409 | An attachment whose scan found it infected, or failed (`09` MSG-CONV-007; `05` MSG-API-009) | |
+| `messaging.attachment.notfound` | 404 | An attachment the conversation does not hold, or, for a visitor, one in a `note` (`09` MSG-CONV-007; `05` MSG-API-009, MSG-API-010) | |
+| `messaging.attachment.invalid` | 400 | A file name outside its rule, or an upload whose body is not one file (`09` MSG-CONV-007, MSG-CONV-009; `05` MSG-API-009, MSG-API-010) | `field`: `name` or `file` |
 | `messaging.message.notauthor` | 403 | Editing or deleting another person's message, which the person can see, so nothing leaks (`09` MSG-CONV-006) | |
 | `messaging.message.deleted` | 409 | Editing a deleted message (`09` MSG-CONV-006) | |
 | `messaging.support.offline` | 409 | Starting a support conversation outside its topic's hours, or within them while no member is available (`09` MSG-CONV-002; `05` MSG-API-010) | |
 | `messaging.support.alreadyopen` | 409 | Starting a support conversation on a topic where the visitor or the customer already holds an open one (`09` MSG-CONV-002; `05` MSG-API-010) | `conversation` |
-| `messaging.support.noticerequired` | 409 | A visitor's message, or offline form, before an acknowledgement of the current privacy notice (`09` MSG-CONV-010; `05` MSG-API-010) | |
+| `messaging.support.noticerequired` | 409 | A visitor's message, upload or offline form before an acknowledgement of the current privacy notice (`09` MSG-CONV-010; `05` MSG-API-010) | |
 | `messaging.support.limited` | 429 | A visitor or a source address over a limit of `Conversations:Limits:` (`09` MSG-CONV-011; `05` MSG-API-010); answered with `Retry-After` | |
 | `messaging.support.notclosed` | 409 | A transcript, a transcript email or a survey of a conversation that is not closed (`09` MSG-CONV-004; `05` MSG-API-010) | |
 | `messaging.support.transcriptlimit` | 409 | A conversation's fourth transcript email (`09` MSG-CONV-004; `05` MSG-API-010) | |
@@ -99,6 +105,8 @@ MSG-OPS-002).
 | Message types, an open enumeration | `text` · `note` · `automatic` · `system` (`09` MSG-CONV-001) | `MessageType`: `Text` · `Note` · `Automatic` · `System` |
 | Scope kinds | `organization` · `group` (`09` MSG-CONV-006) | `ScopeKind`: `Organization` · `Group` |
 | Author kinds | `person` · `visitor` · `library` (for an `automatic` or `system` message) (`09` MSG-CONV-001) | `AuthorKind`: `Person` · `Visitor` · `Library` |
+| Attachment statuses | `pending` · `clean` · `infected` · `failed` (`09` MSG-CONV-007) | `AttachmentStatus`: `Pending` · `Clean` · `Infected` · `Failed` |
+| Scan results | `clean` · `infected` · `failed` (`09` MSG-CONV-007) | `ScanResult`: `Clean` · `Infected` · `Failed` |
 
 ---
 
@@ -265,6 +273,10 @@ length in characters is counted as `00` section 1.5 gives.
 | `Conversations:Tags` | none: no tag | The tags staff put on a support conversation, at most 50 names, each under `01` MSG-SEND-001's name rule (`09` MSG-CONV-005) |
 | `Conversations:Support:CloseAfter` | `1.00:00:00` | 1 hour to 30 days, the silence after which an open or snoozed support conversation closes (`09` MSG-CONV-005) |
 | `Conversations:Support:CloseWarning` | `00:05:00` | 1 minute to 1 hour, and shorter than `Conversations:Support:CloseAfter`: how long before an automatic close the `closing` rule fires (`09` MSG-CONV-003, MSG-CONV-005) |
+| `Conversations:Attachments:Enabled` | `false` | Whether conversations take attachments (`09` MSG-CONV-007) |
+| `Conversations:Attachments:Public` | `false` | Whether the public group takes attachments too, where `Conversations:Attachments:Enabled` is on (`09` MSG-CONV-007) |
+| `Conversations:Attachments:MaxBytes` | `10485760` (10 MiB) | 1 KiB to 50 MiB, the largest file taken (`09` MSG-CONV-007) |
+| `Conversations:Attachments:Types` | `image/jpeg`, `image/png` and `application/pdf` | The allowed media types (`09` MSG-CONV-007) |
 | `DevelopmentInbox:Folder` | `hermes-inbox` in the operating system's temporary folder | An absolute path (`02` MSG-DEV-002); start only |
 | `DevelopmentInbox:KeepFor` | `7.00:00:00` | 1 hour to 90 days; start only |
 | `DevelopmentInbox:MaxMessages` | `1000` | 10 to 100,000; start only |
@@ -291,8 +303,9 @@ decimal number with `.` as its separator.
 | `configuration-invalid` | The key | A value reloaded while running is outside its rule (`06` MSG-OPS-001) | The key holds a valid value again | `key` |
 | `content-key-limit` | The version | A `contentKeys` version used for more than `Secrets:ContentKeys:MaxValues` values is a process's write version, the process writing on the alert's row, on its key-table timer, the instant it holds until, now plus twice its `Dispatch:Interval` where later than the one recorded (`06` MSG-OPS-006, MSG-OPS-008) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `version`, `count` |
 | `key-unavailable` | The secret, or the protector's `Id`; none for a value in a format kept for a later release | A process holds a delivery for a key, or answers a request or call as key unavailable (save an unsubscribe token whose format byte is kept for a later release, `05` MSG-API-005), each such answer writing on the alert's row the instant it holds until, now plus twice the process's `Dispatch:Interval` where later than the one recorded, at most once per that interval per process (`06` MSG-OPS-006, MSG-OPS-008) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `version`, where there is one |
-| `content-rejected` | The table, as the context names it (`deliveries`, `subscriptions`, `messages` or `conversations`) | A protected value does not open under its binding, each such value writing on the alert's row the instant it holds until, now plus twice the process's `Dispatch:Interval` where later than the one recorded, at most once per that interval per process (`06` MSG-OPS-006; `01` MSG-SEND-018) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `table` |
+| `content-rejected` | The table, as the context names it (`deliveries`, `subscriptions`, `messages`, `conversations` or `attachments`) | A protected value does not open under its binding, each such value writing on the alert's row the instant it holds until, now plus twice the process's `Dispatch:Interval` where later than the one recorded, at most once per that interval per process (`06` MSG-OPS-006; `01` MSG-SEND-018) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `table` |
 | `observer-failing` | none | The oldest pending notice is older than `Observer:LagThreshold` (`01` MSG-SEND-017) | It is not | `age` |
+| `attachment-scan` | none | An attachment is marked `failed` after its fifth failed scan (`09` MSG-CONV-007; `06` MSG-OPS-006) | A later scan answers `Clean` or `Infected` | `attachment` |
 
 ---
 
@@ -364,11 +377,12 @@ These names are stored, or shared by the processes of two releases, and never ch
 | `conversations.customer`, `conversations.email`, `conversations.email_key_version`, `messages.owner`, and `hash_version` on `participants`, `support_blocks`, `support_counters` and `support_acknowledgements` | Support's storage columns (M-034): a signed-in customer's person reference; the offline form's protected address and its `contentKeys` version; the person reference whose key protects a message's text, the author in a staff chat, the customer in a customer's support conversation, and none in a visitor's; and the `hashKeys` version each keyed hash was made with (`09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-009, MSG-CONV-011) |
 | `conversations.waiting_at`, `conversations.closing_at`, `conversations.close_at`, `conversations.snoozed_until`, `conversations.replies_fired` | The timers' columns (M-035): the instants the `waiting` and `closing` rules fire, the automatic close, and a snoozed conversation's waking, and the automatic reply rules already fired (`09` MSG-CONV-003, MSG-CONV-005) |
 | `conversations.survey_comment_key_version`, `conversations.transcript_sends` | The `contentKeys` version of a survey's comment, as `email_key_version` is the address's, and the transcript's emails sent, 0 to 3 (M-036) (`09` MSG-CONV-004) |
-| `deliveries`, `subscriptions`, `entries`, `messages`, `conversations`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth`, a message's `text`, and a support conversation's `email` and `surveycomment` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018; `09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-004) |
-| `conversations`, `participants`, `messages`, `mentions`, `connections`, `support_agents`, `support_blocks`, `support_acknowledgements`, `support_counters`, `support_replies` | The conversations' tables (`09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-005, MSG-CONV-006, MSG-CONV-010, MSG-CONV-011) |
+| `attachments.id`, `attachments.conversation_id`, `attachments.message_id`, `attachments.named_at`, `attachments.uploader`, `attachments.visitor` with `attachments.hash_version`, `attachments.owner`, `attachments.name` with `attachments.content_key_version`, `attachments.media_type`, `attachments.size`, `attachments.chunks`, `attachments.store_key`, `attachments.status`, `attachments.scan_attempts`, `attachments.scan_at`, `attachments.created_at` | The attachments' storage columns (M-037): the conversation and the message, each set to null when its row goes; the instant it was named; the uploader's person reference, or a visitor's keyed hash and its `hashKeys` version; the person whose key protects it, none for a visitor's; the protected file name and its `contentKeys` version, which covers the chunks too; the media type, size, chunk count and store key; the status, the scans tried, the next scan's instant, and the upload's instant (`09` MSG-CONV-007, MSG-CONV-009) |
+| `deliveries`, `subscriptions`, `entries`, `messages`, `conversations`, `attachments`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth`, a message's `text`, a support conversation's `email` and `surveycomment`, and an attachment's `chunk:<n>` and `name` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018; `09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-004, MSG-CONV-009) |
+| `conversations`, `participants`, `messages`, `mentions`, `connections`, `support_agents`, `support_blocks`, `support_acknowledgements`, `support_counters`, `support_replies`, `attachments` | The conversations' tables (`09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-005, MSG-CONV-006, MSG-CONV-007, MSG-CONV-010, MSG-CONV-011) |
 | `email`, `sms`, `push-endpoint`, `push-topic`, `person`, `idempotency`, `visitor`, `source` | The keyed hash's domains (`06` MSG-OPS-008; `09` MSG-CONV-001, MSG-CONV-011) |
 | `sms-report`, `idempotency` | The texts that begin the unkeyed lock keys (`01` MSG-SEND-009; `02` MSG-SMS-004) |
 | `sms-report-hold` | The text of the lock the held reports are counted under (`02` MSG-SMS-004) |
 | `messaging-key-check` | The text a key version's check value is made from (`06` MSG-OPS-008) |
-| `dispatch`, `observer`, `balance`, `retention`, `subscriptions`, `watch`, `conversation-timers` | The jobs (`06` MSG-OPS-004; `09` MSG-CONV-005); all but `dispatch` have a row in the job table and are what `job-stalled` names |
+| `dispatch`, `observer`, `balance`, `retention`, `subscriptions`, `watch`, `conversation-timers`, `attachment-scans` | The jobs (`06` MSG-OPS-004; `09` MSG-CONV-005, MSG-CONV-007); all but `dispatch` have a row in the job table and are what `job-stalled` names |
 | `unsubscribe`, `unsubscribed`, `unsubscribeinvalid`, `transcript` | The library's pages (`03` MSG-TPL-006) |

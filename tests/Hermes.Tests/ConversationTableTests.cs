@@ -77,6 +77,52 @@ public sealed class ConversationTableTests(PostgresFixture postgres) : IClassFix
     }
 
     [Fact]
+    public async Task MSG_CONV_009_AC4_AKeyVersionAnAttachmentUsesIsNeverRetiredAndTheGenericStepLeavesItsRow()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        Guid attachment = Guid.CreateVersion7();
+        byte[] name;
+        await using (EngineHost one = await EngineHost.StartAsync(connection))
+        {
+            AsyncServiceScope scope = one.Services.CreateAsyncScope();
+            await using (scope)
+            {
+                name = (await scope.ServiceProvider.GetRequiredService<ContentProtection>()
+                    .ProtectAsync(Author, "report.pdf"u8.ToArray(), ContentContext.Of("attachments", attachment, "name"), TestContext.Current.CancellationToken)).Stored!;
+            }
+
+            await one.RunAsync(database =>
+            {
+                NpgsqlCommand command = With(
+                    new NpgsqlCommand(
+                        """
+                        INSERT INTO messaging.attachments (id, owner, name, content_key_version, media_type, size, chunks, store_key, status, scan_attempts, created_at)
+                        VALUES (@id, @owner, @name, 1, 'application/pdf', 10, 1, 'key', 'clean', 1, now())
+                        """,
+                        database),
+                    attachment);
+                command.Parameters.AddWithValue("owner", Author);
+                command.Parameters.AddWithValue("name", name);
+                return command;
+            });
+        }
+
+        await using EngineHost two = await StartRotatedAsync(connection);
+        RetentionKeys keys = two.Services.GetRequiredService<RetentionKeys>();
+        Assert.True(await keys.ProtectAgainAsync(Renewed, TestContext.Current.CancellationToken));
+        Assert.True(await keys.RetireAsync(Renewed, TestContext.Current.CancellationToken));
+
+        // Its chunks lie in the store, so only the conversations package's own step protects it again.
+        Assert.Equal(1, await ScalarAsync<int>(two, database => With(new NpgsqlCommand("SELECT content_key_version FROM messaging.attachments WHERE id = @id", database), attachment)));
+        Assert.Equal(name, await ScalarAsync<byte[]>(two, database => With(new NpgsqlCommand("SELECT name FROM messaging.attachments WHERE id = @id", database), attachment)));
+        Assert.DoesNotContain("contentKeys:1", await RetiredAsync(two));
+
+        await two.RunAsync(database => new NpgsqlCommand("DELETE FROM messaging.attachments", database));
+        Assert.True(await keys.RetireAsync(Renewed, TestContext.Current.CancellationToken));
+        Assert.Contains("contentKeys:1", await RetiredAsync(two));
+    }
+
+    [Fact]
     public async Task MSG_CONV_009_AC1_ACustomersSupportTextOfflineAddressAndSurveyCommentAreProtectedAgainForTheCustomer()
     {
         string connection = await EngineHost.DatabaseAsync(postgres);

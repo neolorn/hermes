@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Text;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -90,6 +91,18 @@ internal static class PublicEndpoints
             .Produces<ErrorBody>(StatusCodes.Status404NotFound)
             .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
             .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapPost("/support/conversations/{id}/attachments", (HttpContext context, string id) => UploadAsync(context, path, id))
+            .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status403Forbidden)
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status409Conflict)
+            .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
+            .Produces<ErrorBody>(StatusCodes.Status429TooManyRequests)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapGet("/support/conversations/{id}/attachments/{attachmentId}", (HttpContext context, string id, string attachmentId) => DownloadAsync(context, path, id, attachmentId))
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status409Conflict)
             .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapGet("/support/conversations/{id}/transcript", (HttpContext context, string id) => TranscriptAsync(context, path, id))
             .Produces<ErrorBody>(StatusCodes.Status404NotFound)
@@ -303,10 +316,15 @@ internal static class PublicEndpoints
 
     private static async Task<Results<CreatedAnswer<MessageBody>, Refusal>> WriteAsync(HttpContext context, string path, string id)
     {
-        (EditRequest? body, Refusal? malformed) = await RequestBodies.JsonAsync(context.Request, ConversationsJson.Default.EditRequest, read => read.Text is null ? "text" : null).ConfigureAwait(false);
+        (CallerMessageRequest? body, Refusal? malformed) = await RequestBodies.JsonAsync(context.Request, ConversationsJson.Default.CallerMessageRequest, read => read.Text is null ? "text" : null).ConfigureAwait(false);
         if (malformed is not null)
         {
             return malformed;
+        }
+
+        if (body!.Attachments is { } named && named.Any(each => each is null))
+        {
+            return RequestBodies.Malformed("attachments");
         }
 
         if (await CallerAsync(context, path, draw: false).ConfigureAwait(false) is not { } caller || !Guid.TryParseExact(id, "D", out Guid conversation))
@@ -314,12 +332,49 @@ internal static class PublicEndpoints
             return StaffEndpoints.NotFound();
         }
 
+        if (!StaffEndpoints.TryAttachments(body.Attachments, out IReadOnlyList<AttachmentId>? attachments))
+        {
+            return Refusal.Of(StatusCodes.Status400BadRequest, ChatCodes.MessageInvalid, ("field", "attachments"));
+        }
+
         return await CallAsync<CreatedAnswer<MessageBody>>(context, async chats =>
         {
-            SupportAnswer<MessageRecord> written = await chats.CallerWriteAsync(caller, conversation, body!.Text!, context.RequestAborted).ConfigureAwait(false);
+            SupportAnswer<MessageRecord> written = await chats.CallerWriteAsync(caller, conversation, body.Text!, attachments, context.RequestAborted).ConfigureAwait(false);
             return written.Failure is { } refused
                 ? Refused(context, refused, written.RetryAfter)
                 : new CreatedAnswer<MessageBody>(StaffEndpoints.Of(written.Value!), ConversationsJson.Default.MessageBody);
+        }).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<CreatedAnswer<AttachmentBody>, Refusal>> UploadAsync(HttpContext context, string path, string id)
+    {
+        if (await CallerAsync(context, path, draw: false).ConfigureAwait(false) is not { } caller || !Guid.TryParseExact(id, "D", out Guid conversation))
+        {
+            return StaffEndpoints.NotFound();
+        }
+
+        return await CallAsync<CreatedAnswer<AttachmentBody>>(context, chats => AttachmentUploads.UploadAsync(
+            context,
+            (name, type, content) => chats.CallerUploadAsync(caller, conversation, name, type, content, context.RequestAborted),
+            attachment => chats.ForgetAsync(attachment, context.RequestAborted))).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<AttachmentAnswer, Refusal>> DownloadAsync(HttpContext context, string path, string id, string attachmentId)
+    {
+        if (await CallerAsync(context, path, draw: false).ConfigureAwait(false) is not { } caller || !Guid.TryParseExact(id, "D", out Guid conversation))
+        {
+            return StaffEndpoints.NotFound();
+        }
+
+        if (!Guid.TryParseExact(attachmentId, "D", out Guid attachment))
+        {
+            return Refusal.Of(StatusCodes.Status404NotFound, ChatCodes.AttachmentNotFound);
+        }
+
+        return await CallAsync<AttachmentAnswer>(context, async chats =>
+        {
+            Result<AttachmentDownload> opened = await chats.CallerOpenAsync(caller, conversation, attachment, context.RequestAborted).ConfigureAwait(false);
+            return opened.Failure is { } refused ? Refused(context, refused, null) : new AttachmentAnswer(opened.Value!);
         }).ConfigureAwait(false);
     }
 

@@ -78,12 +78,13 @@ public interface IConversations
     /// <param name="type">The type; a person writes <see cref="MessageType.Text"/> alone.</param>
     /// <param name="replyTo">The message of the same conversation it replies to, or none.</param>
     /// <param name="mentions">The persons it mentions, at most 32 distinct, each a participant or member of the conversation; or none.</param>
+    /// <param name="attachments">Up to 10 of the person's attachments of the conversation that no message names yet; or none.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The message; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.message.invalid</c> (<c>field</c> <c>text</c>, <c>mentions</c>, <c>replyTo</c> or <c>type</c>); <c>messaging.key.unavailable</c>.</returns>
+    /// <returns>The message; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.message.invalid</c> (<c>field</c> <c>text</c>, <c>mentions</c>, <c>replyTo</c>, <c>type</c> or <c>attachments</c>); <c>messaging.key.unavailable</c>.</returns>
     /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
     /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
-    ValueTask<Result<MessageRecord>> WriteAsync(string person, ConversationId conversation, string text, MessageType type, MessageId? replyTo, IReadOnlyList<string>? mentions, CancellationToken cancellationToken);
+    ValueTask<Result<MessageRecord>> WriteAsync(string person, ConversationId conversation, string text, MessageType type, MessageId? replyTo, IReadOnlyList<string>? mentions, IReadOnlyList<AttachmentId>? attachments, CancellationToken cancellationToken);
 
     /// <summary>Replaces the text of one of the person's own <c>text</c> messages, keeping no history.</summary>
     /// <param name="person">The person reference.</param>
@@ -289,6 +290,30 @@ public interface IConversations
     /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result<IReadOnlyList<LiveConversation>>> LiveAsync(string person, string topic, CancellationToken cancellationToken);
+
+    /// <summary>Uploads an attachment to a conversation the person may write in, protected in chunks and stored, pending its scan.</summary>
+    /// <param name="person">The person reference.</param>
+    /// <param name="conversation">The conversation.</param>
+    /// <param name="name">The file name, 1 to 255 characters, without path separators or control characters.</param>
+    /// <param name="mediaType">Its declared media type.</param>
+    /// <param name="content">Its bytes, read to their end and never held whole.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The attachment, pending; or a failure: <c>messaging.conversation.notfound</c> (attachments disabled included); <c>messaging.attachment.type</c>; <c>messaging.attachment.invalid</c> (<c>field</c> <c>name</c>); <c>messaging.attachment.toolarge</c>; <c>messaging.key.unavailable</c>.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result<AttachmentRecord>> UploadAttachmentAsync(string person, ConversationId conversation, string name, string mediaType, System.IO.Stream content, CancellationToken cancellationToken);
+
+    /// <summary>Opens a clean attachment of a conversation the person may read, after the access check.</summary>
+    /// <param name="person">The person reference.</param>
+    /// <param name="conversation">The conversation.</param>
+    /// <param name="attachment">The attachment.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The attachment and its content, which the caller disposes; or a failure: <c>messaging.conversation.notfound</c> (attachments disabled included); <c>messaging.attachment.notfound</c>; <c>messaging.attachment.pending</c>; <c>messaging.attachment.refused</c>; <c>messaging.key.unavailable</c>.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result<AttachmentDownload>> OpenAttachmentAsync(string person, ConversationId conversation, AttachmentId attachment, CancellationToken cancellationToken);
 
     /// <summary>A topic's reports for one of its supervisors, over the conversations closed from <paramref name="from"/> through <paramref name="through"/>, both included, in the topic's time zone.</summary>
     /// <param name="person">The person reference.</param>

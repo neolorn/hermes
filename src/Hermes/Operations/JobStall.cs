@@ -20,6 +20,7 @@ internal static class JobStall
             "retention" => TimeSpan.FromDays(1),
             "subscriptions" => options.Jobs.SubscriptionsInterval,
             JobRow.ConversationTimers => JobRow.ConversationTimersInterval,
+            JobRow.AttachmentScans => JobRow.AttachmentScansInterval,
             _ => options.Dispatch.Interval,
         };
     }

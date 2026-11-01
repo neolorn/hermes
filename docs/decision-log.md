@@ -2542,6 +2542,160 @@ This entry settles the map's C24 to C27, C32 and C33.
 
 ---
 
+## M-037 — Phase 19: attachments
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-CONV-007, MSG-CONV-009, MSG-LIB-005
+
+**TL;DR.**
+- An attachment is uploaded on its own, then named by a message.
+- Its bytes are protected in chunks under the message's key, and stored through a host
+  storage seam under a key the library draws.
+- A host scanning seam checks it after the upload. Until it is clean, nobody can open it.
+  An infected one is deleted.
+- Downloads stream through the library after the access check, never as a link to the
+  store.
+
+This entry settles the map's C42 to C46.
+
+- **Switch and bounds (C44).**
+  - `Hermes:Conversations:Attachments:Enabled`, default `false`.
+  - `MaxBytes`, default 10 MiB, from 1 KiB to 50 MiB.
+  - `Types`, the allowed media types, default `image/jpeg`, `image/png` and
+    `application/pdf`.
+  - A file's declared type must be allowed. For the types the library knows (JPEG, PNG,
+    WebP, GIF, PDF), its first bytes must match it too.
+  - Otherwise it answers 400 `messaging.attachment.type`. Over the size it answers 413
+    `messaging.attachment.toolarge`.
+- **The storage seam (C42).** A new `IAttachmentStore` in `Hermes.Core`, required where
+  attachments are enabled:
+  - `PutAsync(string key, Stream content, CancellationToken)`;
+  - `OpenAsync(string key, CancellationToken)`, answering `Stream?`;
+  - `DeleteAsync(string key, CancellationToken)`.
+
+  The key is drawn by the library, 128 random bits in base64url, and names nothing. The
+  store holds only protected bytes.
+- **Protection (C45).**
+  - The bytes are protected in chunks of 64 KiB. Each chunk is an envelope under the key
+    of the message's protection (MSG-CONV-009), bound to
+    `attachments:<id>:chunk:<n>`, so no whole file is held in memory.
+  - The file name (1 to 255 characters, with path separators and control characters
+    refused) is a protected value of the row.
+  - Key retirement keeps an attachment's key version in use. Re-protection reads and
+    rewrites its chunks through the store, under M-031's standing rule.
+- **The scanning seam (C43).** A new `IAttachmentScanner` in `Hermes.Core`, required where
+  attachments are enabled: `ScanAsync(Stream content, string mediaType,
+  CancellationToken)`, answering `Clean`, `Infected` or `Failed`.
+  - A new job, `attachment-scans`, every 30 seconds under the engine's claims, scans each
+    pending attachment.
+  - `Clean` opens it.
+  - `Infected` deletes its bytes from the store and marks the row `infected`.
+  - `Failed` retries with backoff, up to 5 times, then marks the row `failed` and raises
+    the alert `attachment-scan` (`06` MSG-OPS-006).
+- **Upload and use.**
+  - `POST {prefix}/conversations/{id}/attachments`, a single-file multipart body, on the
+    staff group and, where enabled, the public group. It answers **201** with `id`,
+    `name`, `mediaType`, `size` and `status` (`pending`).
+  - A message names up to 10 of its writer's attachments in `attachments`. An attachment
+    is named by one message only.
+  - One not named within 24 hours is deleted by the `attachment-scans` job.
+- **Download (C46).**
+  - `GET {prefix}/conversations/{id}/attachments/{attachmentId}` streams it after the
+    conversation's access check, with `Content-Disposition: attachment`, its media type,
+    and `X-Content-Type-Options: nosniff`.
+  - While pending it answers 409 `messaging.attachment.pending`. Infected or failed, it
+    answers 409 `messaging.attachment.refused`.
+  - A visitor never reaches one in a `note`.
+- **Erasure and retention.**
+  - An attachment goes, from the store and its row, with its message whenever the message
+    goes, and when an erasure clears its message's text.
+  - A store deletion that fails is retried by the `attachment-scans` job until it succeeds.
+- **Phase 19's criteria.**
+  1. Nothing opens before a clean scan. Infected is deleted and refused, and failed raises
+     the alert.
+  2. A file of a refused type, or one whose bytes deny its declared type, is refused, and
+     one over `MaxBytes` answers 413.
+  3. The store holds only protected chunks, and a chunk moved to another attachment does
+     not open.
+  4. Downloads stream after the access check, with `nosniff` and as an attachment.
+  5. Erasure and the message's going delete the stored bytes, and a key version an
+     attachment uses is never retired.
+  6. An unnamed upload is gone after 24 hours.
+
+**Propagated to:**
+- `04` MSG-LIB-005 (the two seams);
+- `05` (the routes);
+- `06` MSG-OPS-004, MSG-OPS-006;
+- `08` sections 1, 4, 5 and 8;
+- `09` MSG-CONV-007, MSG-CONV-009, with their criteria.
+
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - The public group's routes are `POST /support/conversations/{id}/attachments` and
+>   `GET /support/conversations/{id}/attachments/{attachmentId}`, answering as the staff
+>   group's do with no 503, where `Hermes:Conversations:Attachments:Public` (default
+>   `false`) is on.
+> - A message lists its attachments: `<message>` gains `"attachments": [ <attachment> ]`,
+>   `<attachment>` being `{ "id", "name", "mediaType", "size", "status" }`, and
+>   `MessageRecord` gains `IReadOnlyList<AttachmentRecord> Attachments`. More than 10,
+>   another writer's, one already named, or one unknown answers 400
+>   `messaging.message.invalid`, `field` `attachments`.
+> - An attachment the conversation does not hold answers 404
+>   `messaging.attachment.notfound`. A file name outside its rule, or a body that is not
+>   one file, answers 400 `messaging.attachment.invalid`, `field` `name` or `file`.
+>   Where attachments are disabled, the routes answer 404
+>   `messaging.conversation.notfound`.
+> - `04` MSG-LIB-002 gives the two seams, `ScanResult` (`Clean`, `Infected`, `Failed`),
+>   `AttachmentId`, `AttachmentRecord`, `AttachmentDownload`, `AttachmentStatus`, the
+>   `attachments` of `WriteAsync`, and `IConversations`' `UploadAttachmentAsync` and
+>   `OpenAttachmentAsync`. The seams' `details.key` are `attachmentStore` and
+>   `attachmentScanner`.
+> - An attachment's status is `pending`, `clean`, `infected` or `failed`, an enumeration
+>   of `08` section 2.
+> - `attachment-scans` is turned on by `Hermes:Jobs:Enabled`, where attachments are
+>   enabled, and has its row in `06` MSG-OPS-004's table.
+> - `attachment-scan` is raised when an attachment is marked `failed` after its fifth
+>   failed scan, with no scope, and clears when a later scan answers `Clean` or
+>   `Infected`; its detail is `attachment`. Its row comes last in `08` section 5, and the
+>   implementer lands its code with phase 19.
+> - The file name's context field is `name`. `attachments` joins `01` MSG-SEND-018's
+>   tables, with the fields `name` and `chunk:<n>`, the one field that carries an index
+>   after a colon.
+> - The public attachment routes declare 503 as for `GET /inapp`, as every public route
+>   that takes a person's lock does (M-034).
+>
+> Propagated to `01` MSG-SEND-018; `04` MSG-LIB-002; `05` MSG-API-009, MSG-API-010; `06`
+> MSG-OPS-004; `08` sections 1, 2, 4, 5 and 8; `09` MSG-CONV-007, MSG-CONV-009;
+> `implementation-plan.md` (phase 19).
+
+> **Amended.** 2026-11-01, before phase 19's build:
+> - `attachments` holds `id`; `conversation_id` and `message_id`, each a foreign key set
+>   to null when its row goes, so the job still deletes the stored bytes; `named_at`;
+>   `uploader` (a person reference, none for a visitor), `visitor` (keyed hash) with
+>   `hash_version`, and `owner` (the person whose key protects it, none for a
+>   visitor's); `name` (protected) with `content_key_version`, which covers the chunks
+>   too; `media_type`, `size`, `chunks`, `store_key`; `status`, `scan_attempts`,
+>   `scan_at` (the next attempt) and `created_at`.
+> - The `attachment-scans` job removes, deleting the stored bytes first and retrying a
+>   failed deletion at its next pass, the rows whose conversation went, whose message
+>   went or was deleted, whose name an erasure cleared, or that were never named within
+>   24 hours. An infected row keeps its row without its bytes.
+> - The bytes are one stored object per attachment, its 64 KiB chunks each an envelope
+>   bound to `attachments:<id>:chunk:<n>`, framed by length and streamed, never held
+>   whole. Re-protection writes a new object under a new key, then deletes the old.
+>
+> Propagated to `08` section 8; `09` MSG-CONV-007.
+
+> **Amended.** 2026-11-01, on the review of phase 19's work:
+> - On the public group, an upload takes exactly the public message write's checks and
+>   answers before any byte is stored: the visitor's or customer's limits and the
+>   source's (each upload counts as one message toward them), a block refusing it as it
+>   refuses a message, and no upload before the current notice is acknowledged, each
+>   with the same code as the message write.
+>
+> Propagated to `05` MSG-API-010; `08` section 1; `09` MSG-CONV-007, MSG-CONV-010,
+> MSG-CONV-011.
+
+---
+
 # Index
 
 | Title | Entry |
@@ -2582,3 +2736,4 @@ This entry settles the map's C24 to C27, C32 and C33.
 | Phase 16: support's public side | M-034 |
 | Phase 17: automatic replies and desk tools | M-035 |
 | Phase 18: the end of support | M-036 |
+| Phase 19: attachments | M-037 |

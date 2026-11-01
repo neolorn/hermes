@@ -136,6 +136,6 @@ public sealed class CaptureTests(PostgresFixture postgres) : IClassFixture<Postg
         Assert.Contains(folder.Path, text, StringComparison.Ordinal);
         Assert.Contains(new Uri(host.Client.BaseAddress!, InboxHost.Prefix + "/").AbsoluteUri, text, StringComparison.Ordinal);
         Assert.DoesNotContain("someone@example.com", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("4521", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("45K1", text, StringComparison.Ordinal);
     }
 }

@@ -45,6 +45,7 @@ internal sealed partial class StaffChats(
     Content.SendRenderer sendRenderer,
     MessagingMetrics metrics,
     TimeProvider clock,
+    IServiceProvider services,
     ILogger<StaffChats> logger) : IConversations
 {
     /// <summary>The most characters of a text, counted in UTF-16 code units.</summary>
@@ -350,6 +351,12 @@ internal sealed partial class StaffChats(
             return Result.Fail<MessagePage>(NotFound());
         }
 
+        (ILookup<Guid, AttachmentRecord> attached, Failure? heldName) = await AttachmentsOfAsync([.. read.Rows.Select(row => row.Id)], current, cancellationToken).ConfigureAwait(false);
+        if (heldName is not null)
+        {
+            return Result.Fail<MessagePage>(heldName);
+        }
+
         List<MessageRecord> messages = [];
         bool rejected = false;
         foreach (MessageRow row in read.Rows)
@@ -361,7 +368,7 @@ internal sealed partial class StaffChats(
             }
 
             rejected |= opened.Rejected;
-            messages.Add(Of(row, opened.Text, opened.Erased, [.. read.Mentions.Where(mention => mention.MessageId == row.Id).Select(mention => mention.Person).Order(StringComparer.Ordinal)]));
+            messages.Add(Of(row, opened.Text, opened.Erased, [.. read.Mentions.Where(mention => mention.MessageId == row.Id).Select(mention => mention.Person).Order(StringComparer.Ordinal)]) with { Attachments = [.. attached[row.Id]] });
         }
 
         if (rejected)
@@ -372,7 +379,7 @@ internal sealed partial class StaffChats(
         return Result.Success(new MessagePage { Messages = messages });
     }
 
-    public async ValueTask<Result<MessageRecord>> WriteAsync(string person, ConversationId conversation, string text, MessageType type, MessageId? replyTo, IReadOnlyList<string>? mentions, CancellationToken cancellationToken)
+    public async ValueTask<Result<MessageRecord>> WriteAsync(string person, ConversationId conversation, string text, MessageType type, MessageId? replyTo, IReadOnlyList<string>? mentions, IReadOnlyList<AttachmentId>? attachments, CancellationToken cancellationToken)
     {
         Begin(person);
         ArgumentNullException.ThrowIfNull(text);
@@ -406,6 +413,11 @@ internal sealed partial class StaffChats(
         if (mentioned.Length > MostMentions || !mentioned.All(IsReference))
         {
             return Result.Fail<MessageRecord>(Invalid(ChatCodes.MessageInvalid, "mentions"));
+        }
+
+        if (AttachmentsOf(attachments, settings.Attachments.Enabled) is not { } named)
+        {
+            return Result.Fail<MessageRecord>(Invalid(ChatCodes.MessageInvalid, "attachments"));
         }
 
         ConversationScope? scope = ScopeOf(reached);
@@ -454,6 +466,11 @@ internal sealed partial class StaffChats(
                     return new Written(null, Invalid(ChatCodes.MessageInvalid, "replyTo"));
                 }
 
+                if (await NamedAsync(context, reached.Id, named, person, [], token).ConfigureAwait(false) is not { } naming)
+                {
+                    return new Written(null, Invalid(ChatCodes.MessageInvalid, "attachments"));
+                }
+
                 DateTimeOffset now = clock.GetUtcNow();
                 MessageRow row = new()
                 {
@@ -482,6 +499,7 @@ internal sealed partial class StaffChats(
                 }
 
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
+                await NameAsync(context, naming, id, now, token).ConfigureAwait(false);
                 await LiveNotices.TellAsync(context, LiveNotices.Message, reached.Id, id, token).ConfigureAwait(false);
                 return new Written(row, null);
             },
@@ -503,7 +521,8 @@ internal sealed partial class StaffChats(
             await AwayAsync(person, reached, id, mentioned, cancellationToken).ConfigureAwait(false);
         }
 
-        return Result.Success(Of(written.Row!, text, erased: false, [.. mentioned.Order(StringComparer.Ordinal)]));
+        (ILookup<Guid, AttachmentRecord> listed, Failure? _) = await AttachmentsOfAsync(named.Length > 0 ? [id] : [], current, cancellationToken).ConfigureAwait(false);
+        return Result.Success(Of(written.Row!, text, erased: false, [.. mentioned.Order(StringComparer.Ordinal)]) with { Attachments = [.. listed[id]] });
     }
 
     public async ValueTask<Result> EditAsync(string person, ConversationId conversation, MessageId message, string text, CancellationToken cancellationToken)
@@ -597,6 +616,9 @@ internal sealed partial class StaffChats(
                 row.DeletedAt = clock.GetUtcNow();
                 context.Mentions.RemoveRange(await context.Mentions.Where(mention => mention.MessageId == row.Id).ToListAsync(token).ConfigureAwait(false));
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
+
+                // Its attachments go with it: the attachment-scans job deletes their bytes and rows (09 MSG-CONV-009).
+                await context.Database.ExecuteSqlRawAsync(Unname, [new NpgsqlParameter("message", row.Id)], token).ConfigureAwait(false);
                 await LiveNotices.TellAsync(context, LiveNotices.Changed, reached.Id, row.Id, token).ConfigureAwait(false);
                 return null;
             },
@@ -827,7 +849,8 @@ internal sealed partial class StaffChats(
             await RejectedAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        return opened.Held is null ? Of(row, opened.Text, opened.Erased, [.. mentions.Order(StringComparer.Ordinal)]) : null;
+        (ILookup<Guid, AttachmentRecord> attached, Failure? heldName) = await AttachmentsOfAsync([row.Id], options.CurrentValue, cancellationToken).ConfigureAwait(false);
+        return opened.Held is null && heldName is null ? Of(row, opened.Text, opened.Erased, [.. mentions.Order(StringComparer.Ordinal)]) with { Attachments = [.. attached[row.Id]] } : null;
     }
 
     /// <summary>
@@ -1175,10 +1198,15 @@ internal sealed partial class StaffChats(
 
     private Task RejectedAsync(CancellationToken cancellationToken)
     {
+        return RejectedAsync(ContentContext.Messages, cancellationToken);
+    }
+
+    private Task RejectedAsync(string table, CancellationToken cancellationToken)
+    {
         return alerts.HoldsUntilAsync(
             "content-rejected",
-            ContentContext.Messages,
-            new Dictionary<string, string>(StringComparer.Ordinal) { ["table"] = ContentContext.Messages },
+            table,
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["table"] = table },
             cancellationToken);
     }
 

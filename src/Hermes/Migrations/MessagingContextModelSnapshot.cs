@@ -23,6 +23,116 @@ namespace Hermes.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Hermes.Conversations.AttachmentRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Chunks")
+                        .HasColumnType("integer")
+                        .HasColumnName("chunks");
+
+                    b.Property<int?>("ContentKeyVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("content_key_version");
+
+                    b.Property<Guid?>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("HashVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("hash_version");
+
+                    b.Property<string>("MediaType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("media_type");
+
+                    b.Property<Guid?>("MessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("message_id");
+
+                    b.Property<byte[]>("Name")
+                        .HasColumnType("bytea")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset?>("NamedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("named_at");
+
+                    b.Property<string>("Owner")
+                        .HasColumnType("text")
+                        .HasColumnName("owner");
+
+                    b.Property<DateTimeOffset?>("ScanAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("scan_at");
+
+                    b.Property<int>("ScanAttempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("scan_attempts");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<string>("StoreKey")
+                        .HasColumnType("text")
+                        .HasColumnName("store_key");
+
+                    b.Property<string>("Uploader")
+                        .HasColumnType("text")
+                        .HasColumnName("uploader");
+
+                    b.Property<byte[]>("Visitor")
+                        .HasColumnType("bytea")
+                        .HasColumnName("visitor");
+
+                    b.HasKey("Id")
+                        .HasName("pk_attachments");
+
+                    b.HasIndex("ContentKeyVersion")
+                        .HasDatabaseName("ix_attachments_content_key_version");
+
+                    b.HasIndex("ConversationId")
+                        .HasDatabaseName("ix_attachments_conversation_id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_attachments_created_at");
+
+                    b.HasIndex("MessageId")
+                        .HasDatabaseName("ix_attachments_message_id");
+
+                    b.HasIndex("Owner")
+                        .HasDatabaseName("ix_attachments_owner");
+
+                    b.HasIndex("ScanAt")
+                        .HasDatabaseName("ix_attachments_scan_at");
+
+                    b.HasIndex("Uploader")
+                        .HasDatabaseName("ix_attachments_uploader");
+
+                    b.ToTable("attachments", "messaging", t =>
+                        {
+                            t.HasCheckConstraint("ck_attachments_size", "size >= 0 AND chunks >= 0 AND scan_attempts >= 0");
+
+                            t.HasCheckConstraint("ck_attachments_status", "status IN ('pending', 'clean', 'infected', 'failed')");
+
+                            t.HasCheckConstraint("ck_attachments_uploader", "uploader IS NULL OR visitor IS NULL");
+                        });
+                });
+
             modelBuilder.Entity("Hermes.Conversations.ConnectionRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -668,7 +778,7 @@ namespace Hermes.Migrations
 
                     b.ToTable("alerts", "messaging", t =>
                         {
-                            t.HasCheckConstraint("ck_alerts_condition", "condition IN ('email-submission-failing', 'sms-balance', 'sms-balance-unreadable', 'sms-report-rejected', 'push-auth-failing', 'dispatch-lag', 'job-stalled', 'newer-release', 'configuration-invalid', 'content-key-limit', 'key-unavailable', 'content-rejected', 'observer-failing')");
+                            t.HasCheckConstraint("ck_alerts_condition", "condition IN ('email-submission-failing', 'sms-balance', 'sms-balance-unreadable', 'sms-report-rejected', 'push-auth-failing', 'dispatch-lag', 'job-stalled', 'newer-release', 'configuration-invalid', 'content-key-limit', 'key-unavailable', 'content-rejected', 'observer-failing', 'attachment-scan')");
                         });
                 });
 
@@ -711,7 +821,7 @@ namespace Hermes.Migrations
 
                     b.ToTable("jobs", "messaging", t =>
                         {
-                            t.HasCheckConstraint("ck_jobs_name", "name IN ('observer', 'balance', 'retention', 'subscriptions', 'watch', 'conversation-timers')");
+                            t.HasCheckConstraint("ck_jobs_name", "name IN ('observer', 'balance', 'retention', 'subscriptions', 'watch', 'conversation-timers', 'attachment-scans')");
                         });
                 });
 
@@ -1619,6 +1729,21 @@ namespace Hermes.Migrations
 
                             t.HasCheckConstraint("ck_suppressions_hash_version", "hash_version >= 1");
                         });
+                });
+
+            modelBuilder.Entity("Hermes.Conversations.AttachmentRow", b =>
+                {
+                    b.HasOne("Hermes.Conversations.ConversationRow", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_attachments_conversations");
+
+                    b.HasOne("Hermes.Conversations.MessageRow", null)
+                        .WithMany()
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_attachments_messages");
                 });
 
             modelBuilder.Entity("Hermes.Conversations.MentionRow", b =>

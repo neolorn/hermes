@@ -23,21 +23,21 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
         await using ChatHost chat = await ChatHost.StartAsync(postgres);
         chat.Membership.Add(Desk, "amal");
         ConversationId group = (await chat.CallAsync(chats => chats.OpenGroupAsync("amal", Desk, default))).Value!.Conversation;
-        MessageId message = (await chat.CallAsync(chats => chats.WriteAsync("amal", group, "Morning", MessageType.Text, null, null, default))).Value!.Message;
+        MessageId message = (await chat.CallAsync(chats => chats.WriteAsync("amal", group, "Morning", MessageType.Text, null, null, null, default))).Value!.Message;
 
         List<Failure?> failures =
         [
             (await chat.CallAsync(chats => chats.OpenGroupAsync("omar", Desk, default))).Failure,
             (await chat.CallAsync(chats => chats.ReadAsync("omar", group, default))).Failure,
             (await chat.CallAsync(chats => chats.MessagesAsync("omar", group, null, null, null, default))).Failure,
-            (await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Hello", MessageType.Text, null, null, default))).Failure,
+            (await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Hello", MessageType.Text, null, null, null, default))).Failure,
             (await chat.CallAsync(chats => chats.EditAsync("omar", group, message, "Hello", default))).Failure,
             (await chat.CallAsync(chats => chats.DeleteAsync("omar", group, message, default))).Failure,
             (await chat.CallAsync(chats => chats.MarkReadAsync("omar", group, message, default))).Failure,
             (await chat.CallAsync(chats => chats.MuteAsync("omar", group, true, default))).Failure,
             (await chat.CallAsync(chats => chats.AddParticipantsAsync("omar", group, ["sara"], default))).Failure,
             (await chat.CallAsync(chats => chats.LeaveAsync("omar", group, default))).Failure,
-            (await chat.CallAsync(chats => chats.WriteAsync("omar", group, string.Empty, MessageType.Note, null, null, default))).Failure,
+            (await chat.CallAsync(chats => chats.WriteAsync("omar", group, string.Empty, MessageType.Note, null, null, null, default))).Failure,
         ];
 
         Assert.All(failures, failure => Assert.Equal("messaging.conversation.notfound", failure?.Code));
@@ -50,13 +50,13 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
         await using ChatHost chat = await ChatHost.StartAsync(postgres);
         chat.Membership.Add(Desk, "amal", "omar");
         ConversationId group = (await chat.CallAsync(chats => chats.OpenGroupAsync("omar", Desk, default))).Value!.Conversation;
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Here", MessageType.Text, null, null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Here", MessageType.Text, null, null, null, default))).IsSuccess);
         int asked = chat.Membership.Asked;
 
         chat.Membership.Remove(Desk, "omar");
 
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.MessagesAsync("omar", group, null, null, null, default))).Failure?.Code);
-        Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Still here", MessageType.Text, null, null, default))).Failure?.Code);
+        Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Still here", MessageType.Text, null, null, null, default))).Failure?.Code);
         Assert.Equal(asked + 2, chat.Membership.Asked);
         Assert.Single((await chat.CallAsync(chats => chats.MessagesAsync("amal", group, null, null, null, default))).Value!.Messages);
     }
@@ -83,7 +83,7 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
     {
         await using ChatHost chat = await ChatHost.StartAsync(postgres);
         ConversationRecord started = (await chat.CallAsync(chats => chats.StartDirectAsync("amal", ["omar"], default))).Value!;
-        MessageId message = (await chat.CallAsync(chats => chats.WriteAsync("omar", started.Conversation, "Hi", MessageType.Text, null, null, default))).Value!.Message;
+        MessageId message = (await chat.CallAsync(chats => chats.WriteAsync("omar", started.Conversation, "Hi", MessageType.Text, null, null, null, default))).Value!.Message;
 
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.ReadAsync("sara", started.Conversation, default))).Failure?.Code);
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.MessagesAsync("sara", started.Conversation, null, null, null, default))).Failure?.Code);
@@ -91,7 +91,7 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
         Assert.True((await chat.CallAsync(chats => chats.LeaveAsync("omar", started.Conversation, default))).IsSuccess);
 
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.ReadAsync("omar", started.Conversation, default))).Failure?.Code);
-        Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.WriteAsync("omar", started.Conversation, "Back", MessageType.Text, null, null, default))).Failure?.Code);
+        Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.WriteAsync("omar", started.Conversation, "Back", MessageType.Text, null, null, null, default))).Failure?.Code);
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.LeaveAsync("omar", started.Conversation, default))).Failure?.Code);
         Assert.Empty((await chat.CallAsync(chats => chats.ListAsync("omar", null, null, default))).Value!.Conversations);
         MessagePage kept = (await chat.CallAsync(chats => chats.MessagesAsync("amal", started.Conversation, null, null, null, default))).Value!;
@@ -164,8 +164,8 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
     {
         await using ChatHost chat = await ChatHost.StartAsync(postgres);
         ConversationId direct = (await chat.CallAsync(chats => chats.StartDirectAsync("amal", ["omar"], default))).Value!.Conversation;
-        MessageId mine = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "First draft", MessageType.Text, null, ["omar"], default))).Value!.Message;
-        MessageId theirs = (await chat.CallAsync(chats => chats.WriteAsync("omar", direct, "Their words", MessageType.Text, null, null, default))).Value!.Message;
+        MessageId mine = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "First draft", MessageType.Text, null, ["omar"], null, default))).Value!.Message;
+        MessageId theirs = (await chat.CallAsync(chats => chats.WriteAsync("omar", direct, "Their words", MessageType.Text, null, null, null, default))).Value!.Message;
 
         Assert.Equal("messaging.message.notauthor", (await chat.CallAsync(chats => chats.EditAsync("amal", direct, theirs, "Changed", default))).Failure?.Code);
         Assert.Equal("messaging.message.notauthor", (await chat.CallAsync(chats => chats.DeleteAsync("amal", direct, theirs, default))).Failure?.Code);
@@ -196,7 +196,7 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
         string[] others = [.. Enumerable.Range(1, 15).Select(each => $"p{each:D2}")];
         ConversationId direct = (await chat.CallAsync(chats => chats.StartDirectAsync("amal", others, default))).Value!.Conversation;
         ConversationId other = (await chat.CallAsync(chats => chats.StartDirectAsync("amal", ["omar"], default))).Value!.Conversation;
-        MessageId elsewhere = (await chat.CallAsync(chats => chats.WriteAsync("amal", other, "Elsewhere", MessageType.Text, null, null, default))).Value!.Message;
+        MessageId elsewhere = (await chat.CallAsync(chats => chats.WriteAsync("amal", other, "Elsewhere", MessageType.Text, null, null, null, default))).Value!.Message;
         chat.Membership.Add(Desk, ["amal", .. others]);
         ConversationId group = (await chat.CallAsync(chats => chats.OpenGroupAsync("amal", Desk, default))).Value!.Conversation;
 
@@ -209,11 +209,11 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
         Assert.Equal("type", await RefusedAsync(chat, direct, "Hi", type: MessageType.Note));
         Assert.Equal("type", await RefusedAsync(chat, group, "Hi", type: MessageType.Note));
 
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "a", MessageType.Text, null, null, default))).IsSuccess);
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", direct, new string('a', 4_000), MessageType.Text, null, null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "a", MessageType.Text, null, null, null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", direct, new string('a', 4_000), MessageType.Text, null, null, null, default))).IsSuccess);
         string[] thirtyTwo = [.. others, "amal", .. Enumerable.Range(1, 16).Select(each => $"q{each:D2}")];
         chat.Membership.Add(Desk, thirtyTwo);
-        Result<MessageRecord> mentioned = await chat.CallAsync(chats => chats.WriteAsync("amal", group, "All of you", MessageType.Text, null, [.. thirtyTwo, "amal"], default));
+        Result<MessageRecord> mentioned = await chat.CallAsync(chats => chats.WriteAsync("amal", group, "All of you", MessageType.Text, null, [.. thirtyTwo, "amal"], null, default));
         Assert.Equal(32, mentioned.Value!.Mentions.Count);
         Assert.Equal(thirtyTwo.Order(StringComparer.Ordinal), mentioned.Value.Mentions);
         Assert.Equal("text", (await chat.CallAsync(chats => chats.EditAsync("amal", group, mentioned.Value.Message, new string('a', 4_001), default))).Failure?.Details["field"]);
@@ -224,10 +224,10 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
     {
         await using ChatHost chat = await ChatHost.StartAsync(postgres);
         ConversationId direct = (await chat.CallAsync(chats => chats.StartDirectAsync("amal", ["omar"], default))).Value!.Conversation;
-        MessageId first = (await chat.CallAsync(chats => chats.WriteAsync("omar", direct, "Question", MessageType.Text, null, null, default))).Value!.Message;
+        MessageId first = (await chat.CallAsync(chats => chats.WriteAsync("omar", direct, "Question", MessageType.Text, null, null, null, default))).Value!.Message;
         await chat.CallAsync(chats => chats.DeleteAsync("omar", direct, first, default));
 
-        Result<MessageRecord> reply = await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Answer", MessageType.Text, first, null, default));
+        Result<MessageRecord> reply = await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Answer", MessageType.Text, first, null, null, default));
 
         Assert.Equal(first, reply.Value!.ReplyTo);
         Assert.Equal(first, (await MessageAsync(chat, "omar", direct, reply.Value.Message)).ReplyTo);
@@ -241,10 +241,10 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
         List<MessageId> sent = [];
         foreach (string text in new[] { "One", "Two", "Three", "Four" })
         {
-            sent.Add((await chat.CallAsync(chats => chats.WriteAsync("omar", direct, text, MessageType.Text, null, null, default))).Value!.Message);
+            sent.Add((await chat.CallAsync(chats => chats.WriteAsync("omar", direct, text, MessageType.Text, null, null, null, default))).Value!.Message);
         }
 
-        await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Mine", MessageType.Text, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Mine", MessageType.Text, null, null, null, default));
         Assert.Equal(4, await UnreadAsync(chat, "amal", direct));
         Assert.Equal(1, await UnreadAsync(chat, "omar", direct));
 
@@ -270,7 +270,7 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
             started.Add((await chat.CallAsync(chats => chats.StartDirectAsync("amal", [other], default))).Value!.Conversation);
         }
 
-        await chat.CallAsync(chats => chats.WriteAsync("amal", started[0], "Newest", MessageType.Text, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("amal", started[0], "Newest", MessageType.Text, null, null, null, default));
         await chat.CallAsync(chats => chats.MuteAsync("amal", started[1], true, default));
 
         ConversationPage first = (await chat.CallAsync(chats => chats.ListAsync("amal", null, 2, default))).Value!;
@@ -285,7 +285,7 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
 
     private static async Task<string?> RefusedAsync(ChatHost chat, ConversationId conversation, string text, MessageType type = MessageType.Text, MessageId? replyTo = null, IReadOnlyList<string>? mentions = null)
     {
-        Result<MessageRecord> written = await chat.CallAsync(chats => chats.WriteAsync("amal", conversation, text, type, replyTo, mentions, default));
+        Result<MessageRecord> written = await chat.CallAsync(chats => chats.WriteAsync("amal", conversation, text, type, replyTo, mentions, null, default));
         Assert.Equal("messaging.message.invalid", written.Failure?.Code);
         return written.Failure!.Details["field"];
     }

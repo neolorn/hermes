@@ -32,7 +32,8 @@ internal sealed partial class RetentionKeys(
     IOptionsMonitor<MessagingOptions> options,
     TimeProvider clock,
     ILogger<RetentionKeys> logger,
-    IEnumerable<KeyedTable> tables)
+    IEnumerable<KeyedTable> tables,
+    IEnumerable<IProtectAgain> steps)
 {
     private const string Deliveries = """
         SELECT * FROM messaging.deliveries
@@ -138,9 +139,17 @@ internal sealed partial class RetentionKeys(
             return false;
         }
 
-        foreach (KeyedTable table in keyed.Where(table => table.Values.Count > 0))
+        foreach (KeyedTable table in keyed.Where(table => table.Values.Count > 0 && !table.OwnProtection))
         {
             if (!await RunKeyedAsync(table, content.WriteVersion, renew, cancellationToken).ConfigureAwait(false))
+            {
+                return false;
+            }
+        }
+
+        foreach (IProtectAgain step in steps)
+        {
+            if (!await step.ProtectAgainAsync(content.WriteVersion, renew, cancellationToken).ConfigureAwait(false))
             {
                 return false;
             }

@@ -67,6 +67,7 @@ internal sealed class ReleaseSet
         typeof(IEmailProvider), typeof(IEmailSession), typeof(ISmsProvider), typeof(IPushProvider),
         typeof(ISecretSource), typeof(IRecipientIdentity), typeof(IConsentSource), typeof(IContentProtector),
         typeof(ITemplateSource), typeof(IDeliveryObserver), typeof(IAlertSink), typeof(IConversationMembership),
+        typeof(IAttachmentStore), typeof(IAttachmentScanner),
     ];
 
     /// <summary>The request bodies an endpoint reads, whose members a caller sends.</summary>

@@ -38,4 +38,22 @@ internal static class ChatCodes
 
     /// <summary>A saved reply's name its owner already has.</summary>
     internal const string ReplyNameExists = "messaging.reply.nameexists";
+
+    /// <summary>A file whose declared type is not allowed, or whose first bytes deny it (<c>09</c> MSG-CONV-007).</summary>
+    internal const string AttachmentType = "messaging.attachment.type";
+
+    /// <summary>A file over <c>Conversations:Attachments:MaxBytes</c>.</summary>
+    internal const string AttachmentTooLarge = "messaging.attachment.toolarge";
+
+    /// <summary>An attachment not yet scanned.</summary>
+    internal const string AttachmentPending = "messaging.attachment.pending";
+
+    /// <summary>An attachment whose scan found it infected, or failed.</summary>
+    internal const string AttachmentRefused = "messaging.attachment.refused";
+
+    /// <summary>An attachment the conversation does not hold, or, for a visitor, one in a <c>note</c>.</summary>
+    internal const string AttachmentNotFound = "messaging.attachment.notfound";
+
+    /// <summary>A file name outside its rule, or an upload whose body is not one file, <c>field</c> naming which.</summary>
+    internal const string AttachmentInvalid = "messaging.attachment.invalid";
 }

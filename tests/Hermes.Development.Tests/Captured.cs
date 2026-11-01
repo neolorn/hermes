@@ -23,7 +23,7 @@ internal static class Captured
     /// <summary>The destinations, content values and person references the tests use, which no library log line may hold (<c>06</c> MSG-OPS-005).</summary>
     internal static IReadOnlyList<string> Used { get; } =
     [
-        "someone@example.com", "other@example.com", "earlier@example.com", "+201000000001", "person-1", "4521",
+        "someone@example.com", "other@example.com", "earlier@example.com", "+201000000001", "person-1", "45K1",
         "Your receipt", "Your order", "Your code", "رمز الدخول", "bakery.example/receipts", "bakery.example/sign-in",
     ];
 

@@ -56,6 +56,68 @@ public sealed class RegistrationTests(PostgresFixture postgres) : IClassFixture<
         Assert.Equal("conversationMembership", failure.Details["key"]);
     }
 
+    [Theory]
+    [InlineData(false, true, "attachmentStore")]
+    [InlineData(true, false, "attachmentScanner")]
+    public async Task MSG_LIB_005_AC1_AttachmentsEnabledWithoutTheirStoreOrScannerStopTheStartNamingIt(bool store, bool scanner, string missing)
+    {
+        using IHost host = await ConversationsHost.BuildAsync(
+            postgres,
+            (services, configuration) =>
+            {
+                if (store)
+                {
+                    services.AddSingleton<IAttachmentStore>(new StoreFake());
+                }
+
+                if (scanner)
+                {
+                    services.AddSingleton<IAttachmentScanner>(new ScannerFake());
+                }
+
+                ConversationsHost.AddEngine(services, configuration);
+                services.AddHermesConversations();
+            },
+            configuration => configuration["Hermes:Conversations:Attachments:Enabled"] = "true");
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(("messaging.startup.declarationmissing", missing), (failure.Code, failure.Details["key"]));
+    }
+
+    [Fact]
+    public async Task AttachmentsOff_WithoutTheirSeams_Starts()
+    {
+        using IHost host = await ConversationsHost.BuildAsync(
+            postgres,
+            (services, configuration) =>
+            {
+                ConversationsHost.AddEngine(services, configuration);
+                services.AddHermesConversations();
+            },
+            configuration => configuration["Hermes:Conversations:Attachments:MaxBytes"] = "2048");
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+        await host.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AttachmentsKeyOutsideItsRule_StopsTheStartNamingIt()
+    {
+        using IHost host = await ConversationsHost.BuildAsync(
+            postgres,
+            (services, configuration) =>
+            {
+                ConversationsHost.AddEngine(services, configuration);
+                services.AddHermesConversations();
+            },
+            configuration => configuration["Hermes:Conversations:Attachments:MaxBytes"] = "100");
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(("messaging.startup.configurationinvalid", "Conversations:Attachments:MaxBytes"), (failure.Code, failure.Details["key"]));
+    }
+
     [Fact]
     public async Task AddHermes_WithoutConversationsOrTheMembershipSeam_StartsSinceNothingNeedsIt()
     {

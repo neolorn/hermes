@@ -107,10 +107,10 @@ public sealed class TimerTests(PostgresFixture postgres) : IClassFixture<Postgre
         await PassAsync(chat, first.AddMinutes(-4));
         Assert.Equal("farewell en: billing  56 ", (await AutomaticAsync(visitor, conversation))[^1]);
 
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "A note", MessageType.Note, null, [], default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "A note", MessageType.Note, null, [], null, default))).IsSuccess);
         Assert.Equal(first, await CloseAtAsync(chat, conversation));
 
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Still here", MessageType.Text, null, [], default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Still here", MessageType.Text, null, [], null, default))).IsSuccess);
         DateTimeOffset second = await CloseAtAsync(chat, conversation);
         Assert.True(second > first);
 

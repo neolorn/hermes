@@ -64,6 +64,7 @@ internal sealed record MessagesBody(IReadOnlyList<MessageBody> Messages);
 /// <param name="EditedAt">The instant it was last edited, or none.</param>
 /// <param name="DeletedAt">The instant it was deleted, or none.</param>
 /// <param name="Erased">Whether its text was cleared by its author's erasure.</param>
+/// <param name="Attachments">The attachments it names (<c>09</c> MSG-CONV-007).</param>
 internal sealed record MessageBody(
     string Id,
     string AuthorKind,
@@ -75,7 +76,16 @@ internal sealed record MessageBody(
     string SentAt,
     string? EditedAt,
     string? DeletedAt,
-    bool Erased);
+    bool Erased,
+    IReadOnlyList<AttachmentBody> Attachments);
+
+/// <summary>An attachment, <c>&lt;attachment&gt;</c> of <c>05</c> MSG-API-009.</summary>
+/// <param name="Id">The attachment's identifier, lower-case and hyphenated.</param>
+/// <param name="Name">Its file name.</param>
+/// <param name="MediaType">Its media type.</param>
+/// <param name="Size">Its size in bytes.</param>
+/// <param name="Status">Its status, as <c>08</c> section 2 spells it.</param>
+internal sealed record AttachmentBody(string Id, string Name, string MediaType, long Size, string Status);
 
 /// <summary>The body of <c>POST /conversations/direct</c> and <c>POST /conversations/{id}/participants</c> (<c>05</c> MSG-API-009).</summary>
 /// <param name="Participants">The others' person references.</param>
@@ -86,7 +96,13 @@ internal sealed record ParticipantsRequest(IReadOnlyList<string>? Participants);
 /// <param name="Type">The type, <c>text</c> where none is given.</param>
 /// <param name="ReplyTo">The message it replies to, or none.</param>
 /// <param name="Mentions">The persons it mentions, or none.</param>
-internal sealed record MessageRequest(string? Text, string? Type, string? ReplyTo, IReadOnlyList<string>? Mentions);
+/// <param name="Attachments">The writer's attachments it names, or none.</param>
+internal sealed record MessageRequest(string? Text, string? Type, string? ReplyTo, IReadOnlyList<string>? Mentions, IReadOnlyList<string>? Attachments);
+
+/// <summary>The body of <c>POST /support/conversations/{id}/messages</c> (<c>05</c> MSG-API-010).</summary>
+/// <param name="Text">The text.</param>
+/// <param name="Attachments">The caller's attachments it names, or none.</param>
+internal sealed record CallerMessageRequest(string? Text, IReadOnlyList<string>? Attachments);
 
 /// <summary>The body of <c>PUT /conversations/{id}/messages/{messageId}</c> (<c>05</c> MSG-API-009).</summary>
 /// <param name="Text">The new text.</param>

@@ -25,6 +25,8 @@ internal static class ConversationSpellings
 
     private static readonly string[] AuthorKinds = ["person", "visitor", "library"];
 
+    private static readonly string[] AttachmentStatuses = ["pending", "clean", "infected", "failed"];
+
     internal static IReadOnlyList<string> AllTypes => Types;
 
     internal static IReadOnlyList<string> AllOrigins { get; } = [Web];
@@ -36,6 +38,18 @@ internal static class ConversationSpellings
     internal static IReadOnlyList<string> AllScopeKinds => ScopeKinds;
 
     internal static IReadOnlyList<string> AllAuthorKinds => AuthorKinds;
+
+    internal static IReadOnlyList<string> AllAttachmentStatuses => AttachmentStatuses;
+
+    internal static string Of(AttachmentStatus status)
+    {
+        return AttachmentStatuses[(int)status];
+    }
+
+    internal static AttachmentStatus AttachmentStatusOf(string spelling)
+    {
+        return (AttachmentStatus)Array.IndexOf(AttachmentStatuses, spelling);
+    }
 
     internal static string Of(ConversationType type)
     {

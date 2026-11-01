@@ -33,8 +33,8 @@ public sealed class EndTests(PostgresFixture postgres) : IClassFixture<PostgresF
         Browser visitor = await SupportTests.AcknowledgedAsync(chat, "192.0.2.1");
         visitor.Language = "ar";
         Guid conversation = await visitor.StartAsync(text: "My order is late");
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Only for staff", MessageType.Note, null, null, default))).IsSuccess);
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "It ships today", MessageType.Text, null, null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Only for staff", MessageType.Note, null, null, null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "It ships today", MessageType.Text, null, null, null, default))).IsSuccess);
         string route = $"/support/conversations/{conversation:D}/transcript";
 
         using HttpResponseMessage open = await visitor.SendAsync(HttpMethod.Get, route);
@@ -73,7 +73,7 @@ public sealed class EndTests(PostgresFixture postgres) : IClassFixture<PostgresF
                 """,
                 database),
             conversation));
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "The last word", MessageType.Text, null, null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "The last word", MessageType.Text, null, null, null, default))).IsSuccess);
         await chat.ScalarAsync(database => With(new NpgsqlCommand("UPDATE messaging.messages SET sent_at = now() + interval '2 hours' WHERE conversation_id = @id AND author = 'amal'", database), conversation));
         Assert.True((await chat.CallAsync(chats => chats.CloseAsync("amal", new ConversationId(conversation), default))).IsSuccess);
 
