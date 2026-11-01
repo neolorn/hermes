@@ -1096,12 +1096,24 @@ session idle; an erasure committed after its read leaves the export as it read, 
 values answering `Erased` only where the person's key was erased (a host's protector
 over per-person keys, `04` MSG-LIB-005).
 
+Where conversations are registered, the export also answers the person's conversations
+(M-038) in `Conversations`, null otherwise, as `09` MSG-CONV-010 gives them: their
+support conversations as the customer, with every message but notes, and the staff chats
+where they wrote, with their own messages only; each one's id, type, topic and opened
+and closed instants; each message's instant, author (`person` for the person's own,
+`staff` for a staff member's, `library` for an `automatic` or `system` message) and
+text; its attachments' names, media types and sizes, never their bytes; and the person's
+survey answer. Others' references never appear. A message's text and a survey's comment
+answer as a delivery's values do above: marked erased, or marked rejected and raising
+`content-rejected`, with no text; one that cannot open yet answers the export
+`messaging.key.unavailable`.
+
 *Falling back to another channel (designed for, not built).* A kind may later declare an
 ordered list of channels where the next is used when a delivery on one ends in a status
 the list names; the deliveries of a send already share its identifier, so a fallback is
 a new delivery of the same send and changes no table.
 
-*Source: M-004, M-005, M-007, M-020, M-028, M-029, M-030*
+*Source: M-004, M-005, M-007, M-020, M-028, M-029, M-030, M-038*
 
 **Acceptance criteria**
 1. After erasure, nothing the library holds names the person or holds a destination, an
@@ -1123,3 +1135,4 @@ a new delivery of the same send and changes no table.
 5. With a migration this release does not know in the history, an erasure and an export
    change nothing and answer `messaging.release.newer` naming it, also where a key
    version in use is not held.
+6. A person's export holds their conversations as above, and nobody else's references.

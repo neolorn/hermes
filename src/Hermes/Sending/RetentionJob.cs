@@ -32,7 +32,8 @@ internal sealed partial class RetentionJob(
     IOptionsMonitor<ChannelsOptions> channels,
     RetentionKeys versions,
     TimeProvider clock,
-    ILogger<RetentionJob> logger) : BackgroundService
+    ILogger<RetentionJob> logger,
+    IEnumerable<IRetentionStep> steps) : BackgroundService
 {
     internal const string Name = "retention";
 
@@ -204,6 +205,7 @@ internal sealed partial class RetentionJob(
             || !await run.DeleteAsync(DeleteRejectedReports, used.Sms.ReportRejectWindow).ConfigureAwait(false)
             || !await run.DeleteAsync(DeleteAuthFailures, used.Push.AuthFailWindow).ConfigureAwait(false)
             || !await run.DeleteAsync(DeleteRateCounters, TimeSpan.FromSeconds(1)).ConfigureAwait(false)
+            || !await StepsAsync(now, RenewAsync, cancellationToken).ConfigureAwait(false)
             || !await versions.ProtectAgainAsync(RenewAsync, cancellationToken).ConfigureAwait(false)
             || !await versions.RetireAsync(RenewAsync, cancellationToken).ConfigureAwait(false))
         {
@@ -217,6 +219,20 @@ internal sealed partial class RetentionJob(
         {
             return JobClaims.RenewAsync(database, Name, holder, options.CurrentValue.Jobs.ClaimTimeout, clock.GetUtcNow(), cancellationToken);
         }
+    }
+
+    /// <summary>Runs each registered step in turn; false where one finds the claim no longer the run's.</summary>
+    private async Task<bool> StepsAsync(DateTimeOffset now, Func<Task<bool>> renew, CancellationToken cancellationToken)
+    {
+        foreach (IRetentionStep step in steps)
+        {
+            if (!await step.RunAsync(now, renew, cancellationToken).ConfigureAwait(false))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

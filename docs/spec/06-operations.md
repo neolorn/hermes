@@ -106,17 +106,17 @@ migration chain in `Hermes/Migrations`, under the schema `messaging` and the his
 `messaging.__migrations_history`; the conversation entities are the engine's, internal
 (`07` MSG-ENG-001). The tables are created in every deployment, and stay empty where
 conversations are not registered (`04` MSG-LIB-003); `hermes migrate` applies them as it
-applies every other, and the start's check above finds them as it finds every other.
-The engine knows each such table: a phase that adds a table holding a protected value, a
+applies every other, and the start's check above finds them as it finds every other. The
+engine knows each such table: a phase that adds a table holding a protected value, a
 keyed hash or a person reference adds it, in that same phase, to what the retention job
-reads before it marks a key version retired and to what it protects again
-(MSG-OPS-008); to erasure (`01` MSG-SEND-020), and to the person's locks where the table
-is written for a person (`02` MSG-PUSH-003); and, from plan phase 20, to export (`01`
-MSG-SEND-020). That phase's tests prove each of these for that table: a key version a
-conversation row uses is never retired, and an erased person's rows no longer open. No
-phase adds such a table without them.
+reads before it marks a key version retired and to what it protects again (MSG-OPS-008);
+to erasure (`01` MSG-SEND-020), and to the person's locks where the table is written for
+a person (`02` MSG-PUSH-003); and, from plan phase 20, to export (`01` MSG-SEND-020).
+That phase's tests prove each of these for that table: a key version a conversation row
+uses is never retired, and an erased person's rows no longer open. No phase adds such a
+table without them.
 
-*Source: M-012, M-013, M-016, M-026, M-027, M-031*
+*Source: M-012, M-013, M-016, M-026, M-027, M-031, M-038*
 
 **Acceptance criteria**
 1. Starting against a database missing the release's last migration stops the start.
@@ -182,18 +182,26 @@ other (M-033).
 host's process, each turned on or off per application by configuration, and SHALL do
 nothing twice when several processes run it.
 
-**Values (M-005, M-007, M-026, M-035, M-037).**
+**Values (M-005, M-007, M-026, M-035, M-037, M-038).**
 
 | Job | Runs | Turned on by |
 |---|---|---|
 | `dispatch` (`01` MSG-SEND-007) | As `01` MSG-SEND-007 gives: on each notification of a committed send, every `Hermes:Dispatch:Interval`, and the other instants it names | `Hermes:Dispatch:Enabled` and `Hermes:Dispatch:Hosted` |
 | `observer` (`01` MSG-SEND-017) | Every `Hermes:Dispatch:Interval`; it completes at once, delivering nothing, where `Hermes:Observer:Enabled` is off | `Hermes:Dispatch:Enabled` |
 | `balance` (`02` MSG-SMS-006) | Every `Hermes:Sms:BalancePoll`, only in an application where SMS is used (`04` MSG-LIB-003), which alone takes its claim | `Hermes:Dispatch:Enabled`, whatever `Hermes:Jobs:Enabled` says, as `observer` is |
-| `retention` (MSG-OPS-008; `01` MSG-SEND-019; `02` MSG-INAPP-005) | Daily at `Hermes:Jobs:RetentionAt`, in `Hermes:TimeZone` | `Hermes:Jobs:Enabled` |
+| `retention` (MSG-OPS-008; `01` MSG-SEND-019; `02` MSG-INAPP-005; `09` MSG-CONV-010) | Daily at `Hermes:Jobs:RetentionAt`, in `Hermes:TimeZone` | `Hermes:Jobs:Enabled` |
 | `subscriptions` (`02` MSG-PUSH-006) | Every `Hermes:Jobs:SubscriptionsInterval` | `Hermes:Jobs:Enabled` |
 | `watch` (MSG-OPS-005, MSG-OPS-006, MSG-OPS-007, MSG-OPS-008; `01` MSG-SEND-017, MSG-SEND-018; `02` MSG-SMS-004, MSG-PUSH-005) | Every `Hermes:Dispatch:Interval` | `Hermes:Jobs:Enabled` |
 | `conversation-timers` (`09` MSG-CONV-003, MSG-CONV-005) | Every 30 seconds: it fires the `waiting` and `closing` rules, wakes snoozed conversations and closes silent ones (M-035) | `Hermes:Jobs:Enabled`, where conversations are registered |
 | `attachment-scans` (`09` MSG-CONV-007) | Every 30 seconds: it scans each pending attachment, deletes one not named by a message within 24 hours, and retries a store deletion that failed (M-037) | `Hermes:Jobs:Enabled`, where attachments are enabled |
+
+The `retention` job also deletes conversations' rows (M-038): a visitor's support
+conversation `Hermes:Conversations:Retention:Visitor` after it closes, with every row of
+it, and, where `Hermes:Conversations:Retention:Staff` is set, staff-chat messages older
+than it, with their attachments, at most 1,000 conversations per run (`09`
+MSG-CONV-010). The attachments of the rows it deletes stay, their `conversation_id` or
+`message_id` set to null, until `attachment-scans` deletes their bytes and then their
+rows (`09` MSG-CONV-007).
 
 The dispatcher's work is claimed delivery by delivery (`01` MSG-SEND-007), and it has no
 row in the job table; `dispatch-lag` watches it (MSG-OPS-005). Every other job holds a
@@ -227,7 +235,7 @@ report route keeps under `Hermes:Sms:ReportHoldMax`. Besides the jobs, every pro
 that registers `AddHermes`, whether or not it runs jobs, keeps the key table current on
 a timer of its own (MSG-OPS-008).
 
-*Source: M-005, M-007, M-008, M-009, M-012, M-022, M-026, M-035, M-037*
+*Source: M-005, M-007, M-008, M-009, M-012, M-022, M-026, M-035, M-037, M-038*
 
 **Acceptance criteria**
 1. With `Hermes:Dispatch:Enabled` false, an application records sends, its hosted
@@ -304,7 +312,7 @@ attachment's scan has failed 5 times (`09` MSG-CONV-007, M-037).
 **MSG-OPS-007** — The deployment SHALL meet what the library cannot do alone, and the
 release notes SHALL state it.
 
-**Values (M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-035).**
+**Values (M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-035, M-038).**
 - **Sender rules.** For every sender: SPF or DKIM; forward and reverse DNS that agree
   for the sending server's IP address; TLS. For a bulk sender (about 5,000 or more
   messages a day to Gmail): SPF and DKIM; a DMARC record (its policy may be `none`); a
@@ -340,6 +348,8 @@ release notes SHALL state it.
 - **The in-app list.** `Hermes:InApp:AlwaysOn` is set alike in every application of the
   deployment (`02` MSG-INAPP-004), and the host's frontend shows an entry's `title` and
   `body` as text, never as markup (`05` MSG-API-008).
+- **Conversations.** The host's frontend shows a message's text, a file name and a
+  topic's name as text, never as markup (`05` MSG-API-009, MSG-API-010, M-038).
 - **Jobs.** Each job with a row in the job table (MSG-OPS-004) runs in at least one
   application, the `balance` job where SMS is used, since a job no application runs
   raises no `job-stalled`.
@@ -370,7 +380,7 @@ release notes SHALL state it.
   MSG-LIB-002; `09` MSG-CONV-003).
 
 *Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020, M-022, M-024,
-M-026, M-035*
+M-026, M-035, M-038*
 
 **Acceptance criteria**
 1. The release notes of each release (`RELEASE-NOTES.md`, `07` MSG-ENG-001) state every

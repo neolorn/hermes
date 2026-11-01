@@ -761,6 +761,22 @@ internal sealed partial class StaffChats(
         return failure is null ? Result.Success() : Result.Fail(failure);
     }
 
+    public async ValueTask<Result> EndScopeAsync(ConversationScope scope, CancellationToken cancellationToken)
+    {
+        ready.ThrowIfNotReady();
+        ArgumentNullException.ThrowIfNull(scope);
+        string kind = ConversationSpellings.Of(scope.Kind);
+        string reference = scope.Reference;
+
+        // Its participants, messages and mentions go with it; its attachments stay, without it, until the attachment-scans job deletes their bytes (09 MSG-CONV-010).
+        await LibraryTransactions.RunAsync(
+            database,
+            options.CurrentValue,
+            (context, token) => context.Conversations.Where(each => each.Type == Group && each.ScopeKind == kind && each.ScopeReference == reference).ExecuteDeleteAsync(token),
+            cancellationToken).ConfigureAwait(false);
+        return Result.Success();
+    }
+
     public async ValueTask<Result> LeaveAsync(string person, ConversationId conversation, CancellationToken cancellationToken)
     {
         Begin(person);

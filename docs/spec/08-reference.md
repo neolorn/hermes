@@ -267,6 +267,7 @@ length in characters is counted as `00` section 1.5 gives.
 | `Conversations:Limits:VisitorMessages` | `20` | Messages a visitor writes per minute, 1 to 10,000 (`09` MSG-CONV-011) |
 | `Conversations:Limits:SourceStarts` | `20` | Conversations started per hour from one source address, 1 to 10,000 (`09` MSG-CONV-011) |
 | `Conversations:Retention:Visitor` | `365.00:00:00` | How long a visitor's conversation is kept after it closes, and the visitor's cookie lives (`09` MSG-CONV-001, MSG-CONV-010); 1 day to 10 years |
+| `Conversations:Retention:Staff` | none: staff chats are kept | 30 days to 10 years: a staff chat's messages older than it are deleted, with their attachments (`09` MSG-CONV-010) |
 | `Conversations:Replies:<name>:Trigger` | none; required for each rule | `started`, `unavailable`, `waiting`, `outsidehours` or `closing`; `<name>` under `01` MSG-SEND-001's name rule (`09` MSG-CONV-003) |
 | `Conversations:Replies:<name>:Topics` | none: every topic | The topics the rule serves, each a configured topic (`09` MSG-CONV-003) |
 | `Conversations:Replies:<name>:After` | none; required for a `waiting` rule, and set on no other | 1 minute to 1 hour, how long a queued conversation waits before the rule fires (`09` MSG-CONV-003) |

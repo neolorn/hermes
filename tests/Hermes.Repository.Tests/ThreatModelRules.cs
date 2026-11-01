@@ -18,8 +18,8 @@ internal static partial class ThreatModelRules
     /// </summary>
     internal static IReadOnlySet<string> NotTheLibrarys { get; } = new HashSet<string>(StringComparer.Ordinal) { "MSG-OPS-007", "MSG-THR-002" };
 
-    /// <summary>The requirements named in the control column of MSG-THR-001's table, in order.</summary>
-    internal static IReadOnlyList<string> Controls(string threatModel)
+    /// <summary>The requirements named in the control column of MSG-THR-001's table, in order; only the rows whose threat names <paramref name="source"/> where given.</summary>
+    internal static IReadOnlyList<string> Controls(string threatModel, string? source = null)
     {
         SortedSet<string> controls = new(StringComparer.Ordinal);
         bool inSection = false;
@@ -37,7 +37,7 @@ internal static partial class ThreatModelRules
             }
 
             string[] cells = line.Split('|');
-            if (inSection && line.StartsWith("| ", StringComparison.Ordinal) && cells.Length >= 4)
+            if (inSection && line.StartsWith("| ", StringComparison.Ordinal) && cells.Length >= 4 && (source is null || cells[1].Contains("(" + source + ")", StringComparison.Ordinal)))
             {
                 foreach (Match requirement in RequirementPattern().Matches(cells[2]))
                 {

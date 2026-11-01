@@ -38,6 +38,9 @@ internal static partial class SupportConfiguration
 
     internal const string RetentionVisitor = "Conversations:Retention:Visitor";
 
+    /// <summary>How long a staff chat's messages are kept, none to keep them while the organization exists (<c>09</c> MSG-CONV-010).</summary>
+    internal const string RetentionStaff = "Conversations:Retention:Staff";
+
     internal const string Replies = "Conversations:Replies";
 
     internal const string Tags = "Conversations:Tags";
@@ -63,7 +66,7 @@ internal static partial class SupportConfiguration
     private static readonly string[] Days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
     /// <summary>The fixed keys of support.</summary>
-    internal static IReadOnlyList<string> Fixed { get; } = [Limit, OfflineReplyKind, TranscriptKind, NoticeVersion, VisitorStarts, VisitorMessages, SourceStarts, RetentionVisitor, CloseAfter, CloseWarning];
+    internal static IReadOnlyList<string> Fixed { get; } = [Limit, OfflineReplyKind, TranscriptKind, NoticeVersion, VisitorStarts, VisitorMessages, SourceStarts, RetentionVisitor, RetentionStaff, CloseAfter, CloseWarning];
 
     /// <summary>Whether <paramref name="key"/>, spelled as <c>08</c> section 4 spells keys, is one of a topic's keys.</summary>
     internal static bool IsTopicKey(string key)
@@ -169,6 +172,17 @@ internal static partial class SupportConfiguration
             return (null, RetentionVisitor);
         }
 
+        TimeSpan? staff = null;
+        if (hermes[RetentionStaff] is { } staffText)
+        {
+            if (!TimeSpan.TryParse(staffText, CultureInfo.InvariantCulture, out TimeSpan kept) || kept < TimeSpan.FromDays(30) || kept > MostRetention)
+            {
+                return (null, RetentionStaff);
+            }
+
+            staff = kept;
+        }
+
         return (new SupportSettings
         {
             Topics = topics,
@@ -180,6 +194,7 @@ internal static partial class SupportConfiguration
             VisitorMessages = visitorMessages,
             SourceStarts = sourceStarts,
             RetentionVisitor = retention,
+            RetentionStaff = staff,
             Rules = rules!,
             Tags = tags,
             CloseAfter = closeAfter,
@@ -421,6 +436,9 @@ internal sealed class SupportSettings
     internal int SourceStarts { get; init; } = 20;
 
     internal TimeSpan RetentionVisitor { get; init; } = TimeSpan.FromDays(365);
+
+    /// <summary>How long a staff chat's messages are kept, none while the organization exists (<c>09</c> MSG-CONV-010).</summary>
+    internal TimeSpan? RetentionStaff { get; init; }
 
     /// <summary>The automatic reply rules, in name order (<c>09</c> MSG-CONV-003).</summary>
     internal IReadOnlyList<ReplyRule> Rules { get; init; } = [];

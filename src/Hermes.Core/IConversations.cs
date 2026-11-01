@@ -326,4 +326,16 @@ public interface IConversations
     /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result<IReadOnlyList<ReportFigures>>> ReportAsync(string person, string topic, DateOnly from, DateOnly through, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes a scope's group conversation with every row of it, for the host to call when an
+    /// organization or group ends; it needs no person, being the host's own call. Its
+    /// attachments' bytes go at the <c>attachment-scans</c> job's next pass (<c>09</c> MSG-CONV-010).
+    /// </summary>
+    /// <param name="scope">The scope that ended.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>Success, a scope without a conversation included.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="scope"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    ValueTask<Result> EndScopeAsync(ConversationScope scope, CancellationToken cancellationToken);
 }

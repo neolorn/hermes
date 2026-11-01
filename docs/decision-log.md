@@ -2690,9 +2690,178 @@ This entry settles the map's C42 to C46.
 >   source's (each upload counts as one message toward them), a block refusing it as it
 >   refuses a message, and no upload before the current notice is acknowledged, each
 >   with the same code as the message write.
+> - An upload counts as one message toward the visitor's or customer's message limit
+>   only, as the message write does, and never toward the source's.
 >
 > Propagated to `05` MSG-API-010; `08` section 1; `09` MSG-CONV-007, MSG-CONV-010,
 > MSG-CONV-011.
+
+---
+
+## M-038 — Phase 20: retention, export and threats
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-CONV-010, MSG-LIB-002 (`SubjectExport`), MSG-SEND-020, MSG-THR-001
+
+**TL;DR.**
+- A visitor's conversation goes `Retention:Visitor` after it closes.
+- Staff chats are kept until `Retention:Staff` says otherwise, or until the host ends a
+  scope's conversation when its organization or group ends.
+- The engine's retention job deletes conversation rows, as the tables are the engine's.
+  The attachments job deletes their bytes.
+- A person's export gains their conversations.
+- `10` gains the conversations' threats, each with its control and its test.
+
+This entry settles the map's C5, C56 and L18.
+
+- **Retention (C56).**
+  - **Visitors.** A visitor's support conversation, with its messages, attachments, survey
+    and acknowledgement, goes `Hermes:Conversations:Retention:Visitor` after it closes
+    (default 365 days, M-034).
+  - **Staff chats.** `Retention:Staff` is unset by default, which keeps staff chats, as
+    `09` says ("while the organization exists"). Set from 30 days to 10 years, it deletes
+    staff-chat messages older than it, with their attachments.
+  - **Ending a scope.** `IConversations.EndScopeAsync(ConversationScope scope, ...)` deletes
+    a scope's group conversation with every row of it, for the host to call when an
+    organization or group ends. It needs no person: it is the host's own call.
+  - **Customers.** A customer's support conversations stay while the person does, and go
+    with the person's erasure (M-034).
+  - **The job.** The engine's retention job (`06` MSG-OPS-004) deletes the rows, at most
+    1,000 conversations per run. Each attachment row it deletes leaves its store key for
+    the `attachment-scans` job, which deletes the bytes and retries until it succeeds
+    (M-037).
+- **Export (C5, L18).**
+  - `SubjectExport` gains `Conversations`, an `IReadOnlyList<ConversationExport>?`,
+    nullable and not `required` (M-031). It is null where conversations are not
+    registered.
+  - Each `ConversationExport` holds:
+    - the conversation's id, type, topic and opened and closed instants;
+    - for a support conversation, every message but notes;
+    - for a staff chat, the person's own messages only;
+    - each message's instant, author kind and text;
+    - the attachments' names, media types and sizes, without their bytes;
+    - the person's survey answer.
+  - Others' references never appear: a staff author reads `staff`, as in the transcript.
+- **Threats (`10`).** Each row has its control and the test that proves it:
+  - **The hubs.** A connection without a person is refused, and every push re-checks the
+    reader.
+  - **`NOTIFY` payloads.** They carry identifiers only, no person and no text.
+  - **The visitor's cookie.** It is HttpOnly, Secure and SameSite Lax, and stored as a
+    keyed hash only.
+  - **Malware in attachments.** Nothing opens before a clean scan, downloads carry
+    `nosniff` and are attachments, and declared types are checked against content.
+  - **Abuse of the public side.** Limits per visitor and per source, and blocks.
+  - **Stored script in message text.** The library stores and answers plain text, never
+    renders HTML, and `10` names the host frontend's duty to encode it.
+  - **Staff seeing what they shouldn't.** Every read and write asks the membership seam,
+    and a non-member gets 404.
+  - **Notes reaching visitors.** No read or push of the public side carries a `note`.
+- **Phase 20's criteria.**
+  1. A visitor's conversation is gone `Retention:Visitor` after close, with every row and
+     its attachments' bytes.
+  2. With `Retention:Staff` unset, nothing of a staff chat goes. Set, older messages go.
+  3. `EndScopeAsync` removes the scope's conversation entirely.
+  4. A person's export holds their conversations as above, and nobody else's references.
+  5. Each threat row's control has a passing test carrying the row's identifier.
+  6. No log line holds message text or attachment bytes.
+
+**Propagated to:**
+- `01` MSG-SEND-020 (export);
+- `04` MSG-LIB-002 (`SubjectExport`, `ConversationExport`, `EndScopeAsync`);
+- `06` MSG-OPS-004;
+- `08` section 4 (`Retention:Staff`);
+- `09` MSG-CONV-010, with its criteria;
+- `10` section 1 and MSG-THR-001.
+
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - Criterion 4 is `01` MSG-SEND-020's, and criteria 5 and 6 are `10` MSG-THR-001's, so
+>   `09` MSG-CONV-010 keeps criteria 1 to 3.
+> - `ConversationExport` is `ConversationId Conversation`, `ConversationType Type`,
+>   `string? Topic`, `DateTimeOffset OpenedAt`, `DateTimeOffset? ClosedAt`,
+>   `IReadOnlyList<ConversationMessageExport> Messages` and `SurveyExport? Survey`.
+>   `ConversationMessageExport` is `DateTimeOffset SentAt`, `string Author`,
+>   `string? Text`, `bool Erased`, `bool Rejected` and
+>   `IReadOnlyList<AttachmentExport> Attachments`; `AttachmentExport` is `string Name`,
+>   `string MediaType` and `long Size`; `SurveyExport` is `bool Resolved`, `int Rating`
+>   and `string? Comment`.
+> - The export holds the person's support conversations as the customer, and their own
+>   messages in the staff chats where they wrote. `Author` is `person` for the person's
+>   own messages, `staff` for a staff member's and `library` for an `automatic` or
+>   `system` message.
+> - A message's text and a survey's comment answer as a delivery's values do: marked
+>   erased, or marked rejected and raising `content-rejected`, with no text; one that
+>   cannot open yet answers the export `messaging.key.unavailable`.
+> - `EndScopeAsync` answers `Result`, and no route maps it.
+> - A visitor's acknowledgement goes with their last conversation.
+> - A deleted attachment's store key waits in `attachment_deletions` (`key`, `attempts`,
+>   `next_at`) for `attachment-scans`.
+> - `06` MSG-OPS-007 names the host frontend's duty to show a message's text, a file name
+>   and a topic's name as text.
+> - A threat row's identifier is each requirement its control names, as the threat
+>   model's test reads it. A reply to a message retention deleted reads `replyTo` none,
+>   and a read position on one reads as the latest earlier message.
+>
+> Propagated to `01` MSG-SEND-020; `04` MSG-LIB-002; `06` MSG-OPS-002, MSG-OPS-004,
+> MSG-OPS-007; `08` section 8; `09` MSG-CONV-010; `10` MSG-THR-001;
+> `implementation-plan.md` (phase 20).
+
+> **Amended.** 2026-11-01, before phase 20's build:
+> - The `attachment_deletions` table is dropped: an attachment's row outlives its
+>   conversation and its message, its foreign keys set to null, until
+>   `attachment-scans` removes it (M-037).
+>
+> Propagated to `06` MSG-OPS-002, MSG-OPS-004; `08` section 8; `09` MSG-CONV-010;
+> `implementation-plan.md` (phase 20).
+
+---
+
+## M-039 — Phase 21: the contract and release candidate `1.0.0-rc.3`
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-OVR-003, MSG-LIB-006, MSG-ENG-001, MSG-ENG-006, MSG-OPS-007
+
+**TL;DR.** Phase 21 closes release 2:
+- the contract test finds exactly `05`'s routes and hubs;
+- the release gate reads the hubs;
+- the sample host maps every group from the packed packages;
+- the notes name every change since rc.2;
+- the release commit makes `1.0.0-rc.3`.
+
+The lead pushes the tag after the merge.
+
+- **The contract.** The endpoint contract test maps every group and hub, each under its
+  own prefix (M-034's answer), and finds exactly `05`'s routes, hub routes, hub methods
+  and payload shapes: nothing more and nothing less.
+- **The release gate.** `gate-release-compatibility.ps1` and `release-baseline.json` gain
+  the hubs (routes, methods, payload shapes). It judges against the newest final
+  release. There is none yet, so nothing binds (M-027), and the baseline records rc.3's
+  set.
+- **The sample host.** It builds from the packed packages and maps every group: the engine's
+  routes, in-app, the staff conversations and their hub, and the public side and its
+  hub, with attachments on and in-memory store and scanner fakes from `Hermes.Testing`.
+  Its tests cover a staff chat and a support conversation end to end.
+- **`00` MSG-OVR-003.** It says `1.0.0-rc.3` holds conversations (`09`), as M-026 did for
+  the in-app list.
+- **Release notes (MSG-OPS-007).** `RELEASE-NOTES.md` section `1.0.0-rc.3` names:
+  - every change since rc.2: all additive, with `TemplateKey`'s reply warning (M-035);
+  - the new package `Hermes.Conversations`;
+  - the seams a host must supply where it registers conversations;
+  - the migrations, none of which drops or rewrites data;
+  - the keys and the jobs.
+- **The release commit.** As phase 12's was: PublicAPI moved to Shipped for every package,
+  `CHANGELOG.md` section `1.0.0-rc.3`, and the baseline. Then the PR, the merge, and the
+  tag `v1.0.0-rc.3`, which the lead pushes.
+- **Phase 21's criteria.**
+  1. The contract test finds exactly `05`'s routes and hubs.
+  2. The release gate reads hubs and passes.
+  3. The sample host builds from the packed packages, maps every group, and its tests
+     pass.
+  4. The notes name every change, and every gate passes on the release commit.
+
+**Propagated to:**
+- `00` MSG-OVR-003;
+- `04` MSG-LIB-006;
+- `06` MSG-OPS-007;
+- `07` MSG-ENG-001, MSG-ENG-006;
+- `implementation-plan.md` (row 21).
 
 ---
 
@@ -2737,3 +2906,5 @@ This entry settles the map's C42 to C46.
 | Phase 17: automatic replies and desk tools | M-035 |
 | Phase 18: the end of support | M-036 |
 | Phase 19: attachments | M-037 |
+| Phase 20: retention, export and threats | M-038 |
+| Phase 21: the contract and release candidate 1.0.0-rc.3 | M-039 |

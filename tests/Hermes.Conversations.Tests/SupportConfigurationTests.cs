@@ -24,7 +24,7 @@ public sealed class SupportConfigurationTests
 
         Assert.Null(invalid);
         Assert.Empty(settings!.Topics);
-        Assert.Equal((3, 5, 20, 20, TimeSpan.FromDays(365)), (settings.Limit, settings.VisitorStarts, settings.VisitorMessages, settings.SourceStarts, settings.RetentionVisitor));
+        Assert.Equal((3, 5, 20, 20, TimeSpan.FromDays(365), (TimeSpan?)null), (settings.Limit, settings.VisitorStarts, settings.VisitorMessages, settings.SourceStarts, settings.RetentionVisitor, settings.RetentionStaff));
     }
 
     [Fact]
@@ -74,6 +74,9 @@ public sealed class SupportConfigurationTests
     [InlineData("Hermes:Conversations:Limits:VisitorMessages", "10001", "Conversations:Limits:VisitorMessages")]
     [InlineData("Hermes:Conversations:Limits:SourceStarts", "many", "Conversations:Limits:SourceStarts")]
     [InlineData("Hermes:Conversations:Retention:Visitor", "12:00:00", "Conversations:Retention:Visitor")]
+    [InlineData("Hermes:Conversations:Retention:Staff", "29.00:00:00", "Conversations:Retention:Staff")]
+    [InlineData("Hermes:Conversations:Retention:Staff", "3651.00:00:00", "Conversations:Retention:Staff")]
+    [InlineData("Hermes:Conversations:Retention:Staff", "forever", "Conversations:Retention:Staff")]
     public void Read_AValueOutsideItsRule_IsItsKey(string key, string value, string expected)
     {
         Dictionary<string, string?> settings = Topic();

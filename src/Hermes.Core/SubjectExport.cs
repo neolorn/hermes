@@ -19,4 +19,7 @@ public sealed record SubjectExport
 
     /// <summary>The person's live idempotency rows.</summary>
     public required IReadOnlyList<IdempotencyKeyExport> IdempotencyKeys { get; init; }
+
+    /// <summary>The person's conversations (<c>09</c> MSG-CONV-010), none where conversations are not registered.</summary>
+    public IReadOnlyList<ConversationExport>? Conversations { get; init; }
 }
