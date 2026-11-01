@@ -25,10 +25,28 @@ internal sealed partial class KeyTableTimer(KeyTable table, TimerChecks checks, 
         return base.StartAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Stops the loop and waits for a tick in flight to end, whatever the host's token says, so
+    /// that no tick runs on while the host disposes the data source; the tick honours its
+    /// stopping token, so the wait is short. Then writes once more, unless the host's time to
+    /// stop is already over.
+    /// </summary>
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        await base.StopAsync(cancellationToken).ConfigureAwait(false);
-        await WriteAsync(cancellationToken).ConfigureAwait(false);
+        await base.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        try
+        {
+            await WriteAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The host's time to stop ran out during the write; the next process's timer writes.
+        }
     }
 
     public override void Dispose()

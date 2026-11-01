@@ -148,6 +148,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A process that stops past its host's shutdown time no longer leaves the key-table timer's
+  tick running while the host disposes the database's data source, and its stop no
+  longer fails with `OperationCanceledException`
 - The development inbox's tests no longer fail by chance: no value their log check refuses
   can appear in the inbox folder's random name
 - `GET /conversations` of the staff conversations group declares its 503, which it answers
