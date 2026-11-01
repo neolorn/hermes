@@ -133,7 +133,8 @@ available staff member with room for it, within the hours the deployment sets.
   (`Scope:Reference`) for the membership seam (MSG-CONV-006), both required.
 
 The staff of a topic are its scope's members. A topic's display name is the host
-frontend's.
+frontend's. A topic is open within its hours while a member is available, as the
+public topics route answers it (`05` MSG-API-010).
 
 **Who answers (M-034).**
 - **Available.** A staff member is available while they hold a staff-hub connection
@@ -142,10 +143,20 @@ frontend's.
 - **Being set available.** Through the staff group's availability route (`05`
   MSG-API-009), stored in the `support_agents` table. It holds a person reference, so
   the rule that the engine knows each table applies (`06` MSG-OPS-002).
-- **Assignment.** It is automatic. When a conversation is queued, or a member frees up,
-  the oldest queued conversation of each topic goes to the available member with the
-  fewest open conversations. Ties go to the one longest since their last assignment.
+- **Assignment.** It is automatic, and runs only within a topic's hours: when a
+  conversation is queued, when a member frees up, sets themselves available or connects,
+  and every 30 seconds, the oldest queued conversation of each topic goes to the
+  available member with the fewest open conversations. Ties go to the one longest since
+  their last assignment.
+- **The person's list.** A staff member's list of conversations (`05` MSG-API-009)
+  holds the open support conversations assigned to them, and the staff hub's
+  `conversation` push tells them of one assigned (MSG-CONV-008).
 - **The queue.** It is first in, first out per topic.
+- **One open conversation per topic.** A visitor or a customer holds one open
+  conversation per topic: a second start on the same topic answers 409
+  `messaging.support.alreadyopen`, with `details.conversation` the open one's
+  identifier. The current conversation route answers the newest open one (`05`
+  MSG-API-010).
 - **The visitor's place.** It is in the conversation's read, and pushed over the public
   hub as `place` (`05` MSG-API-010).
 
@@ -158,6 +169,8 @@ visitor uses the offline form instead.
   `Hermes:Conversations:Support:OfflineReplyKind`, to `Recipient.Anonymous` with that
   address. The key is required where topics are configured, and is read at start, where
   a kind not declared stops the start naming it, as `AwayKind` does (MSG-CONV-008).
+  The kind's values are `conversation` and `message`, the conversation's and the
+  reply's identifiers as text, `topic`, the topic's name, and `text`, the reply itself.
 - The address is a protected value of the conversation, its context
   `conversations:<id>:email` (`01` MSG-SEND-018).
 
@@ -165,6 +178,16 @@ visitor uses the offline form instead.
 topic's scope, assigned at once, or to another topic's queue. The receiver does not
 accept. A transfer to a person outside the topic's scope, or to a topic not configured,
 answers 400 `messaging.conversation.invalid`, `details.field` `person` or `topic`.
+
+**Staff access (M-034).**
+- A member of the topic's scope reads a support conversation of the topic, transfers,
+  closes and blocks it, and reads the topic's queue.
+- Anyone else is answered 404 `messaging.conversation.notfound`, or an empty list for
+  the queue.
+- A member who is not the assignee writing is answered 404
+  `messaging.conversation.notfound`.
+- Staff-side pushes of a support conversation go to its assignee alone (MSG-CONV-008).
+  Plan phase 18 adds the topic's supervisors (MSG-CONV-005).
 
 *Source: M-011, M-034*
 
@@ -465,15 +488,17 @@ reads from its last message.
 **Fan-out (M-033).**
 - After a write commits, it sends `NOTIFY messaging_conversations` with
   `<event>:<conversationId>:<id>` (`08` section 8). The event is `message`, `changed`,
-  `read`, `typing` or `presence`. The id is a message's or a participant's, never a
-  person reference.
+  `read`, `typing` or `presence`, the id a message's or a participant's, or, for
+  support (M-034), `place`, `assigned`, `closed` or `conversation`, the id the
+  conversation's own. It is never a person reference.
 - Each process listens on a connection of `Hermes.Conversations`' own, opened from
   `listenConnection` where it is set and from the library's connection otherwise (`06`
   MSG-OPS-003). Dispatch and conversations never wait on each other.
 - Each process pushes to its own connections whose person may read the conversation now:
   for a direct conversation, its participants who have not left; for a group
   conversation, the scope's members from one `MembersAsync` call per event, intersected
-  with the persons connected to that process (MSG-CONV-006).
+  with the persons connected to that process (MSG-CONV-006); for a support conversation,
+  on the staff side, its assignee alone (MSG-CONV-002, M-034).
 
 **Away notices (M-033).**
 - **Who.** A participant of a direct conversation, or a person mentioned in a group
@@ -493,7 +518,7 @@ reads from its last message.
   it.
 - The kind's own channels, preferences and quiet hours apply, as for any send.
 
-*Source: M-011, M-033*
+*Source: M-011, M-033, M-034*
 
 **Acceptance criteria**
 1. A message written through process A reaches a client connected to process B, after
@@ -534,8 +559,9 @@ untouched.
 **Support (M-034).**
 - A signed-in customer's conversation (MSG-CONV-001) is protected under their key,
   through the protector a person's values are written with (`04` MSG-LIB-005).
-- A visitor's conversation is protected through the library protector, with the visitor
-  reference as its person, as `01` MSG-SEND-018 protects anonymous values.
+- A visitor's values are protected as an anonymous recipient's are (`01` MSG-SEND-018):
+  through the library's protector, with no person, bound to their row. A visitor's
+  conversations go by retention (MSG-CONV-010), never by erasure.
 - Staff replies are under the same key.
 
 *Source: M-011, M-032, M-034*
@@ -591,7 +617,10 @@ and staff SHALL be able to block a visitor.
   - per visitor, conversations started per day (`VisitorStarts`, default 5) and messages
     per minute (`VisitorMessages`, default 20);
   - per source address, conversations started per hour (`SourceStarts`, default 20).
+- A signed-in customer is limited as a visitor is, counted by their person's keyed hash.
 - Over a limit answers 429 `messaging.support.limited` with `Retry-After`.
+- Acknowledging the notice (`05` MSG-API-010) answers 429 where the visitor or the
+  source address is already at its starts limit, and counts nothing.
 - **The source address.** It is the request's remote address, as the host's
   forwarded-headers set-up gives it. IPv6 is grouped by its /64. The address is stored
   as a keyed hash under the domain `source` (`08` section 8).
