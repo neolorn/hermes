@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="Hermes" />
+    <PackageReference Include="Hermes.Conversations" />
     <PackageReference Include="Hermes.Development" />
     <PackageReference Include="Hermes.Testing" />
   </ItemGroup>

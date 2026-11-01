@@ -1558,6 +1558,121 @@ lose its key for good over a moment's outage).
 
 ---
 
+## M-031 — Release 2: its phases, and where conversations live
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-LIB-001, MSG-LIB-002, MSG-LIB-005, MSG-LIB-006, MSG-OPS-002, MSG-ENG-001, MSG-ENG-006, MSG-ENG-009
+
+**TL;DR.** Release 2 builds `09` in nine phases, 13 to 21, in the order the implementer's
+map proposed (2026-11-01). It ships as `1.0.0-rc.3` (M-027). Conversations' tables live in
+the engine's one context and one migration chain, so erasure, export, key retirement and
+the schema check reach them directly. The package holds the behaviour, the endpoints and
+the hubs. Every addition to rc.2's surface is additive. This entry settles phase 13 and the
+rules every later phase follows; each later phase gets its own entry before it starts.
+
+- **The phases.**
+  - 13: foundations.
+  - 14: the model and staff chats.
+  - 15: the live connection.
+  - 16: support's public side.
+  - 17: automatic replies and desk tools.
+  - 18: the end of support.
+  - 19: attachments.
+  - 20: retention, export and threats.
+  - 21: contract and release candidate.
+
+  Each is its own branch and pull request, cut from `main` after the previous one merges.
+- **The tables (C1, C2).** Every conversation table and its configuration live in the
+  engine's `MessagingContext` and in its one migration chain in `Hermes/Migrations`,
+  under the schema `messaging` and `messaging.__migrations_history` (MSG-OPS-002). They are
+  created in every deployment, and stay empty where conversations are not registered.
+  `hermes migrate` applies them as it applies every other.
+- **The entities.** Conversation entities live in a new engine folder, `Conversations`. They
+  are internal, and the engine grants `Hermes.Conversations` its internals (MSG-ENG-001).
+- **The engine knows each table (C4).** A phase that adds a table holding a protected
+  value, a keyed hash or a person reference adds it in that same phase to:
+  - key retirement's in-use checks (`NoContentRow`, `NoHash`) and its re-protection;
+  - erasure (`Subjects`), and the person locks where the table is written for a person;
+  - from phase 20, export.
+
+  The phase's tests prove each of these for that table: a key version a conversation row
+  uses is never retired, and an erased person's rows no longer open. No phase adds a
+  table without them.
+- **The package (C63).** `Hermes.Conversations` may reference `Hermes`, `Hermes.Core` and the
+  ASP.NET Core shared framework (MSG-LIB-001). Its folders are:
+  - `Chats` (`09` section 3);
+  - `Support` (section 2);
+  - `Attachments` (section 4);
+  - `Live` (section 5);
+  - `Endpoints`.
+
+  It grants its internals to its test project, `tests/Hermes.Conversations.Tests`, and to
+  `Hermes.Testing`.
+
+  `Microsoft.AspNetCore.SignalR.Client` joins MSG-ENG-009, at the shared framework's version,
+  for test projects only. The SignalR server comes with the shared framework.
+- **Registration.** `AddHermesConversations(this IServiceCollection services)` is called
+  after `AddHermes`, and start fails without `AddHermes`. Its keys sit under
+  `Hermes:Conversations:` and are checked raw at start only where it is registered
+  (MSG-OPS-001). A key it does not know fails the start, as elsewhere.
+- **Seams (C3).** Each seam conversations need is a new interface in `Hermes.Core`, as every
+  seam is (MSG-LIB-005). None is a new member of an existing interface. It is required at
+  start only where conversations are registered, and where it is missing the start fails
+  with its `declarationmissing` key.
+- **Export (C5).** `SubjectExport` gains an optional member, `Conversations`, nullable and
+  not `required`, filled in phase 20. No public record ever gains a `required` member: an
+  addition is nullable or optional, as `DeliveryNotice.IdempotencyKey` was.
+- **Hubs are surface (C47).** Each hub's route, method names and payload shapes are public
+  surface. They are listed in `05` beside the routes, recorded in the release baseline,
+  and found by the endpoint contract test (MSG-ENG-006) in the phase that adds them.
+  Phase 21 makes the release gate read them.
+- **`TemplateKey` (L19).** Phase 17's entry adds its member with the rule's new text. Until
+  then nothing changes it.
+- **MSG-CONV-012 (C64).** It is checked in review: the origin and the message types are open
+  enumerations, so a value added later is additive. It gets no acceptance criteria.
+- **Phase 13's criteria.**
+  1. `AddHermesConversations` starts with one call after `AddHermes`, and without
+     `AddHermes` the start fails naming it.
+  2. A key under `Hermes:Conversations:` that the package does not know fails the start.
+  3. The package's references and grants are exactly the above, and the repository tests
+     prove them.
+  4. The sample host references the package and starts.
+  5. The standing rule's hooks exist, so phase 14's first table only adds itself to them.
+     Prove it with a table defined in the tests only, which also proves that no key
+     version it uses is retired.
+
+*Rejected:*
+- **A second context and migration chain in the package, sharing the history table:** the
+  engine would have to know another assembly's migrations to tell a newer release (L5),
+  and two chains have no order between them.
+- **A history table of its own:** MSG-OPS-002 fixes one.
+- **Seams in the package:** every other seam lives in `Hermes.Core`, and a host
+  implementing one should not need the package's ASP.NET Core references.
+- **A version other than `1.0.0-rc.3`:** M-027 holds until the owner calls a release final.
+
+**Propagated to:**
+- `00` section 2.2;
+- `04` MSG-LIB-001, MSG-LIB-002 (`SubjectExport`, the rule on additions), MSG-LIB-005,
+  MSG-LIB-006;
+- `05` (hubs as surface);
+- `06` MSG-OPS-001, MSG-OPS-002;
+- `07` MSG-ENG-001, MSG-ENG-006, MSG-ENG-009;
+- `09` preamble (the criteria come with each phase);
+- `implementation-plan.md` (release 2's phases).
+
+> **Amended.** 2026-11-01, on the review of its propagation: called without `AddHermes`,
+> `AddHermesConversations` itself throws `InvalidOperationException` naming it, a fault
+> of the calling code (MSG-ENG-003), at the call and not at start; a key under
+> `Hermes:Conversations:` that the package does not know fails the start with
+> `messaging.startup.configurationinvalid`, `details.key` the key, a rule for that
+> section alone, so "as elsewhere" above was wrong, since no other key the library does
+> not know fails a start; `Hermes.Testing` may reference `Hermes.Conversations`, so its
+> grant has a use; `tests/Hermes.Tests` references it, for the endpoint contract test;
+> and `conversations` joins the commit scopes of MSG-ENG-011. Propagated to `04`
+> MSG-LIB-001, MSG-LIB-003; `06` MSG-OPS-001; `07` MSG-ENG-011; `08` sections 1 and 4;
+> `implementation-plan.md` (phase 13).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1592,3 +1707,4 @@ lose its key for good over a moment's outage).
 | A delivery notice carries its send's idempotency key | M-028 |
 | Phase 12's questions: the notice's key, kept as content | M-029 |
 | Phase 12's second questions: the key, one of a delivery's values | M-030 |
+| Release 2: its phases, and where conversations live | M-031 |

@@ -22,6 +22,8 @@ internal static class Packages
 
     internal const string Development = "Hermes.Development";
 
+    internal const string Conversations = "Hermes.Conversations";
+
     /// <summary>The packages' authors, the name the owner's first message of phase 0 gives (<c>07</c> MSG-ENG-011).</summary>
     internal const string Authors = "neolorn";
 
@@ -31,13 +33,14 @@ internal static class Packages
     /// <summary>The test project over the whole repository, the one with no source project.</summary>
     internal const string RepositoryTests = "Hermes.Repository.Tests";
 
-    internal static IReadOnlyList<string> All { get; } = [Core, Channels, Engine, Testing, Cli, Development];
+    internal static IReadOnlyList<string> All { get; } = [Core, Channels, Engine, Testing, Cli, Development, Conversations];
 
     /// <summary>The folders a project may hold, by project (<c>07</c> MSG-ENG-001); every other project is flat.</summary>
     internal static FrozenDictionary<string, IReadOnlyList<string>> Folders { get; } = new Dictionary<string, IReadOnlyList<string>>
     {
-        [Engine] = ["Sending", "Content", "Endpoints", "Operations", "Migrations"],
+        [Engine] = ["Sending", "Content", "Endpoints", "Operations", "Migrations", "Conversations"],
         [Channels] = ["Email", "Sms", "Push"],
+        [Conversations] = ["Chats", "Support", "Attachments", "Live", "Endpoints"],
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     internal static string TestProject(string package)

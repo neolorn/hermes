@@ -1,11 +1,17 @@
 # 09 — Conversations (designed now, built later)
 
-**Not in the first release.** This chapter fixes the model of conversations now, so that
-the first release's sending carries what they will need and the later build adds the
-`Hermes.Conversations` package without a breaking change. Its requirements state design
-constraints and carry no acceptance criteria until the release that builds them writes
-them; its configuration keys, under `Hermes:Conversations:`, join `08` section 4 in that
-release.
+**Release 2.** This chapter fixes the model of conversations, so that the first
+release's sending carries what they will need and release 2 adds the
+`Hermes.Conversations` package without a breaking change. Release 2 builds the chapter
+in plan phases 13 to 21 and is released as `1.0.0-rc.3`, every change it makes to the
+surface of `1.0.0-rc.2` being an addition (`04` MSG-LIB-006, M-031). Each requirement's
+acceptance criteria come with the phase that builds it, from that phase's decision-log
+entry, and are written here then; until then the requirement states design constraints
+and carries none. MSG-CONV-012 carries none in any phase: it is checked in review, since
+the origin and the message types are open enumerations, so a value added later is
+additive. The configuration keys, under `Hermes:Conversations:`, join `08` section 4 in
+the phase that adds them, and are checked only where conversations are registered (`06`
+MSG-OPS-001); the tables are the engine's (`06` MSG-OPS-002).
 
 ---
 

@@ -36,7 +36,7 @@ internal static class ReferenceRules
     ];
 
     /// <summary>The test packages of <c>07</c> MSG-ENG-009.</summary>
-    internal static IReadOnlyList<string> TestPackages { get; } = ["xunit.v3", "Testcontainers.PostgreSql", "Microsoft.AspNetCore.Mvc.Testing"];
+    internal static IReadOnlyList<string> TestPackages { get; } = ["xunit.v3", "Testcontainers.PostgreSql", "Microsoft.AspNetCore.Mvc.Testing", "Microsoft.AspNetCore.SignalR.Client"];
 
     /// <summary>The library's own projects each package's project may reference.</summary>
     private static readonly FrozenDictionary<string, IReadOnlyList<string>> AllowedProjects = new Dictionary<string, IReadOnlyList<string>>
@@ -44,9 +44,10 @@ internal static class ReferenceRules
         [Packages.Core] = [],
         [Packages.Channels] = [Packages.Core],
         [Packages.Engine] = [Packages.Core, Packages.Channels],
-        [Packages.Testing] = [Packages.Core, Packages.Channels, Packages.Engine],
+        [Packages.Testing] = [Packages.Core, Packages.Channels, Packages.Engine, Packages.Conversations],
         [Packages.Cli] = [Packages.Engine],
         [Packages.Development] = [Packages.Core, Packages.Channels],
+        [Packages.Conversations] = [Packages.Core, Packages.Engine],
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>The packages each package's project may reference at run time.</summary>
@@ -58,6 +59,7 @@ internal static class ReferenceRules
         [Packages.Testing] = [],
         [Packages.Cli] = [],
         [Packages.Development] = [],
+        [Packages.Conversations] = [],
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>Answers each reference of a project of the repository at <paramref name="root"/> that MSG-LIB-001 does not allow.</summary>
@@ -261,7 +263,8 @@ internal static class ReferenceRules
         string[] allowed = name switch
         {
             Packages.Channels => [Packages.Engine, Packages.Testing, Packages.Development],
-            Packages.Engine => [Packages.Cli, Packages.Testing],
+            Packages.Engine => [Packages.Cli, Packages.Testing, Packages.Conversations],
+            Packages.Conversations => [Packages.Testing],
             _ => [],
         };
         return allowed.Contains(grantee, StringComparer.Ordinal);
@@ -275,10 +278,11 @@ internal static class ReferenceRules
             return Packages.All;
         }
 
-        // The engine's tests map the inbox's group and read its part of the release set (M-025).
+        // The engine's tests map the inbox's group and read its part of the release set (M-025),
+        // and reach the conversations package for its endpoint contract test.
         if (string.Equals(testProject, Packages.TestProject(Packages.Engine), StringComparison.Ordinal))
         {
-            return [Packages.Engine, Packages.Testing, Packages.Development];
+            return [Packages.Engine, Packages.Testing, Packages.Development, Packages.Conversations];
         }
 
         string source = testProject.EndsWith(".Tests", StringComparison.Ordinal) ? testProject[..^".Tests".Length] : testProject;
@@ -338,7 +342,7 @@ internal static class ReferenceRules
         }
 
         bool test = project.RelativePath.StartsWith("tests/", StringComparison.Ordinal) || (IsSample(project) && project.Name.EndsWith(".Tests", StringComparison.Ordinal));
-        bool allowed = project.Name is Packages.Engine or Packages.Development || needs
+        bool allowed = project.Name is Packages.Engine or Packages.Development or Packages.Conversations || needs
             || (test && project.PackageReferences.Any(reference => string.Equals(ProjectFile.Include(reference), "Microsoft.AspNetCore.Mvc.Testing", StringComparison.Ordinal)));
         if (references && !allowed)
         {

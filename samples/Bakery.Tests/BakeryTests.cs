@@ -153,6 +153,19 @@ public sealed class BakeryTests(PostgresFixture postgres) : IClassFixture<Postgr
         Assert.Equal(HttpStatusCode.NotFound, report.StatusCode);
     }
 
+    [Fact]
+    public async Task Start_AKeyUnderConversationsTheyDoNotKnow_StopsTheStartSinceTheBakeryRegistersThem()
+    {
+        string connection = await postgres.NewDatabaseAsync();
+        await MessagingTestDatabase.MigrateAsync(connection, TestContext.Current.CancellationToken);
+        await using BakeryFactory bakery = new(connection, new Dictionary<string, string> { ["Hermes:Conversations:Unknown"] = "on" });
+
+        MessagingStartupException failure = Assert.Throws<MessagingStartupException>(() => bakery.Server);
+
+        Assert.Equal("messaging.startup.configurationinvalid", failure.Code);
+        Assert.Equal("Conversations:Unknown", failure.Details["key"]);
+    }
+
     /// <summary>Subscribes as a browser does: with the key <c>GET /notifications/push/key</c> answers, and keys of its own.</summary>
     private static async Task<HttpResponseMessage> SubscribeAsync(HttpClient client, string endpoint)
     {

@@ -36,6 +36,57 @@ public sealed class ProjectReferenceTests
             ReferenceRules.ReferenceViolations(fixture.Root));
     }
 
+    [Theory]
+    [InlineData(Packages.Channels)]
+    [InlineData(Packages.Development)]
+    [InlineData(Packages.Testing)]
+    public void MSG_LIB_001_AC1_ConversationsReferencingAProjectOutsideItsRowIsFound(string project)
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSource(Packages.Conversations, [Packages.Core, Packages.Engine, project]);
+
+        Assert.Contains(
+            $"src/Hermes.Conversations/Hermes.Conversations.csproj references the project {project}, which MSG-LIB-001 does not allow it.",
+            ReferenceRules.ReferenceViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_LIB_001_AC1_ConversationsReferencingTheCoreAndTheEngineIsAccepted()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSource(Packages.Conversations, [Packages.Core, Packages.Engine]);
+
+        Assert.DoesNotContain(ReferenceRules.ReferenceViolations(fixture.Root), violation => violation.Contains("Hermes.Conversations.csproj references the project", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MSG_LIB_001_AC1_TheTestingPackageReferencingConversationsIsAccepted()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSource(Packages.Testing, [Packages.Core, Packages.Channels, Packages.Engine, Packages.Conversations]);
+
+        Assert.DoesNotContain(ReferenceRules.ReferenceViolations(fixture.Root), violation => violation.Contains("Hermes.Testing.csproj references the project", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MSG_LIB_001_AC1_TheEngineTestsReferencingConversationsAreAccepted()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteProject("tests/Hermes.Tests/Hermes.Tests.csproj", """
+              <ItemGroup>
+                <FrameworkReference Include="Microsoft.AspNetCore.App" />
+                <PackageReference Include="xunit.v3" />
+              </ItemGroup>
+              <ItemGroup>
+                <ProjectReference Include="..\..\src\Hermes\Hermes.csproj" />
+                <ProjectReference Include="..\..\src\Hermes.Testing\Hermes.Testing.csproj" />
+                <ProjectReference Include="..\..\src\Hermes.Conversations\Hermes.Conversations.csproj" />
+              </ItemGroup>
+            """);
+
+        Assert.DoesNotContain(ReferenceRules.ReferenceViolations(fixture.Root), violation => violation.StartsWith("tests/Hermes.Tests/", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void MSG_LIB_001_AC1_TheEngineTestsReferencingTheDevelopmentPackageAreAccepted()
     {
@@ -313,6 +364,10 @@ public sealed class ProjectReferenceTests
     [InlineData(Packages.Channels, "Hermes.Extra")]
     [InlineData(Packages.Channels, Packages.Cli)]
     [InlineData(Packages.Engine, Packages.Development)]
+    [InlineData(Packages.Conversations, Packages.Engine)]
+    [InlineData(Packages.Conversations, Packages.Development)]
+    [InlineData(Packages.Development, Packages.Conversations)]
+    [InlineData(Packages.Channels, Packages.Conversations)]
     public void MSG_ENG_001_AC1_GrantOutsideTheRuleIsFound(string grantor, string grantee)
     {
         string[] violations = [.. ReferenceRules.GrantViolations($"src/{grantor}/{grantor}.csproj", grantor, [grantee])];
@@ -333,6 +388,9 @@ public sealed class ProjectReferenceTests
     [InlineData(Packages.Channels, Packages.Engine)]
     [InlineData(Packages.Channels, Packages.Testing)]
     [InlineData(Packages.Channels, Packages.Development)]
+    [InlineData(Packages.Engine, Packages.Conversations)]
+    [InlineData(Packages.Conversations, "Hermes.Conversations.Tests")]
+    [InlineData(Packages.Conversations, Packages.Testing)]
     public void MSG_ENG_001_AC1_GrantWithinTheRuleIsAccepted(string grantor, string grantee)
     {
         Assert.Empty(ReferenceRules.GrantViolations($"src/{grantor}/{grantor}.csproj", grantor, [grantee]));

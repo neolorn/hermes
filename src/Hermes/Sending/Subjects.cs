@@ -32,8 +32,12 @@ internal sealed class Subjects(
     MessagingDatabase database,
     Alerts alerts,
     Notices notices,
-    TimeProvider clock) : ISubjects
+    TimeProvider clock,
+    IEnumerable<KeyedTable> tables) : ISubjects
 {
+    /// <summary>The other tables holding a person reference, each erased as it says (M-031).</summary>
+    private readonly IReadOnlyList<KeyedTable> others = [.. tables];
+
     private const int MostReferenceCharacters = 128;
 
     private const string Destination = "destination";
@@ -117,6 +121,11 @@ internal sealed class Subjects(
                 await RunAsync(context, DeletePlaces, new NpgsqlParameter("hashes", keyed), token).ConfigureAwait(false);
                 await RunAsync(context, Unlink, new NpgsqlParameter("person", person), token).ConfigureAwait(false);
                 await RunAsync(context, Clear, new NpgsqlParameter("person", person), token).ConfigureAwait(false);
+                foreach (string erase in others.Select(table => table.Erase()).OfType<string>())
+                {
+                    await RunAsync(context, erase, new NpgsqlParameter("person", person), token).ConfigureAwait(false);
+                }
+
                 return new Erasure(Result.Success(), cancelled, null);
             },
             cancellationToken).ConfigureAwait(false);
