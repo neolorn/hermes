@@ -85,6 +85,23 @@ public sealed class CommitMessageGateTests
     }
 
     [Theory]
+    [InlineData("feat(conversations): register conversations after the engine")]
+    [InlineData("test(conversations): check the keys under the package's section")]
+    public async Task MSG_ENG_011_AC1_CommitScopedConversationsPasses(string message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+        using ScratchFolder folder = new();
+        (GitRepository repository, string start) = await CreateAsync(folder, cancellationToken);
+        repository.Write("CHANGELOG.md", Changelog + "- Conversations are registered after the engine.\n");
+        await repository.CommitAsync(message, cancellationToken);
+
+        ProcessResult gate = await RunAsync(repository, start, cancellationToken);
+
+        Assert.True(gate.ExitCode == 0, gate.Output);
+    }
+
+    [Theory]
     [InlineData("add the shared build settings", Header)]
     [InlineData("feature: add the shared build settings", Header)]
     [InlineData("build(api): add the shared build settings", Header)]
