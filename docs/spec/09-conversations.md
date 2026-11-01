@@ -50,6 +50,14 @@ A person reference is held as the in-app list holds an entry's (`02` MSG-INAPP-0
 Each protected value's context follows `08` section 8's form, a message's text being
 `messages:<id>:text` (MSG-CONV-009).
 
+**Support's tables (M-034).**
+- `conversations` gains support's columns: `topic`, `assignee`, `queued_at`,
+  `assigned_at`, `offline`, `closed_at` and `closed_by`.
+- `participants` holds either `person` or `visitor` (the visitor's keyed hash), exactly
+  one of them.
+- `support_agents` (MSG-CONV-002), `support_blocks` and `support_counters`
+  (MSG-CONV-011) and `support_acknowledgements` (MSG-CONV-010) are support's own.
+
 **Statuses and types (M-032).** A conversation's status is one of the fixed set of `08`
 section 3. A queued support conversation is `open` with no assignee, and `group` and
 `direct` conversations are always `open` in release 2; the statuses of desk work
@@ -71,9 +79,10 @@ same conversation, deleted or not; any other answers 400.
 **The visitor (M-034).**
 - **The reference.** The public side draws `visitor:` followed by 128 random bits in
   base64url on the first call that needs one.
-- **The cookie.** The reference is kept in the cookie `hermes_visitor`: HttpOnly, Secure,
-  SameSite Lax, its path the public prefix, renewed on use, and living as long as
-  `Hermes:Conversations:Retention:Visitor` (MSG-CONV-010).
+- **The cookie.** The reference is kept in the cookie `messaging_visitor` (a neutral
+  name, `08` section 8): HttpOnly, Secure, SameSite Lax, its path the public prefix,
+  renewed on use, and living as long as `Hermes:Conversations:Retention:Visitor`
+  (MSG-CONV-010).
 - **Storage.** The reference is a bearer credential, so the database holds only its keyed
   hash, under the domain `visitor` (`08` section 8).
 - **The public hub.** It is authenticated by the same cookie (MSG-CONV-008).
@@ -115,11 +124,13 @@ available staff member with room for it, within the hours the deployment sets.
   an email address, and becomes a conversation answered by email through sending.
 
 **Topics (M-034).** Each topic is configuration, `Hermes:Conversations:Topics:<name>`
-(`08` section 4), with:
-- `TimeZone`, an IANA time zone;
-- `Hours`, from `Monday` to `Sunday`, each a list of `HH:mm-HH:mm`;
-- `Exceptions`, by date, each `Closed` or its own list;
-- `Scope`, a kind and a reference for the membership seam (MSG-CONV-006).
+(`08` section 4), its name under `01` MSG-SEND-001's name rule, with:
+- `TimeZone`, an IANA time zone, required;
+- `Hours`, from `Monday` to `Sunday`, each a list of `HH:mm-HH:mm`, its ranges sorted,
+  not overlapping, each starting before it ends; a day not configured is closed;
+- `Exceptions`, by date (`yyyy-MM-dd`), each `Closed` or its own list;
+- `Scope`, a kind (`Scope:Kind`, `Organization` or `Group`) and a reference
+  (`Scope:Reference`) for the membership seam (MSG-CONV-006), both required.
 
 The staff of a topic are its scope's members. A topic's display name is the host
 frontend's.
@@ -129,8 +140,8 @@ frontend's.
   (MSG-CONV-008), have set themselves available, and hold fewer open support
   conversations than `Hermes:Conversations:Support:Limit` (default 3).
 - **Being set available.** Through the staff group's availability route (`05`
-  MSG-API-009), stored in the `agents` table. It holds a person reference, so the rule
-  that the engine knows each table applies (`06` MSG-OPS-002).
+  MSG-API-009), stored in the `support_agents` table. It holds a person reference, so
+  the rule that the engine knows each table applies (`06` MSG-OPS-002).
 - **Assignment.** It is automatic. When a conversation is queued, or a member frees up,
   the oldest queued conversation of each topic goes to the available member with the
   fewest open conversations. Ties go to the one longest since their last assignment.
@@ -145,8 +156,10 @@ visitor uses the offline form instead.
   `offline`, queued like any other.
 - Staff replies to it are sent through sending, as the kind named by
   `Hermes:Conversations:Support:OfflineReplyKind`, to `Recipient.Anonymous` with that
-  address. The key is required where topics are configured.
-- The address is a protected value of the conversation.
+  address. The key is required where topics are configured, and is read at start, where
+  a kind not declared stops the start naming it, as `AwayKind` does (MSG-CONV-008).
+- The address is a protected value of the conversation, its context
+  `conversations:<id>:email` (`01` MSG-SEND-018).
 
 **Transfer (M-034).** A staff member transfers a conversation to another member of the
 topic's scope, assigned at once, or to another topic's queue. The receiver does not
@@ -409,7 +422,7 @@ untouched.
 
 **Support (M-034).**
 - A signed-in customer's conversation (MSG-CONV-001) is protected under their key,
-  through the host protector (`04` MSG-LIB-005).
+  through the protector a person's values are written with (`04` MSG-LIB-005).
 - A visitor's conversation is protected through the library protector, with the visitor
   reference as its person, as `01` MSG-SEND-018 protects anonymous values.
 - Staff replies are under the same key.
@@ -436,8 +449,9 @@ their first message, and their acknowledgement is recorded; a person with an acc
 accepted the host's notice when the account was made, and is shown none.
 
 **The privacy notice (M-034).**
-- The notice's text is the host's. The library records the acknowledgement: the
-  visitor's hash, the version, the instant and the language.
+- The notice's text is the host's. The library records the acknowledgement in
+  `support_acknowledgements`: the visitor's hash, the version, the instant and the
+  language.
 - The version is `Hermes:Conversations:Support:NoticeVersion`, required where topics are
   configured.
 - A visitor's message before an acknowledgement of the current version answers 409
@@ -460,8 +474,9 @@ phase 20).
 and staff SHALL be able to block a visitor.
 
 **Values (M-034).**
-- **Limits.** Counters live in the database, across processes, as `01` MSG-SEND-014
-  counts. Each is a key under `Hermes:Conversations:Limits:` (`08` section 4):
+- **Limits.** Counters live in the database, in `support_counters`, across processes, as
+  `01` MSG-SEND-014 counts. Each is a key under `Hermes:Conversations:Limits:` (`08`
+  section 4):
   - per visitor, conversations started per day (`VisitorStarts`, default 5) and messages
     per minute (`VisitorMessages`, default 20);
   - per source address, conversations started per hour (`SourceStarts`, default 20).
@@ -472,8 +487,8 @@ and staff SHALL be able to block a visitor.
 - **Blocking.** Staff block a visitor or a customer by their conversation, until an
   instant or until lifted, and lift the block. A blocked one starting or writing answers
   403 `messaging.support.blocked`. Blocking by address is not offered, since addresses
-  are shared. The `blocks` table holds a person reference or a visitor hash, so the rule
-  that the engine knows each table applies (`06` MSG-OPS-002).
+  are shared. The `support_blocks` table holds a person reference or a visitor hash, so
+  the rule that the engine knows each table applies (`06` MSG-OPS-002).
 
 *Source: M-011, M-034*
 

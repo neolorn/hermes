@@ -2101,6 +2101,41 @@ This entry settles the map's C7, C12 to C19, C50 to C52 and C57 to C60.
 - `09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-009, MSG-CONV-010, MSG-CONV-011, with
   their criteria.
 
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - Topic names follow `01` MSG-SEND-001's name rule, not `08` section 3's, which has
+>   none.
+> - A topic's keys: `TimeZone`, `Scope:Kind` and `Scope:Reference` are required; `Hours`
+>   ranges are sorted, not overlapping, each starting before it ends, and a day not
+>   configured is closed; `Exceptions` are keyed `yyyy-MM-dd`. `Support:Limit` is 1 to
+>   100, each `Limits:*` 1 to 10,000, and `NoticeVersion` 1 to 64 characters.
+> - `Retention:Visitor` is `365.00:00:00`, 1 day to 10 years.
+> - `OfflineReplyKind` is checked at start, as `AwayKind` is.
+> - The support routes' writes answer 204, with the bodies `{ "available" }`,
+>   `{ "until" }`, the visitor's `{ "text" }` and read's `{ "messageId" }`. `GET
+>   current` with none open answers 404. The offline and notice routes answer `limited`
+>   and `blocked`. The public hub's payloads are the staff hub's, with
+>   `assigned(conversationId)`, `closed(conversationId)` and `Typing(conversationId)`.
+> - A support conversation carries its `topic`, `status`, `place` and `offline`.
+> - The offline address's context is `conversations:<id>:email`.
+> - Support's tables are `support_agents`, `support_blocks`, `support_acknowledgements`
+>   and `support_counters`, in place of `agents` and `blocks`. Support's columns on
+>   `conversations` are `topic`, `assignee`, `queued_at`, `assigned_at`, `offline`,
+>   `closed_at` and `closed_by`. `participants` holds either `person` or `visitor` (the
+>   keyed hash), exactly one.
+> - A customer's conversation is protected through the protector a person's values are
+>   written with.
+> - `05` MSG-API-010 gets its own criterion: the contract test finds exactly the public
+>   routes and hub.
+> - The cookie is `messaging_visitor`, a neutral name, since it is stored and shared by
+>   two releases (`00`).
+> - The contract test maps each conversations group under its own prefix.
+> - `conversations` joins `01` MSG-SEND-018's context and `content-rejected`'s scope.
+>
+> Propagated to `01` MSG-SEND-018; `04` MSG-LIB-002, MSG-LIB-004; `05` MSG-API-009,
+> MSG-API-010; `07` MSG-ENG-006; `08` sections 4, 5 and 8; `09` MSG-CONV-001,
+> MSG-CONV-002, MSG-CONV-009, MSG-CONV-010, MSG-CONV-011; `implementation-plan.md`
+> (phase 16).
+
 ---
 
 # Index

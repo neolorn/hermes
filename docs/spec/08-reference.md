@@ -231,15 +231,18 @@ length in characters is counted as `00` section 1.5 gives.
 | `Push:AuthFailWindow` | `01:00:00` | 1 minute to 1 day |
 | `InApp:AlwaysOn` | `false` | Whether the in-app channel of every optional category cannot be turned off (`02` MSG-INAPP-004), set alike in every application of the deployment |
 | `Conversations:AwayKind` | none: no away notice is sent | A declared kind (`01` MSG-SEND-001), the one a person who is away is told of a conversation's message as (`09` MSG-CONV-008); one not declared stops the start, naming the key; start only |
-| `Conversations:Topics:<name>:TimeZone` | none | The topic's time zone, an IANA time zone identifier (`09` MSG-CONV-002) |
-| `Conversations:Topics:<name>:Hours:Monday` to `Conversations:Topics:<name>:Hours:Sunday` | none | The topic's hours on that day, a list of `HH:mm-HH:mm` (`09` MSG-CONV-002) |
-| `Conversations:Topics:<name>:Exceptions` | none | By date, each `Closed` or its own list of `HH:mm-HH:mm` (`09` MSG-CONV-002) |
-| `Conversations:Support:Limit` | `3` | The open support conversations a staff member holds below which they are available (`09` MSG-CONV-002) |
-| `Conversations:Support:OfflineReplyKind` | none; required where topics are configured | The kind staff replies to an offline conversation are sent as (`09` MSG-CONV-002) |
-| `Conversations:Support:NoticeVersion` | none; required where topics are configured | The version of the host's privacy notice a visitor acknowledges (`09` MSG-CONV-010) |
-| `Conversations:Limits:VisitorStarts` | `5` | Conversations a visitor starts per day (`09` MSG-CONV-011) |
-| `Conversations:Limits:VisitorMessages` | `20` | Messages a visitor writes per minute (`09` MSG-CONV-011) |
-| `Conversations:Limits:SourceStarts` | `20` | Conversations started per hour from one source address (`09` MSG-CONV-011) |
+| `Conversations:Topics:<name>:TimeZone` | none; required for each topic | The topic's time zone, an IANA time zone identifier; `<name>` under `01` MSG-SEND-001's name rule (`09` MSG-CONV-002) |
+| `Conversations:Topics:<name>:Hours:Monday` to `Conversations:Topics:<name>:Hours:Sunday` | none: the topic is closed that day | The topic's hours on that day, a list of `HH:mm-HH:mm`, sorted, not overlapping, each starting before it ends (`09` MSG-CONV-002) |
+| `Conversations:Topics:<name>:Exceptions:<date>` | none | A date as `yyyy-MM-dd`, its value `Closed` or its own list of `HH:mm-HH:mm`, as for `Hours` (`09` MSG-CONV-002) |
+| `Conversations:Topics:<name>:Scope:Kind` | none; required for each topic | `Organization` or `Group`, the kind of the scope whose members staff the topic (`09` MSG-CONV-002, MSG-CONV-006) |
+| `Conversations:Topics:<name>:Scope:Reference` | none; required for each topic | The scope's reference (`09` MSG-CONV-002, MSG-CONV-006) |
+| `Conversations:Support:Limit` | `3` | The open support conversations a staff member holds below which they are available, 1 to 100 (`09` MSG-CONV-002) |
+| `Conversations:Support:OfflineReplyKind` | none; required where topics are configured | A declared kind (`01` MSG-SEND-001), the one staff replies to an offline conversation are sent as (`09` MSG-CONV-002); one not declared stops the start, naming the key; start only |
+| `Conversations:Support:NoticeVersion` | none; required where topics are configured | The version of the host's privacy notice a visitor acknowledges, 1 to 64 characters (`09` MSG-CONV-010) |
+| `Conversations:Limits:VisitorStarts` | `5` | Conversations a visitor starts per day, 1 to 10,000 (`09` MSG-CONV-011) |
+| `Conversations:Limits:VisitorMessages` | `20` | Messages a visitor writes per minute, 1 to 10,000 (`09` MSG-CONV-011) |
+| `Conversations:Limits:SourceStarts` | `20` | Conversations started per hour from one source address, 1 to 10,000 (`09` MSG-CONV-011) |
+| `Conversations:Retention:Visitor` | `365.00:00:00` | How long a visitor's conversation is kept after it closes, and the visitor's cookie lives (`09` MSG-CONV-001, MSG-CONV-010); 1 day to 10 years |
 | `DevelopmentInbox:Folder` | `hermes-inbox` in the operating system's temporary folder | An absolute path (`02` MSG-DEV-002); start only |
 | `DevelopmentInbox:KeepFor` | `7.00:00:00` | 1 hour to 90 days; start only |
 | `DevelopmentInbox:MaxMessages` | `1000` | 10 to 100,000; start only |
@@ -266,7 +269,7 @@ decimal number with `.` as its separator.
 | `configuration-invalid` | The key | A value reloaded while running is outside its rule (`06` MSG-OPS-001) | The key holds a valid value again | `key` |
 | `content-key-limit` | The version | A `contentKeys` version used for more than `Secrets:ContentKeys:MaxValues` values is a process's write version, the process writing on the alert's row, on its key-table timer, the instant it holds until, now plus twice its `Dispatch:Interval` where later than the one recorded (`06` MSG-OPS-006, MSG-OPS-008) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `version`, `count` |
 | `key-unavailable` | The secret, or the protector's `Id`; none for a value in a format kept for a later release | A process holds a delivery for a key, or answers a request or call as key unavailable (save an unsubscribe token whose format byte is kept for a later release, `05` MSG-API-005), each such answer writing on the alert's row the instant it holds until, now plus twice the process's `Dispatch:Interval` where later than the one recorded, at most once per that interval per process (`06` MSG-OPS-006, MSG-OPS-008) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `version`, where there is one |
-| `content-rejected` | The table, as the context names it (`deliveries`, `subscriptions` or `messages`) | A protected value does not open under its binding, each such value writing on the alert's row the instant it holds until, now plus twice the process's `Dispatch:Interval` where later than the one recorded, at most once per that interval per process (`06` MSG-OPS-006; `01` MSG-SEND-018) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `table` |
+| `content-rejected` | The table, as the context names it (`deliveries`, `subscriptions`, `messages` or `conversations`) | A protected value does not open under its binding, each such value writing on the alert's row the instant it holds until, now plus twice the process's `Dispatch:Interval` where later than the one recorded, at most once per that interval per process (`06` MSG-OPS-006; `01` MSG-SEND-018) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `table` |
 | `observer-failing` | none | The oldest pending notice is older than `Observer:LagThreshold` (`01` MSG-SEND-017) | It is not | `age` |
 
 ---
@@ -322,9 +325,8 @@ The meter is `Hermes`, with these instruments:
 These names carry the library's name (`00`): the meter and its instruments, the solution
 file `Hermes.sln` (`07` MSG-ENG-001), the health check `hermes.dispatch` (`06`
 MSG-OPS-005), the named HTTP client `Hermes.Push` (`02` MSG-CHAN-001), the configuration
-section, the command `hermes`, the development inbox's default folder `hermes-inbox`
-and header `X-Hermes-Inbox` (`02` MSG-DEV-002, MSG-DEV-005), and the visitor's cookie
-`hermes_visitor` (`09` MSG-CONV-001).
+section, the command `hermes`, and the development inbox's default folder
+`hermes-inbox` and header `X-Hermes-Inbox` (`02` MSG-DEV-002, MSG-DEV-005).
 
 These names are stored, or shared by the processes of two releases, and never change:
 
@@ -333,9 +335,10 @@ These names are stored, or shared by the processes of two releases, and never ch
 | `messaging` | The schema (`06` MSG-OPS-002) and the library protector's `Id` (`01` MSG-SEND-018) |
 | `messaging.__migrations_history` | The migration history table (`06` MSG-OPS-002) |
 | `messaging_dispatch` | The notification channel a send wakes the dispatchers on (`01` MSG-SEND-004) |
+| `messaging_visitor` | The cookie that keeps a visitor's reference in their browser (`09` MSG-CONV-001) |
 | `messaging_conversations`; `message`, `changed`, `read`, `typing`, `presence` | The notification channel a conversation's write tells the processes on, and the events of its payload `<event>:<conversationId>:<id>` (`09` MSG-CONV-008) |
-| `deliveries`, `subscriptions`, `entries`, `messages`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth`, and a message's `text` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018; `09` MSG-CONV-001) |
-| `conversations`, `participants`, `messages`, `mentions`, `connections`, `agents`, `blocks` | The conversations' tables (`09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-006, MSG-CONV-011) |
+| `deliveries`, `subscriptions`, `entries`, `messages`, `conversations`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth`, a message's `text`, and a support conversation's `email` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018; `09` MSG-CONV-001, MSG-CONV-002) |
+| `conversations`, `participants`, `messages`, `mentions`, `connections`, `support_agents`, `support_blocks`, `support_acknowledgements`, `support_counters` | The conversations' tables (`09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-006, MSG-CONV-010, MSG-CONV-011) |
 | `email`, `sms`, `push-endpoint`, `push-topic`, `person`, `idempotency`, `visitor`, `source` | The keyed hash's domains (`06` MSG-OPS-008; `09` MSG-CONV-001, MSG-CONV-011) |
 | `sms-report`, `idempotency` | The texts that begin the unkeyed lock keys (`01` MSG-SEND-009; `02` MSG-SMS-004) |
 | `sms-report-hold` | The text of the lock the held reports are counted under (`02` MSG-SMS-004) |
