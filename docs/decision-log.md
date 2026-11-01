@@ -1817,6 +1817,51 @@ C35 to C38, C41, C53 to C55 (staff part) and C61.
 - `08` sections 1, 3 and 8;
 - `09` MSG-CONV-001, MSG-CONV-006, MSG-CONV-009, with their criteria.
 
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - `IConversations` has one member per route, `(string person, ..., CancellationToken)`
+>   answering `Result<T>`, over records for a conversation, a participant, a message and
+>   their pages, with identifiers `ConversationId`, `MessageId` and `ParticipantId`.
+> - The bodies are `<conversation>` `{ "id", "type", "scope", "participants", "unread",
+>   "muted", "lastAt" }`, `<participant>` `{ "id", "person" }`, `<message>` `{ "id",
+>   "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt",
+>   "erased" }`, the list `{ "conversations": [ <conversation> ], "next" }` and the
+>   messages `{ "messages": [ <message> ] }`.
+> - The message route's body carries `type`, optional, default `text`.
+> - Editing, deleting, read, mute, participants and leave answer 204; the group route
+>   answers 200, even the first time.
+> - Starting with none or more than 15 others, a reference named twice or oneself
+>   answers `messaging.conversation.invalid` (`participants`). The participants and
+>   leave routes on a group conversation answer it with `type`, and a kind that does not
+>   read with `kind`.
+> - Read naming a message the conversation does not hold answers
+>   `messaging.message.notfound`. Deleting a deleted message answers 204. Leave reads
+>   `{ }`.
+> - The list takes the in-app list's `size` and `cursor` rules, answering
+>   `messaging.request.malformed`; the messages route keeps 1 to 100, default 50.
+> - The routes answer 503 `messaging.request.unavailable` as the in-app routes do.
+> - `08` section 2 gains the conversation types, origins, message types and scope kinds;
+>   the conversation statuses are public, as `ConversationStatus`.
+> - `IConversationMembership`'s `details.key` is `conversationMembership`.
+> - `MapHermesStaffConversations` is on
+>   `MessagingConversationsEndpointRouteBuilderExtensions`, and joins MSG-LIB-004.
+> - The criterion that each route does what its operation does moves to `05`
+>   MSG-API-009.
+> - An asynchronous member answers a `ValueTask`, or an `IAsyncEnumerable<T>` for a
+>   sequence (MSG-LIB-002).
+> - Erasing an author also clears their messages' text, which then reads `Erased`, as a
+>   delivery's content is deleted, whichever protector wrote it.
+> - `messages` joins `01` MSG-SEND-018's context and `content-rejected`'s scope.
+> - `<message>` and `MessageRecord` gain `authorKind` (`AuthorKind`): `person`,
+>   `visitor`, or `library` for an `automatic` or `system` message. `author` is the
+>   person reference only where it is `person`. `visitor` comes with this phase's
+>   enumeration.
+> - `AddHermesConversations` registers `IConversations` as a scoped service, as
+>   `AddHermes` registers `IInApp`.
+>
+> Propagated to `01` MSG-SEND-018; `04` MSG-LIB-002, MSG-LIB-003, MSG-LIB-004,
+> MSG-LIB-005; `05` MSG-API-009; `08` sections 1, 2, 3 and 5; `09` MSG-CONV-006,
+> MSG-CONV-009; `implementation-plan.md` (phase 14).
+
 ---
 
 ## M-033 — Phase 15: the live connection
