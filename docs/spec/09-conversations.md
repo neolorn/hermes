@@ -633,10 +633,10 @@ attachments are enabled (`04` MSG-LIB-005):
   group's `/support/conversations/{id}/attachments` (`05` MSG-API-009, MSG-API-010).
   It answers 201 with `id`, `name`, `mediaType`, `size` and `status` (`pending`).
 - On the public group, an upload takes exactly the public message write's checks and
-  answers before any byte is stored: the visitor's or customer's limits and the
-  source's, each upload counting as one message toward them; a block, refusing it as it
-  refuses a message; and no upload before the current notice is acknowledged, each with
-  the message write's code (MSG-CONV-010, MSG-CONV-011).
+  answers before any byte is stored: the visitor's or customer's message limit, each
+  upload counting as one message toward it, as the message write does; a block, refusing
+  it as it refuses a message; and no upload before the current notice is acknowledged,
+  each with the message write's code (MSG-CONV-010, MSG-CONV-011).
 - A message names up to 10 of its writer's attachments in `attachments`. An attachment
   is named by one message only. More than 10, another writer's, one already named, or
   one unknown answers 400 `messaging.message.invalid`, `field` `attachments`.
@@ -896,8 +896,8 @@ and staff SHALL be able to block a visitor.
 - A signed-in customer is limited as a visitor is, counted by their person's keyed hash.
 - Over a limit answers 429 `messaging.support.limited` with `Retry-After`.
 - A public upload (MSG-CONV-007) counts as one message toward the visitor's or
-  customer's limits and the source's, and a blocked one uploading answers as one writing
-  (M-037).
+  customer's message limit only, as the message write does, and a blocked one uploading
+  answers as one writing (M-037).
 - Acknowledging the notice (`05` MSG-API-010) answers 429 where the visitor or the
   source address is already at its starts limit, and counts nothing.
 - **The source address.** It is the request's remote address, as the host's
