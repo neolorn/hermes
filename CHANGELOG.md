@@ -171,6 +171,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The records `ConversationExport`, `ConversationMessageExport`, `AttachmentExport` and
   `SurveyExport`, and `SubjectExport.Conversations`, none where conversations are not
   registered; the retention job runs a package's own retention steps after its deletions
+- Retention of conversations: a visitor's support conversation goes
+  `Hermes:Conversations:Retention:Visitor` after it closes, with every row of it, the
+  visitor's acknowledgement with their last; where `Retention:Staff` is set, from 30 days
+  to 10 years, staff-chat messages older than it go; at most 1,000 conversations a run for
+  each, their attachments' bytes deleted by `attachment-scans`. `IConversations.EndScopeAsync`
+  deletes an ended scope's group conversation with every row of it, and a person's export
+  holds their conversations, their own messages and their survey, naming nobody else
 
 ### Fixed
 

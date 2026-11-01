@@ -50,6 +50,8 @@ public static class MessagingConversationsServiceCollectionExtensions
         services.TryAddScoped<IConversations>(provider => provider.GetRequiredService<StaffChats>());
         services.TryAddScoped<AttachmentWork>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IProtectAgain, AttachmentProtection>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IRetentionStep, ConversationRetention>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<ISubjectConversations, ConversationsExport>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ConversationsStartup>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, LiveListener>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ConversationTimersJob>());

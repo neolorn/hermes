@@ -21,6 +21,15 @@ public sealed class ThreatModelTests
     }
 
     [Fact]
+    public void MSG_THR_001_AC2_EachConversationThreatRowsControlHasAPassingTestCarryingEachRequirementItNames()
+    {
+        IReadOnlyList<string> controls = ThreatModelRules.Controls(ThreatModel, "M-038");
+
+        Assert.Equal(["MSG-API-009", "MSG-API-010", "MSG-CONV-001", "MSG-CONV-002", "MSG-CONV-006", "MSG-CONV-007", "MSG-CONV-008", "MSG-CONV-011", "MSG-OPS-007"], controls);
+        Assert.Empty(ThreatModelRules.Untested(controls, ThreatModelRules.Tested(RepositoryRoot.Combine("tests"))));
+    }
+
+    [Fact]
     public void MSG_THR_001_AC1_AControlNoTestCarriesIsFoundAndTheDeploymentsAreNot()
     {
         using RepositoryFixture fixture = new();
