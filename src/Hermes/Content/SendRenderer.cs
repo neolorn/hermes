@@ -33,6 +33,9 @@ internal sealed class SendRenderer(Templates templates, TemplateRenderer rendere
     /// <summary>The UTF-16 code units a language's in-app title and body take at their most characters, a character taking two at most.</summary>
     private const int InAppUnits = 2 * (InAppTitle + InAppBody);
 
+    /// <summary>The most bytes of an email, <c>Hermes:Email:MaxBytes</c> in UTF-8 over its parts together (<c>02</c> MSG-EMAIL-003).</summary>
+    internal int EmailMaxBytes => channels.CurrentValue.Email.MaxBytes;
+
     /// <summary>
     /// Throws <see cref="ArgumentException"/> where a part of <paramref name="chosen"/> in
     /// <paramref name="language"/>, or of the in-app channel in any of

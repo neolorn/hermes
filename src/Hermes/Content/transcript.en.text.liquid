@@ -1,0 +1,9 @@
+Transcript of your conversation about {{ topic }}
+Opened {{ openedAt | format_date: "g" }}. Closed {{ closedAt | format_date: "g" }}.
+{%- if omitted > 0 %}
+{{ omitted }} earlier messages are left out.
+{%- endif %}
+{% for message in messages %}
+{{ message.sentAt | format_date: "g" }}, {% case message.author %}{% when "visitor" %}you{% when "staff" %}support{% else %}automatic{% endcase %}:
+{{ message.text }}
+{% endfor %}

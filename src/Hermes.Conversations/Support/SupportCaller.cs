@@ -95,4 +95,19 @@ internal static class SupportCodes
 
     /// <summary>A second start on a topic with one open, <c>conversation</c> naming it.</summary>
     internal const string AlreadyOpen = "messaging.support.alreadyopen";
+
+    /// <summary>A transcript, a transcript email or a survey of a conversation not closed.</summary>
+    internal const string NotClosed = "messaging.support.notclosed";
+
+    /// <summary>A conversation's fourth transcript email.</summary>
+    internal const string TranscriptLimit = "messaging.support.transcriptlimit";
+
+    /// <summary>A survey's <c>resolved</c>, <c>rating</c> or <c>comment</c> outside its rule, <c>field</c> naming which.</summary>
+    internal const string SurveyInvalid = "messaging.support.surveyinvalid";
+
+    /// <summary>A survey answered a second time.</summary>
+    internal const string SurveyAnswered = "messaging.support.surveyanswered";
+
+    /// <summary>A survey answered more than seven days after the close.</summary>
+    internal const string SurveyClosed = "messaging.support.surveyclosed";
 }

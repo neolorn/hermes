@@ -78,6 +78,7 @@ Hermes.Core.IConversations.DeleteAsync(string! person, Hermes.Core.ConversationI
 Hermes.Core.IConversations.EditAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.MessageId message, string! text, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.LeaveAsync(string! person, Hermes.Core.ConversationId conversation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.ListAsync(string! person, string? cursor, int? size, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationPage!>!>
+Hermes.Core.IConversations.LiveAsync(string! person, string! topic, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<System.Collections.Generic.IReadOnlyList<Hermes.Core.LiveConversation!>!>!>
 Hermes.Core.IConversations.MarkReadAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.MessageId message, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.MessagesAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.MessageId? before, Hermes.Core.MessageId? after, int? size, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.MessagePage!>!>
 Hermes.Core.IConversations.MuteAsync(string! person, Hermes.Core.ConversationId conversation, bool muted, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
@@ -86,6 +87,7 @@ Hermes.Core.IConversations.QueueAsync(string! person, string! topic, System.Thre
 Hermes.Core.IConversations.ReadAsync(string! person, Hermes.Core.ConversationId conversation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationRecord!>!>
 Hermes.Core.IConversations.RemoveReplyAsync(string! person, Hermes.Core.SavedReplyId reply, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.RepliesAsync(string! person, string? topic, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<System.Collections.Generic.IReadOnlyList<Hermes.Core.SavedReplyRecord!>!>!>
+Hermes.Core.IConversations.ReportAsync(string! person, string! topic, System.DateOnly from, System.DateOnly through, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<System.Collections.Generic.IReadOnlyList<Hermes.Core.ReportFigures!>!>!>
 Hermes.Core.IConversations.SetAvailableAsync(string! person, bool available, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.SetTagsAsync(string! person, Hermes.Core.ConversationId conversation, System.Collections.Generic.IReadOnlyCollection<string!>! tags, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.SnoozeAsync(string! person, Hermes.Core.ConversationId conversation, System.DateTimeOffset until, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
@@ -93,6 +95,20 @@ Hermes.Core.IConversations.StartDirectAsync(string! person, System.Collections.G
 Hermes.Core.IConversations.TransferAsync(string! person, Hermes.Core.ConversationId conversation, string? toPerson, string? topic, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.UnblockAsync(string! person, Hermes.Core.ConversationId conversation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.WriteAsync(string! person, Hermes.Core.ConversationId conversation, string! text, Hermes.Core.MessageType type, Hermes.Core.MessageId? replyTo, System.Collections.Generic.IReadOnlyList<string!>? mentions, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.MessageRecord!>!>
+Hermes.Core.LiveConversation
+Hermes.Core.LiveConversation.<Clone>$() -> Hermes.Core.LiveConversation!
+Hermes.Core.LiveConversation.Assignee.get -> string?
+Hermes.Core.LiveConversation.Assignee.init -> void
+Hermes.Core.LiveConversation.Conversation.get -> Hermes.Core.ConversationId
+Hermes.Core.LiveConversation.Conversation.init -> void
+Hermes.Core.LiveConversation.Equals(Hermes.Core.LiveConversation? other) -> bool
+Hermes.Core.LiveConversation.LiveConversation() -> void
+Hermes.Core.LiveConversation.Place.get -> int?
+Hermes.Core.LiveConversation.Place.init -> void
+Hermes.Core.LiveConversation.Status.get -> Hermes.Core.ConversationStatus
+Hermes.Core.LiveConversation.Status.init -> void
+Hermes.Core.LiveConversation.Waited.get -> int
+Hermes.Core.LiveConversation.Waited.init -> void
 Hermes.Core.MessageId
 Hermes.Core.MessageId.Deconstruct(out System.Guid Value) -> void
 Hermes.Core.MessageId.Equals(Hermes.Core.MessageId other) -> bool
@@ -154,6 +170,28 @@ Hermes.Core.ParticipantRecord.Participant.init -> void
 Hermes.Core.ParticipantRecord.ParticipantRecord() -> void
 Hermes.Core.ParticipantRecord.Person.get -> string!
 Hermes.Core.ParticipantRecord.Person.init -> void
+Hermes.Core.ReportFigures
+Hermes.Core.ReportFigures.<Clone>$() -> Hermes.Core.ReportFigures!
+Hermes.Core.ReportFigures.Closed.get -> int
+Hermes.Core.ReportFigures.Closed.init -> void
+Hermes.Core.ReportFigures.Equals(Hermes.Core.ReportFigures? other) -> bool
+Hermes.Core.ReportFigures.HandleMedian.get -> System.TimeSpan?
+Hermes.Core.ReportFigures.HandleMedian.init -> void
+Hermes.Core.ReportFigures.HandleP90.get -> System.TimeSpan?
+Hermes.Core.ReportFigures.HandleP90.init -> void
+Hermes.Core.ReportFigures.MeanRating.get -> decimal?
+Hermes.Core.ReportFigures.MeanRating.init -> void
+Hermes.Core.ReportFigures.Person.get -> string?
+Hermes.Core.ReportFigures.Person.init -> void
+Hermes.Core.ReportFigures.ReportFigures() -> void
+Hermes.Core.ReportFigures.ResolvedShare.get -> decimal?
+Hermes.Core.ReportFigures.ResolvedShare.init -> void
+Hermes.Core.ReportFigures.Surveys.get -> int
+Hermes.Core.ReportFigures.Surveys.init -> void
+Hermes.Core.ReportFigures.WaitMedian.get -> System.TimeSpan?
+Hermes.Core.ReportFigures.WaitMedian.init -> void
+Hermes.Core.ReportFigures.WaitP90.get -> System.TimeSpan?
+Hermes.Core.ReportFigures.WaitP90.init -> void
 Hermes.Core.SavedReplyId
 Hermes.Core.SavedReplyId.Deconstruct(out System.Guid Value) -> void
 Hermes.Core.SavedReplyId.Equals(Hermes.Core.SavedReplyId other) -> bool
@@ -188,6 +226,9 @@ override Hermes.Core.ConversationRecord.ToString() -> string!
 override Hermes.Core.ConversationScope.Equals(object? obj) -> bool
 override Hermes.Core.ConversationScope.GetHashCode() -> int
 override Hermes.Core.ConversationScope.ToString() -> string!
+override Hermes.Core.LiveConversation.Equals(object? obj) -> bool
+override Hermes.Core.LiveConversation.GetHashCode() -> int
+override Hermes.Core.LiveConversation.ToString() -> string!
 override Hermes.Core.MessageId.GetHashCode() -> int
 override Hermes.Core.MessagePage.Equals(object? obj) -> bool
 override Hermes.Core.MessagePage.GetHashCode() -> int
@@ -199,6 +240,9 @@ override Hermes.Core.ParticipantId.GetHashCode() -> int
 override Hermes.Core.ParticipantRecord.Equals(object? obj) -> bool
 override Hermes.Core.ParticipantRecord.GetHashCode() -> int
 override Hermes.Core.ParticipantRecord.ToString() -> string!
+override Hermes.Core.ReportFigures.Equals(object? obj) -> bool
+override Hermes.Core.ReportFigures.GetHashCode() -> int
+override Hermes.Core.ReportFigures.ToString() -> string!
 override Hermes.Core.SavedReplyId.GetHashCode() -> int
 override Hermes.Core.SavedReplyRecord.Equals(object? obj) -> bool
 override Hermes.Core.SavedReplyRecord.GetHashCode() -> int
@@ -211,6 +255,8 @@ static Hermes.Core.ConversationRecord.operator !=(Hermes.Core.ConversationRecord
 static Hermes.Core.ConversationRecord.operator ==(Hermes.Core.ConversationRecord? left, Hermes.Core.ConversationRecord? right) -> bool
 static Hermes.Core.ConversationScope.operator !=(Hermes.Core.ConversationScope? left, Hermes.Core.ConversationScope? right) -> bool
 static Hermes.Core.ConversationScope.operator ==(Hermes.Core.ConversationScope? left, Hermes.Core.ConversationScope? right) -> bool
+static Hermes.Core.LiveConversation.operator !=(Hermes.Core.LiveConversation? left, Hermes.Core.LiveConversation? right) -> bool
+static Hermes.Core.LiveConversation.operator ==(Hermes.Core.LiveConversation? left, Hermes.Core.LiveConversation? right) -> bool
 static Hermes.Core.MessageId.operator !=(Hermes.Core.MessageId left, Hermes.Core.MessageId right) -> bool
 static Hermes.Core.MessageId.operator ==(Hermes.Core.MessageId left, Hermes.Core.MessageId right) -> bool
 static Hermes.Core.MessagePage.operator !=(Hermes.Core.MessagePage? left, Hermes.Core.MessagePage? right) -> bool
@@ -221,6 +267,8 @@ static Hermes.Core.ParticipantId.operator !=(Hermes.Core.ParticipantId left, Her
 static Hermes.Core.ParticipantId.operator ==(Hermes.Core.ParticipantId left, Hermes.Core.ParticipantId right) -> bool
 static Hermes.Core.ParticipantRecord.operator !=(Hermes.Core.ParticipantRecord? left, Hermes.Core.ParticipantRecord? right) -> bool
 static Hermes.Core.ParticipantRecord.operator ==(Hermes.Core.ParticipantRecord? left, Hermes.Core.ParticipantRecord? right) -> bool
+static Hermes.Core.ReportFigures.operator !=(Hermes.Core.ReportFigures? left, Hermes.Core.ReportFigures? right) -> bool
+static Hermes.Core.ReportFigures.operator ==(Hermes.Core.ReportFigures? left, Hermes.Core.ReportFigures? right) -> bool
 static Hermes.Core.SavedReplyId.operator !=(Hermes.Core.SavedReplyId left, Hermes.Core.SavedReplyId right) -> bool
 static Hermes.Core.SavedReplyId.operator ==(Hermes.Core.SavedReplyId left, Hermes.Core.SavedReplyId right) -> bool
 static Hermes.Core.SavedReplyRecord.operator !=(Hermes.Core.SavedReplyRecord? left, Hermes.Core.SavedReplyRecord? right) -> bool

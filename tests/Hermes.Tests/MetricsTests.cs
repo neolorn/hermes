@@ -40,6 +40,8 @@ public sealed class MetricsTests
                 ("hermes.attempts", "Counter", "{attempt}"),
                 ("hermes.dispatch.oldest_due_age", "Gauge", "s"),
                 ("hermes.provider.duration", "Histogram", "s"),
+                ("hermes.conversations.started", "Counter", "{conversation}"),
+                ("hermes.conversations.closed", "Counter", "{conversation}"),
             ],
             published);
     }

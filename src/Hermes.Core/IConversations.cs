@@ -279,4 +279,26 @@ public interface IConversations
     /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result> RemoveReplyAsync(string person, SavedReplyId reply, CancellationToken cancellationToken);
+
+    /// <summary>The live view of a topic for one of its supervisors: its open and snoozed conversations, oldest queued first.</summary>
+    /// <param name="person">The person reference.</param>
+    /// <param name="topic">The topic.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The conversations; or a failure: <c>messaging.request.malformed</c> for a topic not configured, <c>messaging.conversation.notfound</c> for a person who does not supervise it.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result<IReadOnlyList<LiveConversation>>> LiveAsync(string person, string topic, CancellationToken cancellationToken);
+
+    /// <summary>A topic's reports for one of its supervisors, over the conversations closed from <paramref name="from"/> through <paramref name="through"/>, both included, in the topic's time zone.</summary>
+    /// <param name="person">The person reference.</param>
+    /// <param name="topic">The topic.</param>
+    /// <param name="from">The period's first day.</param>
+    /// <param name="through">The period's last day, at most 92 days from the first, counting both.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The topic's figures first, then each staff member's; or a failure: <c>messaging.request.malformed</c> for a topic not configured or a period outside its rule, <c>messaging.conversation.notfound</c> for a person who does not supervise it.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result<IReadOnlyList<ReportFigures>>> ReportAsync(string person, string topic, DateOnly from, DateOnly through, CancellationToken cancellationToken);
 }

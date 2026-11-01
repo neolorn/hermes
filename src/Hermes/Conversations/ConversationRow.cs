@@ -82,4 +82,25 @@ internal sealed class ConversationRow
 
     /// <summary>The instant an open or snoozed support conversation closes for its silence, or none.</summary>
     public DateTimeOffset? CloseAt { get; set; }
+
+    /// <summary>The instant its survey was answered, or none (<c>09</c> MSG-CONV-004).</summary>
+    public DateTimeOffset? SurveyAt { get; set; }
+
+    /// <summary>Whether the survey says it was resolved, or none.</summary>
+    public bool? SurveyResolved { get; set; }
+
+    /// <summary>The survey's rating, 1 to 5, or none.</summary>
+    public int? SurveyRating { get; set; }
+
+    /// <summary>The survey's comment, protected as the conversation's messages are, or none.</summary>
+    public byte[]? SurveyComment { get; set; }
+
+    /// <summary>The <c>contentKeys</c> version the library's protector wrote the comment under, or none.</summary>
+    public int? SurveyCommentKeyVersion { get; set; }
+
+    /// <summary>The staff member the survey rates, the assignee when it closed, or none.</summary>
+    public string? SurveyPerson { get; set; }
+
+    /// <summary>How many times its transcript was sent by email, 0 to 3.</summary>
+    public int TranscriptSends { get; set; }
 }

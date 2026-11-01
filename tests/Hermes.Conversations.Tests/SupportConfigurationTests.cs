@@ -68,6 +68,7 @@ public sealed class SupportConfigurationTests
     [InlineData("Hermes:Conversations:Topics:billing:Scope:Kind", "Team", "Conversations:Topics:billing:Scope:Kind")]
     [InlineData("Hermes:Conversations:Support:Limit", "101", "Conversations:Support:Limit")]
     [InlineData("Hermes:Conversations:Support:OfflineReplyKind", "unknown-kind", "Conversations:Support:OfflineReplyKind")]
+    [InlineData("Hermes:Conversations:Support:TranscriptKind", "unknown-kind", "Conversations:Support:TranscriptKind")]
     [InlineData("Hermes:Conversations:Support:NoticeVersion", "", "Conversations:Support:NoticeVersion")]
     [InlineData("Hermes:Conversations:Limits:VisitorStarts", "0", "Conversations:Limits:VisitorStarts")]
     [InlineData("Hermes:Conversations:Limits:VisitorMessages", "10001", "Conversations:Limits:VisitorMessages")]
@@ -85,6 +86,7 @@ public sealed class SupportConfigurationTests
     [InlineData("Hermes:Conversations:Topics:billing:TimeZone", "Conversations:Topics:billing:TimeZone")]
     [InlineData("Hermes:Conversations:Topics:billing:Scope:Reference", "Conversations:Topics:billing:Scope:Reference")]
     [InlineData("Hermes:Conversations:Support:OfflineReplyKind", "Conversations:Support:OfflineReplyKind")]
+    [InlineData("Hermes:Conversations:Support:TranscriptKind", "Conversations:Support:TranscriptKind")]
     [InlineData("Hermes:Conversations:Support:NoticeVersion", "Conversations:Support:NoticeVersion")]
     public void Read_AKeyRequiredWhereTopicsAreConfiguredMissing_IsItsKey(string key, string expected)
     {
@@ -239,6 +241,31 @@ public sealed class SupportConfigurationTests
         Assert.Null(SupportConfiguration.Read(Hermes(closed), Kinds).Settings!.Topics["billing"].NextOpening(new DateTimeOffset(2026, 11, 2, 7, 30, 0, TimeSpan.Zero)));
     }
 
+    [Fact]
+    public void Read_ATopicsSupervisors_AreItsScopeAndNoneWhereUnset()
+    {
+        Dictionary<string, string?> settings = Topic();
+        Assert.Null(SupportConfiguration.Read(Hermes(settings), Kinds).Settings!.Topics["billing"].Supervisors);
+
+        settings["Hermes:Conversations:Topics:billing:Supervisors:Kind"] = "Organization";
+        settings["Hermes:Conversations:Topics:billing:Supervisors:Reference"] = "leads";
+
+        Assert.Equal(new ConversationScope { Kind = ScopeKind.Organization, Reference = "leads" }, SupportConfiguration.Read(Hermes(settings), Kinds).Settings!.Topics["billing"].Supervisors);
+        Assert.Null(ConversationsConfiguration.UnknownKey(Hermes(settings)));
+    }
+
+    [Theory]
+    [InlineData("Hermes:Conversations:Topics:billing:Supervisors:Kind", "Group", "Conversations:Topics:billing:Supervisors:Reference")]
+    [InlineData("Hermes:Conversations:Topics:billing:Supervisors:Reference", "leads", "Conversations:Topics:billing:Supervisors:Kind")]
+    [InlineData("Hermes:Conversations:Topics:billing:Supervisors:Kind", "Team", "Conversations:Topics:billing:Supervisors:Kind")]
+    public void Read_SupervisorsHalfGivenOrOutsideTheirRule_IsTheirKey(string key, string value, string expected)
+    {
+        Dictionary<string, string?> settings = Topic();
+        settings[key] = value;
+
+        Assert.Equal(expected, SupportConfiguration.Read(Hermes(settings), Kinds).Invalid);
+    }
+
     private static Dictionary<string, string?> Topic(string name = "billing")
     {
         string topic = "Hermes:Conversations:Topics:" + name;
@@ -253,6 +280,7 @@ public sealed class SupportConfigurationTests
             [topic + ":Scope:Kind"] = "Group",
             [topic + ":Scope:Reference"] = "team-billing",
             ["Hermes:Conversations:Support:OfflineReplyKind"] = "support-reply",
+            ["Hermes:Conversations:Support:TranscriptKind"] = "support-reply",
             ["Hermes:Conversations:Support:NoticeVersion"] = "v3",
         };
     }

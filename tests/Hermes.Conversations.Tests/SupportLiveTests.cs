@@ -136,6 +136,7 @@ public sealed class SupportLiveTests(PostgresFixture postgres) : IClassFixture<P
         {
             declare.Category("support").Essential();
             declare.Kind(SupportTests.ReplyKind, "support").Email();
+            declare.Kind(SupportTests.TranscriptKind, "support").Email();
         }, staff: false);
 
         using HttpResponseMessage topics = await new Browser(chat).SendAsync(HttpMethod.Get, "/support/topics");

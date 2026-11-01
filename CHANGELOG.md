@@ -116,6 +116,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `waiting` and `closing`, and closes a support conversation silent for
   `Support:CloseAfter` with a `system` message without text; only a staff member's, a
   visitor's or a customer's `text` restarts the silence
+- The migration `SupportEnd`, which adds to `conversations` a support conversation's
+  survey (`survey_at`, `survey_resolved`, `survey_rating`, `survey_comment` with
+  `survey_comment_key_version`, and `survey_person`) and `transcript_sends`; the comment
+  is protected as the conversation's messages are, protected again when the content keys
+  turn and deleted with a customer's conversation, and erasing the staff member rated
+  empties `survey_person` and keeps the survey; it drops and rewrites nothing
+- The library's page `transcript`, in `en` and `ar`, whose one part is `text`
+- The counters `hermes.conversations.started` and `hermes.conversations.closed`, each
+  tagged `topic`
+- Supervisors: each topic may name `Supervisors`, a membership scope whose members read
+  its conversations, notes included, and receive the staff hub's pushes for them, but
+  neither write in, tag, snooze, transfer, close nor list them; `GET /support/live` and
+  `GET /support/reports` of the staff group answer a topic's live view, and its figures
+  per staff member and as a whole over a period of at most 92 days, to its supervisors
+  alone, anyone else answered `messaging.conversation.notfound`. `IConversations` gains
+  `LiveAsync` and `ReportAsync`, with `LiveConversation` and `ReportFigures`
+- Every close of a support conversation, by staff, by its visitor or customer, or for its
+  silence, writes one `system` message without text, stored and pushed as any message;
+  the counters `hermes.conversations.started` and `hermes.conversations.closed` count
+  each start and each close; a snooze, and its wake, push the conversation to its
+  assignee
+- The end of a support conversation, through the public group once it is closed: its
+  transcript, every message but notes, oldest first, in the conversation's language,
+  naming no staff member, as plain text of at most 1 MiB with the oldest messages left out
+  past a bound; the transcript sent by email as `Hermes:Conversations:Support:TranscriptKind`
+  at most three times, to the address given; and its survey, answered once within seven
+  days of the close, its comment protected as the conversation's messages are. The key
+  `Support:TranscriptKind` is required where topics are configured, and the page
+  `transcript` is checked at start in every declared language
 
 ### Fixed
 

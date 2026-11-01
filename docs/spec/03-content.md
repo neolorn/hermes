@@ -145,7 +145,11 @@ language (M-035). One that does not parse fails it with
 `messaging.startup.declarationinvalid`, `details.declaration` the rule and
 `details.field` `<language>.text`.
 
-*Source: M-002, M-005, M-035*
+Where topics are configured, a `transcript` part missing for a declared language
+(MSG-TPL-006) fails the start with `messaging.startup.declarationinvalid`,
+`details.declaration` `transcript` (M-036).
+
+*Source: M-002, M-005, M-035, M-036*
 
 **Acceptance criteria**
 1. Each condition above stops the start and names the template.
@@ -201,21 +205,25 @@ Templates are read at startup and kept; a changed template takes effect at the n
 start. A folder that does not exist holds no template, so a host whose templates all
 come from its source or its assemblies needs none (`08` section 4).
 
-The library's pages, each with one part, `html`:
+The library's pages, each with one part, `html`, but `transcript`, whose one part is
+`text` (M-036):
 
 | Page | Shown | Values |
 |---|---|---|
 | `unsubscribe` | By `GET /unsubscribe/{token}`: asks the person to confirm, with one button that posts a form carrying a field named `page` to `action` | `category` (the category's label in the language), `action` (the address the form posts to), `language`, `direction` |
 | `unsubscribed` | After the page's form is posted: confirms that the category's messages stop | `category`, `language`, `direction` |
 | `unsubscribeinvalid` | By `GET /unsubscribe/{token}`, or a `POST` carrying `page`, for a token that does not verify: says the link no longer works | `language`, `direction` |
+| `transcript` | By the public group's transcript route, and as the value `transcript` of the kind `Hermes:Conversations:Support:TranscriptKind` (`09` MSG-CONV-004): a closed support conversation's messages, every type but `note`, oldest first, as plain text, UTF-8, at most 1 MiB, saying so where the oldest are left out | `topic`, `openedAt`, `closedAt`, `language`, `direction`, `messages` (a list of `author`, `sentAt` and `text`, `author` being `visitor`, `staff` or `library`, so staff are never named by reference) and `omitted` (the number of messages left out) |
 
-The library ships the three pages in `en` and `ar`. A page renders in the language its
-token records, or the default where that language is no longer declared or the token
-does not verify (`05` MSG-API-005). A category's label is the host's (`01`
-MSG-SEND-002): the library holds no wording of its own besides the shipped pages, which
-a host replaces by supplying its own.
+The library ships its four pages in `en` and `ar`, and a host source may answer
+`transcript` instead, as any page (M-036). A page renders in the language its token
+records, or the default where that language is no longer declared or the token does not
+verify (`05` MSG-API-005); `transcript` renders in the conversation's language (`09`
+MSG-CONV-003, MSG-CONV-004). A category's label is the host's (`01` MSG-SEND-002): the
+library holds no wording of its own besides the shipped pages, which a host replaces by
+supplying its own.
 
-*Source: M-005, M-016, M-035*
+*Source: M-005, M-016, M-035, M-036*
 
 **Acceptance criteria**
 1. A template file under the folder is used for its kind, channel, language and part.
@@ -228,7 +236,7 @@ a host replaces by supplying its own.
 **MSG-TPL-007** — Rendering SHALL be bounded, so that no template can run, or build a
 value, without limit.
 
-**Values (M-002, M-005).**
+**Values (M-002, M-005, M-036).**
 - **Tags:** `if`, `elsif`, `else`, `unless`, `case`, `when`, `for` (with `break` and
   `continue`), `assign`, `capture` and `comment`. `include` and `render` are not
   allowed, so a template reads nothing but its own text and its values; nor is the `raw`
@@ -243,18 +251,18 @@ value, without limit.
   `format_string`, `time_zone`, `newline_to_br`, hashing and encoding filters among
   them. Fluid's `StrictFilters` is set.
 - **Limits:** Fluid's `MaxSteps` is `Hermes:Templates:MaxSteps` (default 100,000) and
-  its `MaxRecursion` `Hermes:Templates:MaxRecursion` (default 20). Every buffer a render
-  writes into stops the render once it holds more than the channel's limit (`02`
-  MSG-EMAIL-003, ten segments of MSG-SMS-001, MSG-PUSH-002). Fluid's `capture` renders
-  into a buffer of its own, so the library registers its own `capture` block, writing
-  into such a bounded buffer, in place of Fluid's, and the startup check treats it as
-  `capture`. A filter whose result would be a longer string than the limit, or an array
-  of more than `MaxSteps` items, stops the render too: for `replace` and `join`, whose
-  result can exceed the sum of their inputs, and `url_encode`, whose result can be nine
-  times its input, the library computes the result's length from the arguments before
-  calling Fluid's filter, and a `replace` whose search is empty answers its input
-  unchanged; for the others it checks the result. A range is checked at startup
-  (MSG-TPL-004).
+  its `MaxRecursion` `Hermes:Templates:MaxRecursion` (default 20); a transcript's render
+  (`09` MSG-CONV-004) runs under ten times `MaxSteps`. Every buffer a render writes into
+  stops the render once it holds more than the channel's limit (`02` MSG-EMAIL-003, ten
+  segments of MSG-SMS-001, MSG-PUSH-002). Fluid's `capture` renders into a buffer of its
+  own, so the library registers its own `capture` block, writing into such a bounded
+  buffer, in place of Fluid's, and the startup check treats it as `capture`. A filter
+  whose result would be a longer string than the limit, or an array of more than
+  `MaxSteps` items, stops the render too: for `replace` and `join`, whose result can
+  exceed the sum of their inputs, and `url_encode`, whose result can be nine times its
+  input, the library computes the result's length from the arguments before calling
+  Fluid's filter, and a `replace` whose search is empty answers its input unchanged; for
+  the others it checks the result. A range is checked at startup (MSG-TPL-004).
 - **Telling a limit from a fault:** a render runs on the library's own subclass of
   Fluid's `TemplateContext`. Fluid throws an `InvalidOperationException` for both of its
   limits; the depth of nesting is checked at startup (MSG-TPL-004), so at render only
@@ -284,7 +292,7 @@ with `messaging.send.toolong`, and one past `MaxSteps` with
 MSG-SEND-003); the send records nothing. Either can follow from a host's data, so
 neither is a fault (`07` MSG-ENG-003).
 
-*Source: M-002, M-005*
+*Source: M-002, M-005, M-036*
 
 **Acceptance criteria**
 1. A template looping over a 10-million-item list is refused with

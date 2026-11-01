@@ -115,11 +115,16 @@ internal sealed class LivePush(
         }
     }
 
-    /// <summary>Pushes an event of a support conversation: on the staff hub to its assignee, on the public hub to its visitor or customer.</summary>
+    /// <summary>Pushes an event of a support conversation: on the staff hub to its assignee and its topic's supervisors connected here, a <c>conversation</c> to its assignee alone, since it is not on a supervisor's list; on the public hub to its visitor or customer.</summary>
     private async Task PushSupportAsync(MessagingContext context, IServiceProvider services, ConversationRow conversation, string kind, Guid told, CancellationToken cancellationToken)
     {
         string id = conversation.Id.ToString("D");
-        HashSet<string> staff = conversation.Assignee is { } assignee && connections.Persons().Contains(assignee) ? new(StringComparer.Ordinal) { assignee } : new(StringComparer.Ordinal);
+        HashSet<string> assigned = conversation.Assignee is { } assignee && connections.Persons().Contains(assignee) ? new(StringComparer.Ordinal) { assignee } : new(StringComparer.Ordinal);
+        HashSet<string> staff = [.. assigned];
+        if (kind != LiveNotices.Conversation && await SupervisorsAsync(services, conversation, cancellationToken).ConfigureAwait(false) is { } supervisors)
+        {
+            staff.UnionWith(supervisors.Where(connections.Persons().Contains));
+        }
         ParticipantRow? owner = await context.Participants.AsNoTracking()
             .FirstOrDefaultAsync(each => each.ConversationId == conversation.Id && (each.Visitor != null || each.Person == conversation.Customer), cancellationToken).ConfigureAwait(false);
         IReadOnlyList<string> callers = owner is null ? [] : OwnerConnections(conversation, owner);
@@ -170,11 +175,21 @@ internal sealed class LivePush(
                 await publicHub.Clients.Clients(callers).SendAsync(PublicHub.ClosedMethod, id, cancellationToken).ConfigureAwait(false);
                 break;
             case LiveNotices.Conversation:
-                await ConversationAsync(context, conversation, staff, cancellationToken).ConfigureAwait(false);
+                await ConversationAsync(context, conversation, assigned, cancellationToken).ConfigureAwait(false);
                 break;
             default:
                 break;
         }
+    }
+
+    /// <summary>The members of the scope supervising <paramref name="conversation"/>'s topic, asked now; none where nobody supervises it (09 MSG-CONV-005).</summary>
+    private static async Task<HashSet<string>?> SupervisorsAsync(IServiceProvider services, ConversationRow conversation, CancellationToken cancellationToken)
+    {
+        return conversation.Topic is { } name
+            && services.GetRequiredService<ConversationsSettings>().Support.Topics.TryGetValue(name, out Support.SupportTopic? topic)
+            && topic.Supervisors is { } supervisors
+            ? await services.GetRequiredService<Support.SupportAssigner>().MembersAsync(supervisors, cancellationToken).ConfigureAwait(false)
+            : null;
     }
 
     /// <summary>Pushes <c>conversation</c> to each of <paramref name="readers"/> connected here, the conversation as a read answers it for them.</summary>

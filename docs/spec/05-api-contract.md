@@ -343,6 +343,8 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | `POST /support/replies` | `{ "name", "text", "topic" }`, `topic` none for one's own | **201** `{ "id", "name", "text", "topic" }`; **400** `messaging.reply.invalid`, `details.field` `name` or `text`; **404** `messaging.reply.notfound` for a topic whose scope the person is not a member of; **409** `messaging.reply.full` past 200 for a topic or 100 for a person, or `messaging.reply.nameexists` for a name its owner already has; **503** as for `GET /inapp` |
 | `PUT /support/replies/{id}` | `{ "name", "text" }` | **204**; **400** `messaging.reply.invalid`, `details.field` `name` or `text`; **404** `messaging.reply.notfound`; **409** `messaging.reply.nameexists` for a name its owner already has; **503** as for `GET /inapp` |
 | `DELETE /support/replies/{id}` | | **204**; **404** `messaging.reply.notfound`; **503** as for `GET /inapp` |
+| `GET /support/live` | | **200** `{ "conversations": [ <live> ] }`: the topic's open and snoozed conversations; query `topic`; **400** `messaging.request.malformed`, `details.member` `topic`, for a topic not configured; **404** `messaging.conversation.notfound` for a person who does not supervise the topic; **503** as for `GET /inapp` |
+| `GET /support/reports` | | **200** `{ "topic": <figures>, "staff": [ <figures> ] }`; query `topic`, `from` and `to`; **400** `messaging.request.malformed`, `details.member` `from` or `to`, for a period that does not read or passes 92 days; **404** `messaging.conversation.notfound` for a person who does not supervise the topic; **503** as for `GET /inapp` |
 
 | Shape | Members |
 |---|---|
@@ -350,6 +352,8 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | `<participant>` | `{ "id", "person", "online" }` |
 | `<message>` | `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }` |
 | `<reply>` | `{ "id", "name", "text", "topic" }` |
+| `<live>` | `{ "id", "status", "assignee", "place", "waited" }` |
+| `<figures>` | `{ "person", "closed", "waitMedian", "waitP90", "handleMedian", "handleP90", "surveys", "resolvedShare", "meanRating" }` |
 
 A conversation is answered as `<conversation>` and a message as `<message>`, the routes
 above writing each out. `id`, `replyTo` and `messageId` are identifiers, lower-case and
@@ -391,7 +395,14 @@ may read, the whole set at once, and snooze one until an instant (`09` MSG-CONV-
 Staff of a topic manage its shared saved replies, and each person their own, through the
 replies routes: the list takes `topic` or `mine`, and a new reply's `topic` is none for
 one's own (`09` MSG-CONV-005). A topic's replies, for a person outside its scope, answer
-404 `messaging.reply.notfound` on every replies route, never 403.
+404 `messaging.reply.notfound` on every replies route, never 403. A topic's supervisors
+(M-036) read its live view through `GET /support/live`, and its reports through
+`GET /support/reports`, with `topic`, `from` and `to`; a person who supervises no topic
+named answers 404 `messaging.conversation.notfound` (`09` MSG-CONV-005). In `<live>`,
+`assignee` is a person reference, `place` is `null` once the conversation is assigned,
+and `waited` is the whole minutes since it was queued; in `<figures>`, `person` is the
+staff member, `null` for the topic as a whole, the times are in seconds, and a figure
+with no data is `null`; `from` and `to` are dates, `yyyy-MM-dd`, both included.
 
 **The staff hub (M-033).** The group also maps the staff hub at `/live`, so the host's
 authorization covers it too (`09` MSG-CONV-008). The person comes from
@@ -409,7 +420,7 @@ it missed from the messages route with `after`, since every push follows the sto
 | `conversation` | The server | `conversation`: one added to the person's list, as `<conversation>` |
 | `Typing` | The client | `conversationId` |
 
-*Source: M-032, M-033, M-034, M-035*
+*Source: M-032, M-033, M-034, M-035, M-036*
 
 **Acceptance criteria**
 1. Each route does what its operation does, and the endpoint contract test finds exactly
@@ -436,6 +447,9 @@ MSG-CONV-002).
 | `POST /support/conversations/{id}/messages` | `{ "text" }` | **201** `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }`; **400** `messaging.message.invalid`, `details.field` `text`; **404** `messaging.conversation.notfound`; **409** `messaging.support.noticerequired` for a visitor before an acknowledgement of the current notice; **403** `messaging.support.blocked`; **429** `messaging.support.limited` with `Retry-After`; **503** as for `GET /inapp` |
 | `POST /support/conversations/{id}/read` | `{ "messageId" }` | **204**; **404** `messaging.message.notfound` for a message the conversation does not hold, or `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `POST /support/conversations/{id}/close` | `{ }` | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `GET /support/conversations/{id}/transcript` | | **200** the transcript, `text/plain; charset=utf-8`, as an attachment named `transcript-<id>.txt`; **404** `messaging.conversation.notfound`; **409** `messaging.support.notclosed` for a conversation not closed; **503** as for `GET /inapp` |
+| `POST /support/conversations/{id}/transcript/email` | `{ "email" }` | **202**; **400** `messaging.request.malformed`, `details.member` `email`, or the failure code of a send the engine refuses (`08` section 1); **404** `messaging.conversation.notfound`; **409** `messaging.support.notclosed` for a conversation not closed, or `messaging.support.transcriptlimit` for a fourth email; **503** as for `GET /inapp` |
+| `POST /support/conversations/{id}/survey` | `{ "resolved", "rating", "comment" }` | **204**; **400** `messaging.support.surveyinvalid`, `details.field` `resolved`, `rating` or `comment`; **404** `messaging.conversation.notfound`; **409** `messaging.support.notclosed` for a conversation not closed, `messaging.support.surveyanswered` for a second answer, or `messaging.support.surveyclosed` past 7 days after the close; **503** as for `GET /inapp` |
 
 No route needs a signed-in person. Where `IRecipientIdentity` answers a person, the
 conversation is that person's, with no cookie and no notice; otherwise the visitor is
@@ -449,7 +463,10 @@ refusals are the engine's, as MSG-API-001 gives. For a signed-in customer, every
 that starts or names a conversation takes the person's locks shared, as the in-app
 list's routes do, and answers 503 as for `GET /inapp` where they are not had or a value
 cannot open yet (M-034). `MapHermesPublicConversations` answers the group's
-`RouteGroupBuilder`.
+`RouteGroupBuilder`. Once a support conversation is closed (M-036), its visitor or
+customer reads its transcript, has it sent by email at most three times, to the `email`
+they give, and answers its survey once, within seven days of the close; `comment` is
+optional (`09` MSG-CONV-004).
 
 **The public hub.** The group also maps the public hub at `/live`, authenticated by the
 same cookie (`09` MSG-CONV-008). Its payloads are the staff hub's shapes, a
@@ -465,7 +482,7 @@ conversation's without `tags` and `snoozedUntil`.
 | `closed` | The server | `conversationId` |
 | `Typing` | The client | `conversationId` |
 
-*Source: M-034, M-035*
+*Source: M-034, M-035, M-036*
 
 **Acceptance criteria**
 1. The contract test finds exactly the public routes and hub.

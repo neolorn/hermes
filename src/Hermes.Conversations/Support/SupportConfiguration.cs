@@ -26,6 +26,8 @@ internal static partial class SupportConfiguration
 
     internal const string OfflineReplyKind = "Conversations:Support:OfflineReplyKind";
 
+    internal const string TranscriptKind = "Conversations:Support:TranscriptKind";
+
     internal const string NoticeVersion = "Conversations:Support:NoticeVersion";
 
     internal const string VisitorStarts = "Conversations:Limits:VisitorStarts";
@@ -61,7 +63,7 @@ internal static partial class SupportConfiguration
     private static readonly string[] Days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
     /// <summary>The fixed keys of support.</summary>
-    internal static IReadOnlyList<string> Fixed { get; } = [Limit, OfflineReplyKind, NoticeVersion, VisitorStarts, VisitorMessages, SourceStarts, RetentionVisitor, CloseAfter, CloseWarning];
+    internal static IReadOnlyList<string> Fixed { get; } = [Limit, OfflineReplyKind, TranscriptKind, NoticeVersion, VisitorStarts, VisitorMessages, SourceStarts, RetentionVisitor, CloseAfter, CloseWarning];
 
     /// <summary>Whether <paramref name="key"/>, spelled as <c>08</c> section 4 spells keys, is one of a topic's keys.</summary>
     internal static bool IsTopicKey(string key)
@@ -98,6 +100,12 @@ internal static partial class SupportConfiguration
         if ((offline is null && topics.Count > 0) || (offline is not null && !kinds.Contains(offline, StringComparer.Ordinal)))
         {
             return (null, OfflineReplyKind);
+        }
+
+        string? transcript = hermes[TranscriptKind];
+        if ((transcript is null && topics.Count > 0) || (transcript is not null && !kinds.Contains(transcript, StringComparer.Ordinal)))
+        {
+            return (null, TranscriptKind);
         }
 
         string? notice = hermes[NoticeVersion];
@@ -166,6 +174,7 @@ internal static partial class SupportConfiguration
             Topics = topics,
             Limit = limit,
             OfflineReplyKind = offline,
+            TranscriptKind = transcript,
             NoticeVersion = notice,
             VisitorStarts = visitorStarts,
             VisitorMessages = visitorMessages,
@@ -292,12 +301,7 @@ internal static partial class SupportConfiguration
             }
         }
 
-        ScopeKind? kind = section["Scope:Kind"] switch
-        {
-            "Organization" => ScopeKind.Organization,
-            "Group" => ScopeKind.Group,
-            _ => null,
-        };
+        ScopeKind? kind = KindOf(section["Scope:Kind"]);
         if (kind is null)
         {
             return (null, key + ":Scope:Kind");
@@ -308,7 +312,36 @@ internal static partial class SupportConfiguration
             return (null, key + ":Scope:Reference");
         }
 
-        return (new SupportTopic(section.Key, zone, hours, exceptions, new ConversationScope { Kind = kind.Value, Reference = reference }), null);
+        // Supervisors are optional, a kind and a reference given together (09 MSG-CONV-005).
+        ConversationScope? supervisors = null;
+        string? supervisorsKind = section["Supervisors:Kind"];
+        string? supervisorsReference = section["Supervisors:Reference"];
+        if (supervisorsKind is not null || supervisorsReference is not null)
+        {
+            if (KindOf(supervisorsKind) is not { } supervising)
+            {
+                return (null, key + ":Supervisors:Kind");
+            }
+
+            if (supervisorsReference is not { Length: >= 1 and <= 128 })
+            {
+                return (null, key + ":Supervisors:Reference");
+            }
+
+            supervisors = new ConversationScope { Kind = supervising, Reference = supervisorsReference };
+        }
+
+        return (new SupportTopic(section.Key, zone, hours, exceptions, new ConversationScope { Kind = kind.Value, Reference = reference }, supervisors), null);
+    }
+
+    private static ScopeKind? KindOf(string? text)
+    {
+        return text switch
+        {
+            "Organization" => ScopeKind.Organization,
+            "Group" => ScopeKind.Group,
+            _ => null,
+        };
     }
 
     /// <summary>A list of <c>HH:mm-HH:mm</c>, sorted, not overlapping, each starting before it ends; none where it is not.</summary>
@@ -357,7 +390,7 @@ internal static partial class SupportConfiguration
     [GeneratedRegex(@"^([01][0-9]|2[0-4]):([0-5][0-9])-([01][0-9]|2[0-4]):([0-5][0-9])\z", RegexOptions.CultureInvariant)]
     private static partial Regex Range();
 
-    [GeneratedRegex(@"^Conversations:Topics:[^:]+:(TimeZone|Scope:Kind|Scope:Reference|Hours:[^:]+(:[^:]+)?|Exceptions:[^:]+(:[^:]+)?)\z", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^Conversations:Topics:[^:]+:(TimeZone|Scope:Kind|Scope:Reference|Supervisors:Kind|Supervisors:Reference|Hours:[^:]+(:[^:]+)?|Exceptions:[^:]+(:[^:]+)?)\z", RegexOptions.CultureInvariant)]
     private static partial Regex TopicKey();
 
     [GeneratedRegex(@"^Conversations:Replies:[^:]+:(Trigger|After|Topics:[^:]+)\z", RegexOptions.CultureInvariant)]
@@ -375,6 +408,9 @@ internal sealed class SupportSettings
     internal int Limit { get; init; } = 3;
 
     internal string? OfflineReplyKind { get; init; }
+
+    /// <summary>The kind a closed conversation's transcript is sent by email as (<c>09</c> MSG-CONV-004).</summary>
+    internal string? TranscriptKind { get; init; }
 
     internal string? NoticeVersion { get; init; }
 

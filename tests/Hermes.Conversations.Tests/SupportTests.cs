@@ -26,6 +26,8 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
 {
     internal const string ReplyKind = "support.reply";
 
+    internal const string TranscriptKind = "support.transcript";
+
     internal static readonly ConversationScope Team = new() { Kind = ScopeKind.Group, Reference = "team-billing" };
 
     [Fact]
@@ -355,6 +357,68 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
     }
 
     [Fact]
+    public async Task Close_ByStaffOrByTheVisitor_WritesOneSystemMessageWithoutTextPushedAsAnyMessage()
+    {
+        await using ChatHost chat = await StartAsync();
+        await using HubConnection amal = await AvailableAsync(chat, "amal");
+        HubInbox staff = HubInbox.Of(amal);
+        Browser visitor = await AcknowledgedAsync(chat, "192.0.2.1");
+        Guid byStaff = await visitor.StartAsync();
+        Guid byVisitor = await visitor.StartAsync("other");
+
+        Assert.True((await chat.CallAsync(chats => chats.CloseAsync("amal", new ConversationId(byStaff), default))).IsSuccess);
+        using HttpResponseMessage left = await visitor.SendAsync(HttpMethod.Post, $"/support/conversations/{byVisitor:D}/close", "{ }");
+        Assert.Equal(HttpStatusCode.NoContent, left.StatusCode);
+        Assert.True((await chat.CallAsync(chats => chats.CloseAsync("amal", new ConversationId(byStaff), default))).IsSuccess);
+
+        foreach (Guid conversation in new[] { byStaff, byVisitor })
+        {
+            using HttpResponseMessage read = await visitor.SendAsync(HttpMethod.Get, $"/support/conversations/{conversation:D}/messages");
+            JsonElement[] messages = [.. (await Browser.JsonAsync(read)).GetProperty("messages").EnumerateArray()];
+            Assert.Equal(("system", "library", JsonValueKind.Null), (messages[0].GetProperty("type").GetString(), messages[0].GetProperty("authorKind").GetString(), messages[0].GetProperty("text").ValueKind));
+            Assert.Single(messages, message => message.GetProperty("type").GetString() == "system");
+            await staff.NextAsync("message", arguments => arguments[0].GetString() == conversation.ToString("D") && arguments[1].GetProperty("type").GetString() == "system");
+        }
+    }
+
+    [Fact]
+    public async Task Counters_EachStartAndEachClose_AreCountedByTopic()
+    {
+        System.Collections.Concurrent.ConcurrentBag<(string Name, long Value, string? Topic)> measured = [];
+        using System.Diagnostics.Metrics.MeterListener listener = new()
+        {
+            InstrumentPublished = (instrument, listening) =>
+            {
+                if (instrument.Meter.Name == "Hermes" && instrument.Name.StartsWith("hermes.conversations.", StringComparison.Ordinal))
+                {
+                    listening.EnableMeasurementEvents(instrument);
+                }
+            },
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) =>
+        {
+            string? topic = null;
+            foreach (KeyValuePair<string, object?> tag in tags)
+            {
+                topic = tag.Key == "topic" ? tag.Value as string : topic;
+            }
+
+            measured.Add((instrument.Name, value, topic));
+        });
+        listener.Start();
+        await using ChatHost chat = await StartAsync();
+        await using HubConnection amal = await AvailableAsync(chat, "amal");
+        Browser visitor = await AcknowledgedAsync(chat, "192.0.2.1");
+
+        Guid started = await visitor.StartAsync("late");
+        Assert.True((await chat.CallAsync(chats => chats.CloseAsync("amal", new ConversationId(started), default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.CloseAsync("amal", new ConversationId(started), default))).IsSuccess);
+
+        Assert.Equal(1, measured.Where(each => each.Topic == "late" && each.Name == "hermes.conversations.started").Sum(each => each.Value));
+        Assert.Equal(1, measured.Where(each => each.Topic == "late" && each.Name == "hermes.conversations.closed").Sum(each => each.Value));
+    }
+
+    [Fact]
     public async Task Start_ASecondOnTheSameTopic_IsAlreadyOpenNamingTheOpenOneAndCurrentIsTheNewest()
     {
         await using ChatHost chat = await StartAsync();
@@ -425,6 +489,7 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
             {
                 declare.Category("support").Essential();
                 declare.Kind(ReplyKind, "support").Email();
+                declare.Kind(TranscriptKind, "support").Email();
             });
         chat.Membership.Add(Team, "amal", "omar");
         chat.Membership.Add(new ConversationScope { Kind = ScopeKind.Group, Reference = "team-other" }, "amal");
@@ -449,6 +514,7 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
         }
 
         configuration["Hermes:Conversations:Support:OfflineReplyKind"] = ReplyKind;
+        configuration["Hermes:Conversations:Support:TranscriptKind"] = TranscriptKind;
         configuration["Hermes:Conversations:Support:NoticeVersion"] = "v1";
         configuration["Hermes:PublicBaseAddress"] = "https://shop.example";
         configuration["Hermes:Email:From:Address"] = "support@shop.example";

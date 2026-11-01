@@ -9,14 +9,16 @@ namespace Hermes.Conversations.Support;
 /// <summary>
 /// A support topic as <c>Hermes:Conversations:Topics:&lt;name&gt;</c> configures it (<c>09</c>
 /// MSG-CONV-002): its time zone, its weekly hours and dated exceptions, each a sorted list of
-/// ranges in minutes from midnight, and the scope whose members staff it.
+/// ranges in minutes from midnight, the scope whose members staff it, and the scope whose
+/// members supervise it, none where nobody does (MSG-CONV-005).
 /// </summary>
 internal sealed class SupportTopic(
     string name,
     TimeZoneInfo zone,
     IReadOnlyDictionary<DayOfWeek, IReadOnlyList<SupportHours>> hours,
     IReadOnlyDictionary<DateOnly, IReadOnlyList<SupportHours>> exceptions,
-    ConversationScope scope)
+    ConversationScope scope,
+    ConversationScope? supervisors)
 {
     internal string Name { get; } = name;
 
@@ -27,6 +29,9 @@ internal sealed class SupportTopic(
     internal IReadOnlyDictionary<DateOnly, IReadOnlyList<SupportHours>> Exceptions { get; } = exceptions;
 
     internal ConversationScope Scope { get; } = scope;
+
+    /// <summary>The scope whose members supervise the topic, or none where nobody does.</summary>
+    internal ConversationScope? Supervisors { get; } = supervisors;
 
     /// <summary>Whether the topic is within its hours at <paramref name="now"/>, in its time zone: a date's exception first, its weekday's hours otherwise; a day not configured is closed.</summary>
     internal bool IsWithinHours(DateTimeOffset now)

@@ -114,7 +114,9 @@ internal sealed partial class StaffChats
                 bool wasQueued = row.Assignee is null && string.Equals(row.Status, OpenStatus, StringComparison.Ordinal);
                 row.Status = SnoozedStatus;
                 row.SnoozedUntil = until;
+                row.WaitingAt = null;
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
+                await Live.LiveNotices.TellAsync(context, Live.LiveNotices.Conversation, row.Id, row.Id, token).ConfigureAwait(false);
                 if (wasQueued)
                 {
                     await Live.LiveNotices.TellQueueAsync(context, row.Topic!, token).ConfigureAwait(false);
@@ -291,7 +293,13 @@ internal sealed partial class StaffChats
             return NotFound();
         }
 
-        return string.Equals(reached.Type, SupportType, StringComparison.Ordinal) ? null : Invalid(ChatCodes.ConversationInvalid, "type");
+        if (!string.Equals(reached.Type, SupportType, StringComparison.Ordinal))
+        {
+            return Invalid(ChatCodes.ConversationInvalid, "type");
+        }
+
+        // A supervisor reads a topic's conversations; only its staff work them (09 MSG-CONV-005).
+        return await IsSupportMemberAsync(person, reached, cancellationToken).ConfigureAwait(false) ? null : NotFound();
     }
 
     /// <summary>The saved reply <paramref name="reply"/>, where it is <paramref name="person"/>'s own or shared by a topic whose scope they are a member of; none otherwise.</summary>
