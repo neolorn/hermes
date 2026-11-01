@@ -162,7 +162,6 @@ the public surface (`04` MSG-LIB-006):
 
 | Designed for, not built | Where its design lives |
 |---|---|
-| Conversations: support chat with a queue, availability, transcripts, a survey, automatic replies, attachments; staff company, team and private chats | `09` |
 | Voice and video in a conversation; customer email in the support inbox; response-time targets; a help center; an AI assistant | `09` MSG-CONV-012 |
 | Push to native phone apps (Firebase Cloud Messaging, Apple Push Notification service) | `02` MSG-PUSH-008 |
 | Safari's declarative Web Push payload | `02` MSG-PUSH-002 |

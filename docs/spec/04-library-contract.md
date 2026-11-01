@@ -155,7 +155,7 @@ template's content, `InboxMessage`, `InboxEmail`, `InboxSms`, `InboxPush` and
 | | `CategoryBuilder` | `Essential()`, `RequiresConsent(string purpose)`, `QuietHours(bool apply)`, `Limit(Channel channel, int count, TimeSpan window)`, `DeploymentLimit(Channel channel, int count, TimeSpan window)`, `Label(string language, string text)`, each answering the builder (`01` MSG-SEND-002) |
 | | `MessagingEndpointRouteBuilderExtensions` | The five mapping methods of MSG-LIB-004 in `Hermes` |
 | | `IDispatcher` | `RunPassAsync(...)` runs one pass of each channel and answers the number of deliveries they took, in an application with `Hermes:Dispatch:Enabled` on (where it is off, it throws `InvalidOperationException` before it claims anything); a pass whose token is cancelled stops as `01` MSG-SEND-007 gives and the call then throws `OperationCanceledException` (`01` MSG-SEND-007) |
-| `Hermes.Testing` | `InMemoryEmailProvider`, `InMemorySmsProvider`, `InMemoryPushProvider`, `FixedSecretSource`, `TestDispatcher`, `MessagingTestDatabase`, `MessagingTestingServiceCollectionExtensions` | The members of MSG-LIB-008 |
+| `Hermes.Testing` | `InMemoryEmailProvider`, `InMemorySmsProvider`, `InMemoryPushProvider`, `FixedSecretSource`, `TestDispatcher`, `MessagingTestDatabase`, `MessagingTestingServiceCollectionExtensions`, `InMemoryAttachmentStore`, `FixedAttachmentScanner` | The members of MSG-LIB-008 |
 | `Hermes.Development` | `MessagingDevelopmentExtensions` | `AddHermesDevelopmentInbox(IHostApplicationBuilder)` answers the builder; `MapHermesDevelopmentInbox(IEndpointRouteBuilder, string prefix)` answers the group's `RouteGroupBuilder`, which holds no endpoint outside Development (`02` MSG-DEV-001; `05` MSG-API-007) |
 | | `DevelopmentInbox` | `DevelopmentInbox()` reads the default folder and `DevelopmentInbox(string folder)` the one given; `string Folder`; `DateTimeOffset MadeAt`; `ListAsync(InboxFilter filter, ...)` answers `IReadOnlyList<InboxMessage>`, newest first; `LatestAsync(InboxFilter filter, ...)` answers `InboxMessage?`; `WaitForAsync(InboxFilter filter, TimeSpan timeout, ...)` answers an `InboxMessage` and throws `TimeoutException` once `timeout` has passed with none; `ClearAsync(...)` answers `ValueTask` (`02` MSG-DEV-006) |
 | | `InboxFilter` | `string? To`, `string? Person`, `Channel? Channel`, `string? App`, `string? Kind`, `DateTimeOffset? After` |
@@ -168,7 +168,7 @@ Everything else is internal: the shipped providers, their options, the endpoints
 request and response types (their wire shape is the contract, `05`), and the tables.
 
 *Source: M-004, M-005, M-008, M-012, M-020, M-024, M-026, M-031, M-032, M-033, M-034,
-M-035, M-036, M-037, M-038*
+M-035, M-036, M-037, M-038, M-039*
 
 **Acceptance criteria**
 1. The build fails when a public member is added or removed without its public API file
@@ -424,7 +424,7 @@ in-memory providers, fixed secrets, a dispatcher run on demand and a test databa
 migration, so a test sends real messages through the engine and reads what each provider
 received.
 
-**Values (M-012).**
+**Values (M-012, M-039).**
 
 | Type | Members |
 |---|---|
@@ -433,12 +433,19 @@ received.
 | `InMemoryPushProvider` | An `IPushProvider` for `webpush`; `IReadOnlyList<PushRequest> Received`, the payload unencrypted; `AnswerWith(Func<PushRequest, Attempt> answer)`, by default every request `Accepted(null)` |
 | `FixedSecretSource` | An `ISecretSource` whose parameterless constructor answers version 1 of the five keys of `06` MSG-OPS-008 and `emailSubmission`, each in its form and derived at run time from the SHA-256 of its name, so no credential-shaped text is written in the repository, and answers neither connection secret; `SetSecret(string name, SecretVersions versions)` and `RemoveSecret(string name)` |
 | `TestDispatcher` | `TestDispatcher(IDispatcher dispatcher, TimeProvider timeProvider)`, the clock being the `TimeProvider` the library is registered with; `RunUntilIdleAsync(CancellationToken cancellationToken)` runs passes until a round of them, one of each channel, takes no delivery (so a channel whose rate the clock's current second has used up waits for the test to move the clock) and answers the number of deliveries taken, throwing `OperationCanceledException` once its token is cancelled, as `RunPassAsync` does |
+| `InMemoryAttachmentStore` | An `IAttachmentStore` that keeps what it is given in memory (M-039; `09` MSG-CONV-007) |
+| `FixedAttachmentScanner` | `FixedAttachmentScanner(ScanResult answer = ScanResult.Clean)`: an `IAttachmentScanner` that answers `answer` for every file (M-039; `09` MSG-CONV-007) |
 | `MessagingTestDatabase` | A static class; `MigrateAsync(string connection, CancellationToken cancellationToken)` answers `ValueTask` and applies the release's migrations to that database as `hermes migrate` does (`06` MSG-OPS-002), so a host's test, and the sample host's, brings its test database to the schema |
 | `MessagingTestingServiceCollectionExtensions` | `AddHermesTesting(IServiceCollection services, Action<FixedSecretSource>? configure = null)` answers the `IServiceCollection`; it registers each in-memory provider and one `FixedSecretSource` as singletons, each resolvable by its own type and by its contract, in place of the shipped providers and the host's secret source, `configure` running on that `FixedSecretSource` at once, so a test sets `connection` there before the host starts, and removes the hosted dispatcher and `observer` job, so only a test's passes dispatch, in either order of the two calls (`AddHermes` registers neither service where `AddHermesTesting` came first); its in-memory providers are used in place of the development inbox's wherever both are registered, in either order (`02` MSG-DEV-001); a secret source the host registers after it replaces `FixedSecretSource`, as any later registration of a seam does; a test's pass delivers, after its deliveries, every pending notice in order, as the job does, so a report's move, a cancellation and an erasure reach the observer too (`01` MSG-SEND-007, MSG-SEND-017) |
 
+Where attachments are enabled (`09` MSG-CONV-007), `AddHermesTesting` also registers one
+`InMemoryAttachmentStore` and one `FixedAttachmentScanner` answering `Clean` as
+singletons, each resolvable by its own type and by its seam, in place of the host's, as
+it does the providers (M-039).
+
 Nothing in it skips a check of `01`.
 
-*Source: M-012, M-013, M-022, M-024*
+*Source: M-012, M-013, M-022, M-024, M-039*
 
 **Acceptance criteria**
 1. A host test sends a kind and reads the rendered message from the in-memory provider.
