@@ -47,15 +47,16 @@ domain naming no real product or company (checked in review), declares a few kin
 essential and an optional category, captures its messages in the development inbox when
 it runs (`02` MSG-DEV-001) while its tests send through the in-memory providers of
 `Hermes.Testing`, references `Hermes.Conversations` and registers conversations (M-031),
-maps every endpoint group, and runs in the gate (MSG-ENG-012) from packages packed from
-the same commit into `artifacts/packages/`, which `.gitignore` lists, at a version the
-gate passes it; it alone has no lockfile and no locked restore, since its packages
-change with every commit. The sample host and its test project are outside `Hermes.sln`,
-in `samples/Samples.sln`, and `samples/nuget.config` adds `artifacts/packages/` to the
-package sources for them alone, so no other restore needs the folder. Both
-`nuget.config` files carry `packageSourceMapping`: the library's own package identifiers
-from `artifacts/packages/` only (in `samples/nuget.config`), and every other identifier
-from nuget.org only, so no package is taken from a source it was not mapped to.
+maps every endpoint group, the in-app group among them (M-033), and runs in the gate
+(MSG-ENG-012) from packages packed from the same commit into `artifacts/packages/`,
+which `.gitignore` lists, at a version the gate passes it; it alone has no lockfile and
+no locked restore, since its packages change with every commit. The sample host and its
+test project are outside `Hermes.sln`, in `samples/Samples.sln`, and
+`samples/nuget.config` adds `artifacts/packages/` to the package sources for them alone,
+so no other restore needs the folder. Both `nuget.config` files carry
+`packageSourceMapping`: the library's own package identifiers from `artifacts/packages/`
+only (in `samples/nuget.config`), and every other identifier from nuget.org only, so no
+package is taken from a source it was not mapped to.
 
 The repository's other files: at its root the solution (`Hermes.sln`),
 `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `.editorconfig`,
@@ -88,7 +89,7 @@ scripts, and the pipeline runs on GitHub's `ubuntu-24.04` runner using no action
 latest release when the workflow is written and pinned by that release's full commit SHA
 (all checked in review).
 
-*Source: M-012, M-013, M-015, M-020, M-024, M-031*
+*Source: M-012, M-013, M-015, M-020, M-024, M-031, M-033*
 
 **Acceptance criteria**
 1. A test fails on a project outside this layout, a grant outside this rule, or an entry
