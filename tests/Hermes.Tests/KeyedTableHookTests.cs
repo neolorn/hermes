@@ -53,7 +53,7 @@ public sealed class KeyedTableHookTests(PostgresFixture postgres) : IClassFixtur
         erasure: KeyedErasure.Clear);
 
     [Fact]
-    public async Task ProtectAgain_ARowOfAKeyedTableUnderAnOlderVersion_IsProtectedAgainUnderTheWriteVersionAndTheOldVersionRetired()
+    public async Task MSG_OPS_002_AC6_ATableDefinedInTheTestsIsProtectedAgainAndItsOldVersionRetiredOnlyThen()
     {
         string connection = await DatabaseAsync();
         Guid row = Guid.CreateVersion7();
@@ -75,7 +75,7 @@ public sealed class KeyedTableHookTests(PostgresFixture postgres) : IClassFixtur
     }
 
     [Fact]
-    public async Task Retire_AContentKeysVersionAKeyedTableRowStillUses_IsNotRetiredUntilTheRowIsGone()
+    public async Task MSG_OPS_002_AC6_AContentKeysVersionARowOfATableDefinedInTheTestsUsesIsNotRetired()
     {
         string connection = await DatabaseAsync();
         Guid row = Guid.CreateVersion7();
@@ -105,7 +105,7 @@ public sealed class KeyedTableHookTests(PostgresFixture postgres) : IClassFixtur
     }
 
     [Fact]
-    public async Task Retire_AHashKeysVersionAKeyedTableRowRecords_IsNotRetiredUntilTheRowIsGone()
+    public async Task MSG_OPS_002_AC6_AHashKeysVersionARowOfATableDefinedInTheTestsRecordsIsNotRetired()
     {
         string connection = await DatabaseAsync();
         await using (EngineHost one = await StartAsync(connection))
