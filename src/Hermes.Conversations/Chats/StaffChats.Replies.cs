@@ -167,14 +167,11 @@ internal sealed partial class StaffChats
             return;
         }
 
-        MessagingOptions current = options.CurrentValue;
-        await LibraryTransactions.RunAsync(
-            database,
-            current,
-            (context, token) => context.Conversations
-                .Where(row => row.Type == SupportType && row.Status == SnoozedStatus && row.SnoozedUntil <= now)
-                .ExecuteUpdateAsync(set => set.SetProperty(row => row.Status, OpenStatus).SetProperty(row => row.SnoozedUntil, (DateTimeOffset?)null), token),
-            cancellationToken).ConfigureAwait(false);
+        foreach (Guid snoozed in await DueAsync(row => row.Status == SnoozedStatus && row.SnoozedUntil <= now, cancellationToken).ConfigureAwait(false))
+        {
+            await WakeAsync(snoozed, now, cancellationToken).ConfigureAwait(false);
+        }
+
         if (!await renew(cancellationToken).ConfigureAwait(false))
         {
             return;
@@ -206,6 +203,7 @@ internal sealed partial class StaffChats
             if (await CloseSilentAsync(closed, now, cancellationToken).ConfigureAwait(false) is { } topic)
             {
                 topics.Add(topic);
+                metrics.ConversationsClosed.Add(1, new KeyValuePair<string, object?>("topic", topic));
             }
         }
 
@@ -213,6 +211,40 @@ internal sealed partial class StaffChats
         {
             await assigner.AssignAsync(topics, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Wakes the snoozed conversation <paramref name="conversation"/> whose instant has come by
+    /// <paramref name="now"/>, under its row's lock, and pushes its assignee the conversation as
+    /// it now reads, the staff hub's push of a conversation, so their list shows it open.
+    /// </summary>
+    private async Task WakeAsync(Guid conversation, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        await LibraryTransactions.RunAsync(
+            database,
+            options.CurrentValue,
+            async (context, token) =>
+            {
+                ConversationRow? row = await LockedConversationAsync(context, conversation, token).ConfigureAwait(false);
+                if (row is null || !string.Equals(row.Status, SnoozedStatus, StringComparison.Ordinal) || row.SnoozedUntil is not { } until || until > now)
+                {
+                    return false;
+                }
+
+                bool queued = row.Assignee is null;
+                row.Status = OpenStatus;
+                row.SnoozedUntil = null;
+                row.WaitingAt = WaitingOf(row);
+                await context.SaveChangesAsync(token).ConfigureAwait(false);
+                await LiveNotices.TellAsync(context, LiveNotices.Conversation, row.Id, row.Id, token).ConfigureAwait(false);
+                if (queued)
+                {
+                    await LiveNotices.TellQueueAsync(context, row.Topic!, token).ConfigureAwait(false);
+                }
+
+                return true;
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The support conversations <paramref name="due"/> selects, oldest first, at most a batch.</summary>
@@ -251,30 +283,41 @@ internal sealed partial class StaffChats
                     return null;
                 }
 
-                bool wasQueued = row.Assignee is null && string.Equals(row.Status, OpenStatus, StringComparison.Ordinal);
-                Guid message = Guid.CreateVersion7();
-                context.Messages.Add(new MessageRow
-                {
-                    Id = message,
-                    ConversationId = row.Id,
-                    AuthorKind = Library,
-                    Owner = row.Customer,
-                    Type = SystemType,
-                    SentAt = now,
-                });
-                Closed(row, now, by: null);
-                row.LastMessageAt = now;
-                await context.SaveChangesAsync(token).ConfigureAwait(false);
-                await LiveNotices.TellAsync(context, LiveNotices.Message, row.Id, message, token).ConfigureAwait(false);
-                await LiveNotices.TellAsync(context, LiveNotices.Closed, row.Id, row.Id, token).ConfigureAwait(false);
-                if (wasQueued)
-                {
-                    await LiveNotices.TellQueueAsync(context, row.Topic!, token).ConfigureAwait(false);
-                }
-
+                await CloseRowAsync(context, row, now, by: null, token).ConfigureAwait(false);
                 return row.Topic;
             },
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Closes <paramref name="row"/>, locked in the transaction, at <paramref name="now"/> by
+    /// <paramref name="by"/>, none for its visitor or customer or for its silence (<c>09</c>
+    /// MSG-CONV-002): the status <c>closed</c>, its timers stopped, and one <c>system</c>
+    /// message without text, telling the processes of the message, the close and, where it was
+    /// queued, its topic's queue.
+    /// </summary>
+    private static async Task CloseRowAsync(MessagingContext context, ConversationRow row, DateTimeOffset now, string? by, CancellationToken cancellationToken)
+    {
+        bool wasQueued = row.Assignee is null && string.Equals(row.Status, OpenStatus, StringComparison.Ordinal);
+        Guid message = Guid.CreateVersion7();
+        context.Messages.Add(new MessageRow
+        {
+            Id = message,
+            ConversationId = row.Id,
+            AuthorKind = Library,
+            Owner = row.Customer,
+            Type = SystemType,
+            SentAt = now,
+        });
+        Closed(row, now, by);
+        row.LastMessageAt = now;
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await LiveNotices.TellAsync(context, LiveNotices.Message, row.Id, message, cancellationToken).ConfigureAwait(false);
+        await LiveNotices.TellAsync(context, LiveNotices.Closed, row.Id, row.Id, cancellationToken).ConfigureAwait(false);
+        if (wasQueued)
+        {
+            await LiveNotices.TellQueueAsync(context, row.Topic!, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Marks <paramref name="row"/> closed at <paramref name="now"/> by <paramref name="by"/>, its timers stopped.</summary>

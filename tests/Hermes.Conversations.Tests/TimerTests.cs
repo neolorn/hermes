@@ -162,7 +162,25 @@ public sealed class TimerTests(PostgresFixture postgres) : IClassFixture<Postgre
 
         await PassAsync(second, started.AddHours(2));
         Assert.Equal(2, (await AutomaticAsync(leaving, closed)).Length);
-        Assert.Equal(0L, await second.ScalarAsync(database => With(new NpgsqlCommand("SELECT count(*) FROM messaging.messages WHERE conversation_id = @id AND type = 'system'", database), closed)));
+        // The visitor's own close wrote the one system message; the timers wrote none.
+        Assert.Equal(1L, await second.ScalarAsync(database => With(new NpgsqlCommand("SELECT count(*) FROM messaging.messages WHERE conversation_id = @id AND type = 'system'", database), closed)));
+    }
+
+    [Fact]
+    public async Task Wake_ASnoozeThatEnds_ReachesTheAssigneesHub()
+    {
+        await using ChatHost chat = await StartAsync();
+        await using HubConnection amal = await SupportTests.AvailableAsync(chat, "amal");
+        HubInbox told = HubInbox.Of(amal);
+        Guid conversation = await (await SupportTests.AcknowledgedAsync(chat, "192.0.2.1")).StartAsync();
+        DateTimeOffset until = DateTimeOffset.UtcNow.AddMinutes(10);
+        Assert.True((await chat.CallAsync(chats => chats.SnoozeAsync("amal", new ConversationId(conversation), until, default))).IsSuccess);
+        await told.NextAsync("conversation", arguments => arguments[0].GetProperty("status").GetString() == "snoozed");
+
+        await PassAsync(chat, until);
+
+        JsonElement woken = (await told.NextAsync("conversation", arguments => arguments[0].GetProperty("status").GetString() == "open"))[0];
+        Assert.Equal((conversation.ToString("D"), JsonValueKind.Null), (woken.GetProperty("id").GetString(), woken.GetProperty("snoozedUntil").ValueKind));
     }
 
     [Fact]

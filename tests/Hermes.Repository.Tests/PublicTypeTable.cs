@@ -29,7 +29,7 @@ internal static class PublicTypeTable
             "CategoryPreferences", "ChannelPreference",
             "SubjectExport", "SubscriptionExport", "DeliveryExport", "InAppEntryExport", "IdempotencyKeyExport",
             "InAppPage", "InAppEntry",
-            "ConversationScope", "ConversationPage", "ConversationRecord", "ParticipantRecord", "MessagePage", "MessageRecord", "SavedReplyRecord",
+            "ConversationScope", "ConversationPage", "ConversationRecord", "ParticipantRecord", "MessagePage", "MessageRecord", "SavedReplyRecord", "LiveConversation", "ReportFigures",
             "Channel", "DeliveryStatus", "AttemptClass", "AttemptReason", "PushUrgency", "PushService", "PushPlatform", "SmsEncoding", "SmsReportOutcome", "ConsentAnswer",
             "ConversationType", "ConversationStatus", "MessageType", "ScopeKind", "AuthorKind",
 

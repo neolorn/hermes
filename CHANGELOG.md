@@ -125,6 +125,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The library's page `transcript`, in `en` and `ar`, whose one part is `text`
 - The counters `hermes.conversations.started` and `hermes.conversations.closed`, each
   tagged `topic`
+- Supervisors: each topic may name `Supervisors`, a membership scope whose members read
+  its conversations, notes included, and receive the staff hub's pushes for them, but
+  neither write in, tag, snooze, transfer, close nor list them; `GET /support/live` and
+  `GET /support/reports` of the staff group answer a topic's live view, and its figures
+  per staff member and as a whole over a period of at most 92 days, to its supervisors
+  alone, anyone else answered `messaging.conversation.notfound`. `IConversations` gains
+  `LiveAsync` and `ReportAsync`, with `LiveConversation` and `ReportFigures`
+- Every close of a support conversation, by staff, by its visitor or customer, or for its
+  silence, writes one `system` message without text, stored and pushed as any message;
+  the counters `hermes.conversations.started` and `hermes.conversations.closed` count
+  each start and each close; a snooze, and its wake, push the conversation to its
+  assignee
 
 ### Fixed
 
