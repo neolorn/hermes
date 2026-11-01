@@ -344,4 +344,16 @@ public sealed class PrintMembersTests
 
         Assert.Contains("Topic = billing, Status = Open, Place = 2, Offline = False", conversation.ToString(), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void MSG_LIB_002_TheLiveViewAndReportsPrintNoPersonReference()
+    {
+        string live = new LiveConversation { Conversation = new ConversationId(Guid.CreateVersion7()), Status = ConversationStatus.Open, Assignee = Secret, Place = null, Waited = 4 }.ToString();
+        string figures = new ReportFigures { Person = Secret, Closed = 2, Surveys = 1, MeanRating = 4m }.ToString();
+
+        Assert.DoesNotContain(Secret, live, StringComparison.Ordinal);
+        Assert.DoesNotContain(Secret, figures, StringComparison.Ordinal);
+        Assert.Contains("Status = Open, Place = , Waited = 4", live, StringComparison.Ordinal);
+        Assert.Contains("Closed = 2", figures, StringComparison.Ordinal);
+    }
 }
