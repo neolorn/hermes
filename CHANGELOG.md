@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The sample host lets its staff talk in the shop's group conversation
 - A group conversation's scope reference is 1 to 128 characters, as a person reference is;
   outside it, the group route answers `messaging.request.malformed`, `member` `reference`
+- The sample host maps the in-app group
 
 ### Fixed
 
