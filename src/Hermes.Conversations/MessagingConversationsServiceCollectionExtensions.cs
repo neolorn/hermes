@@ -43,6 +43,7 @@ public static class MessagingConversationsServiceCollectionExtensions
         services.TryAddSingleton<LivePresence>();
         services.TryAddSingleton<LivePush>();
         services.TryAddSingleton<SupportAssigner>();
+        services.TryAddSingleton<ReplyTemplates>();
         services.TryAddScoped<StaffChats>();
         services.TryAddScoped<IConversations>(provider => provider.GetRequiredService<StaffChats>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ConversationsStartup>());

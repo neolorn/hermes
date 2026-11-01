@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Hermes.Conversations.Support;
 using Hermes.Core;
@@ -109,6 +110,112 @@ public sealed class SupportConfigurationTests
 
         settings["Hermes:Conversations:Topics:billing:Colour"] = "blue";
         Assert.Equal("Conversations:Topics:billing:Colour", ConversationsConfiguration.UnknownKey(Hermes(settings)));
+    }
+
+    [Fact]
+    public void MSG_CONV_003_AC1_RulesAreReadWithTheirTriggersTopicsAndWait()
+    {
+        Dictionary<string, string?> settings = Topic();
+        settings["Hermes:Conversations:Replies:welcome:Trigger"] = "started";
+        settings["Hermes:Conversations:Replies:patience:Trigger"] = "waiting";
+        settings["Hermes:Conversations:Replies:patience:After"] = "00:10:00";
+        settings["Hermes:Conversations:Replies:patience:Topics:0"] = "billing";
+
+        (SupportSettings? read, string? invalid) = SupportConfiguration.Read(Hermes(settings), Kinds);
+
+        Assert.Null(invalid);
+        Assert.Equal(["patience", "welcome"], read!.Rules.Select(rule => rule.Name));
+        ReplyRule patience = read.Rules[0];
+        Assert.Equal(("waiting", TimeSpan.FromMinutes(10)), (patience.Trigger, patience.After));
+        Assert.True(patience.Serves("billing"));
+        Assert.False(patience.Serves("other"));
+        Assert.True(read.Rules[1].Serves("other"));
+        Assert.Null(ConversationsConfiguration.UnknownKey(Hermes(settings)));
+    }
+
+    [Theory]
+    [InlineData("Hermes:Conversations:Replies:welcome:Trigger", "hello", "Conversations:Replies:welcome:Trigger")]
+    [InlineData("Hermes:Conversations:Replies:welcome:Topics:0", "unknown", "Conversations:Replies:welcome:Topics:0")]
+    [InlineData("Hermes:Conversations:Replies:welcome:After", "00:10:00", "Conversations:Replies:welcome:After")]
+    [InlineData("Hermes:Conversations:Replies:Bad_Name:Trigger", "started", "Conversations:Replies:Bad_Name")]
+    public void Read_ARuleOutsideItsRule_IsItsKey(string key, string value, string expected)
+    {
+        Dictionary<string, string?> settings = Topic();
+        settings["Hermes:Conversations:Replies:welcome:Trigger"] = "started";
+        settings[key] = value;
+
+        Assert.Equal(expected, SupportConfiguration.Read(Hermes(settings), Kinds).Invalid);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("00:00:59")]
+    [InlineData("01:00:01")]
+    public void Read_AWaitingRuleWithoutAWaitWithinItsRange_IsItsAfter(string? after)
+    {
+        Dictionary<string, string?> settings = Topic();
+        settings["Hermes:Conversations:Replies:patience:Trigger"] = "waiting";
+        settings["Hermes:Conversations:Replies:patience:After"] = after;
+
+        Assert.Equal("Conversations:Replies:patience:After", SupportConfiguration.Read(Hermes(settings), Kinds).Invalid);
+    }
+
+    [Fact]
+    public void Read_TagsCloseAfterAndCloseWarning_AreReadWithTheirDefaults()
+    {
+        Dictionary<string, string?> settings = Topic();
+        SupportSettings defaults = SupportConfiguration.Read(Hermes(settings), Kinds).Settings!;
+        Assert.Equal((TimeSpan.FromDays(1), TimeSpan.FromMinutes(5)), (defaults.CloseAfter, defaults.CloseWarning));
+        Assert.Empty(defaults.Tags);
+
+        settings["Hermes:Conversations:Tags:0"] = "vip";
+        settings["Hermes:Conversations:Tags:1"] = "refund";
+        settings["Hermes:Conversations:Support:CloseAfter"] = "02:00:00";
+        settings["Hermes:Conversations:Support:CloseWarning"] = "00:15:00";
+        SupportSettings read = SupportConfiguration.Read(Hermes(settings), Kinds).Settings!;
+
+        Assert.Equal(["vip", "refund"], read.Tags);
+        Assert.Equal((TimeSpan.FromHours(2), TimeSpan.FromMinutes(15)), (read.CloseAfter, read.CloseWarning));
+        Assert.Null(ConversationsConfiguration.UnknownKey(Hermes(settings)));
+    }
+
+    [Fact]
+    public void MSG_CONV_005_AC3_ATagOutsideTheNameRuleOrAFiftyFirstFailsTheStart()
+    {
+        Dictionary<string, string?> settings = Topic();
+        settings["Hermes:Conversations:Tags:0"] = "Vip";
+        Assert.Equal("Conversations:Tags:0", SupportConfiguration.Read(Hermes(settings), Kinds).Invalid);
+
+        settings.Remove("Hermes:Conversations:Tags:0");
+        for (int tag = 0; tag < 51; tag++)
+        {
+            settings["Hermes:Conversations:Tags:" + tag.ToString(System.Globalization.CultureInfo.InvariantCulture)] = "tag-" + tag.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        Assert.Equal("Conversations:Tags:50", SupportConfiguration.Read(Hermes(settings), Kinds).Invalid);
+    }
+
+    [Theory]
+    [InlineData("Hermes:Conversations:Support:CloseAfter", "00:59:59", "Conversations:Support:CloseAfter")]
+    [InlineData("Hermes:Conversations:Support:CloseAfter", "30.00:00:01", "Conversations:Support:CloseAfter")]
+    [InlineData("Hermes:Conversations:Support:CloseWarning", "00:00:59", "Conversations:Support:CloseWarning")]
+    [InlineData("Hermes:Conversations:Support:CloseWarning", "01:00:01", "Conversations:Support:CloseWarning")]
+    public void Read_ACloseSpanOutsideItsRange_IsItsKey(string key, string value, string expected)
+    {
+        Dictionary<string, string?> settings = Topic();
+        settings[key] = value;
+
+        Assert.Equal(expected, SupportConfiguration.Read(Hermes(settings), Kinds).Invalid);
+    }
+
+    [Fact]
+    public void Read_AWarningNoShorterThanTheClose_IsTheWarningsKey()
+    {
+        Dictionary<string, string?> settings = Topic();
+        settings["Hermes:Conversations:Support:CloseAfter"] = "01:00:00";
+        settings["Hermes:Conversations:Support:CloseWarning"] = "01:00:00";
+
+        Assert.Equal("Conversations:Support:CloseWarning", SupportConfiguration.Read(Hermes(settings), Kinds).Invalid);
     }
 
     private static Dictionary<string, string?> Topic(string name = "billing")

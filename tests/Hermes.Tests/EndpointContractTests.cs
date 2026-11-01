@@ -172,7 +172,8 @@ public sealed class EndpointContractTests
         Assert.Contains("POST /public/support/conversations/{id}/close 415 body code", given);
         Assert.Contains("POST /staff/support/conversations/{id}/close 503 body code", given);
         Assert.DoesNotContain("POST /public/support/conversations 401", given);
-        Assert.DoesNotContain("POST /public/support/conversations/{id}/close 503", given);
+        Assert.Contains("POST /public/support/conversations/{id}/close 503 body code", given);
+        Assert.Contains("GET /staff/support/queue 503 body code", given);
         Assert.Contains("HUB /public/live server place position", mapped);
         Assert.Contains("HUB /public/live client Typing conversationId", mapped);
         Assert.Equal(8, mapped.Count(line => line.StartsWith("HUB /public/", StringComparison.Ordinal)));

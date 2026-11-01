@@ -213,4 +213,70 @@ public interface IConversations
     /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result> UnblockAsync(string person, ConversationId conversation, CancellationToken cancellationToken);
+
+    /// <summary>Puts the whole set of a support conversation's tags, each declared in configuration (<c>09</c> MSG-CONV-005).</summary>
+    /// <param name="person">The person reference, a member of the topic's scope.</param>
+    /// <param name="conversation">The conversation.</param>
+    /// <param name="tags">The tags, the whole set.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.conversation.invalid</c> (<c>field</c> <c>tags</c> for an undeclared tag, <c>type</c> for a conversation that is not support); <c>messaging.conversation.closed</c>.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result> SetTagsAsync(string person, ConversationId conversation, IReadOnlyCollection<string> tags, CancellationToken cancellationToken);
+
+    /// <summary>Snoozes a support conversation until <paramref name="until"/>, 5 minutes to 30 days ahead; it keeps its assignee, and wakes then or when its visitor or customer writes.</summary>
+    /// <param name="person">The person reference, a member of the topic's scope.</param>
+    /// <param name="conversation">The conversation.</param>
+    /// <param name="until">The instant it wakes.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.conversation.invalid</c> (<c>field</c> <c>until</c> outside its range, <c>type</c> for a conversation that is not support); <c>messaging.conversation.closed</c>.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result> SnoozeAsync(string person, ConversationId conversation, DateTimeOffset until, CancellationToken cancellationToken);
+
+    /// <summary>Reads a topic's shared saved replies, or the person's own where <paramref name="topic"/> is none, by name.</summary>
+    /// <param name="person">The person reference.</param>
+    /// <param name="topic">The topic, or none for the person's own.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The replies; or a failure: <c>messaging.request.malformed</c> (<c>member</c> <c>topic</c>) for a topic not configured; <c>messaging.reply.notfound</c> for a topic whose scope the person is not a member of.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result<IReadOnlyList<SavedReplyRecord>>> RepliesAsync(string person, string? topic, CancellationToken cancellationToken);
+
+    /// <summary>Adds a saved reply, shared by <paramref name="topic"/> or the person's own where it is none.</summary>
+    /// <param name="person">The person reference.</param>
+    /// <param name="name">The name, 1 to 64 characters, unique among its owner's.</param>
+    /// <param name="text">The text, 1 to 4,000 characters.</param>
+    /// <param name="topic">The topic, or none for the person's own.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The reply; or a failure: <c>messaging.reply.invalid</c> (<c>field</c> <c>name</c> or <c>text</c>); <c>messaging.reply.notfound</c> for a topic not configured or whose scope the person is not a member of; <c>messaging.reply.full</c>; <c>messaging.reply.nameexists</c>.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result<SavedReplyRecord>> AddReplyAsync(string person, string name, string text, string? topic, CancellationToken cancellationToken);
+
+    /// <summary>Changes a saved reply's name and text.</summary>
+    /// <param name="person">The person reference.</param>
+    /// <param name="reply">The reply.</param>
+    /// <param name="name">The name, 1 to 64 characters, unique among its owner's.</param>
+    /// <param name="text">The text, 1 to 4,000 characters.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>Success; or a failure: <c>messaging.reply.invalid</c> (<c>field</c> <c>name</c> or <c>text</c>); <c>messaging.reply.notfound</c>; <c>messaging.reply.nameexists</c>.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result> ChangeReplyAsync(string person, SavedReplyId reply, string name, string text, CancellationToken cancellationToken);
+
+    /// <summary>Removes a saved reply.</summary>
+    /// <param name="person">The person reference.</param>
+    /// <param name="reply">The reply.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>Success; or a failure: <c>messaging.reply.notfound</c>.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result> RemoveReplyAsync(string person, SavedReplyId reply, CancellationToken cancellationToken);
 }

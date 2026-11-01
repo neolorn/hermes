@@ -58,19 +58,23 @@ internal static class PublicEndpoints
             .Produces<ErrorBody>(StatusCodes.Status409Conflict)
             .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
             .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
-            .Produces<ErrorBody>(StatusCodes.Status429TooManyRequests);
+            .Produces<ErrorBody>(StatusCodes.Status429TooManyRequests)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapPost("/support/offline", (Delegate)((HttpContext context) => StartAsync(context, path, offline: true)))
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
             .Produces<ErrorBody>(StatusCodes.Status403Forbidden)
             .Produces<ErrorBody>(StatusCodes.Status409Conflict)
             .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
             .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
-            .Produces<ErrorBody>(StatusCodes.Status429TooManyRequests);
+            .Produces<ErrorBody>(StatusCodes.Status429TooManyRequests)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapGet("/support/conversations/current", (Delegate)((HttpContext context) => CurrentAsync(context, path)))
-            .Produces<ErrorBody>(StatusCodes.Status404NotFound);
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapGet("/support/conversations/{id}/messages", (HttpContext context, string id) => MessagesAsync(context, path, id))
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
-            .Produces<ErrorBody>(StatusCodes.Status404NotFound);
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapPost("/support/conversations/{id}/messages", (HttpContext context, string id) => WriteAsync(context, path, id))
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
             .Produces<ErrorBody>(StatusCodes.Status403Forbidden)
@@ -78,19 +82,22 @@ internal static class PublicEndpoints
             .Produces<ErrorBody>(StatusCodes.Status409Conflict)
             .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
             .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
-            .Produces<ErrorBody>(StatusCodes.Status429TooManyRequests);
+            .Produces<ErrorBody>(StatusCodes.Status429TooManyRequests)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapPost("/support/conversations/{id}/read", (HttpContext context, string id) => MarkReadAsync(context, path, id))
             .Produces(StatusCodes.Status204NoContent)
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
             .Produces<ErrorBody>(StatusCodes.Status404NotFound)
             .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
-            .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType);
+            .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapPost("/support/conversations/{id}/close", (HttpContext context, string id) => CloseAsync(context, path, id))
             .Produces(StatusCodes.Status204NoContent)
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
             .Produces<ErrorBody>(StatusCodes.Status404NotFound)
             .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
-            .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType);
+            .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
     }
 
     /// <summary>
@@ -193,7 +200,7 @@ internal static class PublicEndpoints
         }).ConfigureAwait(false);
     }
 
-    private static async Task<Results<CreatedAnswer<ConversationBody>, Refusal>> StartAsync(HttpContext context, string path, bool offline)
+    private static async Task<Results<CreatedAnswer<PublicConversationBody>, Refusal>> StartAsync(HttpContext context, string path, bool offline)
     {
         string? topic;
         string? text;
@@ -218,25 +225,25 @@ internal static class PublicEndpoints
         }
 
         SupportCaller caller = (await CallerAsync(context, path, draw: true).ConfigureAwait(false))!;
-        return await CallAsync<CreatedAnswer<ConversationBody>>(context, async chats =>
+        return await CallAsync<CreatedAnswer<PublicConversationBody>>(context, async chats =>
         {
             SupportAnswer<ConversationRecord> started = await chats.StartSupportAsync(caller, topic!, text!, email, Source(context), context.RequestAborted).ConfigureAwait(false);
             return started.Failure is { } refused
                 ? Refused(context, refused, started.RetryAfter)
-                : new CreatedAnswer<ConversationBody>(StaffEndpoints.Of(started.Value!), ConversationsJson.Default.ConversationBody);
+                : new CreatedAnswer<PublicConversationBody>(StaffEndpoints.OfPublic(started.Value!), ConversationsJson.Default.PublicConversationBody);
         }).ConfigureAwait(false);
     }
 
-    private static async Task<Results<JsonAnswer<ConversationBody>, Refusal>> CurrentAsync(HttpContext context, string path)
+    private static async Task<Results<JsonAnswer<PublicConversationBody>, Refusal>> CurrentAsync(HttpContext context, string path)
     {
         if (await CallerAsync(context, path, draw: false).ConfigureAwait(false) is not { } caller)
         {
             return StaffEndpoints.NotFound();
         }
 
-        return await CallAsync<JsonAnswer<ConversationBody>>(context, async chats =>
+        return await CallAsync<JsonAnswer<PublicConversationBody>>(context, async chats =>
             await chats.CurrentAsync(caller, context.RequestAborted).ConfigureAwait(false) is { } current
-                ? new JsonAnswer<ConversationBody>(StaffEndpoints.Of(current), ConversationsJson.Default.ConversationBody)
+                ? new JsonAnswer<PublicConversationBody>(StaffEndpoints.OfPublic(current), ConversationsJson.Default.PublicConversationBody)
                 : StaffEndpoints.NotFound()).ConfigureAwait(false);
     }
 

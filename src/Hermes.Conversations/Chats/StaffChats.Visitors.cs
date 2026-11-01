@@ -343,7 +343,7 @@ internal sealed partial class StaffChats
     {
         ready.ThrowIfNotReady();
         ConversationRow? reached = await CallerConversationAsync(caller, conversation, cancellationToken).ConfigureAwait(false);
-        if (reached is null || !string.Equals(reached.Status, OpenStatus, StringComparison.Ordinal))
+        if (reached is null || string.Equals(reached.Status, ClosedStatus, StringComparison.Ordinal))
         {
             return SupportAnswer<MessageRecord>.Fail(NotFound());
         }
@@ -383,6 +383,13 @@ internal sealed partial class StaffChats
                 context.Messages.Add(row);
                 ConversationRow tracked = await context.Conversations.SingleAsync(each => each.Id == reached.Id, token).ConfigureAwait(false);
                 tracked.LastMessageAt = now;
+
+                // The visitor's or customer's message wakes a snoozed conversation at once (09 MSG-CONV-005).
+                if (string.Equals(tracked.Status, SnoozedStatus, StringComparison.Ordinal))
+                {
+                    tracked.Status = OpenStatus;
+                    tracked.SnoozedUntil = null;
+                }
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
                 await LiveNotices.TellAsync(context, LiveNotices.Message, reached.Id, message, token).ConfigureAwait(false);
                 return SupportAnswer<MessageRow>.Of(row);

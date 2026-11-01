@@ -91,6 +91,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TemplateKey.Reply`, naming an automatic reply's template with `Kind` and `Page` none;
   the library's own source reads it from `replies/<name>.<language>.text.liquid`. A host
   `ITemplateSource` that reads `Kind == null` as a page must now also read `Reply`
+- The support desk's tools through the staff group: saved replies, each a name of 1 to 64
+  characters and a text of 1 to 4,000, shared by a topic (at most 200) or a person's own
+  (at most 100), a topic's unknown to a person outside its scope and another person's
+  own unknown to them; tags from `Hermes:Conversations:Tags`, at most 50, put as a whole
+  set; and snoozing until an instant 5 minutes to 30 days ahead, a snoozed conversation
+  keeping its assignee and counting toward their limit, and waking at once on the
+  visitor's or the customer's message. `IConversations` gains them, with
+  `SavedReplyId` and `SavedReplyRecord`, and a support conversation's tags and waking
+  instant are on staff bodies only. The keys `Hermes:Conversations:Replies`,
+  `Support:CloseAfter` and `Support:CloseWarning` are read at start, and every automatic
+  reply rule's template is checked in every declared language
+- `GET /support/queue` and every public route that starts or names a conversation declare
+  the 503 they answer where a person's locks are not had in time
 
 ### Fixed
 

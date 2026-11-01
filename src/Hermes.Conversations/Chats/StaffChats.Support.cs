@@ -132,7 +132,7 @@ internal sealed partial class StaffChats
             {
                 await LockAsync(context, current, toPerson is null ? [person] : [person, toPerson], token).ConfigureAwait(false);
                 ConversationRow? row = await LockedConversationAsync(context, reached.Id, token).ConfigureAwait(false);
-                if (row is null || !string.Equals(row.Status, OpenStatus, StringComparison.Ordinal))
+                if (row is null || string.Equals(row.Status, ClosedStatus, StringComparison.Ordinal))
                 {
                     return false;
                 }

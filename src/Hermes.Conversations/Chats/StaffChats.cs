@@ -383,7 +383,7 @@ internal sealed partial class StaffChats(
         }
 
         bool support = string.Equals(reached.Type, SupportType, StringComparison.Ordinal);
-        if (support && (!string.Equals(reached.Assignee, person, StringComparison.Ordinal) || !string.Equals(reached.Status, OpenStatus, StringComparison.Ordinal)))
+        if (support && (!string.Equals(reached.Assignee, person, StringComparison.Ordinal) || string.Equals(reached.Status, ClosedStatus, StringComparison.Ordinal)))
         {
             return Result.Fail<MessageRecord>(NotFound());
         }
@@ -1072,6 +1072,8 @@ internal sealed partial class StaffChats(
                 Status = row.Topic is null ? null : ConversationSpellings.StatusOf(row.Status),
                 Place = row.Topic is null ? null : await PlaceAsync(context, row, cancellationToken).ConfigureAwait(false),
                 Offline = row.Topic is null ? null : row.Offline,
+                Tags = row.Tags,
+                SnoozedUntil = row.SnoozedUntil,
             });
         }
 

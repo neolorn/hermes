@@ -44,12 +44,18 @@ public sealed record ConversationRecord
     /// <summary>Whether a support conversation came through the offline form; none for another.</summary>
     public bool? Offline { get; init; }
 
+    /// <summary>A support conversation's tags, declared in configuration; empty for another (<c>09</c> MSG-CONV-005).</summary>
+    public IReadOnlyList<string> Tags { get; init; } = [];
+
+    /// <summary>The instant a snoozed support conversation wakes; none otherwise.</summary>
+    public DateTimeOffset? SnoozedUntil { get; init; }
+
     private bool PrintMembers(StringBuilder builder)
     {
         builder.Append(CultureInfo.InvariantCulture, $"Conversation = {Conversation.Value}, Type = {Type}, Unread = {Unread}, Muted = {Muted}, LastAt = {LastAt:O}");
         if (Topic is not null)
         {
-            builder.Append(CultureInfo.InvariantCulture, $", Topic = {Topic}, Status = {Status}, Place = {Place}, Offline = {Offline}");
+            builder.Append(CultureInfo.InvariantCulture, $", Topic = {Topic}, Status = {Status}, Place = {Place}, Offline = {Offline}, Tags = [{string.Join(", ", Tags)}], SnoozedUntil = {SnoozedUntil:O}");
         }
 
         return true;
