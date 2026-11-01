@@ -844,9 +844,9 @@ phase 20).
 - **Customers.** A customer's support conversations stay while the person does, and go
   with the person's erasure.
 - **The job.** The engine's retention job (`06` MSG-OPS-004) deletes the rows, at most
-  1,000 conversations per run. Each attachment row it deletes leaves its store key in
-  `attachment_deletions` for the `attachment-scans` job, which deletes the bytes and
-  retries until it succeeds (MSG-CONV-007).
+  1,000 conversations per run. The attachments of the rows it deletes stay, their
+  `conversation_id` or `message_id` set to null, until `attachment-scans` deletes their
+  bytes and then their rows (MSG-CONV-007).
 
 **Export (M-038).** A person's export (`01` MSG-SEND-020) gains their conversations, in
 `SubjectExport.Conversations` (`04` MSG-LIB-002), null where conversations are not

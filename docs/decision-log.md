@@ -2792,6 +2792,14 @@ This entry settles the map's C5, C56 and L18.
 > MSG-OPS-007; `08` section 8; `09` MSG-CONV-010; `10` MSG-THR-001;
 > `implementation-plan.md` (phase 20).
 
+> **Amended.** 2026-11-01, before phase 20's build:
+> - The `attachment_deletions` table is dropped: an attachment's row outlives its
+>   conversation and its message, its foreign keys set to null, until
+>   `attachment-scans` removes it (M-037).
+>
+> Propagated to `06` MSG-OPS-002, MSG-OPS-004; `08` section 8; `09` MSG-CONV-010;
+> `implementation-plan.md` (phase 20).
+
 ---
 
 ## M-039 — Phase 21: the contract and release candidate `1.0.0-rc.3`
