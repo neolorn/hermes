@@ -166,6 +166,15 @@ public sealed class BakeryTests(PostgresFixture postgres) : IClassFixture<Postgr
         Assert.Equal("Conversations:Unknown", failure.Details["key"]);
     }
 
+    [Fact]
+    public async Task Start_ALanguageSetThroughTheTestFactory_StartsThoughTheFactoryGivesItsListAnEmptyValue()
+    {
+        string connection = await postgres.NewDatabaseAsync();
+        await MessagingTestDatabase.MigrateAsync(connection, TestContext.Current.CancellationToken);
+        await using BakeryFactory bakery = new(connection, new Dictionary<string, string> { ["Hermes:Languages:0"] = "en" });
+
+        using HttpClient customer = await bakery.SignInAsync("c-1");
+    }
     /// <summary>Subscribes as a browser does: with the key <c>GET /notifications/push/key</c> answers, and keys of its own.</summary>
     private static async Task<HttpResponseMessage> SubscribeAsync(HttpClient client, string endpoint)
     {

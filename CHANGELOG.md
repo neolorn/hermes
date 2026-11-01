@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the package does not know stops the start with `messaging.startup.configurationinvalid`
 - The sample host registers conversations
 
+### Fixed
+
+- `Hermes:Languages` set item by item through a web host's test factory, which gives the
+  list itself an empty value, no longer stops the start
+
 ## [1.0.0-rc.2] - 2026-10-31
 
 ### Added
