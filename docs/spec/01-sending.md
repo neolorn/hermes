@@ -1096,12 +1096,20 @@ session idle; an erasure committed after its read leaves the export as it read, 
 values answering `Erased` only where the person's key was erased (a host's protector
 over per-person keys, `04` MSG-LIB-005).
 
+Where conversations are registered, the export also answers the person's conversations
+(M-038) in `Conversations`, null otherwise, as `09` MSG-CONV-010 gives them: each one's
+id, type, topic and opened and closed instants; for a support conversation every message
+but notes, for a staff chat the person's own messages only; each message's instant,
+author kind and text; its attachments' names, media types and sizes, never their bytes;
+and the person's survey answer. Others' references never appear: a staff author reads
+`staff`, as in the transcript.
+
 *Falling back to another channel (designed for, not built).* A kind may later declare an
 ordered list of channels where the next is used when a delivery on one ends in a status
 the list names; the deliveries of a send already share its identifier, so a fallback is
 a new delivery of the same send and changes no table.
 
-*Source: M-004, M-005, M-007, M-020, M-028, M-029, M-030*
+*Source: M-004, M-005, M-007, M-020, M-028, M-029, M-030, M-038*
 
 **Acceptance criteria**
 1. After erasure, nothing the library holds names the person or holds a destination, an

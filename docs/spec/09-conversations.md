@@ -792,12 +792,50 @@ accepted the host's notice when the account was made, and is shown none.
 conversations with every row of them. A visitor's conversations go by retention (plan
 phase 20).
 
-*Source: M-011, M-034*
+**Retention (M-038).**
+- **Visitors.** A visitor's support conversation, with its messages, attachments, survey
+  and acknowledgement, goes `Hermes:Conversations:Retention:Visitor` after it closes
+  (default 365 days, `08` section 4).
+- **Staff chats.** `Hermes:Conversations:Retention:Staff` is unset by default, which
+  keeps staff chats while the organization exists. Set from 30 days to 10 years, it
+  deletes staff-chat messages older than it, with their attachments.
+- **Ending a scope.** `IConversations.EndScopeAsync(ConversationScope scope, ...)` (`04`
+  MSG-LIB-002) deletes a scope's group conversation with every row of it, for the host
+  to call when an organization or group ends. It needs no person: it is the host's own
+  call.
+- **Customers.** A customer's support conversations stay while the person does, and go
+  with the person's erasure.
+- **The job.** The engine's retention job (`06` MSG-OPS-004) deletes the rows, at most
+  1,000 conversations per run. Each attachment row it deletes leaves its store key for
+  the `attachment-scans` job, which deletes the bytes and retries until it succeeds
+  (MSG-CONV-007).
+
+**Export (M-038).** A person's export (`01` MSG-SEND-020) gains their conversations, in
+`SubjectExport.Conversations` (`04` MSG-LIB-002), null where conversations are not
+registered. Each holds:
+- the conversation's id, type, topic and opened and closed instants;
+- for a support conversation, every message but notes;
+- for a staff chat, the person's own messages only;
+- each message's instant, author kind and text;
+- the attachments' names, media types and sizes, without their bytes;
+- the person's survey answer (MSG-CONV-004).
+
+Others' references never appear: a staff author reads `staff`, as in the transcript.
+
+*Source: M-011, M-034, M-038*
 
 **Acceptance criteria**
 1. No visitor message is taken before the current notice is acknowledged. A customer is
    never asked.
 2. Erasing a customer deletes their support conversations.
+3. A visitor's conversation is gone `Retention:Visitor` after close, with every row and
+   its attachments' bytes.
+4. With `Retention:Staff` unset, nothing of a staff chat goes. Set, older messages go.
+5. `EndScopeAsync` removes the scope's conversation entirely.
+6. A person's export holds their conversations as above, and nobody else's references.
+7. Each threat row's control has a passing test carrying the row's identifier (`10`
+   MSG-THR-001).
+8. No log line holds message text or attachment bytes.
 
 ---
 

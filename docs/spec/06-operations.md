@@ -182,18 +182,26 @@ other (M-033).
 host's process, each turned on or off per application by configuration, and SHALL do
 nothing twice when several processes run it.
 
-**Values (M-005, M-007, M-026, M-035, M-037).**
+**Values (M-005, M-007, M-026, M-035, M-037, M-038).**
 
 | Job | Runs | Turned on by |
 |---|---|---|
 | `dispatch` (`01` MSG-SEND-007) | As `01` MSG-SEND-007 gives: on each notification of a committed send, every `Hermes:Dispatch:Interval`, and the other instants it names | `Hermes:Dispatch:Enabled` and `Hermes:Dispatch:Hosted` |
 | `observer` (`01` MSG-SEND-017) | Every `Hermes:Dispatch:Interval`; it completes at once, delivering nothing, where `Hermes:Observer:Enabled` is off | `Hermes:Dispatch:Enabled` |
 | `balance` (`02` MSG-SMS-006) | Every `Hermes:Sms:BalancePoll`, only in an application where SMS is used (`04` MSG-LIB-003), which alone takes its claim | `Hermes:Dispatch:Enabled`, whatever `Hermes:Jobs:Enabled` says, as `observer` is |
-| `retention` (MSG-OPS-008; `01` MSG-SEND-019; `02` MSG-INAPP-005) | Daily at `Hermes:Jobs:RetentionAt`, in `Hermes:TimeZone` | `Hermes:Jobs:Enabled` |
+| `retention` (MSG-OPS-008; `01` MSG-SEND-019; `02` MSG-INAPP-005; `09` MSG-CONV-010) | Daily at `Hermes:Jobs:RetentionAt`, in `Hermes:TimeZone` | `Hermes:Jobs:Enabled` |
 | `subscriptions` (`02` MSG-PUSH-006) | Every `Hermes:Jobs:SubscriptionsInterval` | `Hermes:Jobs:Enabled` |
 | `watch` (MSG-OPS-005, MSG-OPS-006, MSG-OPS-007, MSG-OPS-008; `01` MSG-SEND-017, MSG-SEND-018; `02` MSG-SMS-004, MSG-PUSH-005) | Every `Hermes:Dispatch:Interval` | `Hermes:Jobs:Enabled` |
 | `conversation-timers` (`09` MSG-CONV-003, MSG-CONV-005) | Every 30 seconds: it fires the `waiting` and `closing` rules, wakes snoozed conversations and closes silent ones (M-035) | `Hermes:Jobs:Enabled`, where conversations are registered |
 | `attachment-scans` (`09` MSG-CONV-007) | Every 30 seconds: it scans each pending attachment, deletes one not named by a message within 24 hours, and retries a store deletion that failed (M-037) | `Hermes:Jobs:Enabled`, where attachments are enabled |
+
+The `retention` job also deletes conversations' rows (M-038): a visitor's support
+conversation `Hermes:Conversations:Retention:Visitor` after it closes, with every row of
+it, and, where `Hermes:Conversations:Retention:Staff` is set, staff-chat messages older
+than it, with their attachments, at most 1,000 conversations per run (`09`
+MSG-CONV-010). Each attachment row it deletes leaves its store key for
+`attachment-scans`, which deletes the bytes and retries until it succeeds (`09`
+MSG-CONV-007).
 
 The dispatcher's work is claimed delivery by delivery (`01` MSG-SEND-007), and it has no
 row in the job table; `dispatch-lag` watches it (MSG-OPS-005). Every other job holds a
@@ -227,7 +235,7 @@ report route keeps under `Hermes:Sms:ReportHoldMax`. Besides the jobs, every pro
 that registers `AddHermes`, whether or not it runs jobs, keeps the key table current on
 a timer of its own (MSG-OPS-008).
 
-*Source: M-005, M-007, M-008, M-009, M-012, M-022, M-026, M-035, M-037*
+*Source: M-005, M-007, M-008, M-009, M-012, M-022, M-026, M-035, M-037, M-038*
 
 **Acceptance criteria**
 1. With `Hermes:Dispatch:Enabled` false, an application records sends, its hosted
