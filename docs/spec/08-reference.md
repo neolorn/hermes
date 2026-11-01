@@ -50,7 +50,7 @@ MSG-OPS-002).
 | `messaging.conversation.closed` | 409 | A tag or snooze on a closed conversation (`09` MSG-CONV-005; `05` MSG-API-009) | |
 | `messaging.message.notfound` | 404 | A message the conversation does not hold (`05` MSG-API-009) | |
 | `messaging.message.invalid` | 400 | A message's text, mentions, reply or type outside its rule (`09` MSG-CONV-001, MSG-CONV-006) | `field`: `text`, `mentions`, `replyTo` or `type` |
-| `messaging.reply.notfound` | 404 | A saved reply that is unknown, or another person's own (`09` MSG-CONV-005; `05` MSG-API-009) | |
+| `messaging.reply.notfound` | 404 | A saved reply that is unknown, or another person's own, or a topic's replies for a person outside its scope; never 403 (`09` MSG-CONV-005; `05` MSG-API-009) | |
 | `messaging.reply.invalid` | 400 | A saved reply's name or text outside its bounds (`09` MSG-CONV-005; `05` MSG-API-009) | `field`: `name` or `text` |
 | `messaging.reply.full` | 409 | A saved reply past its owner's count, 200 for a topic or 100 for a person (`09` MSG-CONV-005; `05` MSG-API-009) | |
 | `messaging.reply.nameexists` | 409 | A saved reply's name its owner already has (`09` MSG-CONV-005; `05` MSG-API-009) | |

@@ -276,7 +276,8 @@ live conversations, and reports of waiting time, handling time and survey scores
 - A name or text outside its bounds answers 400 `messaging.reply.invalid`, `field`
   `name` or `text`; a reply past its owner's count 409 `messaging.reply.full`; a name
   its owner already has 409 `messaging.reply.nameexists`; another person's own reply
-  404 `messaging.reply.notfound`.
+  404 `messaging.reply.notfound`. A topic's replies, for a person outside its scope,
+  answer 404 `messaging.reply.notfound` on every replies route, never 403.
 - The table `support_replies` holds a person reference for one's own, so the rule that
   the engine knows each table applies (`06` MSG-OPS-002). Erasure deletes a person's own
   replies.
@@ -287,6 +288,8 @@ live conversations, and reports of waiting time, handling time and survey scores
   start with `messaging.startup.configurationinvalid`.
 - Staff add and remove them on a support conversation they may read, by putting the
   whole set (`05` MSG-API-009). They are kept in the column `tags` of `conversations`.
+- A conversation's tags, and a snoozed one's waking instant, are on staff bodies only:
+  the public side never answers them (`05` MSG-API-009, MSG-API-010).
 - An undeclared tag answers 400 `messaging.conversation.invalid`, `field` `tags`. A tag
   later dropped from the declaration stays on its conversations, and is refused only
   when it is put again.

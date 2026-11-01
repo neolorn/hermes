@@ -339,8 +339,8 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | `DELETE /support/conversations/{id}/block` | | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `PUT /support/conversations/{id}/tags` | `{ "tags" }`, the whole set | **204**; **400** `messaging.conversation.invalid`, `details.field` `tags` for an undeclared tag, or `type` for a conversation that is not support; **404** `messaging.conversation.notfound`; **409** `messaging.conversation.closed` for a closed conversation; **503** as for `GET /inapp` |
 | `POST /support/conversations/{id}/snooze` | `{ "until" }`, 5 minutes to 30 days ahead | **204**; **400** `messaging.conversation.invalid`, `details.field` `until` outside its range, or `type` for a conversation that is not support; **404** `messaging.conversation.notfound`; **409** `messaging.conversation.closed` for a closed conversation; **503** as for `GET /inapp` |
-| `GET /support/replies` | | **200** `{ "replies": [ <reply> ] }`: a topic's shared replies, or the person's own; query `topic` or `mine`; **400** `messaging.request.malformed`, `details.member` `topic`, for a topic not configured; **503** as for `GET /inapp` |
-| `POST /support/replies` | `{ "name", "text", "topic" }`, `topic` none for one's own | **201** `{ "id", "name", "text", "topic" }`; **400** `messaging.reply.invalid`, `details.field` `name` or `text`; **409** `messaging.reply.full` past 200 for a topic or 100 for a person, or `messaging.reply.nameexists` for a name its owner already has; **503** as for `GET /inapp` |
+| `GET /support/replies` | | **200** `{ "replies": [ <reply> ] }`: a topic's shared replies, or the person's own; query `topic` or `mine`; **400** `messaging.request.malformed`, `details.member` `topic`, for a topic not configured; **404** `messaging.reply.notfound` for a topic whose scope the person is not a member of; **503** as for `GET /inapp` |
+| `POST /support/replies` | `{ "name", "text", "topic" }`, `topic` none for one's own | **201** `{ "id", "name", "text", "topic" }`; **400** `messaging.reply.invalid`, `details.field` `name` or `text`; **404** `messaging.reply.notfound` for a topic whose scope the person is not a member of; **409** `messaging.reply.full` past 200 for a topic or 100 for a person, or `messaging.reply.nameexists` for a name its owner already has; **503** as for `GET /inapp` |
 | `PUT /support/replies/{id}` | `{ "name", "text" }` | **204**; **400** `messaging.reply.invalid`, `details.field` `name` or `text`; **404** `messaging.reply.notfound`; **409** `messaging.reply.nameexists` for a name its owner already has; **503** as for `GET /inapp` |
 | `DELETE /support/replies/{id}` | | **204**; **404** `messaging.reply.notfound`; **503** as for `GET /inapp` |
 
@@ -387,7 +387,9 @@ conversation they are assigned through the messages route, and a visitor never s
 conversation the staff member may read, the whole set at once, and snooze one until an
 instant (`09` MSG-CONV-005). Staff of a topic manage its shared saved replies, and each
 person their own, through the replies routes: the list takes `topic` or `mine`, and a
-new reply's `topic` is none for one's own (`09` MSG-CONV-005).
+new reply's `topic` is none for one's own (`09` MSG-CONV-005). A topic's replies, for a
+person outside its scope, answer 404 `messaging.reply.notfound` on every replies route,
+never 403.
 
 **The staff hub (M-033).** The group also maps the staff hub at `/live`, so the host's
 authorization covers it too (`09` MSG-CONV-008). The person comes from
@@ -438,13 +440,15 @@ conversation is that person's, with no cookie and no notice; otherwise the visit
 known by the cookie `messaging_visitor`, drawn on the first call that needs one (`09`
 MSG-CONV-001). A route naming a conversation that is not the visitor's or the
 customer's, or by an `id` that does not read, answers 404
-`messaging.conversation.notfound`. The bodies are the staff group's shapes, `<message>`
-never holding a `note` (`09` MSG-CONV-001). Bodies and refusals are the engine's, as
-MSG-API-001 gives. `MapHermesPublicConversations` answers the group's
-`RouteGroupBuilder`.
+`messaging.conversation.notfound`. The bodies are the staff group's shapes, a
+conversation's without `tags` and `snoozedUntil`, which are on staff bodies only (`09`
+MSG-CONV-005), and `<message>` never holding a `note` (`09` MSG-CONV-001). Bodies and
+refusals are the engine's, as MSG-API-001 gives. `MapHermesPublicConversations` answers
+the group's `RouteGroupBuilder`.
 
 **The public hub.** The group also maps the public hub at `/live`, authenticated by the
-same cookie (`09` MSG-CONV-008). Its payloads are the staff hub's shapes.
+same cookie (`09` MSG-CONV-008). Its payloads are the staff hub's shapes, a
+conversation's without `tags` and `snoozedUntil`.
 
 | Hub method | Sent by | Arguments |
 |---|---|---|
@@ -456,7 +460,7 @@ same cookie (`09` MSG-CONV-008). Its payloads are the staff hub's shapes.
 | `closed` | The server | `conversationId` |
 | `Typing` | The client | `conversationId` |
 
-*Source: M-034*
+*Source: M-034, M-035*
 
 **Acceptance criteria**
 1. The contract test finds exactly the public routes and hub.

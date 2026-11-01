@@ -2301,10 +2301,14 @@ This entry settles the map's C20 to C23, C28 to C31 and L19.
 > - The release notes state the `TemplateKey` warning among what the deployment meets
 >   (`06` MSG-OPS-007).
 > - `08` section 3 gives `snoozed` its meaning.
+> - A topic's replies, for a person outside its scope, answer 404
+>   `messaging.reply.notfound` on every replies route, never 403.
+> - `tags` and `snoozedUntil` are on staff bodies only: the public routes and hub never
+>   answer them.
 >
-> Propagated to `04` MSG-LIB-002; `05` MSG-API-009; `06` MSG-OPS-004, MSG-OPS-007;
-> `08` sections 1, 3 and 4; `09` MSG-CONV-003, MSG-CONV-005; `implementation-plan.md`
-> (phase 17).
+> Propagated to `04` MSG-LIB-002; `05` MSG-API-009, MSG-API-010; `06` MSG-OPS-004,
+> MSG-OPS-007; `08` sections 1, 3 and 4; `09` MSG-CONV-003, MSG-CONV-005;
+> `implementation-plan.md` (phase 17).
 
 ---
 
