@@ -64,7 +64,7 @@ MSG-OPS-002).
 | `messaging.message.deleted` | 409 | Editing a deleted message (`09` MSG-CONV-006) | |
 | `messaging.support.offline` | 409 | Starting a support conversation outside its topic's hours, or within them while no member is available (`09` MSG-CONV-002; `05` MSG-API-010) | |
 | `messaging.support.alreadyopen` | 409 | Starting a support conversation on a topic where the visitor or the customer already holds an open one (`09` MSG-CONV-002; `05` MSG-API-010) | `conversation` |
-| `messaging.support.noticerequired` | 409 | A visitor's message, or offline form, before an acknowledgement of the current privacy notice (`09` MSG-CONV-010; `05` MSG-API-010) | |
+| `messaging.support.noticerequired` | 409 | A visitor's message, upload or offline form before an acknowledgement of the current privacy notice (`09` MSG-CONV-010; `05` MSG-API-010) | |
 | `messaging.support.limited` | 429 | A visitor or a source address over a limit of `Conversations:Limits:` (`09` MSG-CONV-011; `05` MSG-API-010); answered with `Retry-After` | |
 | `messaging.support.notclosed` | 409 | A transcript, a transcript email or a survey of a conversation that is not closed (`09` MSG-CONV-004; `05` MSG-API-010) | |
 | `messaging.support.transcriptlimit` | 409 | A conversation's fourth transcript email (`09` MSG-CONV-004; `05` MSG-API-010) | |
