@@ -50,6 +50,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   participant's `online`; the messages route's `after`, oldest first; and away notices, sent
   as the kind `Hermes:Conversations:AwayKind` names to a person away from a conversation,
   once until they read, an undeclared kind stopping the start
+- The migration `SupportSide`, which adds support's columns to `conversations`, a
+  visitor's keyed hash to `participants` beside its person, each message's owner (the
+  person whose key protects its text, its author until now), and the tables
+  `support_agents`, `support_blocks`, `support_acknowledgements` and `support_counters`;
+  it drops nothing and writes each existing message's owner from its author. Erasing a
+  customer deletes their support conversations with every row of them, and erasing a staff
+  member empties their references and keeps the text a customer's key protects
 
 ### Fixed
 

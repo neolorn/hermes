@@ -79,10 +79,10 @@ internal sealed class LivePush(
 
                         break;
                     default:
-                        if (direct && await ParticipantAsync(context, told.Id, cancellationToken).ConfigureAwait(false) is { } present)
+                        if (direct && await ParticipantAsync(context, told.Id, cancellationToken).ConfigureAwait(false) is { Person: { } presentPerson } present)
                         {
-                            bool online = await LivePresence.OnlineAsync(context, present.Person, clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
-                            await hub.Clients.Clients(connections.Of(readers, except: present.Person)).SendAsync(StaffHub.PresenceMethod, present.Id.ToString("D"), online, cancellationToken).ConfigureAwait(false);
+                            bool online = await LivePresence.OnlineAsync(context, presentPerson, clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
+                            await hub.Clients.Clients(connections.Of(readers, except: presentPerson)).SendAsync(StaffHub.PresenceMethod, present.Id.ToString("D"), online, cancellationToken).ConfigureAwait(false);
                         }
 
                         break;
@@ -99,7 +99,7 @@ internal sealed class LivePush(
         {
             List<string> participants = await context.Participants.AsNoTracking()
                 .Where(each => each.ConversationId == conversation.Id && each.LeftAt == null)
-                .Select(each => each.Person)
+                .Where(each => each.Person != null).Select(each => each.Person!)
                 .ToListAsync(cancellationToken).ConfigureAwait(false);
             return participants.Where(here.Contains).ToHashSet(StringComparer.Ordinal);
         }

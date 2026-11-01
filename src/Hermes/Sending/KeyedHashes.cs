@@ -27,6 +27,12 @@ internal sealed class KeyedHashes(HeldKeys keys)
 
     internal const string Idempotency = "idempotency";
 
+    /// <summary>A visitor's reference, a bearer credential held only as its hash (<c>09</c> MSG-CONV-001).</summary>
+    internal const string Visitor = "visitor";
+
+    /// <summary>A request's source address, IPv6 grouped by its /64 (<c>09</c> MSG-CONV-011).</summary>
+    internal const string Source = "source";
+
     private HeldKey Held => keys.Find(KeyNeeds.HashKeys) ?? throw new InvalidOperationException("The keyed hash is used before the startup checks read hashKeys.");
 
     /// <summary>The write version.</summary>
