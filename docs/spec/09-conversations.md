@@ -202,8 +202,6 @@ the release that builds it.
    once. Participants can be added up to 16, and the 17th answers 409.
 3. Edits and deletes work on one's own messages only. Another person's answers 403. A
    deleted message reads with no text, and editing it answers 409.
-4. Each route does what its operation does, and the endpoint contract test finds exactly
-   these routes.
 
 ---
 
@@ -257,18 +255,21 @@ through the engine's content protection (`01` MSG-SEND-018), and bound to its ro
 write for a person takes their person lock shared, as the in-app list does (`02`
 MSG-INAPP-001), so an erasure cannot race it. Erasing a person (`01` MSG-SEND-020):
 - deletes their participant and mention rows;
-- handles their author references as the engine handles a delivery's person reference.
+- handles their author references as the engine handles a delivery's person reference;
+- clears their messages' text, as a delivery's content is deleted, whichever protector
+  wrote it.
 
-Their messages stay as rows, and their text, no longer opening, reads `Erased`. Everyone
-else's messages are untouched.
+Their messages stay as rows, and their text reads `Erased`. Everyone else's messages are
+untouched.
 
 *Source: M-011, M-032*
 
 **Acceptance criteria**
 1. A message's protected text copied to another row does not open. A key version a
    message uses is never retired.
-2. Erasing an author makes their messages read `Erased` and removes their participant
-   and mention rows. Other messages are untouched.
+2. Erasing an author clears their messages' text, which then reads `Erased`, with the
+   library's protector and a host's alike, and removes their participant and mention
+   rows. Other messages are untouched.
 
 ---
 

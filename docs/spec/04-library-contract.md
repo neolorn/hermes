@@ -55,27 +55,29 @@ release 2's, first released in `1.0.0-rc.3` (M-031).
 files list, each public type SHALL have the shape below, and a change to it SHALL be
 visible in review.
 
-**Values (M-012, M-026, M-031).** Data types are records with `init` members, so that a
-later release adds members without a break, a non-nullable member being `required`, save
-that no public record ever gains a `required` member: a member added to one is nullable
-or optional, as `DeliveryNotice.IdempotencyKey` was, and as `SubjectExport`'s member
-`Conversations` will be, nullable and not `required`, filled in plan phase 20; every
-asynchronous member takes a `CancellationToken` as its last parameter and answers a
-`ValueTask`. A type described as having cases is an abstract record whose cases are
-nested sealed records of those names, made with `new`
-(`new Attempt.Accepted(reference)`), which a seam reads by pattern matching; a value of
-any other type derived from it is a fault of the code that made it (for `Recipient`, the
-unknown case below). An enumeration is a C# `enum` whose members are named, and declared
-in the order, as `08` sections 2, 3 and 6 give; each member carries its wire spelling by
-`JsonStringEnumMemberName`, and wherever the library writes a member as text (a body, a
-column, a metric tag, an alert's details, a log entry) it writes that spelling. A record
-that carries a destination, content, a token, a key, an endpoint or a person reference
-(`Send`, `EmailMessage`, `SmsMessage`, `PushRequest.WebPush`, `ConsentQuery`,
-`DeliveryExport`, `Recipient.Person`, `DeliveryNotice`, `IdempotencyKeyExport`,
-`InAppEntry`, `InAppEntryExport`, whose `Key` a host may build from a person's data,
-every case of `SendValue`, whose values are a template's content, and `InboxMessage`,
-`InboxEmail`, `InboxSms`, `InboxPush` and `InboxNotification`) overrides `PrintMembers`
-to print none of them, so a log line that formats one writes none.
+**Values (M-012, M-026, M-031, M-032).** Data types are records with `init` members, so
+that a later release adds members without a break, a non-nullable member being
+`required`, save that no public record ever gains a `required` member: a member added to
+one is nullable or optional, as `DeliveryNotice.IdempotencyKey` was, and as
+`SubjectExport`'s member `Conversations` will be, nullable and not `required`, filled in
+plan phase 20; every asynchronous member takes a `CancellationToken` as its last
+parameter and answers a `ValueTask`, or an `IAsyncEnumerable<T>` for a sequence. A type
+described as having cases is an abstract record whose cases are nested sealed records of
+those names, made with `new` (`new Attempt.Accepted(reference)`), which a seam reads by
+pattern matching; a value of any other type derived from it is a fault of the code that
+made it (for `Recipient`, the unknown case below). An enumeration is a C# `enum` whose
+members are named, and declared in the order, as `08` sections 2, 3 and 6 give; each
+member carries its wire spelling by `JsonStringEnumMemberName`, and wherever the library
+writes a member as text (a body, a column, a metric tag, an alert's details, a log
+entry) it writes that spelling. A record that carries a destination, content, a token, a
+key, an endpoint or a person reference (`Send`, `EmailMessage`, `SmsMessage`,
+`PushRequest.WebPush`, `ConsentQuery`, `DeliveryExport`, `Recipient.Person`,
+`DeliveryNotice`, `IdempotencyKeyExport`, `InAppEntry`, `InAppEntryExport`, whose `Key`
+a host may build from a person's data, every case of `SendValue`, whose values are a
+template's content, `InboxMessage`, `InboxEmail`, `InboxSms`, `InboxPush` and
+`InboxNotification`, and `ConversationPage`, `ConversationRecord`, `ParticipantRecord`,
+`MessagePage` and `MessageRecord`) overrides `PrintMembers` to print none of them, so a
+log line that formats one writes none.
 
 **Values and identifiers** (`Hermes.Core`):
 
@@ -84,7 +86,7 @@ to print none of them, so a log line that formats one writes none.
 | `Send` | `string Kind`, `Recipient Recipient`, `string? Email`, `string? Phone`, `string? Language`, `string? TimeZone`, `IReadOnlyDictionary<string, SendValue> Values`, `IReadOnlyList<Channel>? Channels`, `DateTimeOffset? NotBefore`, `string? IdempotencyKey`, `string? PushTopic` (`01` MSG-SEND-003) |
 | `SendValue` | Cases `PlainText(string Value)` (named so, since `Text` would match the namespace `System.Text`, CA1724), `WholeNumber(long Value)`, `DecimalNumber(decimal Value)`, `Flag(bool Value)`, `Instant(DateTimeOffset Value)` and `List(IReadOnlyList<IReadOnlyDictionary<string, SendValue>> Items)`, a list's entries holding no list (`03` MSG-TPL-002) |
 | `Recipient` | Cases `Person(string Reference)` and `Anonymous()`. The set is open: a later release MAY add a case, and a seam meeting a case it does not know answers as for a refusal (consent `NotGiven`) |
-| `SendId`, `DeliveryId`, `EntryId` | `readonly record struct SendId(Guid Value)`, `readonly record struct DeliveryId(Guid Value)` and `readonly record struct EntryId(Guid Value)`, UUID version 7 |
+| `SendId`, `DeliveryId`, `EntryId`, `ConversationId`, `MessageId`, `ParticipantId` | `readonly record struct SendId(Guid Value)`, `readonly record struct DeliveryId(Guid Value)`, `readonly record struct EntryId(Guid Value)`, `readonly record struct ConversationId(Guid Value)`, `readonly record struct MessageId(Guid Value)` and `readonly record struct ParticipantId(Guid Value)`, UUID version 7 |
 | `SendReceipt` | `SendId Send`, `IReadOnlyList<DeliveryReceipt> Deliveries`; `DeliveryReceipt` is `Channel Channel`, `DeliveryId Delivery` |
 | `SendRecord` | `SendId Send`, `string Kind`, `IReadOnlyList<DeliveryRecord> Deliveries`; `DeliveryRecord` is `DeliveryId Delivery`, `Channel Channel`, `DeliveryStatus Status`, `AttemptReason? Reason`, `DateTimeOffset RecordedAt`, `DateTimeOffset LastMovedAt`, `IReadOnlyList<AttemptRecord> Attempts`; `AttemptRecord` is `int Number`, `DateTimeOffset At`, `AttemptClass? AnswerClass` (none while it has no answer), `AttemptReason? Reason`, `IReadOnlyList<CallRecord> Calls`; `CallRecord` is `AttemptClass? AnswerClass` (likewise), `AttemptReason? Reason`, `int? Status`, `PushService? Service` (`01` MSG-SEND-007) |
 | `Result`, `Result<T>`, `Failure` | `Result`: `bool IsSuccess`, `Failure? Failure`, and the factories `static Result Success()`, `static Result Fail(Failure failure)`, `static Result<T> Success<T>(T value)` and `static Result<T> Fail<T>(Failure failure)`. `Result<T>`: `bool IsSuccess`, `T? Value`, `Failure? Failure`. `Failure`: `string Code` of `08` section 1 and `IReadOnlyDictionary<string, string> Details` |
@@ -93,8 +95,10 @@ to print none of them, so a log line that formats one writes none.
 | `CategoryPreferences`, `ChannelPreference` | `string Category`, `bool Essential`, `IReadOnlyList<ChannelPreference> Channels`; `Channel Channel`, `bool On` |
 | `InAppPage`, `InAppEntry` | `IReadOnlyList<InAppEntry> Entries`, `string? Next` (the next page's cursor, none on the last); `EntryId Entry`, `string Kind`, `string Category`, `DateTimeOffset WrittenAt`, `DateTimeOffset? ReadAt`, `string Language` (the one it reads in), `string Title`, `string? Body`, `string? Target`, `IReadOnlyDictionary<string, SendValue> TargetValues` (`02` MSG-INAPP-003) |
 | `ConversationScope` | `ScopeKind Kind`, `string Reference`: a scope of the membership seam, `ScopeKind` having the members `Organization` and `Group` (`09` MSG-CONV-006) |
+| `ConversationPage`, `ConversationRecord`, `ParticipantRecord` | `IReadOnlyList<ConversationRecord> Conversations`, `string? Next` (the next page's cursor, none on the last); `ConversationId Conversation`, `ConversationType Type`, `ConversationScope? Scope` (a group conversation's, none otherwise), `IReadOnlyList<ParticipantRecord> Participants` (a direct conversation's participants who have not left, none for a group conversation), `int Unread`, `bool Muted`, `DateTimeOffset LastAt` (its last message's instant, or its creation's where it has none); `ParticipantId Participant`, `string Person` (`09` MSG-CONV-001, MSG-CONV-006; `05` MSG-API-009) |
+| `MessagePage`, `MessageRecord` | `IReadOnlyList<MessageRecord> Messages`; `MessageId Message`, `string? Author` (none once the author is erased), `MessageType Type`, `string? Text` (none once the message is deleted or its author erased), `MessageId? ReplyTo`, `IReadOnlyList<string> Mentions`, `DateTimeOffset SentAt`, `DateTimeOffset? EditedAt`, `DateTimeOffset? DeletedAt`, `bool Erased` (its text cleared by its author's erasure, `09` MSG-CONV-009) (`09` MSG-CONV-001, MSG-CONV-006; `05` MSG-API-009) |
 | `SubjectExport` | `IReadOnlyList<CategoryPreferences> Preferences`; `IReadOnlyList<SubscriptionExport> Subscriptions`, each `PushService Service`, `DateTimeOffset MadeAt`, `DateTimeOffset? LastAcceptedAt`; `IReadOnlyList<DeliveryExport> Deliveries`, each `string Kind`, `Channel Channel`, `DeliveryStatus Status`, `DateTimeOffset RecordedAt`, `DateTimeOffset LastMovedAt`, `string? Destination`, `IReadOnlyDictionary<string, string> Content` (by part), `bool ContentDeleted` (past content retention, so it carries no destination or content), `bool Erased` (its values' key was erased, so it carries no destination or content), `bool Rejected` (a value did not open under its binding, so it carries none either), `string? IdempotencyKey` (the key it keeps of its send, while kept, none where it is marked as above; declared last, M-029, M-030); `IReadOnlyList<InAppEntryExport> Entries`, each `string Kind`, `string Category`, `DateTimeOffset WrittenAt`, `DateTimeOffset? ReadAt`, `IReadOnlyDictionary<string, string> Content` (by part and language, `title.en`), `string? Target`, `IReadOnlyDictionary<string, SendValue> TargetValues`, `bool Erased` and `bool Rejected` (as for a delivery, so it carries no content or target values); `IReadOnlyList<IdempotencyKeyExport> IdempotencyKeys`, each `string Kind`, `string Key`, `DateTimeOffset RecordedAt`, the person's live idempotency rows (`01` MSG-SEND-020) |
-| Enumerations | `Channel`, `DeliveryStatus`, `AttemptClass`, `AttemptReason`, `PushUrgency`, `PushService`, `PushPlatform`, `SmsEncoding`, `SmsReportOutcome`, `ConsentAnswer`, with the members of `08` sections 2, 3 and 6 that are built |
+| Enumerations | `Channel`, `DeliveryStatus`, `AttemptClass`, `AttemptReason`, `PushUrgency`, `PushService`, `PushPlatform`, `SmsEncoding`, `SmsReportOutcome`, `ConsentAnswer`, `ConversationType`, `ConversationStatus`, `MessageType`, `ScopeKind`, with the members of `08` sections 2, 3 and 6 that are built |
 
 **Operations** (`Hermes.Core`, implemented by `Hermes`):
 
@@ -105,7 +109,7 @@ to print none of them, so a log line that formats one writes none.
 | `ISuppressions` | `AddAsync(Channel channel, string destination, string category, ...)` and `RemoveAsync(...)` with the same parameters answer `Result` (`01` MSG-SEND-012) |
 | `ISubjects` | `EraseAsync(string person, ...)` answers `Result` (erasing a person the library holds nothing of succeeds and does nothing, save where it answers `messaging.release.newer` or `messaging.key.unavailable`, `01` MSG-SEND-020; it waits for every open transaction that recorded a send for the person, so a host never calls it while such a transaction of its own is open, `01` MSG-SEND-004); `ExportAsync(string person, ...)` answers `Result<SubjectExport>` (`01` MSG-SEND-020) |
 | `IInApp` | `ListAsync(string person, string? language, string? cursor, int? size, ...)` answers `Result<InAppPage>`; `UnreadCountAsync(string person, ...)` answers `int`; `MarkReadAsync(string person, EntryId entry, ...)` answers `Result`; `MarkAllReadAsync(string person, ...)` answers `int`, the number of entries it marked (`02` MSG-INAPP-003) |
-| `IConversations` | Implemented by `Hermes.Conversations`: each operation of a person's direct and group conversations, one for each route of `05` MSG-API-009 that is thin over it (`09` MSG-CONV-006) |
+| `IConversations` | Implemented by `Hermes.Conversations`, one member for each route of `05` MSG-API-009, which is thin over it, its failures that route's codes (`09` MSG-CONV-006): `ListAsync(string person, string? cursor, int? size, ...)` answers `Result<ConversationPage>`; `StartDirectAsync(string person, IReadOnlyList<string> participants, ...)`, `OpenGroupAsync(string person, ConversationScope scope, ...)` and `ReadAsync(string person, ConversationId conversation, ...)` answer `Result<ConversationRecord>`; `MessagesAsync(string person, ConversationId conversation, MessageId? before, int? size, ...)` answers `Result<MessagePage>`; `WriteAsync(string person, ConversationId conversation, string text, MessageType type, MessageId? replyTo, IReadOnlyList<string>? mentions, ...)` answers `Result<MessageRecord>`; `EditAsync(string person, ConversationId conversation, MessageId message, string text, ...)`, `DeleteAsync(string person, ConversationId conversation, MessageId message, ...)`, `MarkReadAsync(string person, ConversationId conversation, MessageId message, ...)`, `MuteAsync(string person, ConversationId conversation, bool muted, ...)`, `AddParticipantsAsync(string person, ConversationId conversation, IReadOnlyList<string> participants, ...)` and `LeaveAsync(string person, ConversationId conversation, ...)` answer `Result` |
 
 **Provider contracts** (`Hermes.Core`):
 
@@ -149,6 +153,7 @@ to print none of them, so a log line that formats one writes none.
 | | `InboxMessage` | `string Id`, `Channel Channel`, `string App`, `DateTimeOffset At`, `string? To`, `string? Person`, `string? Kind`, `string? Category`, `string? Language`, `string Summary`, `string Text`, `IReadOnlyList<string> Links`, `InboxEmail? Email`, `InboxSms? Sms`, `InboxPush? Push` (`02` MSG-DEV-003; `05` MSG-API-007) |
 | | `InboxEmail`, `InboxSms`, `InboxPush`, `InboxNotification` | `InboxEmail`: `EmailAddress From`, `EmailAddress? ReplyTo`, `string Subject`, `string Text`, `string? Html`, `string MessageId`, `Uri? Unsubscribe`, `IReadOnlyList<KeyValuePair<string, string>> Headers`, `string EmlPath` (the `.eml` beside the record). `InboxSms`: `string Sender`, `string Text`, `SmsEncoding Encoding`, `int Segments`, `string DeliveryReference`. `InboxPush`: `PushService Service`, `InboxNotification Notification`, `TimeSpan Ttl`, `PushUrgency Urgency`, `string? Topic`. `InboxNotification`: `string Title`, `string Body`, `string? Url`, `string? Tag`, `string? Lang`, `string? Dir`, `string? Icon`, `string? Badge` |
 | `Hermes.Conversations` | `MessagingConversationsServiceCollectionExtensions` | `AddHermesConversations(IServiceCollection)` answers the `IServiceCollection` (MSG-LIB-003) |
+| | `MessagingConversationsEndpointRouteBuilderExtensions` | `MapHermesStaffConversations(IEndpointRouteBuilder, string prefix)` answers the group's `RouteGroupBuilder` (MSG-LIB-004; `05` MSG-API-009) |
 
 Everything else is internal: the shipped providers, their options, the endpoints'
 request and response types (their wire shape is the contract, `05`), and the tables.
@@ -247,10 +252,11 @@ MSG-ENG-003), so it fails at the call and not at start. Its keys, under
 the prefix the host chooses, so a host mounts each where it wants and leaves out the
 rest.
 
-**Values (M-001, M-024, M-026).** `MapHermesPreferences`, `MapHermesPushSubscriptions`,
-`MapHermesInApp`, `MapHermesUnsubscribe`, `MapHermesSmsReports` and
-`MapHermesDevelopmentInbox`, each an extension of `IEndpointRouteBuilder` taking the
-prefix and answering the group's `RouteGroupBuilder`:
+**Values (M-001, M-024, M-026, M-032).** `MapHermesPreferences`,
+`MapHermesPushSubscriptions`, `MapHermesInApp`, `MapHermesUnsubscribe`,
+`MapHermesSmsReports`, `MapHermesDevelopmentInbox` and `MapHermesStaffConversations`,
+each an extension of `IEndpointRouteBuilder` taking the prefix and answering the group's
+`RouteGroupBuilder`:
 - the preferences, push subscription and in-app groups need the identity seam
   (MSG-LIB-005), read JSON bodies only as `application/json` (so a cross-site form
   cannot reach them), and a host MAY add its own requirements (authorisation, rate
@@ -264,9 +270,12 @@ prefix and answering the group's `RouteGroupBuilder`:
   reports;
 - `MapHermesDevelopmentInbox` of `Hermes.Development` maps the development inbox's group
   (`05` MSG-API-007) in Development alone: it calls `AllowAnonymous()`, since a
-  developer's tools hold no session, and is guarded as `02` MSG-DEV-005 gives.
+  developer's tools hold no session, and is guarded as `02` MSG-DEV-005 gives;
+- `MapHermesStaffConversations` of `Hermes.Conversations` maps the staff conversations
+  group (`05` MSG-API-009): it needs the identity seam and reads JSON bodies only as
+  `application/json`, and the host adds the authorization that decides who may use it.
 
-*Source: M-001, M-024, M-026*
+*Source: M-001, M-024, M-026, M-032*
 
 **Acceptance criteria**
 1. Each group works mapped alone in an application with none of the others.
@@ -279,7 +288,7 @@ prefix and answering the group's `RouteGroupBuilder`:
 **MSG-LIB-005** — A host SHALL supply what only it knows through the seams of
 MSG-LIB-002, and the library SHALL refuse to start without a required one.
 
-**Values (M-005, M-006, M-007, M-026, M-031).**
+**Values (M-005, M-006, M-007, M-026, M-031, M-032).**
 
 | Seam | Required | `details.key` |
 |---|---|---|
@@ -290,6 +299,7 @@ MSG-LIB-002, and the library SHALL refuse to start without a required one.
 | `IContentProtector` | No: the library's own is used, and always kept for reading values it made and for every anonymous recipient's values. A host MAY register several of its own: the last registered writes, a value is opened by the registered protector whose `Id` its envelope names, and two with one `Id` stop the start with `messaging.startup.declarationinvalid` | |
 | `ITemplateSource` | No: the library's own is used (`03` MSG-TPL-006) | |
 | `IDeliveryObserver` | Where `Hermes:Observer:Enabled` and `Hermes:Dispatch:Enabled` are both on (`01` MSG-SEND-017) | `deliveryObserver` |
+| `IConversationMembership` | Where conversations are registered (MSG-LIB-003; `09` MSG-CONV-006) | `conversationMembership` |
 | `IAlertSink` | No: the library's own logs each condition at the error level | |
 | `TimeProvider` | No: the system clock | |
 
@@ -302,7 +312,7 @@ where conversations are registered (MSG-LIB-003), and joins the table above, wit
 `details.key`, in the phase that adds it; missing there, it stops the start with
 `messaging.startup.declarationmissing` and that key.
 
-*Source: M-005, M-006, M-007, M-022, M-026, M-031*
+*Source: M-005, M-006, M-007, M-022, M-026, M-031, M-032*
 
 **Acceptance criteria**
 1. Each required seam, missing where it is required, stops the start naming it.

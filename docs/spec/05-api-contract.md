@@ -319,25 +319,48 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 
 | Method and route | Body | Answers |
 |---|---|---|
-| `GET /conversations` | | **200**: the person's direct conversations they have not left and the existing group conversations of their scopes, newest activity first, each with its unread count, its mute and its last instant; query `cursor` and `size` |
-| `POST /conversations/direct` | `{ "participants" }` | **201** |
-| `GET /conversations/group/{kind}/{reference}` | | **200**: the scope's conversation, created the first time a member opens it; **404** `messaging.conversation.notfound` for a person who is not a member |
-| `GET /conversations/{id}` | | **200**; **404** `messaging.conversation.notfound` |
-| `GET /conversations/{id}/messages` | | **200**: the messages, newest first; query `before`, and `size`, 1 to 100, default 50; **404** `messaging.conversation.notfound` |
-| `POST /conversations/{id}/messages` | `{ "text", "replyTo", "mentions" }` | **201**; **400** `messaging.message.invalid`, `details.field` `text`, `mentions`, `replyTo` or `type`; **404** `messaging.conversation.notfound` |
-| `PUT /conversations/{id}/messages/{messageId}` | `{ "text" }` | **400** `messaging.message.invalid`, `details.field` `text`; **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound`; **409** `messaging.message.deleted` for a deleted message |
-| `DELETE /conversations/{id}/messages/{messageId}` | | **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound` |
-| `POST /conversations/{id}/read` | `{ "messageId" }` | **404** `messaging.conversation.notfound` |
-| `PUT /conversations/{id}/mute` | `{ "muted" }` | **404** `messaging.conversation.notfound` |
-| `POST /conversations/{id}/participants` | `{ "participants" }` | **409** `messaging.conversation.full` past 16 participants; **404** `messaging.conversation.notfound` |
-| `POST /conversations/{id}/leave` | | **404** `messaging.conversation.notfound` |
+| `GET /conversations` | | **200** `{ "conversations": [ <conversation> ], "next" }`: the person's direct conversations they have not left and the existing group conversations of their scopes, newest activity first, `next` the cursor of the next page or `null`; query `cursor`, and `size`, 1 to 100, default 20; **400** `messaging.request.malformed`, `details.member` `cursor` or `size`, for a cursor that does not read or a size outside its rule |
+| `POST /conversations/direct` | `{ "participants" }` | **201** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }`; **400** `messaging.conversation.invalid`, `details.field` `participants`, for none or more than 15 others, a reference named twice, or the person themselves; **503** as for `GET /inapp` |
+| `GET /conversations/group/{kind}/{reference}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }`: the scope's conversation, created the first time a member opens it; **400** `messaging.conversation.invalid`, `details.field` `kind`, for a kind that does not read; **404** `messaging.conversation.notfound` for a person who is not a member; **503** as for `GET /inapp` |
+| `GET /conversations/{id}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `GET /conversations/{id}/messages` | | **200** `{ "messages": [ <message> ] }`, newest first; query `before`, a message's identifier, and `size`, 1 to 100, default 50; **400** `messaging.request.malformed`, `details.member` `before` or `size`, for one outside its rule; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `POST /conversations/{id}/messages` | `{ "text", "type", "replyTo", "mentions" }` | **201** `{ "id", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }`; **400** `messaging.message.invalid`, `details.field` `text`, `mentions`, `replyTo` or `type`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `PUT /conversations/{id}/messages/{messageId}` | `{ "text" }` | **204**; **400** `messaging.message.invalid`, `details.field` `text`; **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound`; **409** `messaging.message.deleted` for a deleted message; **503** as for `GET /inapp` |
+| `DELETE /conversations/{id}/messages/{messageId}` | | **204**, a message already deleted included; **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `POST /conversations/{id}/read` | `{ "messageId" }` | **204**; **404** `messaging.message.notfound` for a message the conversation does not hold, or `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `PUT /conversations/{id}/mute` | `{ "muted" }` | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `POST /conversations/{id}/participants` | `{ "participants" }` | **204**; **400** `messaging.conversation.invalid`, `details.field` `type`, for a group conversation; **404** `messaging.conversation.notfound`; **409** `messaging.conversation.full` past 16 participants; **503** as for `GET /inapp` |
+| `POST /conversations/{id}/leave` | `{ }` | **204**; **400** `messaging.conversation.invalid`, `details.field` `type`, for a group conversation; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+
+| Shape | Members |
+|---|---|
+| `<conversation>` | `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }` |
+| `<participant>` | `{ "id", "person" }` |
+| `<message>` | `{ "id", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }` |
+
+A conversation is answered as `<conversation>` and a message as `<message>`, the routes
+above writing each out. `id`, `replyTo` and `messageId` are identifiers, lower-case and
+hyphenated; `sentAt`, `editedAt`, `deletedAt` and `lastAt` are instants in ISO 8601 UTC
+with milliseconds, `lastAt` the last message's, or the conversation's creation where it
+has none; `type` and `kind` are their `08` spellings; `scope` is `null` but for a group
+conversation; `participants` holds a direct conversation's participants who have not
+left, and is `[]` for a group conversation; `person`, `author` and `mentions` are person
+references, `author` being `null` once the author is erased (`09` MSG-CONV-009); `text`
+is `null` once the message is deleted or its author erased, and `erased` says which;
+`replyTo`, `editedAt` and `deletedAt` are `null` where the message has none. In a
+request, `type` is optional and defaults to `text`, and `replyTo` and `mentions` are
+optional.
 
 Every route needs a signed-in person (MSG-API-002), the one `IRecipientIdentity`
-answers. A route naming a conversation the person may not read answers 404
-`messaging.conversation.notfound`, never 403 (`09` MSG-CONV-006). The participants and
-leave routes are for direct conversations alone. Bodies and refusals are the engine's,
-as MSG-API-001 gives. `MapHermesStaffConversations` answers the group's
-`RouteGroupBuilder`, to which the host adds the authorization that decides who may use
-it (`09` MSG-CONV-006).
+answers. A route naming a conversation the person may not read, or by an `id` that does
+not read, answers 404 `messaging.conversation.notfound`, never 403 (`09`
+MSG-CONV-006). The participants and leave routes are for direct conversations alone.
+Bodies and refusals are the engine's, as MSG-API-001 gives. `MapHermesStaffConversations`
+answers the group's `RouteGroupBuilder`, to which the host adds the authorization that
+decides who may use it (`09` MSG-CONV-006).
 
 *Source: M-032*
+
+**Acceptance criteria**
+1. Each route does what its operation does, and the endpoint contract test finds exactly
+   these routes.
