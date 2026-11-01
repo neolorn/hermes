@@ -106,17 +106,20 @@ migration chain in `Hermes/Migrations`, under the schema `messaging` and the his
 `messaging.__migrations_history`; the conversation entities are the engine's, internal
 (`07` MSG-ENG-001). The tables are created in every deployment, and stay empty where
 conversations are not registered (`04` MSG-LIB-003); `hermes migrate` applies them as it
-applies every other, and the start's check above finds them as it finds every other.
-The engine knows each such table: a phase that adds a table holding a protected value, a
+applies every other, and the start's check above finds them as it finds every other. The
+engine knows each such table: a phase that adds a table holding a protected value, a
 keyed hash or a person reference adds it, in that same phase, to what the retention job
-reads before it marks a key version retired and to what it protects again
-(MSG-OPS-008); to erasure (`01` MSG-SEND-020), and to the person's locks where the table
-is written for a person (`02` MSG-PUSH-003); and, from plan phase 20, to export (`01`
-MSG-SEND-020). That phase's tests prove each of these for that table: a key version a
-conversation row uses is never retired, and an erased person's rows no longer open. No
-phase adds such a table without them.
+reads before it marks a key version retired and to what it protects again (MSG-OPS-008);
+to erasure (`01` MSG-SEND-020), and to the person's locks where the table is written for
+a person (`02` MSG-PUSH-003); and, from plan phase 20, to export (`01` MSG-SEND-020).
+That phase's tests prove each of these for that table: a key version a conversation row
+uses is never retired, and an erased person's rows no longer open. No phase adds such a
+table without them. `attachment_deletions` (M-038) holds the store keys of deleted
+attachments, with `key`, `attempts` and `next_at`, until `attachment-scans` deletes
+their bytes; it holds no protected value, keyed hash or person reference (`09`
+MSG-CONV-007, MSG-CONV-010).
 
-*Source: M-012, M-013, M-016, M-026, M-027, M-031*
+*Source: M-012, M-013, M-016, M-026, M-027, M-031, M-038*
 
 **Acceptance criteria**
 1. Starting against a database missing the release's last migration stops the start.
@@ -199,9 +202,9 @@ The `retention` job also deletes conversations' rows (M-038): a visitor's suppor
 conversation `Hermes:Conversations:Retention:Visitor` after it closes, with every row of
 it, and, where `Hermes:Conversations:Retention:Staff` is set, staff-chat messages older
 than it, with their attachments, at most 1,000 conversations per run (`09`
-MSG-CONV-010). Each attachment row it deletes leaves its store key for
-`attachment-scans`, which deletes the bytes and retries until it succeeds (`09`
-MSG-CONV-007).
+MSG-CONV-010). Each attachment row it deletes leaves its store key in
+`attachment_deletions` for `attachment-scans`, which deletes the bytes and retries until
+it succeeds (`09` MSG-CONV-007).
 
 The dispatcher's work is claimed delivery by delivery (`01` MSG-SEND-007), and it has no
 row in the job table; `dispatch-lag` watches it (MSG-OPS-005). Every other job holds a
@@ -312,7 +315,7 @@ attachment's scan has failed 5 times (`09` MSG-CONV-007, M-037).
 **MSG-OPS-007** — The deployment SHALL meet what the library cannot do alone, and the
 release notes SHALL state it.
 
-**Values (M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-035, M-039).**
+**Values (M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-035, M-038, M-039).**
 - **Sender rules.** For every sender: SPF or DKIM; forward and reverse DNS that agree
   for the sending server's IP address; TLS. For a bulk sender (about 5,000 or more
   messages a day to Gmail): SPF and DKIM; a DMARC record (its policy may be `none`); a
@@ -348,6 +351,8 @@ release notes SHALL state it.
 - **The in-app list.** `Hermes:InApp:AlwaysOn` is set alike in every application of the
   deployment (`02` MSG-INAPP-004), and the host's frontend shows an entry's `title` and
   `body` as text, never as markup (`05` MSG-API-008).
+- **Conversations.** The host's frontend shows a message's text, a file name and a
+  topic's name as text, never as markup (`05` MSG-API-009, MSG-API-010, M-038).
 - **Jobs.** Each job with a row in the job table (MSG-OPS-004) runs in at least one
   application, the `balance` job where SMS is used, since a job no application runs
   raises no `job-stalled`.
@@ -386,7 +391,7 @@ release notes SHALL state it.
 - the keys and the jobs (`08` section 4; MSG-OPS-004).
 
 *Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020, M-022, M-024,
-M-026, M-035, M-039*
+M-026, M-035, M-038, M-039*
 
 **Acceptance criteria**
 1. The release notes of each release (`RELEASE-NOTES.md`, `07` MSG-ENG-001) state every
