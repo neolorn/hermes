@@ -114,10 +114,7 @@ to erasure (`01` MSG-SEND-020), and to the person's locks where the table is wri
 a person (`02` MSG-PUSH-003); and, from plan phase 20, to export (`01` MSG-SEND-020).
 That phase's tests prove each of these for that table: a key version a conversation row
 uses is never retired, and an erased person's rows no longer open. No phase adds such a
-table without them. `attachment_deletions` (M-038) holds the store keys of deleted
-attachments, with `key`, `attempts` and `next_at`, until `attachment-scans` deletes
-their bytes; it holds no protected value, keyed hash or person reference (`09`
-MSG-CONV-007, MSG-CONV-010).
+table without them.
 
 *Source: M-012, M-013, M-016, M-026, M-027, M-031, M-038*
 
@@ -202,9 +199,9 @@ The `retention` job also deletes conversations' rows (M-038): a visitor's suppor
 conversation `Hermes:Conversations:Retention:Visitor` after it closes, with every row of
 it, and, where `Hermes:Conversations:Retention:Staff` is set, staff-chat messages older
 than it, with their attachments, at most 1,000 conversations per run (`09`
-MSG-CONV-010). Each attachment row it deletes leaves its store key in
-`attachment_deletions` for `attachment-scans`, which deletes the bytes and retries until
-it succeeds (`09` MSG-CONV-007).
+MSG-CONV-010). The attachments of the rows it deletes stay, their `conversation_id` or
+`message_id` set to null, until `attachment-scans` deletes their bytes and then their
+rows (`09` MSG-CONV-007).
 
 The dispatcher's work is claimed delivery by delivery (`01` MSG-SEND-007), and it has no
 row in the job table; `dispatch-lag` watches it (MSG-OPS-005). Every other job holds a
