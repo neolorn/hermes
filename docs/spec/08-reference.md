@@ -51,6 +51,7 @@ MSG-OPS-002).
 | `messaging.message.notauthor` | 403 | Editing or deleting another person's message, which the person can see, so nothing leaks (`09` MSG-CONV-006) | |
 | `messaging.message.deleted` | 409 | Editing a deleted message (`09` MSG-CONV-006) | |
 | `messaging.support.offline` | 409 | Starting a support conversation outside its topic's hours, or within them while no member is available (`09` MSG-CONV-002; `05` MSG-API-010) | |
+| `messaging.support.alreadyopen` | 409 | Starting a support conversation on a topic where the visitor or the customer already holds an open one (`09` MSG-CONV-002; `05` MSG-API-010) | `conversation` |
 | `messaging.support.noticerequired` | 409 | A visitor's message, or offline form, before an acknowledgement of the current privacy notice (`09` MSG-CONV-010; `05` MSG-API-010) | |
 | `messaging.support.limited` | 429 | A visitor or a source address over a limit of `Conversations:Limits:` (`09` MSG-CONV-011; `05` MSG-API-010); answered with `Retry-After` | |
 | `messaging.support.blocked` | 403 | A blocked visitor or customer starting or writing (`09` MSG-CONV-011; `05` MSG-API-010) | |
@@ -337,7 +338,8 @@ These names are stored, or shared by the processes of two releases, and never ch
 | `messaging.__migrations_history` | The migration history table (`06` MSG-OPS-002) |
 | `messaging_dispatch` | The notification channel a send wakes the dispatchers on (`01` MSG-SEND-004) |
 | `messaging_visitor` | The cookie that keeps a visitor's reference in their browser (`09` MSG-CONV-001) |
-| `messaging_conversations`; `message`, `changed`, `read`, `typing`, `presence` | The notification channel a conversation's write tells the processes on, and the events of its payload `<event>:<conversationId>:<id>` (`09` MSG-CONV-008) |
+| `messaging_conversations`; `message`, `changed`, `read`, `typing`, `presence`, `place`, `assigned`, `closed`, `conversation` | The notification channel a conversation's write tells the processes on, and the events of its payload `<event>:<conversationId>:<id>`, the last four each `<event>:<conversationId>:<conversationId>` (`09` MSG-CONV-008) |
+| `conversations.customer`, `conversations.email` with its key version, `messages.owner`, and the hash version beside each keyed hash of conversations | Support's storage columns (M-034): a signed-in customer's person reference, the offline form's protected address, a message's owner, and the `hashKeys` version each keyed hash was made with (`09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-009, MSG-CONV-011) |
 | `deliveries`, `subscriptions`, `entries`, `messages`, `conversations`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth`, a message's `text`, and a support conversation's `email` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018; `09` MSG-CONV-001, MSG-CONV-002) |
 | `conversations`, `participants`, `messages`, `mentions`, `connections`, `support_agents`, `support_blocks`, `support_acknowledgements`, `support_counters` | The conversations' tables (`09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-006, MSG-CONV-010, MSG-CONV-011) |
 | `email`, `sms`, `push-endpoint`, `push-topic`, `person`, `idempotency`, `visitor`, `source` | The keyed hash's domains (`06` MSG-OPS-008; `09` MSG-CONV-001, MSG-CONV-011) |

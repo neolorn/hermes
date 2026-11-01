@@ -319,7 +319,7 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 
 | Method and route | Body | Answers |
 |---|---|---|
-| `GET /conversations` | | **200** `{ "conversations": [ <conversation> ], "next" }`: the person's direct conversations they have not left and the existing group conversations of their scopes, newest activity first, `next` the cursor of the next page or `null`; query `cursor`, and `size`, 1 to 100, default 20; **400** `messaging.request.malformed`, `details.member` `cursor` or `size`, for a cursor that does not read or a size outside its rule; **503** as for `GET /inapp` |
+| `GET /conversations` | | **200** `{ "conversations": [ <conversation> ], "next" }`: the person's direct conversations they have not left, the existing group conversations of their scopes and the open support conversations assigned to them, newest activity first, `next` the cursor of the next page or `null`; query `cursor`, and `size`, 1 to 100, default 20; **400** `messaging.request.malformed`, `details.member` `cursor` or `size`, for a cursor that does not read or a size outside its rule; **503** as for `GET /inapp` |
 | `POST /conversations/direct` | `{ "participants" }` | **201** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }`; **400** `messaging.conversation.invalid`, `details.field` `participants`, for none or more than 15 others, a reference named twice, or the person themselves; **503** as for `GET /inapp` |
 | `GET /conversations/group/{kind}/{reference}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }`: the scope's conversation, created the first time a member opens it; **400** `messaging.conversation.invalid`, `details.field` `kind`, for a kind that does not read; **400** `messaging.request.malformed`, `details.member` `reference`, for a reference outside 1 to 128 characters; **404** `messaging.conversation.notfound` for a person who is not a member; **503** as for `GET /inapp` |
 | `GET /conversations/{id}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
@@ -331,7 +331,7 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | `PUT /conversations/{id}/mute` | `{ "muted" }` | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `POST /conversations/{id}/participants` | `{ "participants" }` | **204**; **400** `messaging.conversation.invalid`, `details.field` `type`, for a group conversation; **404** `messaging.conversation.notfound`; **409** `messaging.conversation.full` past 16 participants; **503** as for `GET /inapp` |
 | `POST /conversations/{id}/leave` | `{ }` | **204**; **400** `messaging.conversation.invalid`, `details.field` `type`, for a group conversation; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
-| `GET /support/queue` | | **200** `{ "conversations": [ <conversation> ] }`: the topic's queued conversations, oldest first; query `topic`; **400** `messaging.request.malformed`, `details.member` `topic`, for a topic not configured |
+| `GET /support/queue` | | **200** `{ "conversations": [ <conversation> ] }`: the topic's queued conversations, oldest first, or an empty list for a person outside the topic's scope; query `topic`; **400** `messaging.request.malformed`, `details.member` `topic`, for a topic not configured |
 | `PUT /support/availability` | `{ "available" }` | **204**; **503** as for `GET /inapp` |
 | `POST /support/conversations/{id}/transfer` | `{ "person", "topic" }`, one of the two | **204**; **400** `messaging.conversation.invalid`, `details.field` `person` for a person outside the topic's scope, or `topic` for a topic not configured; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `POST /support/conversations/{id}/close` | `{ }` | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
@@ -365,14 +365,16 @@ optional; `until` is an instant, or `null` for a block until it is lifted.
 
 Every route needs a signed-in person (MSG-API-002), the one `IRecipientIdentity`
 answers. A route naming a conversation the person may not read, or by an `id` that does
-not read, answers 404 `messaging.conversation.notfound`, never 403 (`09`
-MSG-CONV-006). The participants and leave routes are for direct conversations alone.
-Bodies and refusals are the engine's, as MSG-API-001 gives. `MapHermesStaffConversations`
-answers the group's `RouteGroupBuilder`, to which the host adds the authorization that
-decides who may use it (`09` MSG-CONV-006). The support routes (M-034) work support's
-queue (`09` MSG-CONV-002, MSG-CONV-011); a staff member writes `text` or `note` in a
-support conversation they are assigned through the messages route, and a visitor never
-sees a `note` (`09` MSG-CONV-001).
+not read, answers 404 `messaging.conversation.notfound`, never 403 (`09` MSG-CONV-006).
+The participants and leave routes are for direct conversations alone. Bodies and
+refusals are the engine's, as MSG-API-001 gives. `MapHermesStaffConversations` answers
+the group's `RouteGroupBuilder`, to which the host adds the authorization that decides
+who may use it (`09` MSG-CONV-006). The support routes (M-034) work support's queue
+(`09` MSG-CONV-002, MSG-CONV-011); a staff member writes `text` or `note` in a support
+conversation they are assigned through the messages route, and a visitor never sees a
+`note` (`09` MSG-CONV-001). A member of the topic's scope reads a support conversation
+of the topic, transfers, closes and blocks it; a member who is not the assignee writing,
+and anyone else, is answered 404 `messaging.conversation.notfound` (`09` MSG-CONV-002).
 
 **The staff hub (M-033).** The group also maps the staff hub at `/live`, so the host's
 authorization covers it too (`09` MSG-CONV-008). The person comes from
@@ -408,11 +410,11 @@ MSG-CONV-002).
 
 | Method and route | Body | Answers |
 |---|---|---|
-| `GET /support/topics` | | **200** `{ "topics": [ { "name", "open" } ] }`: each topic, `open` whether it is open now or offline |
-| `POST /support/notice` | `{ "version" }` | **204**; **403** `messaging.support.blocked`; **429** `messaging.support.limited` with `Retry-After` |
-| `POST /support/conversations` | `{ "topic", "text" }` | **201** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }`; **409** `messaging.support.offline` outside the topic's hours, or within them while no member is available; **409** `messaging.support.noticerequired` for a visitor before an acknowledgement of the current notice; **403** `messaging.support.blocked`; **429** `messaging.support.limited` with `Retry-After` |
+| `GET /support/topics` | | **200** `{ "topics": [ { "name", "open" } ] }`: each topic, `open` whether it is within its hours with a member available, or offline |
+| `POST /support/notice` | `{ "version" }` | **204**; **403** `messaging.support.blocked`; **429** `messaging.support.limited` with `Retry-After` where the visitor or the source address is already at its starts limit, counting nothing |
+| `POST /support/conversations` | `{ "topic", "text" }` | **201** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }`; **409** `messaging.support.offline` outside the topic's hours, or within them while no member is available; **409** `messaging.support.noticerequired` for a visitor before an acknowledgement of the current notice; **409** `messaging.support.alreadyopen`, `details.conversation` the open one's identifier, for a second start on a topic with one open; **403** `messaging.support.blocked`; **429** `messaging.support.limited` with `Retry-After` |
 | `POST /support/offline` | `{ "topic", "email", "text" }` | **201** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }`; **409** `messaging.support.noticerequired` for a visitor before an acknowledgement of the current notice; **403** `messaging.support.blocked`; **429** `messaging.support.limited` with `Retry-After` |
-| `GET /support/conversations/current` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }`: the open conversation, with the visitor's place; **404** `messaging.conversation.notfound` where none is open |
+| `GET /support/conversations/current` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }`: the newest open conversation, with the visitor's place; **404** `messaging.conversation.notfound` where none is open |
 | `GET /support/conversations/{id}/messages` | | **200** `{ "messages": [ <message> ] }`, newest first, or oldest first from `after`, never a `note`; query `before` or `after`, and `size`, as for the staff messages route; **400** `messaging.request.malformed`, `details.member` `before`, `after` or `size`, for one outside its rule; **404** `messaging.conversation.notfound` |
 | `POST /support/conversations/{id}/messages` | `{ "text" }` | **201** `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }`; **400** `messaging.message.invalid`, `details.field` `text`; **404** `messaging.conversation.notfound`; **409** `messaging.support.noticerequired` for a visitor before an acknowledgement of the current notice; **403** `messaging.support.blocked`; **429** `messaging.support.limited` with `Retry-After` |
 | `POST /support/conversations/{id}/read` | `{ "messageId" }` | **204**; **404** `messaging.message.notfound` for a message the conversation does not hold, or `messaging.conversation.notfound` |
