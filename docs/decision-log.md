@@ -1673,6 +1673,432 @@ rules every later phase follows; each later phase gets its own entry before it s
 
 ---
 
+## M-032 — Phase 14: the model and staff chats
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-CONV-001, MSG-CONV-006, MSG-CONV-009, MSG-LIB-002, MSG-LIB-005
+
+**TL;DR.** Phase 14 builds the conversation model and the staff side's `group` and
+`direct` conversations over HTTP. The live connection is phase 15's. Group access asks the
+host's membership seam on every read and write, and anyone who is not a participant or a
+member is answered as if the conversation did not exist. A message's text is protected
+under its author's key. Edits and deletes apply to one's own messages only, and a deleted
+message stays as a mark without its text. This entry settles the map's C6, C8 to C11,
+C35 to C38, C41, C53 to C55 (staff part) and C61.
+
+- **The tables** (engine folder `Conversations`, schema `messaging`, M-031's standing rule
+  applied to each):
+  - `conversations`: its type (`support`, `group`, `direct`); its origin (`web`, the
+    only value in release 2, C10); its status (`open`, `snoozed`, `closed`, C6); for
+    `group`, its scope (kind and reference, unique together); and its created and
+    last-message instants. Support's columns come with phase 16.
+  - `participants`: a person in a conversation, with their read position, their mute,
+    and the instants they joined and left.
+  - `messages`: its author, its type, its protected text, the message it replies to, and
+    its sent, edited and deleted instants.
+  - `mentions`: a message's mentioned persons, one row each.
+
+  A person reference is held as the in-app list holds `entries.person`. Each protected
+  value follows `08` section 8's context form, the text's being `messages:<id>:text`
+  (C53).
+- **Statuses (C6).** They are a fixed set in `08` section 3. A queued support
+  conversation is `open` with no assignee. Phase 17's statuses for desk work are tags,
+  not statuses. `group` and `direct` conversations are always `open` in release 2.
+- **Message types (C11).** The types are `text`, `note`, `automatic` and `system`, an open
+  enumeration. `call` is not reserved. In phase 14 a person writes `text` only, and
+  `note` answers 400. The library writes no `system` message in this phase.
+- **Bounds (C8).**
+  - A text is 1 to 4,000 characters (UTF-16 code units, as .NET counts).
+  - A message mentions at most 32 distinct persons.
+  - A direct conversation holds at most 16 participants.
+  - These are fixed values, not keys.
+- **Edits and deletes (C8, C41).**
+  - A person edits or deletes only their own `text` messages, at any time.
+  - An edit replaces the text and sets the edited instant. No history is kept.
+  - A delete clears the text and its mentions and sets the deleted instant. The row
+    stays, and reads answer it as deleted with no text.
+  - Editing a deleted message answers 409.
+- **Read position (C9).** It is the identifier of the last message read, and it moves
+  forward only. A conversation's unread count is the messages after it that are not the
+  person's own and not deleted.
+- **Replies.** A reply names a message of the same conversation, deleted or not. Any other
+  answers 400.
+- **The membership seam (C35).** It is a new interface in `Hermes.Core`,
+  `IConversationMembership`, and is required where conversations are registered:
+  - `ValueTask<bool> IsMemberAsync(string person, ConversationScope scope, CancellationToken)`;
+  - `IAsyncEnumerable<string> MembersAsync(ConversationScope scope, CancellationToken)`;
+  - `IAsyncEnumerable<ConversationScope> ScopesAsync(string person, CancellationToken)`.
+
+  `ConversationScope` is a record of `ScopeKind Kind` (`Organization` or `Group`) and
+  `string Reference`. The library caches none of the answers: every read and write of a
+  group conversation asks `IsMemberAsync`.
+- **Group conversations (C36).** There is one per scope. It is created the first time a
+  member opens it, and creating it again creates nothing more. A member's participant
+  row (read position, mute) is written the first time they read or write it.
+- **Direct conversations (C37).**
+  - A person starts one by naming 1 to 15 others: distinct references, and not
+    themselves.
+  - Any participant may add others, up to 16 in all.
+  - A participant may leave. Leaving ends their access at once, and their messages stay.
+  - Someone who left comes back only by being added again.
+  - The library does not check that a named reference exists. The host's authorization
+    on the staff group decides who may use it.
+- **Mentions (C38).** A mention is a list of person references sent with the message,
+  never parsed from the text. In a direct conversation each one is a participant. In a
+  group conversation each one is a member, checked through the seam. Mute silences a
+  conversation's notices except the person's own mentions (phase 15).
+- **Protection (MSG-CONV-009, staff part).** A staff chat message's text is protected under
+  its author's key, through the engine's content protection, and bound to its row.
+- **Erasure (C54, C55, staff part).** Erasing a person:
+  - deletes their participant and mention rows;
+  - handles their author references as the engine handles a delivery's recipient
+    reference.
+
+  Their messages stay as rows, and their text, no longer opening, reads `Erased`.
+  Everyone else's messages are untouched.
+- **The surface.**
+  - **The interface.** `IConversations` in `Hermes.Core` (beside `IInApp`) carries each
+    operation for a person.
+  - **The routes.** `MapHermesStaffConversations(this IEndpointRouteBuilder routes,
+    string prefix)` answers the `RouteGroupBuilder` for the host's authorization. Its
+    routes are thin over `IConversations`, and the person comes from
+    `IRecipientIdentity`:
+    - `GET {prefix}/conversations?cursor=&size=`: the person's direct conversations
+      (not left) and the existing group conversations of their scopes, newest activity
+      first, each with its unread count, mute and last instant;
+    - `POST {prefix}/conversations/direct` with `participants`: **201**;
+    - `GET {prefix}/conversations/group/{kind}/{reference}`: the scope's conversation,
+      created on first use by a member;
+    - `GET {prefix}/conversations/{id}`;
+    - `GET {prefix}/conversations/{id}/messages?before=&size=`: newest first, size 1 to
+      100, default 50;
+    - `POST {prefix}/conversations/{id}/messages` with `text`, `replyTo` and
+      `mentions`: **201**;
+    - `PUT` and `DELETE {prefix}/conversations/{id}/messages/{messageId}`;
+    - `POST {prefix}/conversations/{id}/read` with `messageId`;
+    - `PUT {prefix}/conversations/{id}/mute` with `muted`;
+    - `POST {prefix}/conversations/{id}/participants` with `participants`, and
+      `POST {prefix}/conversations/{id}/leave`, both for direct conversations only.
+  - **Bodies and errors.** Bodies and errors are the engine's (`EndpointJson`,
+    `ErrorBody`).
+- **Codes (C61).**
+  - `messaging.conversation.notfound` **404**: unknown, not a participant, not a member,
+    or left. Never 403, so nobody learns a conversation exists.
+  - `messaging.conversation.invalid` **400**, with `details.field`.
+  - `messaging.conversation.full` **409**.
+  - `messaging.message.notfound` **404**.
+  - `messaging.message.invalid` **400**, with `details.field` `text`, `mentions`,
+    `replyTo` or `type`.
+  - `messaging.message.notauthor` **403**. The person can see the message, so nothing
+    leaks.
+  - `messaging.message.deleted` **409**.
+- **Locks.** A write for a person takes their person lock shared, as the in-app list does,
+  so an erasure cannot race it.
+- **Phase 14's criteria.**
+  1. In a group conversation, a non-member's every read and write answers 404. A member
+     the seam no longer answers for is refused on the next call.
+  2. In a direct conversation, a non-participant answers 404, and so does one who left,
+     at once. Participants can be added up to 16, and the 17th answers 409.
+  3. Edits and deletes work on one's own messages only. Another person's answers 403. A
+     deleted message reads with no text, and editing it answers 409.
+  4. A message's protected text copied to another row does not open. A key version a
+     message uses is never retired.
+  5. Erasing an author makes their messages read `Erased` and removes their participant
+     and mention rows. Other messages are untouched.
+  6. Each bound is refused at its edge: text of 0 or 4,001 characters, a 33rd mention, a
+     mention outside the conversation, a reply into another conversation, a `note`.
+  7. The read position moves forward only, and the unread counts follow it.
+  8. Each route does what its operation does, and the endpoint contract test finds
+     exactly these routes.
+
+**Propagated to:**
+- `04` MSG-LIB-002 (`IConversations`, `ConversationScope`), MSG-LIB-005
+  (`IConversationMembership`);
+- `05` (the staff routes);
+- `08` sections 1, 3 and 8;
+- `09` MSG-CONV-001, MSG-CONV-006, MSG-CONV-009, with their criteria.
+
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - `IConversations` has one member per route, `(string person, ..., CancellationToken)`
+>   answering `Result<T>`, over records for a conversation, a participant, a message and
+>   their pages, with identifiers `ConversationId`, `MessageId` and `ParticipantId`.
+> - The bodies are `<conversation>` `{ "id", "type", "scope", "participants", "unread",
+>   "muted", "lastAt" }`, `<participant>` `{ "id", "person" }`, `<message>` `{ "id",
+>   "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt",
+>   "erased" }`, the list `{ "conversations": [ <conversation> ], "next" }` and the
+>   messages `{ "messages": [ <message> ] }`.
+> - The message route's body carries `type`, optional, default `text`.
+> - Editing, deleting, read, mute, participants and leave answer 204; the group route
+>   answers 200, even the first time.
+> - Starting with none or more than 15 others, a reference named twice or oneself
+>   answers `messaging.conversation.invalid` (`participants`). The participants and
+>   leave routes on a group conversation answer it with `type`, and a kind that does not
+>   read with `kind`.
+> - Read naming a message the conversation does not hold answers
+>   `messaging.message.notfound`. Deleting a deleted message answers 204. Leave reads
+>   `{ }`.
+> - The list takes the in-app list's `size` and `cursor` rules, answering
+>   `messaging.request.malformed`; the messages route keeps 1 to 100, default 50.
+> - The routes answer 503 `messaging.request.unavailable` as the in-app routes do.
+> - `08` section 2 gains the conversation types, origins, message types and scope kinds;
+>   the conversation statuses are public, as `ConversationStatus`.
+> - `IConversationMembership`'s `details.key` is `conversationMembership`.
+> - `MapHermesStaffConversations` is on
+>   `MessagingConversationsEndpointRouteBuilderExtensions`, and joins MSG-LIB-004.
+> - The criterion that each route does what its operation does moves to `05`
+>   MSG-API-009.
+> - An asynchronous member answers a `ValueTask`, or an `IAsyncEnumerable<T>` for a
+>   sequence (MSG-LIB-002).
+> - Erasing an author also clears their messages' text, which then reads `Erased`, as a
+>   delivery's content is deleted, whichever protector wrote it.
+> - `messages` joins `01` MSG-SEND-018's context and `content-rejected`'s scope.
+> - `<message>` and `MessageRecord` gain `authorKind` (`AuthorKind`): `person`,
+>   `visitor`, or `library` for an `automatic` or `system` message. `author` is the
+>   person reference only where it is `person`. `visitor` comes with this phase's
+>   enumeration.
+> - `AddHermesConversations` registers `IConversations` as a scoped service, as
+>   `AddHermes` registers `IInApp`.
+>
+> Propagated to `01` MSG-SEND-018; `04` MSG-LIB-002, MSG-LIB-003, MSG-LIB-004,
+> MSG-LIB-005; `05` MSG-API-009; `08` sections 1, 2, 3 and 5; `09` MSG-CONV-006,
+> MSG-CONV-009; `implementation-plan.md` (phase 14).
+
+---
+
+## M-033 — Phase 15: the live connection
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-CONV-005, MSG-CONV-006, MSG-CONV-008
+
+**TL;DR.** The staff side gets a SignalR hub that pushes what HTTP wrote, after it is stored,
+to the participants connected to any process. Processes tell each other through `NOTIFY`
+on a listening connection of the package's own, carrying identifiers that name no person.
+Typing is relayed and never stored. Presence is a connection, shown in direct
+conversations. A person who is away hears of a direct message or a mention through
+sending, once per conversation until they read it. This entry settles the map's C34, C39,
+C40 and C47 to C49. C50 (the public hub) is phase 16's.
+
+- **The hub (C47).**
+  - **Route.** `MapHermesStaffConversations` also maps the staff hub at `{prefix}/live`,
+    inside the same `RouteGroupBuilder`, so the host's authorization covers it.
+  - **Person.** The person comes from `IRecipientIdentity` at connect, and a connection
+    without one is refused.
+  - **Server to client:**
+    - `message(conversationId, message)`: a new message, in the shape the messages
+      route answers;
+    - `messageChanged(conversationId, message)`: an edit or a delete;
+    - `read(conversationId, participantId, messageId)`;
+    - `typing(conversationId, participantId)`;
+    - `presence(participantId, online)`;
+    - `conversation(conversation)`: one added to the person's list.
+  - **Client to server.** One method only, `Typing(conversationId)`: writes stay HTTP.
+  - **Surface.** The hub's route, methods and shapes are surface (M-031).
+- **Catching up.** The messages route gains `after={messageId}`, which answers oldest
+  first. A client that reconnects reads from its last message, since every push follows
+  the store.
+- **Fan-out (C48).**
+  - **The channel.** After a write commits, the write sends `NOTIFY messaging_conversations`
+    with `<event>:<conversationId>:<id>`. The event is `message`, `changed`, `read`,
+    `typing` or `presence`. The id is a message's or a participant's, never a person
+    reference.
+  - **Listening.** Each process listens on a connection of the package's own, opened from
+    `listenConnection` where set and else the library's connection (MSG-OPS-003).
+    Dispatch and conversations never wait on each other.
+  - **Who receives.** Each process pushes to its own connections whose person may read
+    the conversation now. For a direct conversation, that is the participants not left.
+    For a group conversation, it is the scope's members from one `MembersAsync` call per
+    event, intersected with the persons connected to that process.
+- **Typing (C34).**
+  - `Typing` is relayed to the conversation's other connected readers, and never stored.
+  - A client sends it at most every 3 seconds while typing. A receiver shows it for 5
+    seconds after the last one.
+  - A person whose participant row does not exist yet gets one written first.
+- **Read indicators (C34).** Moving a read position (phase 14) sends `read` to the other
+  readers.
+- **Presence (C39).**
+  - A person is online while they hold a staff-hub connection on any process.
+  - The `connections` table holds each connection's person, process and last-seen
+    instant. A process refreshes its rows every 30 seconds, and a row older than 90
+    seconds is gone.
+  - Presence is shown in direct conversations only: as each participant's `online` in
+    the conversation's read, and as `presence` pushes to the other participants. Group
+    conversations show none.
+  - `connections` holds a person reference, so M-031's standing rule applies:
+    erasure deletes the rows.
+- **Away notices (C40, C49).**
+  - **Who.** A participant of a direct conversation, or a person mentioned in a group
+    conversation, who holds no staff-hub connection when the message is written and has
+    not muted the conversation, is told through sending. A mention is told even where
+    the conversation is muted (M-032).
+  - **How often.** Once per person per conversation, until their read position passes
+    the message that was told. The send's idempotency key is
+    `conversation:<id>:away:<participantId>:<messageId>`.
+  - **The kind.** It is the one named by `Hermes:Conversations:AwayKind`. It must be a
+    declared kind, or the start fails naming the key. Unset, no away notice is sent.
+  - **Values.** The kind's values are the conversation's identifier and type, the
+    message's identifier, and whether the person was mentioned. The text is never
+    included: it is protected, and a notice must not carry it.
+  - The kind's own channels, preferences and quiet hours apply, as for any send.
+- **Phase 15's criteria.**
+  1. A message written through process A reaches a client connected to process B, after
+     it is stored.
+  2. A client that reconnects reads what it missed with `after`.
+  3. `NOTIFY`'s payload holds no person reference or text.
+  4. A non-member connected to the hub receives nothing of a group conversation, and a
+     member the seam stops answering for receives nothing from the next event.
+  5. Typing reaches the others and is never stored.
+  6. Presence turns offline within 90 seconds of a process stopping.
+  7. An away participant is told once until they read. A mention is told through a
+     mute. A connected one is not told.
+  8. `AwayKind` naming an undeclared kind fails the start.
+  9. The contract test finds the hub's route and methods.
+
+**Propagated to:**
+- `05` (the hub, `after`);
+- `06` MSG-OPS-003 (the listening connection);
+- `08` sections 4 (`AwayKind`) and 8 (the channel, the `connections` table);
+- `09` MSG-CONV-005, MSG-CONV-006, MSG-CONV-008, with their criteria.
+
+---
+
+## M-034 — Phase 16: support's public side
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-CONV-001, MSG-CONV-002, MSG-CONV-009, MSG-CONV-010, MSG-CONV-011
+
+**TL;DR.**
+- A visitor is known by a reference the library draws, kept in an HttpOnly cookie and
+  stored only as a keyed hash.
+- A signed-in customer is their person.
+- Topics are configuration. Each one has hours in a time zone and the membership scope
+  whose members staff it.
+- A queued conversation goes at once to the available member with the fewest open
+  conversations. With nobody available, the visitor gets the offline form, answered by
+  email.
+- A visitor acknowledges the host's privacy notice before writing.
+- The public side is limited by counters in the database, and staff can block a visitor.
+
+This entry settles the map's C7, C12 to C19, C50 to C52 and C57 to C60.
+
+- **The visitor (C7, C50).**
+  - **The reference.** The public side draws `visitor:` followed by 128 random bits in
+    base64url on the first call that needs one.
+  - **The cookie.** The reference is kept in `hermes_visitor`: HttpOnly, Secure,
+    SameSite Lax, path the public prefix, renewed on use, and living as long as
+    `Retention:Visitor`.
+  - **Storage.** It is a bearer credential, so the database holds only its keyed hash,
+    under a new domain, `visitor` (`08` section 8).
+  - **The public hub.** It is authenticated by the same cookie.
+- **A signed-in customer (C51, C52).**
+  - Where `IRecipientIdentity` answers a person on the public side, the conversation is
+    that person's: no cookie, no notice, and protection under their key through the host
+    protector.
+  - A visitor's conversation is protected through the library protector, with the visitor
+    reference as its person, as `01` MSG-SEND-018 protects anonymous values.
+  - Staff replies are under the same key (MSG-CONV-009).
+- **Topics (C12, C13).**
+  - Each topic is configuration, `Hermes:Conversations:Topics:<name>`, its name under
+    `08` section 3's name rule. It has:
+    - `TimeZone` (IANA);
+    - `Hours`, from `Monday` to `Sunday`, each a list of `HH:mm-HH:mm`;
+    - `Exceptions`, by date, each `Closed` or its own list;
+    - `Scope`: a kind and a reference for the membership seam (M-032).
+  - The staff of a topic are its scope's members.
+  - A topic's display name is the host frontend's.
+- **Who answers (C14, C15, C16).**
+  - **Available.** A staff member is available while they hold a staff-hub connection
+    (M-033), have set themselves available, and hold fewer open support conversations
+    than `Hermes:Conversations:Support:Limit` (default 3).
+  - **Being set available.** Through `PUT {staff}/support/availability`, stored in an
+    `agents` table, which holds a person reference, so M-031's rule applies.
+  - **Assignment.** It is automatic. When a conversation is queued, or a member frees up,
+    the oldest queued conversation of each topic goes to the available member with the
+    fewest open conversations. Ties go to the one longest since their last assignment.
+  - **The queue.** It is first in, first out per topic.
+  - **The visitor's place.** It is in the conversation's read, and pushed over the
+    public hub as `place(position)` (C17).
+- **Offline (C18).** Outside a topic's hours, or within them while no member is
+  available, starting a conversation answers **409** `messaging.support.offline`, and the
+  visitor uses the offline form instead.
+  - The form takes an email address and the text. It becomes a conversation flagged
+    `offline`, queued like any other.
+  - Staff replies to it are sent through sending, as the kind named by
+    `Hermes:Conversations:Support:OfflineReplyKind`, to `Recipient.Anonymous` with that
+    address. The key is required where topics are configured.
+  - The address is a protected value of the conversation.
+- **Transfer (C19).** A staff member transfers to another member of the topic's scope,
+  assigned at once, or to another topic's queue. The receiver does not accept.
+- **The privacy notice (C57).**
+  - The notice's text is the host's. The library records the acknowledgement: the
+    visitor's hash, the version, the instant and the language.
+  - The version is `Hermes:Conversations:Support:NoticeVersion`, required where topics
+    are configured.
+  - A visitor's message before an acknowledgement of the current version answers **409**
+    `messaging.support.noticerequired`. A signed-in customer is never asked.
+- **Limits (C58, C59).**
+  - Counters live in the database, across processes, as MSG-SEND-014 counts. Each is a
+    key under `Hermes:Conversations:Limits:`:
+    - per visitor, conversations started per day (`VisitorStarts`, default 5) and
+      messages per minute (`VisitorMessages`, default 20);
+    - per source address, conversations started per hour (`SourceStarts`, default 20).
+  - Over a limit answers **429** `messaging.support.limited` with `Retry-After`.
+  - The source address is the request's remote address, as the host's forwarded-headers
+    set-up gives it. IPv6 is grouped by its /64. The address is stored as a keyed hash
+    under a new domain, `source`.
+- **Blocking (C60).**
+  - Staff block a visitor or a customer by their conversation, until an instant or until
+    lifted, and lift the block.
+  - A blocked one starting or writing answers **403** `messaging.support.blocked`.
+  - Blocking by address is not offered, since addresses are shared.
+  - The `blocks` table holds a person reference or a visitor hash, so M-031's rule
+    applies.
+- **The routes.**
+  - **Public.** `MapHermesPublicConversations(this IEndpointRouteBuilder routes, string
+    prefix)` answers its `RouteGroupBuilder`, with:
+    - `GET {prefix}/support/topics`: each topic, open now or offline;
+    - `POST {prefix}/support/notice` with `version`;
+    - `POST {prefix}/support/conversations` with `topic` and `text`: **201**;
+    - `POST {prefix}/support/offline` with `topic`, `email` and `text`: **201**;
+    - `GET {prefix}/support/conversations/current`: the open conversation, with its
+      place;
+    - `GET` and `POST {prefix}/support/conversations/{id}/messages` (with `after`, as
+      M-033);
+    - `POST {prefix}/support/conversations/{id}/read` and `.../close`;
+    - the hub `{prefix}/live`: `message`, `messageChanged`, `typing`, `place`,
+      `assigned` and `closed`, and `Typing` from the client.
+  - **Staff, on M-032's group.**
+    - `GET {staff}/support/queue?topic=`;
+    - `PUT {staff}/support/availability`;
+    - `POST {staff}/support/conversations/{id}/transfer` with `person` or `topic`;
+    - `POST {staff}/support/conversations/{id}/close`;
+    - `POST` and `DELETE {staff}/support/conversations/{id}/block`.
+
+    A staff member writes `text` or `note` in a support conversation they are assigned,
+    through M-032's messages route. A visitor never sees a `note`, in reads or pushes.
+- **Erasure (C55, support part).** Erasing a person deletes their support conversations
+  with every row of them. A visitor's conversations go by retention (phase 20).
+
+**Phase 16's criteria.**
+1. FIFO per topic, to the available member with the fewest open conversations, within
+   the topic's hours and exceptions in its time zone.
+2. The visitor's place is right and pushed.
+3. A transfer moves the conversation.
+4. Outside hours, or with nobody available, the start answers `offline`, and the
+   offline form's conversation is answered by email of `OfflineReplyKind`.
+5. No visitor message is taken before the current notice is acknowledged. A customer is
+   never asked.
+6. The visitor's reference is never stored in clear, and another browser's cookie
+   opens nothing.
+7. Each limit answers 429 at its edge, across two processes.
+8. A blocked visitor is refused until the block ends or is lifted.
+9. A visitor never receives a `note`.
+10. Erasing a customer deletes their support conversations.
+
+**Propagated to:**
+- `05` (the public routes and hub, the staff support routes);
+- `08` sections 1, 4 and 8 (codes, keys, domains, tables);
+- `09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-009, MSG-CONV-010, MSG-CONV-011, with
+  their criteria.
+
+---
+
 # Index
 
 | Title | Entry |
@@ -1708,3 +2134,6 @@ rules every later phase follows; each later phase gets its own entry before it s
 | Phase 12's questions: the notice's key, kept as content | M-029 |
 | Phase 12's second questions: the key, one of a delivery's values | M-030 |
 | Release 2: its phases, and where conversations live | M-031 |
+| Phase 14: the model and staff chats | M-032 |
+| Phase 15: the live connection | M-033 |
+| Phase 16: support's public side | M-034 |

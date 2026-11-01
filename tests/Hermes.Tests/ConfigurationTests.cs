@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 
 using Hermes.Core;
@@ -208,6 +209,26 @@ public sealed class ConfigurationTests
 
         Assert.Equal("messaging.startup.configurationinvalid", failure.Code);
         Assert.Equal(key, failure.Details["key"]);
+    }
+
+    [Fact]
+    public void Check_EveryParentKeyEmptyAsAWebHostsTestFactoryGivesIt_PassesAndBinds()
+    {
+        // A web host's test factory hands its settings to the host as a command line, which
+        // gives each parent of a key an empty value: Hermes:Languages beside Hermes:Languages:0.
+        Dictionary<string, string?> configuration = TestHost.Languages("en", "ar");
+        foreach (string key in configuration.Keys.ToArray())
+        {
+            for (int end = key.LastIndexOf(':'); end > 0; end = key.LastIndexOf(':', end - 1))
+            {
+                configuration.TryAdd(key[..end], string.Empty);
+            }
+        }
+
+        using IHost host = TestHost.Build(configuration);
+
+        Assert.Null(ConfigurationCheck.InvalidKey(TestHost.Section(configuration), TimeZoneInfo.GetSystemTimeZones(), AppContext.BaseDirectory));
+        Assert.Equal(["en", "ar"], host.Services.GetRequiredService<IOptions<MessagingOptions>>().Value.Languages);
     }
 
     [Theory]

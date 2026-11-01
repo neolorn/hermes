@@ -14,6 +14,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   naming it, and where conversations are registered a key under `Hermes:Conversations:`
   the package does not know stops the start with `messaging.startup.configurationinvalid`
 - The sample host registers conversations
+- `IConversations`, a person's direct and group conversations, with `ConversationId`,
+  `MessageId`, `ParticipantId`, `ConversationScope`, the conversation and message records
+  and pages, and the enumerations `ConversationType`, `ConversationStatus`, `MessageType`,
+  `ScopeKind` and `AuthorKind`; and `IConversationMembership`, the seam that answers who
+  belongs to the host's organizations and groups, none of whose records prints a person
+  reference or a text
+- The migration `Conversations`, which adds the tables `conversations`, `participants`,
+  `messages` and `mentions` to the engine's schema; it drops and rewrites nothing. A
+  message's text is protected under its author's key and bound to its row, the retention
+  job protects it again as it does a delivery's values, no key version a message uses is
+  retired, and erasing a person clears the text of their messages and deletes their
+  participant and mention rows
+- Staff chats: `AddHermesConversations` registers `IConversations` as a scoped service and
+  needs `IConversationMembership` registered, its start stopping with
+  `messaging.startup.declarationmissing` (`key` `conversationMembership`) without it, and
+  `MapHermesStaffConversations` maps the staff conversations group: direct conversations
+  of up to 16 participants and one group conversation a scope, whose every read and write
+  asks the membership seam, a conversation the person may not read answering
+  `messaging.conversation.notfound`; messages of 1 to 4,000 characters mentioning up to 32
+  persons, edited and deleted by their authors alone; read positions that move forward
+  only, and each conversation's unread count
+- The sample host lets its staff talk in the shop's group conversation
+
+### Fixed
+
+- `Hermes:Languages` set item by item through a web host's test factory, which gives the
+  list itself an empty value, no longer stops the start
 
 ## [1.0.0-rc.2] - 2026-10-31
 

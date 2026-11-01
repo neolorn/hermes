@@ -24,6 +24,8 @@
     <ProjectReference Include="..\..\src\Hermes\Hermes.csproj" />
     <!-- The inbox's group, which the endpoint contract test maps and the release set reads (04 MSG-LIB-001, M-025). -->
     <ProjectReference Include="..\..\src\Hermes.Development\Hermes.Development.csproj" />
+    <!-- The staff conversations group, which the endpoint contract test maps (04 MSG-LIB-001, M-032). -->
+    <ProjectReference Include="..\..\src\Hermes.Conversations\Hermes.Conversations.csproj" />
   </ItemGroup>
 
 </Project>

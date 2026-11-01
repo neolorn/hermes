@@ -1,5 +1,8 @@
 using System;
+using System.Linq;
 
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
 using Xunit;
@@ -18,6 +21,35 @@ public sealed class RegistrationCallTests
         InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => services.AddHermesConversations());
 
         Assert.Contains("AddHermes ", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MapHermesStaffConversations_WithoutAddHermesConversations_ThrowsNamingIt()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions());
+        builder.WebHost.UseTestServer();
+        builder.Services.AddRouting();
+        builder.Services.AddHermes(builder.Configuration, _ => { });
+        using WebApplication application = builder.Build();
+
+        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => application.MapHermesStaffConversations("/staff"));
+
+        Assert.Contains("AddHermesConversations", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MapHermesStaffConversations_AfterAddHermesConversations_MapsItsTwelveRoutesUnderThePrefix()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions());
+        builder.WebHost.UseTestServer();
+        builder.Services.AddRouting();
+        builder.Services.AddHermes(builder.Configuration, _ => { });
+        builder.Services.AddHermesConversations();
+        using WebApplication application = builder.Build();
+
+        application.MapHermesStaffConversations("/staff");
+
+        Assert.Equal(12, ((Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)application).DataSources.SelectMany(source => source.Endpoints).OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>().Count(endpoint => endpoint.RoutePattern.RawText!.StartsWith("/staff/conversations", StringComparison.Ordinal)));
     }
 
     [Fact]

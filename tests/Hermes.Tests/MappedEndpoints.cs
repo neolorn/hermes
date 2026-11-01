@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
+using Hermes.Conversations;
 using Hermes.Core;
 using Hermes.Development;
 using Hermes.Endpoints;
@@ -38,6 +39,13 @@ internal static class MappedEndpoints
         [$"DELETE {Endpoints.Prefix}/push/subscriptions"] = typeof(RemovalBody),
         [$"POST {Endpoints.Prefix}/inapp/{{id}}/read"] = typeof(EmptyBody),
         [$"POST {Endpoints.Prefix}/inapp/read"] = typeof(EmptyBody),
+        [$"POST {Endpoints.Prefix}/conversations/direct"] = BodyMembers.ConversationsBody("ParticipantsRequest"),
+        [$"POST {Endpoints.Prefix}/conversations/{{id}}/messages"] = BodyMembers.ConversationsBody("MessageRequest"),
+        [$"PUT {Endpoints.Prefix}/conversations/{{id}}/messages/{{messageId}}"] = BodyMembers.ConversationsBody("EditRequest"),
+        [$"POST {Endpoints.Prefix}/conversations/{{id}}/read"] = BodyMembers.ConversationsBody("ReadRequest"),
+        [$"PUT {Endpoints.Prefix}/conversations/{{id}}/mute"] = BodyMembers.ConversationsBody("MuteRequest"),
+        [$"POST {Endpoints.Prefix}/conversations/{{id}}/participants"] = BodyMembers.ConversationsBody("ParticipantsRequest"),
+        [$"POST {Endpoints.Prefix}/conversations/{{id}}/leave"] = typeof(EmptyBody),
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>Each mapped route, with the responses its metadata declares.</summary>
@@ -55,6 +63,7 @@ internal static class MappedEndpoints
                 services.AddSingleton<IPushProvider, RecordingPushProvider>();
                 services.AddSingleton<ISecretSource>(Secrets.Held().With("smsReportKey", Secrets.Bytes(16, 5)));
             },
+            after: services => services.AddHermesConversations(),
             map: application =>
             {
                 application.MapHermesPreferences(Endpoints.Prefix);
@@ -62,6 +71,7 @@ internal static class MappedEndpoints
                 application.MapHermesPushSubscriptions(Endpoints.Prefix);
                 application.MapHermesSmsReports(Endpoints.Prefix);
                 application.MapHermesInApp(Endpoints.Prefix);
+                application.MapHermesStaffConversations(Endpoints.Prefix);
             });
 
         // The development inbox maps its group only where the environment is Development (02 MSG-DEV-001).

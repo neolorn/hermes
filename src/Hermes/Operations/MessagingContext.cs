@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
+using Hermes.Conversations;
 using Hermes.Sending;
 
 using Microsoft.EntityFrameworkCore;
@@ -58,6 +59,14 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
     internal DbSet<PushAuthFailureRow> PushAuthFailures => Set<PushAuthFailureRow>();
 
     internal DbSet<EntryRow> Entries => Set<EntryRow>();
+
+    internal DbSet<ConversationRow> Conversations => Set<ConversationRow>();
+
+    internal DbSet<ParticipantRow> Participants => Set<ParticipantRow>();
+
+    internal DbSet<MessageRow> Messages => Set<MessageRow>();
+
+    internal DbSet<MentionRow> Mentions => Set<MentionRow>();
 
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
@@ -125,6 +134,7 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
         BalanceTable(modelBuilder);
         PushTables(modelBuilder);
         EntryTable(modelBuilder);
+        ConversationTables(modelBuilder);
     }
 
     /// <summary>The send's tables (<c>01</c> MSG-SEND-003 to MSG-SEND-009, MSG-SEND-014, MSG-SEND-017), each closed set checked by the database.</summary>
@@ -485,6 +495,91 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
     private static void Provider(NpgsqlDbContextOptionsBuilder provider)
     {
         provider.MigrationsHistoryTable(HistoryTable, Schema);
+    }
+
+    /// <summary>
+    /// The conversations' tables (<c>09</c> MSG-CONV-001), each closed set checked by the
+    /// database: one group conversation a scope, a participant once a conversation, and a
+    /// conversation's messages read a page at a time, newest first.
+    /// </summary>
+    private static void ConversationTables(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ConversationRow>(conversation =>
+        {
+            conversation.ToTable("conversations", table =>
+            {
+                table.HasCheckConstraint("ck_conversations_type", $"type IN ({InList(ConversationSpellings.AllTypes)})");
+                table.HasCheckConstraint("ck_conversations_origin", $"origin IN ({InList(ConversationSpellings.AllOrigins)})");
+                table.HasCheckConstraint("ck_conversations_status", $"status IN ({InList(ConversationSpellings.AllStatuses)})");
+                table.HasCheckConstraint("ck_conversations_scope_kind", $"scope_kind IN ({InList(ConversationSpellings.AllScopeKinds)})");
+                table.HasCheckConstraint("ck_conversations_scope", "(type = 'group') = (scope_kind IS NOT NULL) AND (scope_kind IS NULL) = (scope_reference IS NULL)");
+            });
+            conversation.HasKey(row => row.Id).HasName("pk_conversations");
+            conversation.HasIndex(row => new { row.ScopeKind, row.ScopeReference }).IsUnique().HasDatabaseName("ux_conversations_scope");
+            conversation.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            conversation.Property(row => row.Type).HasColumnName("type");
+            conversation.Property(row => row.Origin).HasColumnName("origin");
+            conversation.Property(row => row.Status).HasColumnName("status");
+            conversation.Property(row => row.ScopeKind).HasColumnName("scope_kind");
+            conversation.Property(row => row.ScopeReference).HasColumnName("scope_reference");
+            conversation.Property(row => row.CreatedAt).HasColumnName("created_at");
+            conversation.Property(row => row.LastMessageAt).HasColumnName("last_message_at");
+        });
+
+        modelBuilder.Entity<ParticipantRow>(participant =>
+        {
+            participant.ToTable("participants");
+            participant.HasKey(row => row.Id).HasName("pk_participants");
+            participant.HasOne<ConversationRow>().WithMany().HasForeignKey(row => row.ConversationId).HasConstraintName("fk_participants_conversations").OnDelete(DeleteBehavior.Cascade);
+            participant.HasOne<MessageRow>().WithMany().HasForeignKey(row => row.ReadPosition).HasConstraintName("fk_participants_messages").OnDelete(DeleteBehavior.SetNull);
+            participant.HasIndex(row => new { row.ConversationId, row.Person }).IsUnique().HasDatabaseName("ux_participants_conversation_person");
+            participant.HasIndex(row => row.Person).HasDatabaseName("ix_participants_person");
+            participant.HasIndex(row => row.ReadPosition).HasDatabaseName("ix_participants_read_position");
+            participant.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            participant.Property(row => row.ConversationId).HasColumnName("conversation_id");
+            participant.Property(row => row.Person).HasColumnName("person");
+            participant.Property(row => row.ReadPosition).HasColumnName("read_position");
+            participant.Property(row => row.Muted).HasColumnName("muted");
+            participant.Property(row => row.JoinedAt).HasColumnName("joined_at");
+            participant.Property(row => row.LeftAt).HasColumnName("left_at");
+        });
+
+        modelBuilder.Entity<MessageRow>(message =>
+        {
+            message.ToTable("messages", table =>
+            {
+                table.HasCheckConstraint("ck_messages_author_kind", $"author_kind IN ({InList(ConversationSpellings.AllAuthorKinds)})");
+                table.HasCheckConstraint("ck_messages_type", $"type IN ({InList(ConversationSpellings.AllMessageTypes)})");
+            });
+            message.HasKey(row => row.Id).HasName("pk_messages");
+            message.HasOne<ConversationRow>().WithMany().HasForeignKey(row => row.ConversationId).HasConstraintName("fk_messages_conversations").OnDelete(DeleteBehavior.Cascade);
+            message.HasOne<MessageRow>().WithMany().HasForeignKey(row => row.ReplyTo).HasConstraintName("fk_messages_messages").OnDelete(DeleteBehavior.SetNull);
+            message.HasIndex(row => new { row.ConversationId, row.SentAt, row.Id }).HasDatabaseName("ix_messages_conversation_sent_at");
+            message.HasIndex(row => row.Author).HasDatabaseName("ix_messages_author");
+            message.HasIndex(row => row.ReplyTo).HasDatabaseName("ix_messages_reply_to");
+            message.HasIndex(row => row.ContentKeyVersion).HasDatabaseName("ix_messages_content_key_version");
+            message.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            message.Property(row => row.ConversationId).HasColumnName("conversation_id");
+            message.Property(row => row.AuthorKind).HasColumnName("author_kind");
+            message.Property(row => row.Author).HasColumnName("author");
+            message.Property(row => row.Type).HasColumnName("type");
+            message.Property(row => row.Text).HasColumnName("text");
+            message.Property(row => row.ContentKeyVersion).HasColumnName("content_key_version");
+            message.Property(row => row.ReplyTo).HasColumnName("reply_to");
+            message.Property(row => row.SentAt).HasColumnName("sent_at");
+            message.Property(row => row.EditedAt).HasColumnName("edited_at");
+            message.Property(row => row.DeletedAt).HasColumnName("deleted_at");
+        });
+
+        modelBuilder.Entity<MentionRow>(mention =>
+        {
+            mention.ToTable("mentions");
+            mention.HasKey(row => new { row.MessageId, row.Person }).HasName("pk_mentions");
+            mention.HasOne<MessageRow>().WithMany().HasForeignKey(row => row.MessageId).HasConstraintName("fk_mentions_messages").OnDelete(DeleteBehavior.Cascade);
+            mention.HasIndex(row => row.Person).HasDatabaseName("ix_mentions_person");
+            mention.Property(row => row.MessageId).HasColumnName("message_id");
+            mention.Property(row => row.Person).HasColumnName("person");
+        });
     }
 
     private static string InList(IEnumerable<string> values)

@@ -945,18 +945,19 @@ newer release wrote it, and a value in any other format does not open under its 
 as `Rejected`. A person's values are protected by the last registered protector's
 `ProtectAsync` (`04` MSG-LIB-002), called with the person reference and the context
 `<table>:<row id>:<field>`, to which the output is bound, so a value copied to another
-row or field does not open: `<table>` is `deliveries` for a delivery's values and
-`subscriptions` for a push subscription's and `entries` for an in-app entry's, whatever
-the tables are called; `<row id>` is the row's identifier in lower-case hexadecimal,
-hyphenated 8-4-4-4-12; `<field>` is `destination`, `idempotencykey` (the key a delivery
-keeps of its send), `unsubscribe` (the email's one-click address, made with its token at
-the send and kept for the header, `02` MSG-EMAIL-006), a rendered part's name (`03`
-MSG-TPL-001: `subject`, `text`, `html`, `title`, `body`, `url`, `tag`, `icon`, `badge`),
-an in-app part's name and its language's declared tag joined by `.` (`title.en`,
-`body.ar`), `target` for an in-app delivery's or entry's target values, or for a
-subscription `endpoint`, `p256dh` or `auth`; a layout two releases share and never
-change (`08` section 8); an anonymous recipient's values are always protected by the
-library's own protector, whatever protector is registered. A value is opened by the
+row or field does not open: `<table>` is `deliveries` for a delivery's values,
+`subscriptions` for a push subscription's, `entries` for an in-app entry's and
+`messages` for a conversation message's (`09` MSG-CONV-001), whatever the tables are
+called; `<row id>` is the row's identifier in lower-case hexadecimal, hyphenated
+8-4-4-4-12; `<field>` is `destination`, `idempotencykey` (the key a delivery keeps of
+its send), `unsubscribe` (the email's one-click address, made with its token at the send
+and kept for the header, `02` MSG-EMAIL-006), a rendered part's name (`03` MSG-TPL-001:
+`subject`, `text`, `html`, `title`, `body`, `url`, `tag`, `icon`, `badge`), an in-app
+part's name and its language's declared tag joined by `.` (`title.en`, `body.ar`),
+`target` for an in-app delivery's or entry's target values, for a subscription
+`endpoint`, `p256dh` or `auth`, or for a message `text`; a layout two releases share and
+never change (`08` section 8); an anonymous recipient's values are always protected by
+the library's own protector, whatever protector is registered. A value is opened by the
 protector its envelope names. A host protector's `Id` SHALL NOT be `messaging`, or
 startup fails with `messaging.startup.declarationinvalid`.
 
@@ -980,7 +981,7 @@ registered, or in a format kept for a later release, holds the delivery for a ke
 delivery stores no hash of its destination: a lookup by destination computes the keyed
 hash from the opened value at that moment.
 
-*Source: M-005, M-007, M-020, M-030*
+*Source: M-005, M-007, M-020, M-030, M-032*
 
 **Acceptance criteria**
 1. No destination, unsubscribe address, rendered content or kept idempotency key is

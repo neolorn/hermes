@@ -17,6 +17,9 @@ internal sealed class EndpointGroups
 
     internal bool InApp { get; set; }
 
+    /// <summary>Whether the staff conversations group of <c>Hermes.Conversations</c> is mapped (<c>05</c> MSG-API-009).</summary>
+    internal bool StaffConversations { get; set; }
+
     /// <summary>Whether a mapped group needs the identity seam.</summary>
-    internal bool NeedIdentity => Preferences || PushSubscriptions || InApp;
+    internal bool NeedIdentity => Preferences || PushSubscriptions || InApp || StaffConversations;
 }

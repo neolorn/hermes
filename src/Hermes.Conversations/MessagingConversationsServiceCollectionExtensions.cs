@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 
+using Hermes.Conversations.Chats;
+using Hermes.Core;
 using Hermes.Operations;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -14,10 +16,11 @@ public static class MessagingConversationsServiceCollectionExtensions
 {
     /// <summary>
     /// Registers conversations (<c>09</c>) beside the engine, which <c>AddHermes</c> registers
-    /// first. Their checks run when the host starts, after the engine's, and a key under
-    /// <c>Hermes:Conversations:</c> the package does not know stops the start with a
-    /// <see cref="Core.MessagingStartupException"/> carrying its code. Calling it again
-    /// registers nothing more.
+    /// first, and <see cref="IConversations"/> as a scoped service, as <c>AddHermes</c> registers
+    /// <c>IInApp</c>. Their checks run when the host starts, after the engine's, and stop the start
+    /// with a <see cref="MessagingStartupException"/> carrying its code: the membership seam
+    /// <see cref="IConversationMembership"/> not registered, or a key under
+    /// <c>Hermes:Conversations:</c> the package does not know. Calling it again registers nothing more.
     /// </summary>
     /// <param name="services">The host's services.</param>
     /// <returns><paramref name="services"/>.</returns>
@@ -31,6 +34,7 @@ public static class MessagingConversationsServiceCollectionExtensions
             throw new InvalidOperationException("AddHermes is registered before AddHermesConversations is called.");
         }
 
+        services.TryAddScoped<IConversations, StaffChats>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ConversationsStartup>());
         return services;
     }

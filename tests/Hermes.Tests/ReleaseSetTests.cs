@@ -16,7 +16,7 @@ public sealed class ReleaseSetTests
     internal const string GateFolder = "HERMES_RELEASE_GATE";
 
     /// <summary>The interfaces of the provider contracts' package the library implements itself.</summary>
-    private static readonly Type[] LibraryImplemented = [typeof(IMessages), typeof(IPreferences), typeof(ISuppressions), typeof(ISubjects), typeof(IInApp)];
+    private static readonly Type[] LibraryImplemented = [typeof(IMessages), typeof(IPreferences), typeof(ISuppressions), typeof(ISubjects), typeof(IInApp), typeof(IConversations)];
 
     [Fact]
     public void MSG_LIB_006_AC1_TheCurrentSetHoldsEverySectionTheGateCompares()

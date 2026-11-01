@@ -34,6 +34,7 @@ builder.Services.AddHermesConversations();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IRecipientIdentity, CustomerIdentity>();
 builder.Services.AddSingleton<Customers>();
+builder.Services.AddSingleton<IConversationMembership, StaffMembership>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
 {
@@ -52,6 +53,7 @@ app.MapHermesPreferences("/notifications");
 app.MapHermesPushSubscriptions("/notifications");
 app.MapHermesUnsubscribe("/notifications");
 app.MapHermesSmsReports("/notifications");
+app.MapHermesStaffConversations("/notifications").RequireAuthorization(ShopEndpoints.StaffPolicy);
 app.MapHermesDevelopmentInbox("/dev/inbox");
 
 await app.RunAsync().ConfigureAwait(false);

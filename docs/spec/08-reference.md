@@ -43,12 +43,19 @@ MSG-OPS-002).
 | `messaging.unsubscribe.invalid` | 404 | An unsubscribe token that does not verify (`05` MSG-API-005) | |
 | `messaging.inbox.notfound` | 404 | A message the development inbox does not hold, or none that matches (`05` MSG-API-007) | |
 | `messaging.inbox.notlocal` | 403 | A request to the development inbox from another machine or under another host name (`02` MSG-DEV-005) | |
-| `messaging.request.malformed` | 400 | A body, a query parameter or a header that does not read (`05` MSG-API-001, MSG-API-007, MSG-API-008) | `member` |
+| `messaging.conversation.notfound` | 404 | A conversation that is unknown, or that the person may not read: not a participant, not a member of its scope, or one who left; never 403, so nobody learns a conversation exists (`09` MSG-CONV-006; `05` MSG-API-009) | |
+| `messaging.conversation.invalid` | 400 | A conversation's request outside its rule: a direct conversation's participants, a scope's kind that does not read, or a route for direct conversations alone used on a group conversation (`09` MSG-CONV-006; `05` MSG-API-009) | `field`: `participants`, `kind` or `type` |
+| `messaging.conversation.full` | 409 | A direct conversation's participants past 16 (`09` MSG-CONV-001, MSG-CONV-006) | |
+| `messaging.message.notfound` | 404 | A message the conversation does not hold (`05` MSG-API-009) | |
+| `messaging.message.invalid` | 400 | A message's text, mentions, reply or type outside its rule (`09` MSG-CONV-001, MSG-CONV-006) | `field`: `text`, `mentions`, `replyTo` or `type` |
+| `messaging.message.notauthor` | 403 | Editing or deleting another person's message, which the person can see, so nothing leaks (`09` MSG-CONV-006) | |
+| `messaging.message.deleted` | 409 | Editing a deleted message (`09` MSG-CONV-006) | |
+| `messaging.request.malformed` | 400 | A body, a query parameter or a header that does not read (`05` MSG-API-001, MSG-API-007, MSG-API-008, MSG-API-009) | `member` |
 | `messaging.request.unauthenticated` | 401 | No signed-in person where one is needed (`05` MSG-API-002) | |
 | `messaging.request.toolarge` | 413 | A body over 16 KiB (`05` MSG-API-001, MSG-API-005, MSG-API-006) | |
 | `messaging.request.mediatype` | 415 | A JSON route's body not sent as `application/json` (`05` MSG-API-001) | |
 | `messaging.request.ratelimited` | 429 | A report source over `Sms:WrongKeyRate` (`05` MSG-API-006) | |
-| `messaging.request.unavailable` | 503 | A key version in use that this process does not hold, a posted push key the key table records for such a version, a content key's use refused on the push subscription route, an unsubscribe token whose format byte is kept for a later release, an in-app entry's value that cannot open yet, or a person's locks not had within `Dispatch:Timeout` by the preference route, the in-app routes or a push registration, or a push registration's or an in-app read's protector call that throws or does not answer within it (`06` MSG-OPS-008; `01` MSG-SEND-010; `02` MSG-PUSH-003, MSG-PUSH-007, MSG-INAPP-003; `05` MSG-API-003, MSG-API-004, MSG-API-005, MSG-API-008); answered with `Retry-After` | |
+| `messaging.request.unavailable` | 503 | A key version in use that this process does not hold, a posted push key the key table records for such a version, a content key's use refused on the push subscription route, an unsubscribe token whose format byte is kept for a later release, an in-app entry's or a conversation message's value that cannot open yet, or a person's locks not had within `Dispatch:Timeout` by the preference route, the in-app routes, the staff conversations routes or a push registration, or a push registration's, an in-app read's or a conversation route's protector call that throws or does not answer within it (`06` MSG-OPS-008; `01` MSG-SEND-010; `02` MSG-PUSH-003, MSG-PUSH-007, MSG-INAPP-003; `05` MSG-API-003, MSG-API-004, MSG-API-005, MSG-API-008, MSG-API-009); answered with `Retry-After` | |
 | `messaging.migrate.inputinvalid` | (tool) | The tool's input does not read, or names a role the database does not have (`06` MSG-OPS-002) | `member` |
 | `messaging.migrate.connectionfailed` | (tool) | The tool cannot connect (`06` MSG-OPS-002) | |
 | `messaging.migrate.failed` | (tool) | A migration failed (`06` MSG-OPS-002) | `migration` |
@@ -71,10 +78,15 @@ MSG-OPS-002).
 | Directions | `ltr` · `rtl` (`03` MSG-TPL-003) | A template value, not a C# type |
 | Email security | `ImplicitTls` · `StartTls` (`02` MSG-EMAIL-001) | A configuration value, not a C# type |
 | Trusted authority revocation | `published` · `none` (`02` MSG-EMAIL-001) | A configuration value, not a C# type |
+| Conversation types | `support` · `group` · `direct` (`09` MSG-CONV-001) | `ConversationType`: `Support` · `Group` · `Direct` |
+| Conversation origins | `web`, the only value in release 2 (`09` MSG-CONV-001) | A stored value, not a C# type |
+| Message types, an open enumeration | `text` · `note` · `automatic` · `system` (`09` MSG-CONV-001) | `MessageType`: `Text` · `Note` · `Automatic` · `System` |
+| Scope kinds | `organization` · `group` (`09` MSG-CONV-006) | `ScopeKind`: `Organization` · `Group` |
+| Author kinds | `person` · `visitor` · `library` (for an `automatic` or `system` message) (`09` MSG-CONV-001) | `AuthorKind`: `Person` · `Visitor` · `Library` |
 
 ---
 
-## 3. Delivery statuses
+## 3. Delivery and conversation statuses
 
 A **final** status is one after which no attempt is made. Of the final statuses, `sent`
 alone may move once more, by a provider's report or feedback, to `delivered` or
@@ -97,6 +109,15 @@ MSG-SEND-017).
 | `balancefloor` | `BalanceFloor` | Yes | An SMS of an optional category, checked while the balance is below the floor |
 | `nosubscription` | `NoSubscription` | Yes | A push to a person with no live subscription, or whose every subscription is gone |
 | `read` | `Read` | Yes | An in-app delivery whose entry the person marked read (`02` MSG-INAPP-003) |
+
+A conversation's status is one of a fixed set (`09` MSG-CONV-001); the statuses of desk
+work are tags, not statuses (`09` MSG-CONV-005):
+
+| Status | `ConversationStatus` member | Meaning |
+|---|---|---|
+| `open` | `Open` | Open. A queued support conversation is `open` with no assignee; `group` and `direct` conversations are always `open` in release 2 |
+| `snoozed` | `Snoozed` | Snoozed (`09` MSG-CONV-005) |
+| `closed` | `Closed` | Closed |
 
 ---
 
@@ -232,7 +253,7 @@ decimal number with `.` as its separator.
 | `configuration-invalid` | The key | A value reloaded while running is outside its rule (`06` MSG-OPS-001) | The key holds a valid value again | `key` |
 | `content-key-limit` | The version | A `contentKeys` version used for more than `Secrets:ContentKeys:MaxValues` values is a process's write version, the process writing on the alert's row, on its key-table timer, the instant it holds until, now plus twice its `Dispatch:Interval` where later than the one recorded (`06` MSG-OPS-006, MSG-OPS-008) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `version`, `count` |
 | `key-unavailable` | The secret, or the protector's `Id`; none for a value in a format kept for a later release | A process holds a delivery for a key, or answers a request or call as key unavailable (save an unsubscribe token whose format byte is kept for a later release, `05` MSG-API-005), each such answer writing on the alert's row the instant it holds until, now plus twice the process's `Dispatch:Interval` where later than the one recorded, at most once per that interval per process (`06` MSG-OPS-006, MSG-OPS-008) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `version`, where there is one |
-| `content-rejected` | The table, as the context names it (`deliveries` or `subscriptions`) | A protected value does not open under its binding, each such value writing on the alert's row the instant it holds until, now plus twice the process's `Dispatch:Interval` where later than the one recorded, at most once per that interval per process (`06` MSG-OPS-006; `01` MSG-SEND-018) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `table` |
+| `content-rejected` | The table, as the context names it (`deliveries`, `subscriptions` or `messages`) | A protected value does not open under its binding, each such value writing on the alert's row the instant it holds until, now plus twice the process's `Dispatch:Interval` where later than the one recorded, at most once per that interval per process (`06` MSG-OPS-006; `01` MSG-SEND-018) | A run of the watch job finds that instant passed, and clears it by an update conditional on the instant it read | `table` |
 | `observer-failing` | none | The oldest pending notice is older than `Observer:LagThreshold` (`01` MSG-SEND-017) | It is not | `age` |
 
 ---
@@ -298,7 +319,8 @@ These names are stored, or shared by the processes of two releases, and never ch
 | `messaging` | The schema (`06` MSG-OPS-002) and the library protector's `Id` (`01` MSG-SEND-018) |
 | `messaging.__migrations_history` | The migration history table (`06` MSG-OPS-002) |
 | `messaging_dispatch` | The notification channel a send wakes the dispatchers on (`01` MSG-SEND-004) |
-| `deliveries`, `subscriptions`, `entries`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018) |
+| `deliveries`, `subscriptions`, `entries`, `messages`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth`, and a message's `text` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018; `09` MSG-CONV-001) |
+| `conversations`, `participants`, `messages`, `mentions` | The conversations' tables (`09` MSG-CONV-001) |
 | `email`, `sms`, `push-endpoint`, `push-topic`, `person`, `idempotency` | The keyed hash's domains (`06` MSG-OPS-008) |
 | `sms-report`, `idempotency` | The texts that begin the unkeyed lock keys (`01` MSG-SEND-009; `02` MSG-SMS-004) |
 | `sms-report-hold` | The text of the lock the held reports are counted under (`02` MSG-SMS-004) |

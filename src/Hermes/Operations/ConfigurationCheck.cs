@@ -159,12 +159,13 @@ internal static partial class ConfigurationCheck
     /// <summary>
     /// The languages of <paramref name="section"/>: one or more BCP 47 tags, each resolving to a
     /// predefined culture other than the invariant one (<c>03</c> MSG-TPL-003); none where they
-    /// do not.
+    /// do not. A section with items beneath it and an empty value, as a web host's test factory
+    /// gives the parents of the keys it sets, holds no value of its own.
     /// </summary>
     internal static string[]? Languages(IConfigurationSection section)
     {
         string?[] tags = [.. section.GetChildren().Select(child => child.GetChildren().Any() ? null : child.Value)];
-        if (section.Value is not null || tags.Length == 0)
+        if (tags.Length == 0 || section.Value is { Length: > 0 })
         {
             return null;
         }
