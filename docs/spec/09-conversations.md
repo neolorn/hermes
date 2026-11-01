@@ -130,7 +130,18 @@ for reports per staff member and topic.
 and read indicators, automatic closing after a configured silence, a supervisor view of
 live conversations, and reports of waiting time, handling time and survey scores.
 
-*Source: M-011*
+**Typing and read indicators (M-033).**
+- `Typing` is relayed over the staff hub to the conversation's other connected readers
+  (MSG-CONV-008), and never stored.
+- A client sends it at most every 3 seconds while typing. A receiver shows it for 5
+  seconds after the last one.
+- A person whose participant row does not exist yet gets one written first.
+- Moving a read position (MSG-CONV-001) sends `read` to the other readers.
+
+*Source: M-011, M-033*
+
+**Acceptance criteria**
+1. Typing reaches the others and is never stored.
 
 ---
 
@@ -188,12 +199,23 @@ conversation's notices except the person's own mentions (MSG-CONV-008).
 **The routes (M-032).** `05` MSG-API-009's routes are each thin over one operation of
 `IConversations` (`04` MSG-LIB-002), for the person `IRecipientIdentity` answers.
 
+**Presence (M-033).**
+- A person is online while they hold a staff-hub connection on any process
+  (MSG-CONV-008).
+- The `connections` table holds each connection's person, process and last-seen instant.
+  A process refreshes its rows every 30 seconds, and a row older than 90 seconds is gone.
+- Presence is shown in direct conversations only: as each participant's `online` in the
+  conversation's read, and as `presence` pushes to the other participants. Group
+  conversations show none.
+- `connections` holds a person reference, so the rule that the engine knows each table
+  applies (`06` MSG-OPS-002): erasure deletes its rows.
+
 *Search (designed for).* Messages are encrypted under per-person keys (MSG-CONV-009), so
 the database cannot search them. Search comes through a later seam that keeps an index
 under the same protection; the model needs no change for it, and its design is made in
 the release that builds it.
 
-*Source: M-011, M-020, M-032*
+*Source: M-011, M-020, M-032, M-033*
 
 **Acceptance criteria**
 1. In a group conversation, a non-member's every read and write answers 404. A member
@@ -202,6 +224,7 @@ the release that builds it.
    once. Participants can be added up to 16, and the 17th answers 409.
 3. Edits and deletes work on one's own messages only. Another person's answers 403. A
    deleted message reads with no text, and editing it answers 409.
+4. Presence turns offline within 90 seconds of a process stopping.
 
 ---
 
@@ -235,7 +258,60 @@ database is needed (`00` MSG-OVR-002). A participant who is not connected is tol
 through sending (push or email), under a kind the host declares, so their preferences
 and quiet hours apply.
 
-*Source: M-011*
+**The staff hub (M-033).**
+- `MapHermesStaffConversations` also maps the staff hub at `{prefix}/live`, inside the
+  same group, so the host's authorization covers it (`05` MSG-API-009).
+- The person comes from `IRecipientIdentity` at connect, and a connection without one is
+  refused.
+- The hub pushes `message`, `messageChanged`, `read`, `typing`, `presence` and
+  `conversation`, and takes one method from the client, `Typing`: writes stay HTTP.
+- Its route, methods and shapes are public surface (`04` MSG-LIB-006).
+
+**Catching up (M-033).** The messages route takes `after`, a message's identifier, and
+answers oldest first from it. Every push follows the store, so a client that reconnects
+reads from its last message.
+
+**Fan-out (M-033).**
+- After a write commits, it sends `NOTIFY messaging_conversations` with
+  `<event>:<conversationId>:<id>` (`08` section 8). The event is `message`, `changed`,
+  `read`, `typing` or `presence`. The id is a message's or a participant's, never a
+  person reference.
+- Each process listens on a connection of `Hermes.Conversations`' own, opened from
+  `listenConnection` where it is set and from the library's connection otherwise (`06`
+  MSG-OPS-003). Dispatch and conversations never wait on each other.
+- Each process pushes to its own connections whose person may read the conversation now:
+  for a direct conversation, its participants who have not left; for a group
+  conversation, the scope's members from one `MembersAsync` call per event, intersected
+  with the persons connected to that process (MSG-CONV-006).
+
+**Away notices (M-033).**
+- **Who.** A participant of a direct conversation, or a person mentioned in a group
+  conversation, who holds no staff-hub connection when the message is written and has
+  not muted the conversation, is told through sending. A mention is told even where the
+  conversation is muted (MSG-CONV-006).
+- **How often.** Once per person per conversation, until their read position passes the
+  message that was told. The send's idempotency key is
+  `conversation:<id>:away:<participantId>:<messageId>`.
+- **The kind.** It is the one named by `Hermes:Conversations:AwayKind`, which must be a
+  declared kind, or the start fails naming the key. Unset, no away notice is sent.
+- **Values.** The kind's values are the conversation's identifier and type, the
+  message's identifier, and whether the person was mentioned. The text is never
+  included: it is protected, and a notice must not carry it.
+- The kind's own channels, preferences and quiet hours apply, as for any send.
+
+*Source: M-011, M-033*
+
+**Acceptance criteria**
+1. A message written through process A reaches a client connected to process B, after
+   it is stored.
+2. A client that reconnects reads what it missed with `after`.
+3. `NOTIFY`'s payload holds no person reference or text.
+4. A non-member connected to the hub receives nothing of a group conversation, and a
+   member the seam stops answering for receives nothing from the next event.
+5. An away participant is told once until they read. A mention is told through a mute.
+   A connected one is not told.
+6. `AwayKind` naming an undeclared kind fails the start.
+7. The contract test finds the hub's route and methods.
 
 ---
 
