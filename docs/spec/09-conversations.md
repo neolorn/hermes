@@ -600,7 +600,21 @@ attachments are enabled (`04` MSG-LIB-005):
 - `DeleteAsync(string key, CancellationToken)`.
 
 The key is drawn by the library, 128 random bits in base64url, and names nothing. The
-store holds only protected bytes (MSG-CONV-009).
+store holds only protected bytes (MSG-CONV-009): one stored object per attachment, its
+64 KiB chunks each an envelope bound to `attachments:<id>:chunk:<n>`, framed by length
+and streamed, never held whole. Re-protection writes a new object under a new key, then
+deletes the old.
+
+**The table (M-037).** `attachments` holds (`08` section 8):
+- `id`;
+- `conversation_id` and `message_id`, each a foreign key set to null when its row goes,
+  so the job still deletes the stored bytes;
+- `named_at`;
+- `uploader` (a person reference, none for a visitor), `visitor` (the keyed hash) with
+  `hash_version`, and `owner` (the person whose key protects it, none for a visitor's);
+- `name` (protected) with `content_key_version`, which covers the chunks too;
+- `media_type`, `size`, `chunks` and `store_key`;
+- `status`, `scan_attempts`, `scan_at` (the next attempt) and `created_at`.
 
 **The scanning seam (M-037).** `IAttachmentScanner` of `Hermes.Core`, required where
 attachments are enabled (`04` MSG-LIB-005):
@@ -635,9 +649,10 @@ attachments are enabled (`04` MSG-LIB-005):
 - A visitor never reaches one in a `note`: it answers them as one the conversation does
   not hold.
 
-**Retention (M-037).** An attachment goes, from the store and its row, with its message
-whenever the message goes (MSG-CONV-009). A store deletion that fails is retried by the
-`attachment-scans` job until it succeeds.
+**Retention (M-037).** The `attachment-scans` job removes, deleting the stored bytes
+first and retrying a failed deletion at its next pass, the rows whose conversation went,
+whose message went or was deleted, whose name an erasure cleared, or that were never
+named within 24 hours (MSG-CONV-009). An infected row keeps its row without its bytes.
 
 *Source: M-011, M-037*
 
