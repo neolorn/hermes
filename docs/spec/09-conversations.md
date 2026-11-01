@@ -188,8 +188,8 @@ answers 400 `messaging.conversation.invalid`, `details.field` `person` or `topic
   the queue.
 - A member who is not the assignee writing is answered 404
   `messaging.conversation.notfound`.
-- Staff-side pushes of a support conversation go to its assignee alone (MSG-CONV-008).
-  Plan phase 18 adds the topic's supervisors (MSG-CONV-005).
+- Staff-side pushes of a support conversation go to its assignee alone (MSG-CONV-008),
+  and from plan phase 18 to the topic's supervisors too (MSG-CONV-005).
 
 *Source: M-011, M-034, M-036*
 
@@ -602,7 +602,8 @@ reads from its last message.
   for a direct conversation, its participants who have not left; for a group
   conversation, the scope's members from one `MembersAsync` call per event, intersected
   with the persons connected to that process (MSG-CONV-006); for a support conversation,
-  on the staff side, its assignee alone (MSG-CONV-002, M-034).
+  on the staff side, its assignee alone (MSG-CONV-002, M-034) and the topic's
+  supervisors (MSG-CONV-005, M-036).
 
 **Away notices (M-033).**
 - **Who.** A participant of a direct conversation, or a person mentioned in a group

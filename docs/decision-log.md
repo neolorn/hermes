@@ -2491,7 +2491,7 @@ This entry settles the map's C24 to C27, C32 and C33.
 >
 > Propagated to `01` MSG-SEND-018; `03` MSG-TPL-004, MSG-TPL-006, MSG-TPL-007; `04`
 > MSG-LIB-002; `05` MSG-API-009, MSG-API-010; `08` sections 1, 4 and 8; `09`
-> MSG-CONV-002, MSG-CONV-004, MSG-CONV-005, MSG-CONV-006, MSG-CONV-009;
+> MSG-CONV-002, MSG-CONV-004, MSG-CONV-005, MSG-CONV-006, MSG-CONV-008, MSG-CONV-009;
 > `implementation-plan.md` (phase 18).
 
 ---
