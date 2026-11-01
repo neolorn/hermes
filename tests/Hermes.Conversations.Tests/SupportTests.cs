@@ -147,6 +147,27 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
     }
 
     [Fact]
+    public async Task OfflineReply_AnAddressCopiedFromAnotherRow_SendsNothingAndRaisesContentRejectedForConversations()
+    {
+        await using ChatHost chat = await StartAsync();
+        Guid first = await OfflineAsync(chat, "192.0.2.1");
+        Guid second = await OfflineAsync(chat, "192.0.2.2");
+        await chat.ScalarAsync(database =>
+        {
+            NpgsqlCommand command = new("UPDATE messaging.conversations SET email = (SELECT email FROM messaging.conversations WHERE id = @from) WHERE id = @to", database);
+            command.Parameters.AddWithValue("from", first);
+            command.Parameters.AddWithValue("to", second);
+            return command;
+        });
+
+        Assert.True((await chat.CallAsync(chats => chats.TransferAsync("amal", new ConversationId(second), "amal", null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(second), "We will call", MessageType.Text, null, null, default))).IsSuccess);
+
+        Assert.Equal(0L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT count(*) FROM messaging.sends", database)));
+        Assert.Equal(1L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT count(*) FROM messaging.alerts WHERE condition = 'content-rejected' AND scope = 'conversations' AND holding", database)));
+    }
+
+    [Fact]
     public async Task MSG_CONV_001_AC3_TheVisitorsReferenceIsNeverStoredInClearAndAnotherBrowsersCookieOpensNothing()
     {
         await using ChatHost chat = await StartAsync();

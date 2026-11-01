@@ -320,7 +320,8 @@ internal sealed partial class StaffChats
     /// Sends a staff reply of an offline conversation by email, as the kind
     /// <c>Hermes:Conversations:Support:OfflineReplyKind</c> names, to the address the form took
     /// (<c>09</c> MSG-CONV-002): its values the conversation's and the reply's identifiers, the
-    /// topic and the reply's text. A send refused, or an address that does not open, is logged
+    /// topic and the reply's text. A send refused, or an address that does not open, is logged,
+    /// one that does not open under its binding raising <c>content-rejected</c> for <c>conversations</c>,
     /// and never fails the write.
     /// </summary>
     private async Task OfflineReplyAsync(ConversationRow reached, Guid reply, string text, CancellationToken cancellationToken)
@@ -331,9 +332,14 @@ internal sealed partial class StaffChats
         }
 
         ContentOpening opening = await protection.OpenAsync(reached.Customer, stored, ContentContext.Of(ContentContext.Conversations, reached.Id, ConversationTables.Email), cancellationToken).ConfigureAwait(false);
+        if (opening.Status == ContentOpeningStatus.Rejected)
+        {
+            await alerts.HoldsUntilAsync("content-rejected", ContentContext.Conversations, new Dictionary<string, string>(StringComparer.Ordinal) { ["table"] = ContentContext.Conversations }, cancellationToken).ConfigureAwait(false);
+        }
+
         if (opening.Status != ContentOpeningStatus.Opened)
         {
-            OfflineReplyRefused(logger, "messaging.key.unavailable");
+            OfflineReplyRefused(logger, opening.Status == ContentOpeningStatus.Rejected ? "content-rejected" : "messaging.key.unavailable");
             return;
         }
 

@@ -64,7 +64,8 @@ internal sealed class ChatHost : IAsyncDisposable
         Action<IServiceCollection>? services = null,
         ChatHost? shared = null,
         Action<Dictionary<string, string?>>? configure = null,
-        Action<DeclarationBuilder>? declare = null)
+        Action<DeclarationBuilder>? declare = null,
+        bool staff = true)
     {
         string connection = shared?.Connection ?? await postgres.NewDatabaseAsync();
         if (shared is null)
@@ -106,7 +107,11 @@ internal sealed class ChatHost : IAsyncDisposable
 
             return next(context);
         });
-        application.MapHermesStaffConversations(Prefix);
+        if (staff)
+        {
+            application.MapHermesStaffConversations(Prefix);
+        }
+
         application.MapHermesPublicConversations(PublicPrefix);
         await application.StartAsync(TestContext.Current.CancellationToken);
         return new ChatHost(application, connection, membership);

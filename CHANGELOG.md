@@ -82,6 +82,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a close, never a note; the staff hub pushes a support conversation's events to its
   assignee alone, and `conversation` to a person when a direct conversation they are in
   starts or gains participants, or a support conversation is assigned to them
+- An offline conversation's address that does not open under its binding sends nothing
+  and raises `content-rejected` for `conversations`
 
 ### Fixed
 

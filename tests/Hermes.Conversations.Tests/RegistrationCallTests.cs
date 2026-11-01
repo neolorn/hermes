@@ -53,6 +53,37 @@ public sealed class RegistrationCallTests
     }
 
     [Fact]
+    public void MapHermesPublicConversations_WithoutAddHermesConversations_ThrowsNamingIt()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions());
+        builder.WebHost.UseTestServer();
+        builder.Services.AddRouting();
+        builder.Services.AddHermes(builder.Configuration, _ => { });
+        using WebApplication application = builder.Build();
+
+        InvalidOperationException failure = Assert.Throws<InvalidOperationException>(() => application.MapHermesPublicConversations("/public"));
+
+        Assert.Contains("AddHermesConversations", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MapHermesPublicConversations_AfterAddHermesConversations_MapsItsNineRoutesUnderThePrefixAllowingAnonymousCallers()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions());
+        builder.WebHost.UseTestServer();
+        builder.Services.AddRouting();
+        builder.Services.AddHermes(builder.Configuration, _ => { });
+        builder.Services.AddHermesConversations();
+        using WebApplication application = builder.Build();
+
+        application.MapHermesPublicConversations("/public");
+
+        Microsoft.AspNetCore.Routing.RouteEndpoint[] routes = [.. ((Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)application).DataSources.SelectMany(source => source.Endpoints).OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>().Where(endpoint => endpoint.RoutePattern.RawText!.StartsWith("/public/support", StringComparison.Ordinal))];
+        Assert.Equal(9, routes.Length);
+        Assert.All(routes, route => Assert.NotNull(route.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>()));
+    }
+
+    [Fact]
     public void AddHermesConversations_NoServices_ThrowsArgumentNull()
     {
         Assert.Throws<ArgumentNullException>(() => MessagingConversationsServiceCollectionExtensions.AddHermesConversations(null!));

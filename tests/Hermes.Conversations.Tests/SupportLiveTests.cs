@@ -129,6 +129,23 @@ public sealed class SupportLiveTests(PostgresFixture postgres) : IClassFixture<P
         Assert.Equal((direct.Value.ToString("D"), "direct", 2), (added.GetProperty("id").GetString(), added.GetProperty("type").GetString(), added.GetProperty("participants").GetArrayLength()));
     }
 
+    [Fact]
+    public async Task MSG_LIB_004_AC1_ThePublicConversationsGroupMappedAloneWorks()
+    {
+        await using ChatHost chat = await ChatHost.StartAsync(postgres, configure: SupportTests.Topics, declare: declare =>
+        {
+            declare.Category("support").Essential();
+            declare.Kind(SupportTests.ReplyKind, "support").Email();
+        }, staff: false);
+
+        using HttpResponseMessage topics = await new Browser(chat).SendAsync(HttpMethod.Get, "/support/topics");
+        using HttpResponseMessage staff = await chat.SendAsync(HttpMethod.Get, "/conversations", "amal");
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, topics.StatusCode);
+        Assert.Equal(["billing", "late", "night", "other"], (await Browser.JsonAsync(topics)).GetProperty("topics").EnumerateArray().Select(topic => topic.GetProperty("name").GetString()!));
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, staff.StatusCode);
+    }
+
     private static async Task<Guid> OfflineAsync(Browser visitor)
     {
         using HttpResponseMessage form = await visitor.SendAsync(HttpMethod.Post, "/support/offline", """{ "topic": "billing", "email": "visitor@example.com", "text": "Call me" }""");
