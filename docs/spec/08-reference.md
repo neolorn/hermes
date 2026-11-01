@@ -227,6 +227,7 @@ length in characters is counted as `00` section 1.5 gives.
 | `Push:AuthFailThreshold` | `20` | 1 to 10,000 |
 | `Push:AuthFailWindow` | `01:00:00` | 1 minute to 1 day |
 | `InApp:AlwaysOn` | `false` | Whether the in-app channel of every optional category cannot be turned off (`02` MSG-INAPP-004), set alike in every application of the deployment |
+| `Conversations:AwayKind` | none: no away notice is sent | A declared kind (`01` MSG-SEND-001), the one a person who is away is told of a conversation's message as (`09` MSG-CONV-008); one not declared stops the start, naming the key; start only |
 | `DevelopmentInbox:Folder` | `hermes-inbox` in the operating system's temporary folder | An absolute path (`02` MSG-DEV-002); start only |
 | `DevelopmentInbox:KeepFor` | `7.00:00:00` | 1 hour to 90 days; start only |
 | `DevelopmentInbox:MaxMessages` | `1000` | 10 to 100,000; start only |
@@ -319,8 +320,9 @@ These names are stored, or shared by the processes of two releases, and never ch
 | `messaging` | The schema (`06` MSG-OPS-002) and the library protector's `Id` (`01` MSG-SEND-018) |
 | `messaging.__migrations_history` | The migration history table (`06` MSG-OPS-002) |
 | `messaging_dispatch` | The notification channel a send wakes the dispatchers on (`01` MSG-SEND-004) |
+| `messaging_conversations`; `message`, `changed`, `read`, `typing`, `presence` | The notification channel a conversation's write tells the processes on, and the events of its payload `<event>:<conversationId>:<id>` (`09` MSG-CONV-008) |
 | `deliveries`, `subscriptions`, `entries`, `messages`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth`, and a message's `text` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018; `09` MSG-CONV-001) |
-| `conversations`, `participants`, `messages`, `mentions` | The conversations' tables (`09` MSG-CONV-001) |
+| `conversations`, `participants`, `messages`, `mentions`, `connections` | The conversations' tables (`09` MSG-CONV-001, MSG-CONV-006) |
 | `email`, `sms`, `push-endpoint`, `push-topic`, `person`, `idempotency` | The keyed hash's domains (`06` MSG-OPS-008) |
 | `sms-report`, `idempotency` | The texts that begin the unkeyed lock keys (`01` MSG-SEND-009; `02` MSG-SMS-004) |
 | `sms-report-hold` | The text of the lock the held reports are counted under (`02` MSG-SMS-004) |

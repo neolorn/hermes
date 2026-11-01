@@ -319,11 +319,11 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 
 | Method and route | Body | Answers |
 |---|---|---|
-| `GET /conversations` | | **200** `{ "conversations": [ <conversation> ], "next" }`: the person's direct conversations they have not left and the existing group conversations of their scopes, newest activity first, `next` the cursor of the next page or `null`; query `cursor`, and `size`, 1 to 100, default 20; **400** `messaging.request.malformed`, `details.member` `cursor` or `size`, for a cursor that does not read or a size outside its rule |
+| `GET /conversations` | | **200** `{ "conversations": [ <conversation> ], "next" }`: the person's direct conversations they have not left and the existing group conversations of their scopes, newest activity first, `next` the cursor of the next page or `null`; query `cursor`, and `size`, 1 to 100, default 20; **400** `messaging.request.malformed`, `details.member` `cursor` or `size`, for a cursor that does not read or a size outside its rule; **503** as for `GET /inapp` |
 | `POST /conversations/direct` | `{ "participants" }` | **201** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }`; **400** `messaging.conversation.invalid`, `details.field` `participants`, for none or more than 15 others, a reference named twice, or the person themselves; **503** as for `GET /inapp` |
-| `GET /conversations/group/{kind}/{reference}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }`: the scope's conversation, created the first time a member opens it; **400** `messaging.conversation.invalid`, `details.field` `kind`, for a kind that does not read; **404** `messaging.conversation.notfound` for a person who is not a member; **503** as for `GET /inapp` |
+| `GET /conversations/group/{kind}/{reference}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }`: the scope's conversation, created the first time a member opens it; **400** `messaging.conversation.invalid`, `details.field` `kind`, for a kind that does not read; **400** `messaging.request.malformed`, `details.member` `reference`, for a reference outside 1 to 128 characters; **404** `messaging.conversation.notfound` for a person who is not a member; **503** as for `GET /inapp` |
 | `GET /conversations/{id}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
-| `GET /conversations/{id}/messages` | | **200** `{ "messages": [ <message> ] }`, newest first; query `before`, a message's identifier, and `size`, 1 to 100, default 50; **400** `messaging.request.malformed`, `details.member` `before` or `size`, for one outside its rule; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `GET /conversations/{id}/messages` | | **200** `{ "messages": [ <message> ] }`, newest first, or oldest first from `after`; query `before` or `after`, a message's identifier, and `size`, 1 to 100, default 50; **400** `messaging.request.malformed`, `details.member` `before`, `after` or `size`, for one outside its rule; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `POST /conversations/{id}/messages` | `{ "text", "type", "replyTo", "mentions" }` | **201** `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }`; **400** `messaging.message.invalid`, `details.field` `text`, `mentions`, `replyTo` or `type`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `PUT /conversations/{id}/messages/{messageId}` | `{ "text" }` | **204**; **400** `messaging.message.invalid`, `details.field` `text`; **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound`; **409** `messaging.message.deleted` for a deleted message; **503** as for `GET /inapp` |
 | `DELETE /conversations/{id}/messages/{messageId}` | | **204**, a message already deleted included; **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound`; **503** as for `GET /inapp` |
@@ -335,7 +335,7 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | Shape | Members |
 |---|---|
 | `<conversation>` | `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }` |
-| `<participant>` | `{ "id", "person" }` |
+| `<participant>` | `{ "id", "person", "online" }` |
 | `<message>` | `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }` |
 
 A conversation is answered as `<conversation>` and a message as `<message>`, the routes
@@ -344,11 +344,12 @@ hyphenated; `sentAt`, `editedAt`, `deletedAt` and `lastAt` are instants in ISO 8
 with milliseconds, `lastAt` the last message's, or the conversation's creation where it
 has none; `type`, `kind` and `authorKind` are their `08` spellings; `scope` is `null`
 but for a group conversation; `participants` holds a direct conversation's participants
-who have not left, and is `[]` for a group conversation; `person` and `mentions` are
-person references; `authorKind` is `person`, `visitor`, or `library` for an `automatic`
-or `system` message, and `author` is the person reference where it is `person`, `null`
-otherwise and once the author is erased (`09` MSG-CONV-009); `text` is `null` once the
-message is deleted or its author erased, and `erased` says which;
+who have not left, and is `[]` for a group conversation; `online` is whether the
+participant holds a staff-hub connection (`09` MSG-CONV-006); `person` and `mentions`
+are person references; `authorKind` is `person`, `visitor`, or `library` for an
+`automatic` or `system` message, and `author` is the person reference where it is
+`person`, `null` otherwise and once the author is erased (`09` MSG-CONV-009); `text` is
+`null` once the message is deleted or its author erased, and `erased` says which;
 `replyTo`, `editedAt` and `deletedAt` are `null` where the message has none. In a
 request, `type` is optional and defaults to `text`, and `replyTo` and `mentions` are
 optional.
@@ -361,8 +362,25 @@ Bodies and refusals are the engine's, as MSG-API-001 gives. `MapHermesStaffConve
 answers the group's `RouteGroupBuilder`, to which the host adds the authorization that
 decides who may use it (`09` MSG-CONV-006).
 
-*Source: M-032*
+**The staff hub (M-033).** The group also maps the staff hub at `/live`, so the host's
+authorization covers it too (`09` MSG-CONV-008). The person comes from
+`IRecipientIdentity` when a client connects, and a connection without one is refused.
+Writes stay HTTP: the client sends `Typing` alone. A client that reconnects reads what
+it missed from the messages route with `after`, since every push follows the store.
+
+| Hub method | Sent by | Arguments |
+|---|---|---|
+| `message` | The server | `conversationId`, `message`: a new message, as `<message>` |
+| `messageChanged` | The server | `conversationId`, `message`: an edit or a delete, as `<message>` |
+| `read` | The server | `conversationId`, `participantId`, `messageId` |
+| `typing` | The server | `conversationId`, `participantId` |
+| `presence` | The server | `participantId`, `online` |
+| `conversation` | The server | `conversation`: one added to the person's list, as `<conversation>` |
+| `Typing` | The client | `conversationId` |
+
+*Source: M-032, M-033*
 
 **Acceptance criteria**
 1. Each route does what its operation does, and the endpoint contract test finds exactly
    these routes.
+2. The contract test finds the hub's route and methods.
