@@ -1957,6 +1957,20 @@ C40 and C47 to C49. C50 (the public hub) is phase 16's.
 - `08` sections 4 (`AwayKind`) and 8 (the channel, the `connections` table);
 - `09` MSG-CONV-005, MSG-CONV-006, MSG-CONV-008, with their criteria.
 
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - The away kind's values are `conversation`, `conversationType`, `message` and
+>   `mentioned`. `AwayKind` is read at start.
+> - A participant carries `online`, in the body and in `ParticipantRecord`.
+> - `MessagesAsync` takes `after` beside `before`.
+> - The criterion that the contract test finds the hub moves to `05` MSG-API-009.
+> - `GET /conversations` also answers 503, as `GET /inapp` does.
+> - A scope's reference is 1 to 128 characters, as a person reference; outside the bound
+>   the group route answers 400 `messaging.request.malformed`, `member` `reference`.
+> - The sample host maps the in-app group too, built in this phase (`07` MSG-ENG-001).
+>
+> Propagated to `04` MSG-LIB-002; `05` MSG-API-009; `07` MSG-ENG-001; `08` section 4;
+> `09` MSG-CONV-008; `implementation-plan.md` (phase 15).
+
 ---
 
 ## M-034 — Phase 16: support's public side

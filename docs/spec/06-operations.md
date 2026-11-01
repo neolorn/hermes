@@ -141,16 +141,16 @@ phase adds such a table without them.
 **MSG-OPS-003** — The library SHALL use the host's PostgreSQL database through its own
 connection, so a host may give it the same database as its own or another.
 
-**Values (M-005, M-012, M-013).** The connection string is the secret `connection`
-(MSG-OPS-008); the library's own work (the dispatcher, the jobs, its endpoints, a send
-made without the host's transaction) runs on it. The dispatcher's listening connection
-(`01` MSG-SEND-007) is a session connection on the secret `listenConnection` where the
-deployment gives one, for a `connection` that passes through a transaction-mode pooler,
-and on `connection` otherwise. A host that records sends in its own transactions (`01`
-MSG-SEND-004) gives the library the database those transactions run on. The library uses
-no retrying execution strategy on a host's transaction, and its columns holding a closed
-set (a status, a channel) are `text` with a `CHECK` constraint, so the host's data
-source needs no type mapping of the library's.
+**Values (M-005, M-012, M-013, M-033).** The connection string is the secret
+`connection` (MSG-OPS-008); the library's own work (the dispatcher, the jobs, its
+endpoints, a send made without the host's transaction) runs on it. The dispatcher's
+listening connection (`01` MSG-SEND-007) is a session connection on the secret
+`listenConnection` where the deployment gives one, for a `connection` that passes
+through a transaction-mode pooler, and on `connection` otherwise. A host that records
+sends in its own transactions (`01` MSG-SEND-004) gives the library the database those
+transactions run on. The library uses no retrying execution strategy on a host's
+transaction, and its columns holding a closed set (a status, a channel) are `text` with
+a `CHECK` constraint, so the host's data source needs no type mapping of the library's.
 
 Every instant the library stores or compares is its `TimeProvider`'s (`07` MSG-ENG-005),
 so a claim, whose expiry its holder writes (`01` MSG-SEND-007), is judged by the clocks
@@ -164,7 +164,13 @@ its time; the per-second rates (`01` MSG-SEND-014), whose grain it equals, so th
 rate may be passed by at most its own count in a second, and the notified dispatch (`01`
 MSG-SEND-004) rely on it too.
 
-*Source: M-005, M-012, M-013*
+Where conversations are registered (`04` MSG-LIB-003), each process listens for
+conversations' writes (`09` MSG-CONV-008) on a connection of `Hermes.Conversations`' own,
+opened from `listenConnection` where the deployment gives one and from `connection`
+otherwise, apart from the dispatcher's, so dispatch and conversations never wait on each
+other (M-033).
+
+*Source: M-005, M-012, M-013, M-033*
 
 **Acceptance criteria**
 1. A send recorded in a host transaction on a data source the host built, with no
