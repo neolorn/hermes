@@ -21,6 +21,10 @@
     <EmbeddedResource Include="offer.weekly.email.en.text.liquid" LogicalName="offer.weekly/email.en.text.liquid" />
     <EmbeddedResource Include="offer.weekly.push.en.title.liquid" LogicalName="offer.weekly/push.en.title.liquid" />
     <EmbeddedResource Include="offer.weekly.push.en.body.liquid" LogicalName="offer.weekly/push.en.body.liquid" />
+    <EmbeddedResource Include="support.reply.email.en.subject.liquid" LogicalName="support.reply/email.en.subject.liquid" />
+    <EmbeddedResource Include="support.reply.email.en.text.liquid" LogicalName="support.reply/email.en.text.liquid" />
+    <EmbeddedResource Include="support.transcript.email.en.subject.liquid" LogicalName="support.transcript/email.en.subject.liquid" />
+    <EmbeddedResource Include="support.transcript.email.en.text.liquid" LogicalName="support.transcript/email.en.text.liquid" />
   </ItemGroup>
 
 </Project>

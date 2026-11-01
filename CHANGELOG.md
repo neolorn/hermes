@@ -182,6 +182,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in `Hermes.Testing`, the attachments' seams for a host's tests and the sample host, which
   `AddHermesTesting` registers as singletons by their own types and by their seams, a
   later registration of a seam replacing its double
+- The sample host maps every group: the public conversations group and its hub under
+  `/help`, beside the engine's, the in-app and the staff conversations groups, with a
+  support topic, attachments on, and the attachments' doubles of `Hermes.Testing`
 
 ### Fixed
 
