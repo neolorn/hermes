@@ -199,6 +199,47 @@ public sealed class TestingDoublesTests
         Assert.Same(later, provider.GetRequiredService<IAttachmentScanner>());
     }
 
+    [Fact]
+    public void AddHermesTesting_AHostsOwnStoreAndScannerRegisteredAfterIt_ReplaceTheDoublesTheSeamsAnswer()
+    {
+        ServiceCollection services = new();
+        services.AddHermesTesting();
+        services.AddSingleton<IAttachmentStore, HostStore>();
+        services.AddSingleton<IAttachmentScanner, HostScanner>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        Assert.IsType<HostStore>(provider.GetRequiredService<IAttachmentStore>());
+        Assert.IsType<HostScanner>(provider.GetRequiredService<IAttachmentScanner>());
+    }
+
+    /// <summary>A host's own store, which keeps nothing.</summary>
+    private sealed class HostStore : IAttachmentStore
+    {
+        public ValueTask PutAsync(string key, Stream content, CancellationToken cancellationToken)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<Stream?> OpenAsync(string key, CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<Stream?>(null);
+        }
+
+        public ValueTask DeleteAsync(string key, CancellationToken cancellationToken)
+        {
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>A host's own scanner, which finds every file clean.</summary>
+    private sealed class HostScanner : IAttachmentScanner
+    {
+        public ValueTask<ScanResult> ScanAsync(Stream content, string mediaType, CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(ScanResult.Clean);
+        }
+    }
+
     /// <summary>A dispatcher whose rounds take the numbers given, in order, honouring its token as the library's does.</summary>
     private sealed class DispatcherFake(int[] rounds) : IDispatcher
     {
