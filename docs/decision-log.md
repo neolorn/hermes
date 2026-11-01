@@ -2310,6 +2310,13 @@ This entry settles the map's C20 to C23, C28 to C31 and L19.
 > MSG-OPS-007; `08` sections 1, 3 and 4; `09` MSG-CONV-003, MSG-CONV-005;
 > `implementation-plan.md` (phase 17).
 
+> **Amended.** 2026-11-01, on the review of M-036's propagation:
+> - A customer's language, like a visitor's, is read from `Accept-Language` and matched,
+>   since the engine holds no person's language. This replaces the reading through `01`
+>   MSG-SEND-003 in the note above.
+>
+> Propagated to `09` MSG-CONV-003; `implementation-plan.md` (phase 17).
+
 ---
 
 ## M-036 — Phase 18: the end of support
@@ -2394,6 +2401,69 @@ This entry settles the map's C24 to C27, C32 and C33.
 - `05` (the routes);
 - `08` sections 1, 4 and 8;
 - `09` MSG-CONV-004, MSG-CONV-005, with their criteria.
+
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - The visitor and the customer alike give `email` for the transcript email, since the
+>   engine holds no person's address. A customer's send is `Recipient.Person` with that
+>   `Email`.
+> - The transcript is at most 1 MiB in UTF-8. The value given to the kind is bounded at
+>   half of `Hermes:Email:MaxBytes`, the oldest messages left out, so that the email
+>   fits. The transcript's render runs under ten times `Templates:MaxSteps`, and a
+>   render past either bound renders again with the oldest messages left out.
+> - `POST {public}/support/conversations/{id}/transcript/email` takes `{ "email" }` and
+>   answers 202; 400 `messaging.request.malformed`, `member` `email`, or the failure
+>   code of a send the engine refuses; 404; 409 `messaging.support.notclosed`. A fourth
+>   email answers 409 `messaging.support.transcriptlimit`, not 429. Each send's
+>   idempotency key is `conversation:<id>:transcript:<n>`, `n` from 1 to 3. The download
+>   is named `transcript-<id>.txt`.
+> - The survey answers 204; 400 `messaging.support.surveyinvalid`, `field` `resolved`,
+>   `rating` or `comment`; 404; 409 `messaging.support.notclosed`, `surveyanswered` or
+>   `surveyclosed`. It is kept in the columns `survey_at`, `survey_resolved`,
+>   `survey_rating`, `survey_comment` (protected) and `survey_person` of
+>   `conversations`. Erasing the staff member rated handles `survey_person` as a
+>   delivery's person reference: the survey stays, and counts for the topic alone.
+> - `GET {staff}/support/live` answers `{ "conversations": [ <live> ] }`, `<live>` being
+>   `{ "id", "status", "assignee", "place", "waited" }`, `waited` in whole minutes since
+>   it was queued and `place` `null` once assigned; a topic not configured 400
+>   `messaging.request.malformed`, `member` `topic`; a non-supervisor 404
+>   `messaging.conversation.notfound`; 503.
+> - `GET {staff}/support/reports` answers
+>   `{ "topic": <figures>, "staff": [ <figures> ] }`, `<figures>` being the members
+>   `person`, `closed`, `waitMedian`, `waitP90`, `handleMedian`, `handleP90`, `surveys`,
+>   `resolvedShare` and `meanRating`, times in seconds and `null` with no data. `from`
+>   and `to` are `yyyy-MM-dd`, both included; a period that does not read or passes 92
+>   days answers 400 `messaging.request.malformed`, `member` `from` or `to`; a
+>   non-supervisor 404; 503.
+>   The figures cover the conversations closed within the period, each counted for its
+>   assignee when it closed, the percentiles as `percentile_cont` computes them.
+> - `IConversations` gains `LiveAsync` and `ReportAsync`, with the records
+>   `LiveConversation` and `ReportFigures`.
+> - `Supervisors` is optional. Unset, nobody supervises the topic, and its live view and
+>   reports answer 404 to everyone.
+> - A supervisor only reads, through the conversation and messages routes. A write by a
+>   supervisor who is not the assignee answers as for any other staff member who is not
+>   assigned. Supervisors receive the staff hub's pushes for every conversation of the
+>   topic, notes included. The topic's conversations are not in their list of
+>   conversations.
+> - The page `transcript` has one part, `text`, and the library ships it in `en` and
+>   `ar`, as its other pages. Its values are `topic`, `openedAt`, `closedAt`,
+>   `language`, `direction`, `messages` (a list of `author`, `sentAt` and `text`,
+>   `author` being `visitor`, `staff` or `library`) and `omitted`, the number of
+>   messages left out.
+> - Where topics are configured, a `transcript` part missing for a declared language
+>   fails the start with `messaging.startup.declarationinvalid`, `details.declaration`
+>   `transcript`.
+> - `surveycomment` joins `01` MSG-SEND-018's context fields. A topic's `Supervisors`
+>   joins its keys in `09` MSG-CONV-002, a supervisor's reads join `09` MSG-CONV-006's
+>   access, and the survey's comment joins `09` MSG-CONV-009's protection.
+> - `hermes.conversations.started` counts every support conversation, offline ones
+>   included, when it is created; `hermes.conversations.closed` counts each close, by
+>   staff, by the visitor or automatically.
+>
+> Propagated to `01` MSG-SEND-018; `03` MSG-TPL-004, MSG-TPL-006, MSG-TPL-007; `04`
+> MSG-LIB-002; `05` MSG-API-009, MSG-API-010; `08` sections 1, 4 and 8; `09`
+> MSG-CONV-002, MSG-CONV-004, MSG-CONV-005, MSG-CONV-006, MSG-CONV-009;
+> `implementation-plan.md` (phase 18).
 
 ---
 

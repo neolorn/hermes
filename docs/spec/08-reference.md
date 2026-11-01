@@ -44,7 +44,7 @@ MSG-OPS-002).
 | `messaging.unsubscribe.invalid` | 404 | An unsubscribe token that does not verify (`05` MSG-API-005) | |
 | `messaging.inbox.notfound` | 404 | A message the development inbox does not hold, or none that matches (`05` MSG-API-007) | |
 | `messaging.inbox.notlocal` | 403 | A request to the development inbox from another machine or under another host name (`02` MSG-DEV-005) | |
-| `messaging.conversation.notfound` | 404 | A conversation that is unknown, or that the person may not read: not a participant, not a member of its scope, or one who left; never 403, so nobody learns a conversation exists; or a topic's live view for a person who does not supervise it (`09` MSG-CONV-005, MSG-CONV-006; `05` MSG-API-009) | |
+| `messaging.conversation.notfound` | 404 | A conversation that is unknown, or that the person may not read: not a participant, not a member of its scope, or one who left; never 403, so nobody learns a conversation exists; or a topic's live view or reports for a person who does not supervise it (`09` MSG-CONV-005, MSG-CONV-006; `05` MSG-API-009) | |
 | `messaging.conversation.invalid` | 400 | A conversation's request outside its rule: a direct conversation's participants, a scope's kind that does not read, a route for direct conversations alone used on a group conversation, a transfer to a person outside the topic's scope or to a topic not configured, an undeclared tag, a snooze's `until` outside its range, or a tag or snooze on a conversation that is not support (`09` MSG-CONV-002, MSG-CONV-005, MSG-CONV-006; `05` MSG-API-009) | `field`: `participants`, `kind`, `type`, `person`, `topic`, `tags` or `until` |
 | `messaging.conversation.full` | 409 | A direct conversation's participants past 16 (`09` MSG-CONV-001, MSG-CONV-006) | |
 | `messaging.conversation.closed` | 409 | A tag or snooze on a closed conversation (`09` MSG-CONV-005; `05` MSG-API-009) | |
@@ -58,12 +58,14 @@ MSG-OPS-002).
 | `messaging.message.deleted` | 409 | Editing a deleted message (`09` MSG-CONV-006) | |
 | `messaging.support.offline` | 409 | Starting a support conversation outside its topic's hours, or within them while no member is available (`09` MSG-CONV-002; `05` MSG-API-010) | |
 | `messaging.support.noticerequired` | 409 | A visitor's message, or offline form, before an acknowledgement of the current privacy notice (`09` MSG-CONV-010; `05` MSG-API-010) | |
-| `messaging.support.limited` | 429 | A visitor or a source address over a limit of `Conversations:Limits:` (`09` MSG-CONV-011; `05` MSG-API-010); answered with `Retry-After`; or a conversation's fourth transcript email (`09` MSG-CONV-004) | |
-| `messaging.support.notclosed` | 409 | A transcript of a conversation that is not closed (`09` MSG-CONV-004; `05` MSG-API-010) | |
+| `messaging.support.limited` | 429 | A visitor or a source address over a limit of `Conversations:Limits:` (`09` MSG-CONV-011; `05` MSG-API-010); answered with `Retry-After` | |
+| `messaging.support.notclosed` | 409 | A transcript, a transcript email or a survey of a conversation that is not closed (`09` MSG-CONV-004; `05` MSG-API-010) | |
+| `messaging.support.transcriptlimit` | 409 | A conversation's fourth transcript email (`09` MSG-CONV-004; `05` MSG-API-010) | |
+| `messaging.support.surveyinvalid` | 400 | A survey's `resolved`, `rating` or `comment` outside its rule (`09` MSG-CONV-004; `05` MSG-API-010) | `field`: `resolved`, `rating` or `comment` |
 | `messaging.support.surveyanswered` | 409 | A conversation's survey answered a second time (`09` MSG-CONV-004; `05` MSG-API-010) | |
 | `messaging.support.surveyclosed` | 409 | A conversation's survey answered more than 7 days after its close (`09` MSG-CONV-004; `05` MSG-API-010) | |
 | `messaging.support.blocked` | 403 | A blocked visitor or customer starting or writing (`09` MSG-CONV-011; `05` MSG-API-010) | |
-| `messaging.request.malformed` | 400 | A body, a query parameter or a header that does not read (`05` MSG-API-001, MSG-API-007, MSG-API-008, MSG-API-009) | `member` |
+| `messaging.request.malformed` | 400 | A body, a query parameter or a header that does not read (`05` MSG-API-001, MSG-API-007, MSG-API-008, MSG-API-009, MSG-API-010) | `member` |
 | `messaging.request.unauthenticated` | 401 | No signed-in person where one is needed (`05` MSG-API-002) | |
 | `messaging.request.toolarge` | 413 | A body over 16 KiB (`05` MSG-API-001, MSG-API-005, MSG-API-006) | |
 | `messaging.request.mediatype` | 415 | A JSON route's body not sent as `application/json` (`05` MSG-API-001) | |
@@ -246,8 +248,8 @@ length in characters is counted as `00` section 1.5 gives.
 | `Conversations:Topics:<name>:Exceptions:<date>` | none | A date as `yyyy-MM-dd`, its value `Closed` or its own list of `HH:mm-HH:mm`, as for `Hours` (`09` MSG-CONV-002) |
 | `Conversations:Topics:<name>:Scope:Kind` | none; required for each topic | `Organization` or `Group`, the kind of the scope whose members staff the topic (`09` MSG-CONV-002, MSG-CONV-006) |
 | `Conversations:Topics:<name>:Scope:Reference` | none; required for each topic | The scope's reference (`09` MSG-CONV-002, MSG-CONV-006) |
-| `Conversations:Topics:<name>:Supervisors:Kind` | none; required for each topic | `Organization` or `Group`, the kind of the scope whose members supervise the topic, as `Scope:Kind` (`09` MSG-CONV-005, MSG-CONV-006) |
-| `Conversations:Topics:<name>:Supervisors:Reference` | none; required for each topic | The supervisors' scope's reference, as `Scope:Reference` (`09` MSG-CONV-005, MSG-CONV-006) |
+| `Conversations:Topics:<name>:Supervisors:Kind` | none: nobody supervises the topic; set with `Supervisors:Reference` | `Organization` or `Group`, the kind of the scope whose members supervise the topic, as `Scope:Kind` (`09` MSG-CONV-005, MSG-CONV-006) |
+| `Conversations:Topics:<name>:Supervisors:Reference` | none: nobody supervises the topic; set with `Supervisors:Kind` | The supervisors' scope's reference, as `Scope:Reference` (`09` MSG-CONV-005, MSG-CONV-006) |
 | `Conversations:Support:Limit` | `3` | The open support conversations a staff member holds below which they are available, 1 to 100 (`09` MSG-CONV-002) |
 | `Conversations:Support:OfflineReplyKind` | none; required where topics are configured | A declared kind (`01` MSG-SEND-001), the one staff replies to an offline conversation are sent as (`09` MSG-CONV-002); one not declared stops the start, naming the key; start only |
 | `Conversations:Support:TranscriptKind` | none; required where topics are configured | A declared kind (`01` MSG-SEND-001), the one a closed conversation's transcript is sent by email as (`09` MSG-CONV-004); one not declared stops the start, naming the key; start only |
@@ -340,8 +342,8 @@ The meter is `Hermes`, with these instruments:
 | `hermes.attempts` | Counter | `{attempt}` | `channel`, `class`, `reason` | Each attempt, by its class and reason, an attempt answered at a check included |
 | `hermes.dispatch.oldest_due_age` | Gauge | `s` | `channel` | How long ago the oldest delivery `waiting` or `inflight` whose became-due instant has passed became due, a synchronous `Gauge<double>` the watch job records each time it judges `dispatch-lag`, 0 where no such delivery is, only the process whose run judged it recording it, so the latest point across processes is the reading (`06` MSG-OPS-005; `01` MSG-SEND-007) |
 | `hermes.provider.duration` | Histogram | `s` | `channel`, `class` | Each provider call's duration |
-| `hermes.conversations.started` | Counter | `{conversation}` | `topic` | Each support conversation started (`09` MSG-CONV-005) |
-| `hermes.conversations.closed` | Counter | `{conversation}` | `topic` | Each support conversation closed (`09` MSG-CONV-005) |
+| `hermes.conversations.started` | Counter | `{conversation}` | `topic` | Each support conversation created, offline ones included (`09` MSG-CONV-005) |
+| `hermes.conversations.closed` | Counter | `{conversation}` | `topic` | Each close of a support conversation, by staff, by the visitor or automatically (`09` MSG-CONV-005) |
 
 These names carry the library's name (`00`): the meter and its instruments, the solution
 file `Hermes.sln` (`07` MSG-ENG-001), the health check `hermes.dispatch` (`06`

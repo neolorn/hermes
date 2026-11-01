@@ -130,7 +130,9 @@ available staff member with room for it, within the hours the deployment sets.
   not overlapping, each starting before it ends; a day not configured is closed;
 - `Exceptions`, by date (`yyyy-MM-dd`), each `Closed` or its own list;
 - `Scope`, a kind (`Scope:Kind`, `Organization` or `Group`) and a reference
-  (`Scope:Reference`) for the membership seam (MSG-CONV-006), both required.
+  (`Scope:Reference`) for the membership seam (MSG-CONV-006), both required;
+- `Supervisors`, a kind and a reference as `Scope`'s, optional: the scope whose members
+  supervise the topic, nobody where it is unset (MSG-CONV-005, M-036).
 
 The staff of a topic are its scope's members. A topic's display name is the host
 frontend's.
@@ -166,7 +168,7 @@ topic's scope, assigned at once, or to another topic's queue. The receiver does 
 accept. A transfer to a person outside the topic's scope, or to a topic not configured,
 answers 400 `messaging.conversation.invalid`, `details.field` `person` or `topic`.
 
-*Source: M-011, M-034*
+*Source: M-011, M-034, M-036*
 
 **Acceptance criteria**
 1. FIFO per topic, to the available member with the fewest open conversations, within
@@ -207,10 +209,10 @@ type is an `init`-only record (`04` MSG-LIB-002); the message it writes has the 
   only, never emailed.
 - The message written is of type `automatic`, `authorKind` `library`, in the
   conversation's language. That is the visitor's or the customer's language as the
-  public side read it (`Accept-Language` for a visitor; for a customer, the person's,
-  read as `01` MSG-SEND-003 reads a person's language), matched as `01` MSG-SEND-003
-  matches. It is matched when the conversation starts and kept in the column
-  `language` of `conversations`.
+  public side read it from `Accept-Language`, for a customer as for a visitor, since the
+  engine holds no person's language (M-035, amended on M-036's review), matched as `01`
+  MSG-SEND-003 matches. It is matched when the conversation starts and kept in the
+  column `language` of `conversations`.
 - Where two rules fire at once, both write, in name order.
 
 **The template (M-035).**
@@ -228,7 +230,7 @@ type is an `init`-only record (`04` MSG-LIB-002); the message it writes has the 
   (`03` MSG-TPL-001, MSG-TPL-004). A missing one fails the start with
   `messaging.startup.templatemissing`, naming the rule and the language.
 
-*Source: M-011, M-035*
+*Source: M-011, M-035, M-036*
 
 **Acceptance criteria**
 1. Each trigger writes one `automatic` message in the conversation's language from its
@@ -251,36 +253,54 @@ for reports per staff member and topic.
 **The transcript (M-036).**
 - It is rendered from the conversation's messages, every type but `note`, oldest first,
   in the conversation's language (MSG-CONV-003).
-- It is rendered through the page template `transcript`, with the library's own in each
-  declared language (`03` MSG-TPL-006). A host source may answer it instead.
-- The values are the topic, the instants opened and closed, and each message's author
-  kind, instant and text. Staff are named only as `staff`, never by reference.
-- It is plain text, UTF-8, at most 1 MB. Past that, the oldest messages are left out,
-  and the transcript says so.
+- It is rendered through the page template `transcript`, whose one part is `text` (`03`
+  MSG-TPL-006). The library ships its own in `en` and `ar`, as its other pages, and a
+  host source may answer it instead.
+- Its values are `topic`; `openedAt` and `closedAt`, the instants opened and closed;
+  `language` and `direction`; `messages`, a list of `author`, `sentAt` and `text`, where
+  `author` is `visitor` (the visitor or the customer), `staff` or `library`, so staff
+  are never named by reference; and `omitted`, the number of messages left out.
+- It is plain text, UTF-8, at most 1 MiB. Past that, the oldest messages are left out,
+  and `omitted` counts them. Its render runs under a step limit of ten times
+  `Hermes:Templates:MaxSteps` (`03` MSG-TPL-007), and a render past either bound
+  renders again with the oldest messages left out.
 - The public group's transcript route serves it to the visitor (by cookie) or the
-  customer, as an attachment, for a closed conversation only (`05` MSG-API-010).
-  Otherwise it answers 409 `messaging.support.notclosed`.
+  customer, as an attachment named `transcript-<id>.txt`, for a closed conversation
+  only (`05` MSG-API-010). Otherwise it answers 409 `messaging.support.notclosed`.
 
 **By email (M-036).**
 - The public group's transcript email route sends it as the kind named by
   `Hermes:Conversations:Support:TranscriptKind` (`08` section 4). The key is required
   where topics are configured, and is read at start, where a kind not declared stops the
   start naming it, as `AwayKind` does (MSG-CONV-008).
-- The send goes to a visitor's given `email`, as `Recipient.Anonymous`, or to the
-  customer as their person. The kind's values are `topic`, `closedAt` and `transcript`,
-  the rendered text.
-- A conversation's transcript is sent at most 3 times. The fourth answers 429
-  `messaging.support.limited`.
-- Every check of `01` applies to the send.
+- The visitor and the customer alike give `email`, since the engine holds no person's
+  address. The send goes to a visitor as `Recipient.Anonymous`, and to the customer as
+  `Recipient.Person`, each with that `Email`.
+- The kind's values are `topic`, `closedAt` and `transcript`, the rendered text, bounded
+  at half of `Hermes:Email:MaxBytes` with the oldest messages left out, so that the
+  email fits (`02` MSG-EMAIL-003).
+- A conversation's transcript is sent at most 3 times, each send's idempotency key
+  `conversation:<id>:transcript:<n>`, `n` from 1 to 3. The fourth answers 409
+  `messaging.support.transcriptlimit`.
+- It is sent for a closed conversation only, as the transcript is served. Every check of
+  `01` applies to the send, and a send the engine refuses answers its failure code (`08`
+  section 1) as 400.
 
 **The survey (M-036).**
 - The public group's survey route (`05` MSG-API-010) takes `resolved` (a boolean),
-  `rating` (1 to 5) and an optional `comment` (up to 1,000 characters).
+  `rating` (1 to 5) and an optional `comment` (up to 1,000 characters). One outside its
+  rule answers 400 `messaging.support.surveyinvalid`, `field` `resolved`, `rating` or
+  `comment`, and a conversation not closed 409 `messaging.support.notclosed`.
 - The survey is answered once: a second answers 409
   `messaging.support.surveyanswered`. It is answered within 7 days of the close: after
   that it answers 409 `messaging.support.surveyclosed`.
 - It rates the staff member assigned when the conversation closed. A conversation never
   assigned keeps its survey with no staff member.
+- It is kept in columns of `conversations`: `survey_at`, `survey_resolved`,
+  `survey_rating`, `survey_comment` and `survey_person`, the staff member rated, a
+  person reference under the rule that the engine knows each table (`06` MSG-OPS-002).
+  Erasing that staff member handles `survey_person` as a delivery's person reference:
+  the survey stays, and counts for the topic alone.
 - The comment is a protected value of the conversation, under the same key as its
   messages, its context `conversations:<id>:surveycomment` (MSG-CONV-009). It is kept
   and erased with the conversation.
@@ -367,28 +387,39 @@ live conversations, and reports of waiting time, handling time and survey scores
   Each timer's next instant is a column, moved in the transaction that fires it.
 
 **Supervisors (M-036).**
-- Each topic gains `Supervisors`, a membership scope (kind and reference, as `Scope`,
-  MSG-CONV-002; `08` section 4). Its members supervise the topic, through
-  `IsMemberAsync` on every call (MSG-CONV-006).
-- A supervisor reads every conversation of the topic, notes included, as its staff do.
+- Each topic may name `Supervisors`, a membership scope (kind and reference, as
+  `Scope`, MSG-CONV-002; `08` section 4). Its members supervise the topic, through
+  `IsMemberAsync` on every call (MSG-CONV-006). Unset, nobody supervises the topic, and
+  its live view and reports answer 404 to everyone.
+- A supervisor reads every conversation of the topic, notes included, as its staff do,
+  through the conversation and messages routes, and receives the staff hub's pushes for
+  them (MSG-CONV-008). A supervisor only reads: a write by one who is not the assignee
+  answers as it does for any other staff member who is not assigned. The topic's
+  conversations are not in the supervisor's list of conversations.
 - The staff group's live route, with `topic`, answers the topic's open and snoozed
-  conversations, each with its status, assignee, place and minutes waited (`05`
-  MSG-API-009). It is over HTTP: the client reads it again.
+  conversations, each with its status, assignee, place (none once assigned) and whole
+  minutes waited since it was queued (`05` MSG-API-009). It is over HTTP: the client
+  reads it again.
 - A person who supervises no topic named answers 404 `messaging.conversation.notfound`.
+- `IConversations` answers both views (`04` MSG-LIB-002).
 
 **Reports (M-036).**
-- The staff group's reports route, with `topic`, `from` and `to`, is for the topic's
-  supervisors (`05` MSG-API-009). The period is whole days in the topic's time zone, at
-  most 92.
-- It answers, per staff member and for the topic as a whole:
+- The staff group's reports route, with `topic`, `from` and `to` (`yyyy-MM-dd`, both
+  included), is for the topic's supervisors (`05` MSG-API-009). The period is whole days
+  in the topic's time zone, at most 92; one that does not read or is longer answers 400
+  `messaging.request.malformed`, `member` `from` or `to`.
+- It answers, per staff member and for the topic as a whole, over the conversations
+  closed within the period, each counted for its assignee when it closed:
   - conversations closed;
   - the median and 90th percentile of waiting time (queued to assigned) and of handling
-    time (assigned to closed);
+    time (assigned to closed), in seconds, as PostgreSQL's `percentile_cont` computes
+    them;
   - surveys answered (MSG-CONV-004), the share resolved, and the mean rating.
-- Everything is computed when read, from the conversations' rows. Nothing is aggregated
-  or stored.
-- Two counters join `08` section 8: `hermes.conversations.started` and
-  `hermes.conversations.closed`, each tagged `topic`.
+- A figure with no data is none. Everything is computed when read, from the
+  conversations' rows. Nothing is aggregated or stored.
+- Two counters join `08` section 8, each tagged `topic`: `hermes.conversations.started`
+  counts every support conversation, offline ones included, when it is created, and
+  `hermes.conversations.closed` each close, by staff, by the visitor or automatically.
 
 *Source: M-011, M-033, M-035, M-036*
 
@@ -444,7 +475,8 @@ member opens it, and opening it again creates nothing more. A member's participa
 **Access (M-032).** Anyone who is not a participant of a direct conversation, or has left
 it, and anyone who is not a member of a group conversation's scope, is answered
 `messaging.conversation.notfound` (404), never 403, so nobody learns a conversation
-exists.
+exists. A topic's supervisors read its support conversations, notes included
+(MSG-CONV-005, M-036).
 
 **Mentions (M-032).** A mention is a list of person references sent with the message,
 never parsed from the text. In a direct conversation each one is a participant; in a
@@ -478,7 +510,7 @@ the database cannot search them. Search comes through a later seam that keeps an
 under the same protection; the model needs no change for it, and its design is made in
 the release that builds it.
 
-*Source: M-011, M-020, M-032, M-033*
+*Source: M-011, M-020, M-032, M-033, M-036*
 
 **Acceptance criteria**
 1. In a group conversation, a non-member's every read and write answers 404. A member
@@ -609,8 +641,10 @@ untouched.
 - A visitor's conversation is protected through the library protector, with the visitor
   reference as its person, as `01` MSG-SEND-018 protects anonymous values.
 - Staff replies are under the same key.
+- A survey's comment is under the conversation's key, its context
+  `conversations:<id>:surveycomment` (MSG-CONV-004, M-036).
 
-*Source: M-011, M-032, M-034*
+*Source: M-011, M-032, M-034, M-036*
 
 **Acceptance criteria**
 1. A message's protected text copied to another row does not open. A key version a
