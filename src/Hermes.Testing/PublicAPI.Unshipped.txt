@@ -1,11 +1,1 @@
 #nullable enable
-Hermes.Testing.FixedAttachmentScanner
-Hermes.Testing.FixedAttachmentScanner.Answer.get -> Hermes.Core.ScanResult
-Hermes.Testing.FixedAttachmentScanner.FixedAttachmentScanner(Hermes.Core.ScanResult answer = Hermes.Core.ScanResult.Clean) -> void
-Hermes.Testing.FixedAttachmentScanner.ScanAsync(System.IO.Stream! content, string! mediaType, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.ScanResult>
-Hermes.Testing.InMemoryAttachmentStore
-Hermes.Testing.InMemoryAttachmentStore.Count.get -> int
-Hermes.Testing.InMemoryAttachmentStore.DeleteAsync(string! key, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
-Hermes.Testing.InMemoryAttachmentStore.InMemoryAttachmentStore() -> void
-Hermes.Testing.InMemoryAttachmentStore.OpenAsync(string! key, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.IO.Stream?>
-Hermes.Testing.InMemoryAttachmentStore.PutAsync(string! key, System.IO.Stream! content, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask
