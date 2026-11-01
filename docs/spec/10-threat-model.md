@@ -14,6 +14,8 @@ way.
 | A person's choices (preferences, suppressions) | Their tables | Identity checks on the endpoints (`05` MSG-API-002); signed tokens (`05` MSG-API-005); suppressions hold no destination |
 | Provider credentials, the VAPID private keys, the content, hash, token and report keys | The secret source only | `06` MSG-OPS-008 |
 | The SMS balance | The provider account | Allowed prefixes, limits, the floor, the drain alert (`01` MSG-SEND-014, `02` MSG-SMS-002, MSG-SMS-006) |
+| Conversations: messages, notes, attachments, survey comments, offline addresses (M-038) | The conversations' tables, the attachment store | Encryption at rest bound to its row and person, attachments in protected chunks, retention, and the membership seam on every read and write (`09` MSG-CONV-006, MSG-CONV-007, MSG-CONV-009, MSG-CONV-010) |
+| A visitor's reference (M-038) | The visitor's browser, as the cookie `messaging_visitor` | HttpOnly, Secure and SameSite Lax, and stored as a keyed hash only (`09` MSG-CONV-001) |
 
 ---
 
@@ -54,13 +56,24 @@ control SHALL have the test its requirement gives.
 | A site the developer visits reads captured codes through the browser (DNS rebinding, another origin) | The inbox answers only requests from a loopback address under a loopback host name, sends no CORS headers, and clears only with its own header (`02` MSG-DEV-005) |
 | Script in a captured message runs in the inbox page | Every value written as text under a strict policy; an email's HTML served from its own route under a policy and sandbox with no script (`02` MSG-DEV-005) |
 | Captured messages are read from the disk by another user, or committed | A folder only its owner reads, outside the application's content root, its records deleted after `KeepFor` (`02` MSG-DEV-002) |
+| A client of a hub reads a conversation without a person, or after losing access to it (M-038) | A connection without a person is refused, and every push re-checks the reader (`09` MSG-CONV-008) |
+| A `NOTIFY` payload carries a person or a message's text to anyone who listens on the database (M-038) | Payloads carry identifiers only, no person and no text (`09` MSG-CONV-008) |
+| A visitor's cookie is read by script, sent by another site, or read from a database copy (M-038) | It is HttpOnly, Secure and SameSite Lax, and stored as a keyed hash only (`09` MSG-CONV-001) |
+| An attachment carries malware, or a file that runs as a page in the reader's browser (M-038) | Nothing opens before a clean scan; downloads carry `nosniff` and are attachments; declared types are checked against content (`09` MSG-CONV-007) |
+| The public side is flooded, or abused by one visitor (M-038) | Limits per visitor and per source address, and blocks (`09` MSG-CONV-011) |
+| A message's text carries script that runs in a staff member's or a visitor's browser (M-038) | The library stores and answers plain text and never renders HTML (`05` MSG-API-009, MSG-API-010); the host's frontend encodes it, its own duty (`06` MSG-OPS-007) |
+| A staff member reads or writes a conversation they may not (M-038) | Every read and write asks the membership seam, and a non-member is answered 404 (`09` MSG-CONV-002, MSG-CONV-006) |
+| A staff note reaches a visitor (M-038) | No read or push of the public side carries a `note` (`09` MSG-CONV-001; `05` MSG-API-010) |
 
-*Source: M-007, M-008, M-009, M-010, M-012, M-022, M-024, M-026*
+*Source: M-007, M-008, M-009, M-010, M-012, M-022, M-024, M-026, M-038*
 
 **Acceptance criteria**
 1. Every control above that the library itself carries has a test carrying the
    identifier of the requirement that names it; the host's own controls, the redaction
    of request logs and the clocks are the deployment's (`06` MSG-OPS-007).
+2. Each threat row's control has a passing test carrying the identifier of each
+   requirement it names (M-038).
+3. No log line holds message text or attachment bytes.
 
 ---
 
