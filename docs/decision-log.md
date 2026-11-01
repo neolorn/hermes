@@ -2690,6 +2690,8 @@ This entry settles the map's C42 to C46.
 >   source's (each upload counts as one message toward them), a block refusing it as it
 >   refuses a message, and no upload before the current notice is acknowledged, each
 >   with the same code as the message write.
+> - An upload counts as one message toward the visitor's or customer's message limit
+>   only, as the message write does, and never toward the source's.
 >
 > Propagated to `05` MSG-API-010; `08` section 1; `09` MSG-CONV-007, MSG-CONV-010,
 > MSG-CONV-011.
