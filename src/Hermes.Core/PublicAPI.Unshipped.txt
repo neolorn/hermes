@@ -63,7 +63,7 @@ Hermes.Core.IConversations.EditAsync(string! person, Hermes.Core.ConversationId 
 Hermes.Core.IConversations.LeaveAsync(string! person, Hermes.Core.ConversationId conversation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.ListAsync(string! person, string? cursor, int? size, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationPage!>!>
 Hermes.Core.IConversations.MarkReadAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.MessageId message, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
-Hermes.Core.IConversations.MessagesAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.MessageId? before, int? size, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.MessagePage!>!>
+Hermes.Core.IConversations.MessagesAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.MessageId? before, Hermes.Core.MessageId? after, int? size, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.MessagePage!>!>
 Hermes.Core.IConversations.MuteAsync(string! person, Hermes.Core.ConversationId conversation, bool muted, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.OpenGroupAsync(string! person, Hermes.Core.ConversationScope! scope, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationRecord!>!>
 Hermes.Core.IConversations.ReadAsync(string! person, Hermes.Core.ConversationId conversation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationRecord!>!>
@@ -123,6 +123,8 @@ Hermes.Core.ParticipantId.Value.init -> void
 Hermes.Core.ParticipantRecord
 Hermes.Core.ParticipantRecord.<Clone>$() -> Hermes.Core.ParticipantRecord!
 Hermes.Core.ParticipantRecord.Equals(Hermes.Core.ParticipantRecord? other) -> bool
+Hermes.Core.ParticipantRecord.Online.get -> bool
+Hermes.Core.ParticipantRecord.Online.init -> void
 Hermes.Core.ParticipantRecord.Participant.get -> Hermes.Core.ParticipantId
 Hermes.Core.ParticipantRecord.Participant.init -> void
 Hermes.Core.ParticipantRecord.ParticipantRecord() -> void

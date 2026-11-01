@@ -36,7 +36,8 @@ internal static class StaffEndpoints
     {
         group.MapGet("/conversations", (Delegate)ListAsync)
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
-            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized);
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapPost("/conversations/direct", (Delegate)StartAsync)
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
             .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
@@ -185,6 +186,11 @@ internal static class StaffEndpoints
             return Refusal.Of(StatusCodes.Status400BadRequest, ChatCodes.ConversationInvalid, ("field", "kind"));
         }
 
+        if (!StaffChats.IsReference(reference))
+        {
+            return RequestBodies.Malformed("reference");
+        }
+
         return await CallAsync<JsonAnswer<ConversationBody>>(context, async conversations =>
         {
             Result<ConversationRecord> opened = await conversations.OpenGroupAsync(person, new ConversationScope { Kind = scopeKind, Reference = reference }, context.RequestAborted).ConfigureAwait(false);
@@ -240,9 +246,20 @@ internal static class StaffEndpoints
             before = new MessageId(named);
         }
 
+        MessageId? after = null;
+        if (query.TryGetValue("after", out StringValues afters))
+        {
+            if (afters.Count != 1 || before is not null || !Guid.TryParseExact(afters[0], "D", out Guid named))
+            {
+                return RequestBodies.Malformed("after");
+            }
+
+            after = new MessageId(named);
+        }
+
         return await CallAsync<JsonAnswer<MessagesBody>>(context, async conversations =>
         {
-            Result<MessagePage> page = await conversations.MessagesAsync(person, new ConversationId(conversation), before, size, context.RequestAborted).ConfigureAwait(false);
+            Result<MessagePage> page = await conversations.MessagesAsync(person, new ConversationId(conversation), before, after, size, context.RequestAborted).ConfigureAwait(false);
             return page.Failure is { } refused
                 ? Refused(context, refused)
                 : new JsonAnswer<MessagesBody>(new MessagesBody([.. page.Value!.Messages.Select(Of)]), ConversationsJson.Default.MessagesBody);
@@ -512,13 +529,13 @@ internal static class StaffEndpoints
             record.Conversation.Value.ToString("D"),
             ConversationSpellings.Of(record.Type),
             record.Scope is { } scope ? new ScopeBody(ConversationSpellings.Of(scope.Kind), scope.Reference) : null,
-            [.. record.Participants.Select(participant => new ParticipantBody(participant.Participant.Value.ToString("D"), participant.Person))],
+            [.. record.Participants.Select(participant => new ParticipantBody(participant.Participant.Value.ToString("D"), participant.Person, participant.Online))],
             record.Unread,
             record.Muted,
             Text(record.LastAt));
     }
 
-    private static MessageBody Of(MessageRecord record)
+    internal static MessageBody Of(MessageRecord record)
     {
         return new MessageBody(
             record.Message.Value.ToString("D"),

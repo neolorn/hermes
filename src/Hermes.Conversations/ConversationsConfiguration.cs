@@ -9,7 +9,7 @@ namespace Hermes.Conversations;
 /// <summary>
 /// The package's keys under <c>Hermes:Conversations:</c>, checked raw at start where the
 /// package is registered (M-031). An unknown key there fails the start; the engine's own keys
-/// keep their check. The package knows no key yet, so every key there is one it does not know.
+/// keep their check.
 /// </summary>
 internal static class ConversationsConfiguration
 {
@@ -17,7 +17,10 @@ internal static class ConversationsConfiguration
     internal const string Section = "Conversations";
 
     /// <summary>The keys the package knows, as <c>08</c> section 4 spells them.</summary>
-    internal static IReadOnlySet<string> Known { get; } = new HashSet<string>(StringComparer.Ordinal);
+    internal static IReadOnlySet<string> Known { get; } = new HashSet<string>(StringComparer.Ordinal) { AwayKind };
+
+    /// <summary>The kind a person who is away is told of a conversation's message as (<c>09</c> MSG-CONV-008).</summary>
+    internal const string AwayKind = "Conversations:AwayKind";
 
     /// <summary>
     /// The first key, in ordinal order, at or under <paramref name="hermes"/>'s section

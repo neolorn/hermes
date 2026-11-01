@@ -36,9 +36,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   persons, edited and deleted by their authors alone; read positions that move forward
   only, and each conversation's unread count
 - The sample host lets its staff talk in the shop's group conversation
+- A group conversation's scope reference is 1 to 128 characters, as a person reference is;
+  outside it, the group route answers `messaging.request.malformed`, `member` `reference`
+- The sample host maps the in-app group
+- The migration `LiveConnection`, which adds the table `connections`, each staff-hub
+  connection's person, process and last-seen instant, deleted at its person's erasure, and
+  to each participant the message they were last told of while away; it drops and
+  rewrites nothing
+- The live connection: `MapHermesStaffConversations` also maps the staff hub at `/live`,
+  which pushes a message, its edit or delete, a read position, typing and presence to the
+  persons connected to any process who may read the conversation, each process listening
+  for the others' writes on a connection of its own; `ParticipantRecord.Online` and a
+  participant's `online`; the messages route's `after`, oldest first; and away notices, sent
+  as the kind `Hermes:Conversations:AwayKind` names to a person away from a conversation,
+  once until they read, an undeclared kind stopping the start
 
 ### Fixed
 
+- `GET /conversations` of the staff conversations group declares its 503, which it answers
+  when the person's locks are not had in time
 - `Hermes:Languages` set item by item through a web host's test factory, which gives the
   list itself an empty value, no longer stops the start
 

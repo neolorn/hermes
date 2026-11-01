@@ -29,7 +29,7 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
         [
             (await chat.CallAsync(chats => chats.OpenGroupAsync("omar", Desk, default))).Failure,
             (await chat.CallAsync(chats => chats.ReadAsync("omar", group, default))).Failure,
-            (await chat.CallAsync(chats => chats.MessagesAsync("omar", group, null, null, default))).Failure,
+            (await chat.CallAsync(chats => chats.MessagesAsync("omar", group, null, null, null, default))).Failure,
             (await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Hello", MessageType.Text, null, null, default))).Failure,
             (await chat.CallAsync(chats => chats.EditAsync("omar", group, message, "Hello", default))).Failure,
             (await chat.CallAsync(chats => chats.DeleteAsync("omar", group, message, default))).Failure,
@@ -55,10 +55,10 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
 
         chat.Membership.Remove(Desk, "omar");
 
-        Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.MessagesAsync("omar", group, null, null, default))).Failure?.Code);
+        Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.MessagesAsync("omar", group, null, null, null, default))).Failure?.Code);
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Still here", MessageType.Text, null, null, default))).Failure?.Code);
         Assert.Equal(asked + 2, chat.Membership.Asked);
-        Assert.Single((await chat.CallAsync(chats => chats.MessagesAsync("amal", group, null, null, default))).Value!.Messages);
+        Assert.Single((await chat.CallAsync(chats => chats.MessagesAsync("amal", group, null, null, null, default))).Value!.Messages);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
         MessageId message = (await chat.CallAsync(chats => chats.WriteAsync("omar", started.Conversation, "Hi", MessageType.Text, null, null, default))).Value!.Message;
 
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.ReadAsync("sara", started.Conversation, default))).Failure?.Code);
-        Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.MessagesAsync("sara", started.Conversation, null, null, default))).Failure?.Code);
+        Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.MessagesAsync("sara", started.Conversation, null, null, null, default))).Failure?.Code);
 
         Assert.True((await chat.CallAsync(chats => chats.LeaveAsync("omar", started.Conversation, default))).IsSuccess);
 
@@ -94,7 +94,7 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.WriteAsync("omar", started.Conversation, "Back", MessageType.Text, null, null, default))).Failure?.Code);
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.LeaveAsync("omar", started.Conversation, default))).Failure?.Code);
         Assert.Empty((await chat.CallAsync(chats => chats.ListAsync("omar", null, null, default))).Value!.Conversations);
-        MessagePage kept = (await chat.CallAsync(chats => chats.MessagesAsync("amal", started.Conversation, null, null, default))).Value!;
+        MessagePage kept = (await chat.CallAsync(chats => chats.MessagesAsync("amal", started.Conversation, null, null, null, default))).Value!;
         Assert.Equal(message, Assert.Single(kept.Messages).Message);
         Assert.Equal(["amal"], (await chat.CallAsync(chats => chats.ReadAsync("amal", started.Conversation, default))).Value!.Participants.Select(each => each.Person));
 
@@ -292,7 +292,7 @@ public sealed class StaffChatTests(PostgresFixture postgres) : IClassFixture<Pos
 
     private static async Task<MessageRecord> MessageAsync(ChatHost chat, string person, ConversationId conversation, MessageId message)
     {
-        MessagePage page = (await chat.CallAsync(chats => chats.MessagesAsync(person, conversation, null, 100, default))).Value!;
+        MessagePage page = (await chat.CallAsync(chats => chats.MessagesAsync(person, conversation, null, null, 100, default))).Value!;
         return page.Messages.Single(each => each.Message == message);
     }
 

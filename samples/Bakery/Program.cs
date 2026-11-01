@@ -53,6 +53,7 @@ app.MapHermesPreferences("/notifications");
 app.MapHermesPushSubscriptions("/notifications");
 app.MapHermesUnsubscribe("/notifications");
 app.MapHermesSmsReports("/notifications");
+app.MapHermesInApp("/notifications");
 app.MapHermesStaffConversations("/notifications").RequireAuthorization(ShopEndpoints.StaffPolicy);
 app.MapHermesDevelopmentInbox("/dev/inbox");
 

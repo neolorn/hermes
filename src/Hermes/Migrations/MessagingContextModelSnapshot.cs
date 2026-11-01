@@ -23,6 +23,37 @@ namespace Hermes.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Hermes.Conversations.ConnectionRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_at");
+
+                    b.Property<string>("Person")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("person");
+
+                    b.Property<Guid>("Process")
+                        .HasColumnType("uuid")
+                        .HasColumnName("process");
+
+                    b.HasKey("Id")
+                        .HasName("pk_connections");
+
+                    b.HasIndex("LastSeenAt")
+                        .HasDatabaseName("ix_connections_last_seen_at");
+
+                    b.HasIndex("Person")
+                        .HasDatabaseName("ix_connections_person");
+
+                    b.ToTable("connections", "messaging");
+                });
+
             modelBuilder.Entity("Hermes.Conversations.ConversationRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -177,6 +208,10 @@ namespace Hermes.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("AwayTold")
+                        .HasColumnType("uuid")
+                        .HasColumnName("away_told");
+
                     b.Property<Guid>("ConversationId")
                         .HasColumnType("uuid")
                         .HasColumnName("conversation_id");
@@ -204,6 +239,9 @@ namespace Hermes.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_participants");
+
+                    b.HasIndex("AwayTold")
+                        .HasDatabaseName("ix_participants_away_told");
 
                     b.HasIndex("Person")
                         .HasDatabaseName("ix_participants_person");
@@ -1226,6 +1264,12 @@ namespace Hermes.Migrations
 
             modelBuilder.Entity("Hermes.Conversations.ParticipantRow", b =>
                 {
+                    b.HasOne("Hermes.Conversations.MessageRow", null)
+                        .WithMany()
+                        .HasForeignKey("AwayTold")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_participants_messages_away_told");
+
                     b.HasOne("Hermes.Conversations.ConversationRow", null)
                         .WithMany()
                         .HasForeignKey("ConversationId")

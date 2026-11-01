@@ -40,7 +40,7 @@ public interface IConversations
     /// <param name="person">The person reference.</param>
     /// <param name="scope">The scope.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The conversation; or a failure: <c>messaging.conversation.notfound</c> for a person who is not a member.</returns>
+    /// <returns>The conversation; or a failure: <c>messaging.conversation.notfound</c> for a person who is not a member; <c>messaging.request.malformed</c> (<c>member</c> <c>reference</c>) for a scope reference outside 1 to 128 characters.</returns>
     /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
     /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
@@ -56,18 +56,19 @@ public interface IConversations
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result<ConversationRecord>> ReadAsync(string person, ConversationId conversation, CancellationToken cancellationToken);
 
-    /// <summary>Reads a page of a conversation's messages, newest first.</summary>
+    /// <summary>Reads a page of a conversation's messages, newest first, or oldest first from <paramref name="after"/>.</summary>
     /// <param name="person">The person reference.</param>
     /// <param name="conversation">The conversation.</param>
     /// <param name="before">The message the page ends before, or none for the newest.</param>
+    /// <param name="after">The message the page starts after, oldest first, or none; a client that reconnects reads what it missed from its last message.</param>
     /// <param name="size">The most messages the page holds, 1 to 100, or none for 50.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    /// <returns>The page; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.request.malformed</c> (<c>member</c> <c>before</c>) for a message the conversation does not hold; <c>messaging.key.unavailable</c>.</returns>
+    /// <returns>The page; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.request.malformed</c> (<c>member</c> <c>before</c> or <c>after</c>) for a message the conversation does not hold, or both given; <c>messaging.key.unavailable</c>.</returns>
     /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
     /// <exception cref="System.ArgumentOutOfRangeException">A size outside 1 to 100.</exception>
     /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
-    ValueTask<Result<MessagePage>> MessagesAsync(string person, ConversationId conversation, MessageId? before, int? size, CancellationToken cancellationToken);
+    ValueTask<Result<MessagePage>> MessagesAsync(string person, ConversationId conversation, MessageId? before, MessageId? after, int? size, CancellationToken cancellationToken);
 
     /// <summary>Writes a message, its text protected under the person's key.</summary>
     /// <param name="person">The person reference.</param>

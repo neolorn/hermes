@@ -195,6 +195,21 @@ public sealed class BakeryTests(PostgresFixture postgres) : IClassFixture<Postgr
         Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
     }
 
+    [Fact]
+    public async Task InApp_ASignedInCustomer_ReadsTheirListAndAnAnonymousCallerIs401()
+    {
+        await using BakeryFactory bakery = await BakeryFactory.StartAsync(postgres);
+        using HttpClient customer = await bakery.SignInAsync("c-1");
+        using HttpClient anonymous = bakery.CreateClient();
+
+        using HttpResponseMessage list = await customer.GetAsync(Route("/notifications/inapp"), TestContext.Current.CancellationToken);
+        using HttpResponseMessage refused = await anonymous.GetAsync(Route("/notifications/inapp/unread"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Contains("\"entries\":[]", await list.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.Unauthorized, refused.StatusCode);
+    }
+
     /// <summary>Subscribes as a browser does: with the key <c>GET /notifications/push/key</c> answers, and keys of its own.</summary>
     private static async Task<HttpResponseMessage> SubscribeAsync(HttpClient client, string endpoint)
     {

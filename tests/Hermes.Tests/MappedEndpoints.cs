@@ -51,6 +51,12 @@ internal static class MappedEndpoints
     /// <summary>Each mapped route, with the responses its metadata declares.</summary>
     internal static IReadOnlyList<(string Route, IReadOnlyList<IProducesResponseTypeMetadata> Responses)> Read()
     {
+        return Read(out _);
+    }
+
+    /// <summary>Each mapped route, with the responses its metadata declares, and in <paramref name="hubs"/> the mapped hubs as lines (<see cref="HubContract"/>).</summary>
+    private static IReadOnlyList<(string Route, IReadOnlyList<IProducesResponseTypeMetadata> Responses)> Read(out IReadOnlyList<string> hubs)
+    {
         Dictionary<string, string?> configuration = EngineHost.Configuration();
         UnsubscribeLinkTests.Configure(configuration);
         configuration["Hermes:Push:AllowedHosts:0"] = "push.example.com";
@@ -82,6 +88,7 @@ internal static class MappedEndpoints
         using WebApplication inbox = builder.Build();
         inbox.MapHermesDevelopmentInbox(Endpoints.Prefix);
 
+        hubs = [.. HubContract.Mapped(((IEndpointRouteBuilder)host).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>())];
         return [.. Routes(host), .. Routes(inbox)];
     }
 
@@ -105,8 +112,9 @@ internal static class MappedEndpoints
     internal static SortedSet<string> Lines()
     {
         SortedSet<string> lines = new(StringComparer.Ordinal);
-        foreach ((string route, IReadOnlyList<IProducesResponseTypeMetadata> responses) in Read())
+        foreach ((string route, IReadOnlyList<IProducesResponseTypeMetadata> responses) in Read(out IReadOnlyList<string> hubs))
         {
+            lines.UnionWith(hubs);
             lines.Add(route);
             foreach (IProducesResponseTypeMetadata response in responses)
             {
