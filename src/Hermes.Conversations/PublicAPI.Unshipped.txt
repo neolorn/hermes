@@ -1,0 +1,3 @@
+#nullable enable
+Hermes.Conversations.MessagingConversationsServiceCollectionExtensions
+static Hermes.Conversations.MessagingConversationsServiceCollectionExtensions.AddHermesConversations(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

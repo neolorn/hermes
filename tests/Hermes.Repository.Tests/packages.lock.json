@@ -203,6 +203,13 @@
           "Hermes": "[1.0.0, )"
         }
       },
+      "hermes.conversations": {
+        "type": "Project",
+        "dependencies": {
+          "Hermes": "[1.0.0, )",
+          "Hermes.Core": "[1.0.0, )"
+        }
+      },
       "hermes.core": {
         "type": "Project"
       },
