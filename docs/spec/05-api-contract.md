@@ -389,7 +389,10 @@ instant (`09` MSG-CONV-005). Staff of a topic manage its shared saved replies, a
 person their own, through the replies routes: the list takes `topic` or `mine`, and a
 new reply's `topic` is none for one's own (`09` MSG-CONV-005). A topic's replies, for a
 person outside its scope, answer 404 `messaging.reply.notfound` on every replies route,
-never 403.
+never 403. A topic's supervisors (M-036) read its live view through `GET /support/live`,
+and its reports through `GET /support/reports`, with `topic`, `from` and `to`; a person
+who supervises no topic named answers 404 `messaging.conversation.notfound` (`09`
+MSG-CONV-005).
 
 **The staff hub (M-033).** The group also maps the staff hub at `/live`, so the host's
 authorization covers it too (`09` MSG-CONV-008). The person comes from
@@ -407,7 +410,7 @@ it missed from the messages route with `after`, since every push follows the sto
 | `conversation` | The server | `conversation`: one added to the person's list, as `<conversation>` |
 | `Typing` | The client | `conversationId` |
 
-*Source: M-032, M-033, M-034, M-035*
+*Source: M-032, M-033, M-034, M-035, M-036*
 
 **Acceptance criteria**
 1. Each route does what its operation does, and the endpoint contract test finds exactly
@@ -434,6 +437,7 @@ MSG-CONV-002).
 | `POST /support/conversations/{id}/messages` | `{ "text" }` | **201** `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }`; **400** `messaging.message.invalid`, `details.field` `text`; **404** `messaging.conversation.notfound`; **409** `messaging.support.noticerequired` for a visitor before an acknowledgement of the current notice; **403** `messaging.support.blocked`; **429** `messaging.support.limited` with `Retry-After` |
 | `POST /support/conversations/{id}/read` | `{ "messageId" }` | **204**; **404** `messaging.message.notfound` for a message the conversation does not hold, or `messaging.conversation.notfound` |
 | `POST /support/conversations/{id}/close` | `{ }` | **204**; **404** `messaging.conversation.notfound` |
+| `GET /support/conversations/{id}/transcript` | | **200** the transcript, `text/plain; charset=utf-8`, as an attachment; **404** `messaging.conversation.notfound`; **409** `messaging.support.notclosed` for a conversation not closed |
 
 No route needs a signed-in person. Where `IRecipientIdentity` answers a person, the
 conversation is that person's, with no cookie and no notice; otherwise the visitor is
@@ -444,7 +448,14 @@ customer's, or by an `id` that does not read, answers 404
 conversation's without `tags` and `snoozedUntil`, which are on staff bodies only (`09`
 MSG-CONV-005), and `<message>` never holding a `note` (`09` MSG-CONV-001). Bodies and
 refusals are the engine's, as MSG-API-001 gives. `MapHermesPublicConversations` answers
-the group's `RouteGroupBuilder`.
+the group's `RouteGroupBuilder`. Once a support conversation is closed (M-036), its
+visitor or customer reads its transcript through the transcript route, has it sent by
+email through `POST /support/conversations/{id}/transcript/email`, at most three times,
+a visitor giving `email`, and answers its survey once, within seven days of the close,
+through `POST /support/conversations/{id}/survey` with `resolved`, `rating` and an
+optional `comment`; a second survey answers 409 `messaging.support.surveyanswered`, a
+late one 409 `messaging.support.surveyclosed`, and a fourth email 429
+`messaging.support.limited` (`09` MSG-CONV-004).
 
 **The public hub.** The group also maps the public hub at `/live`, authenticated by the
 same cookie (`09` MSG-CONV-008). Its payloads are the staff hub's shapes, a
@@ -460,7 +471,7 @@ conversation's without `tags` and `snoozedUntil`.
 | `closed` | The server | `conversationId` |
 | `Typing` | The client | `conversationId` |
 
-*Source: M-034, M-035*
+*Source: M-034, M-035, M-036*
 
 **Acceptance criteria**
 1. The contract test finds exactly the public routes and hub.

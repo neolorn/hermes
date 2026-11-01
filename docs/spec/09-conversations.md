@@ -248,7 +248,51 @@ declares, so it passes every check of `01`. The survey asks whether the issue wa
 resolved and how the staff member did (a rating and an optional comment), and is kept
 for reports per staff member and topic.
 
-*Source: M-011*
+**The transcript (M-036).**
+- It is rendered from the conversation's messages, every type but `note`, oldest first,
+  in the conversation's language (MSG-CONV-003).
+- It is rendered through the page template `transcript`, with the library's own in each
+  declared language (`03` MSG-TPL-006). A host source may answer it instead.
+- The values are the topic, the instants opened and closed, and each message's author
+  kind, instant and text. Staff are named only as `staff`, never by reference.
+- It is plain text, UTF-8, at most 1 MB. Past that, the oldest messages are left out,
+  and the transcript says so.
+- The public group's transcript route serves it to the visitor (by cookie) or the
+  customer, as an attachment, for a closed conversation only (`05` MSG-API-010).
+  Otherwise it answers 409 `messaging.support.notclosed`.
+
+**By email (M-036).**
+- The public group's transcript email route sends it as the kind named by
+  `Hermes:Conversations:Support:TranscriptKind` (`08` section 4). The key is required
+  where topics are configured, and is read at start, where a kind not declared stops the
+  start naming it, as `AwayKind` does (MSG-CONV-008).
+- The send goes to a visitor's given `email`, as `Recipient.Anonymous`, or to the
+  customer as their person. The kind's values are `topic`, `closedAt` and `transcript`,
+  the rendered text.
+- A conversation's transcript is sent at most 3 times. The fourth answers 429
+  `messaging.support.limited`.
+- Every check of `01` applies to the send.
+
+**The survey (M-036).**
+- The public group's survey route (`05` MSG-API-010) takes `resolved` (a boolean),
+  `rating` (1 to 5) and an optional `comment` (up to 1,000 characters).
+- The survey is answered once: a second answers 409
+  `messaging.support.surveyanswered`. It is answered within 7 days of the close: after
+  that it answers 409 `messaging.support.surveyclosed`.
+- It rates the staff member assigned when the conversation closed. A conversation never
+  assigned keeps its survey with no staff member.
+- The comment is a protected value of the conversation, under the same key as its
+  messages, its context `conversations:<id>:surveycomment` (MSG-CONV-009). It is kept
+  and erased with the conversation.
+
+*Source: M-011, M-036*
+
+**Acceptance criteria**
+1. The transcript holds every message but notes, in the conversation's language, names
+   no staff member, and is served only for a closed conversation, only to its visitor
+   or customer.
+2. Emailing it sends the declared kind, at most three times.
+3. The survey is taken once, within seven days, and its comment is protected.
 
 ---
 
@@ -322,7 +366,31 @@ live conversations, and reports of waiting time, handling time and survey scores
 - Each timer fires once, survives a restart, and fires nothing on a closed conversation.
   Each timer's next instant is a column, moved in the transaction that fires it.
 
-*Source: M-011, M-033, M-035*
+**Supervisors (M-036).**
+- Each topic gains `Supervisors`, a membership scope (kind and reference, as `Scope`,
+  MSG-CONV-002; `08` section 4). Its members supervise the topic, through
+  `IsMemberAsync` on every call (MSG-CONV-006).
+- A supervisor reads every conversation of the topic, notes included, as its staff do.
+- The staff group's live route, with `topic`, answers the topic's open and snoozed
+  conversations, each with its status, assignee, place and minutes waited (`05`
+  MSG-API-009). It is over HTTP: the client reads it again.
+- A person who supervises no topic named answers 404 `messaging.conversation.notfound`.
+
+**Reports (M-036).**
+- The staff group's reports route, with `topic`, `from` and `to`, is for the topic's
+  supervisors (`05` MSG-API-009). The period is whole days in the topic's time zone, at
+  most 92.
+- It answers, per staff member and for the topic as a whole:
+  - conversations closed;
+  - the median and 90th percentile of waiting time (queued to assigned) and of handling
+    time (assigned to closed);
+  - surveys answered (MSG-CONV-004), the share resolved, and the mean rating.
+- Everything is computed when read, from the conversations' rows. Nothing is aggregated
+  or stored.
+- Two counters join `08` section 8: `hermes.conversations.started` and
+  `hermes.conversations.closed`, each tagged `topic`.
+
+*Source: M-011, M-033, M-035, M-036*
 
 **Acceptance criteria**
 1. Typing reaches the others and is never stored.
@@ -333,6 +401,10 @@ live conversations, and reports of waiting time, handling time and survey scores
    after the warning restarts the silence.
 6. A restart fires no timer twice and misses none, and nothing fires on a closed
    conversation.
+7. Only a supervisor of the topic reads its live view and reports. A supervisor reads
+   notes.
+8. Reports give the medians, the 90th percentiles, the survey figures per staff member
+   and topic, over a period of at most 92 days.
 
 ---
 

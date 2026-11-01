@@ -199,21 +199,25 @@ Templates are read at startup and kept; a changed template takes effect at the n
 start. A folder that does not exist holds no template, so a host whose templates all
 come from its source or its assemblies needs none (`08` section 4).
 
-The library's pages, each with one part, `html`:
+The library's pages, each with one part, `html`, but `transcript`, whose one part is
+`text` (M-036):
 
 | Page | Shown | Values |
 |---|---|---|
 | `unsubscribe` | By `GET /unsubscribe/{token}`: asks the person to confirm, with one button that posts a form carrying a field named `page` to `action` | `category` (the category's label in the language), `action` (the address the form posts to), `language`, `direction` |
 | `unsubscribed` | After the page's form is posted: confirms that the category's messages stop | `category`, `language`, `direction` |
 | `unsubscribeinvalid` | By `GET /unsubscribe/{token}`, or a `POST` carrying `page`, for a token that does not verify: says the link no longer works | `language`, `direction` |
+| `transcript` | By the public group's transcript route, and as the value `transcript` of the kind `Hermes:Conversations:Support:TranscriptKind` (`09` MSG-CONV-004): a closed support conversation's messages, every type but `note`, oldest first, as plain text, UTF-8, at most 1 MB, saying so where the oldest are left out | The topic, the instants opened and closed, and each message's author kind, instant and text, staff named only as `staff`, never by reference |
 
-The library ships the three pages in `en` and `ar`. A page renders in the language its
-token records, or the default where that language is no longer declared or the token
-does not verify (`05` MSG-API-005). A category's label is the host's (`01`
+The library ships the three pages in `en` and `ar`, and its own `transcript` in each
+declared language, which a host source may answer instead (M-036). A page renders in the
+language its token records, or the default where that language is no longer declared or
+the token does not verify (`05` MSG-API-005); `transcript` renders in the conversation's
+language (`09` MSG-CONV-003, MSG-CONV-004). A category's label is the host's (`01`
 MSG-SEND-002): the library holds no wording of its own besides the shipped pages, which
 a host replaces by supplying its own.
 
-*Source: M-005, M-016, M-035*
+*Source: M-005, M-016, M-035, M-036*
 
 **Acceptance criteria**
 1. A template file under the folder is used for its kind, channel, language and part.
