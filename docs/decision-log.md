@@ -2184,6 +2184,14 @@ This entry settles the map's C7, C12 to C19, C50 to C52 and C57 to C60.
 > `09` MSG-CONV-002, MSG-CONV-008, MSG-CONV-009, MSG-CONV-011; `implementation-plan.md`
 > (phase 16).
 
+> **Amended.** 2026-11-01, on the review of phase 17's work:
+> - `05` declares 503 as for `GET /inapp` on `GET {staff}/support/queue` and on every
+>   public route that takes a person's lock: for a signed-in customer, every route that
+>   starts or names a conversation takes the person's locks shared, as the in-app list's
+>   routes do.
+>
+> Propagated to `05` MSG-API-009, MSG-API-010.
+
 ---
 
 ## M-035 — Phase 17: automatic replies and desk tools
@@ -2349,6 +2357,22 @@ This entry settles the map's C20 to C23, C28 to C31 and L19.
 >   MSG-SEND-003 in the note above.
 >
 > Propagated to `09` MSG-CONV-003; `implementation-plan.md` (phase 17).
+
+> **Amended.** 2026-11-01, on the review of phase 17's work:
+> - Only a `text` written by a staff member, a visitor or a customer restarts the
+>   silence. Library messages (`automatic`, `system`) and notes never do.
+> - The automatic close's `system` message carries no text: its type says what happened.
+> - The timers' columns are `waiting_at`, `closing_at`, `close_at` and `snoozed_until`,
+>   with `replies_fired` for the rules already fired (`08` section 8).
+> - `started` fires on a conversation created queued, by a start or an offline form,
+>   never on a transfer.
+> - `opens` is none within the topic's hours, otherwise the start of its next range,
+>   searched up to a year ahead.
+> - A reply template that does not parse fails the start with
+>   `messaging.startup.declarationinvalid`, `declaration` the rule and `field`
+>   `<language>.text`.
+>
+> Propagated to `03` MSG-TPL-004; `08` section 8; `09` MSG-CONV-003, MSG-CONV-005.
 
 ---
 
