@@ -91,6 +91,26 @@ internal static class PublicEndpoints
             .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
             .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
             .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapGet("/support/conversations/{id}/transcript", (HttpContext context, string id) => TranscriptAsync(context, path, id))
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status409Conflict)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapPost("/support/conversations/{id}/transcript/email", (HttpContext context, string id) => TranscriptEmailAsync(context, path, id))
+            .Produces(StatusCodes.Status202Accepted)
+            .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status409Conflict)
+            .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
+            .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapPost("/support/conversations/{id}/survey", (HttpContext context, string id) => SurveyAsync(context, path, id))
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status409Conflict)
+            .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
+            .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
         group.MapPost("/support/conversations/{id}/close", (HttpContext context, string id) => CloseAsync(context, path, id))
             .Produces(StatusCodes.Status204NoContent)
             .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
@@ -345,6 +365,66 @@ internal static class PublicEndpoints
         {
             Result closed = await chats.CallerCloseAsync(caller, conversation, context.RequestAborted).ConfigureAwait(false);
             return closed.Failure is { } refused ? Refused(context, refused, null) : TypedResults.NoContent();
+        }).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<TranscriptAnswer, Refusal>> TranscriptAsync(HttpContext context, string path, string id)
+    {
+        if (await CallerAsync(context, path, draw: false).ConfigureAwait(false) is not { } caller || !Guid.TryParseExact(id, "D", out Guid conversation))
+        {
+            return StaffEndpoints.NotFound();
+        }
+
+        return await CallAsync<TranscriptAnswer>(context, async chats =>
+        {
+            Result<string> transcript = await chats.TranscriptAsync(caller, conversation, context.RequestAborted).ConfigureAwait(false);
+            return transcript.Failure is { } refused ? Refused(context, refused, null) : new TranscriptAnswer(conversation, transcript.Value!);
+        }).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<StatusCodeHttpResult, Refusal>> TranscriptEmailAsync(HttpContext context, string path, string id)
+    {
+        (TranscriptEmailRequest? body, Refusal? malformed) = await RequestBodies.JsonAsync(context.Request, ConversationsJson.Default.TranscriptEmailRequest, read => read.Email is null ? "email" : null).ConfigureAwait(false);
+        if (malformed is not null)
+        {
+            return malformed;
+        }
+
+        if (await CallerAsync(context, path, draw: false).ConfigureAwait(false) is not { } caller || !Guid.TryParseExact(id, "D", out Guid conversation))
+        {
+            return StaffEndpoints.NotFound();
+        }
+
+        return await CallAsync<StatusCodeHttpResult>(context, async chats =>
+        {
+            (Failure? failure, bool bySend) = await chats.TranscriptEmailAsync(caller, conversation, body!.Email!, context.RequestAborted).ConfigureAwait(false);
+            if (failure is null)
+            {
+                return TypedResults.StatusCode(StatusCodes.Status202Accepted);
+            }
+
+            // A send the engine refuses answers its own code as 400 (09 MSG-CONV-004).
+            return bySend && failure.Code != Codes.KeyUnavailable ? Refusal.Of(StatusCodes.Status400BadRequest, failure) : Refused(context, failure, null);
+        }).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<NoContent, Refusal>> SurveyAsync(HttpContext context, string path, string id)
+    {
+        (SurveyRequest? body, Refusal? malformed) = await RequestBodies.JsonAsync(context.Request, ConversationsJson.Default.SurveyRequest, _ => null).ConfigureAwait(false);
+        if (malformed is not null)
+        {
+            return malformed;
+        }
+
+        if (await CallerAsync(context, path, draw: false).ConfigureAwait(false) is not { } caller || !Guid.TryParseExact(id, "D", out Guid conversation))
+        {
+            return StaffEndpoints.NotFound();
+        }
+
+        return await CallAsync<NoContent>(context, async chats =>
+        {
+            Result answered = await chats.SurveyAsync(caller, conversation, body!.Resolved, body.Rating, body.Comment, context.RequestAborted).ConfigureAwait(false);
+            return answered.Failure is { } refused ? Refused(context, refused, null) : TypedResults.NoContent();
         }).ConfigureAwait(false);
     }
 

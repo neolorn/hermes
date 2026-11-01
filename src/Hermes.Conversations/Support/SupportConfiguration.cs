@@ -26,6 +26,8 @@ internal static partial class SupportConfiguration
 
     internal const string OfflineReplyKind = "Conversations:Support:OfflineReplyKind";
 
+    internal const string TranscriptKind = "Conversations:Support:TranscriptKind";
+
     internal const string NoticeVersion = "Conversations:Support:NoticeVersion";
 
     internal const string VisitorStarts = "Conversations:Limits:VisitorStarts";
@@ -61,7 +63,7 @@ internal static partial class SupportConfiguration
     private static readonly string[] Days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
     /// <summary>The fixed keys of support.</summary>
-    internal static IReadOnlyList<string> Fixed { get; } = [Limit, OfflineReplyKind, NoticeVersion, VisitorStarts, VisitorMessages, SourceStarts, RetentionVisitor, CloseAfter, CloseWarning];
+    internal static IReadOnlyList<string> Fixed { get; } = [Limit, OfflineReplyKind, TranscriptKind, NoticeVersion, VisitorStarts, VisitorMessages, SourceStarts, RetentionVisitor, CloseAfter, CloseWarning];
 
     /// <summary>Whether <paramref name="key"/>, spelled as <c>08</c> section 4 spells keys, is one of a topic's keys.</summary>
     internal static bool IsTopicKey(string key)
@@ -98,6 +100,12 @@ internal static partial class SupportConfiguration
         if ((offline is null && topics.Count > 0) || (offline is not null && !kinds.Contains(offline, StringComparer.Ordinal)))
         {
             return (null, OfflineReplyKind);
+        }
+
+        string? transcript = hermes[TranscriptKind];
+        if ((transcript is null && topics.Count > 0) || (transcript is not null && !kinds.Contains(transcript, StringComparer.Ordinal)))
+        {
+            return (null, TranscriptKind);
         }
 
         string? notice = hermes[NoticeVersion];
@@ -166,6 +174,7 @@ internal static partial class SupportConfiguration
             Topics = topics,
             Limit = limit,
             OfflineReplyKind = offline,
+            TranscriptKind = transcript,
             NoticeVersion = notice,
             VisitorStarts = visitorStarts,
             VisitorMessages = visitorMessages,
@@ -399,6 +408,9 @@ internal sealed class SupportSettings
     internal int Limit { get; init; } = 3;
 
     internal string? OfflineReplyKind { get; init; }
+
+    /// <summary>The kind a closed conversation's transcript is sent by email as (<c>09</c> MSG-CONV-004).</summary>
+    internal string? TranscriptKind { get; init; }
 
     internal string? NoticeVersion { get; init; }
 

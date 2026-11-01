@@ -41,6 +41,8 @@ internal sealed partial class StaffChats(
     ConversationsSettings settings,
     SupportAssigner assigner,
     ReplyTemplates replyTemplates,
+    TranscriptTemplates transcriptTemplates,
+    Content.SendRenderer sendRenderer,
     MessagingMetrics metrics,
     TimeProvider clock,
     ILogger<StaffChats> logger) : IConversations

@@ -44,6 +44,7 @@ public static class MessagingConversationsServiceCollectionExtensions
         services.TryAddSingleton<LivePush>();
         services.TryAddSingleton<SupportAssigner>();
         services.TryAddSingleton<ReplyTemplates>();
+        services.TryAddSingleton<TranscriptTemplates>();
         services.TryAddScoped<StaffChats>();
         services.TryAddScoped<IConversations>(provider => provider.GetRequiredService<StaffChats>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ConversationsStartup>());

@@ -50,7 +50,8 @@ internal sealed class TemplateRenderer
     /// <summary>
     /// Renders <paramref name="template"/> with <paramref name="values"/>, in
     /// <paramref name="culture"/> and <paramref name="zone"/>, its buffer taking from
-    /// <paramref name="budget"/>; answers its text, or the code it is refused with.
+    /// <paramref name="budget"/>, under <paramref name="maxSteps"/> steps where given, the
+    /// configured limit otherwise; answers its text, or the code it is refused with.
     /// </summary>
     internal async ValueTask<Rendering> RenderAsync(
         IFluidTemplate template,
@@ -58,7 +59,8 @@ internal sealed class TemplateRenderer
         bool html,
         RenderBudget budget,
         CultureInfo culture,
-        TimeZoneInfo zone)
+        TimeZoneInfo zone,
+        int? maxSteps = null)
     {
         ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(values);
@@ -67,6 +69,7 @@ internal sealed class TemplateRenderer
         {
             CultureInfo = culture,
             TimeZone = zone,
+            MaxSteps = maxSteps ?? options.MaxSteps,
         };
         foreach (KeyValuePair<string, FluidValue> value in values)
         {

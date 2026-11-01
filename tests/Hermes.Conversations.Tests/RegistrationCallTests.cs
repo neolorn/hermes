@@ -67,7 +67,7 @@ public sealed class RegistrationCallTests
     }
 
     [Fact]
-    public void MapHermesPublicConversations_AfterAddHermesConversations_MapsItsNineRoutesUnderThePrefixAllowingAnonymousCallers()
+    public void MapHermesPublicConversations_AfterAddHermesConversations_MapsItsTwelveRoutesUnderThePrefixAllowingAnonymousCallers()
     {
         WebApplicationBuilder builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions());
         builder.WebHost.UseTestServer();
@@ -79,7 +79,7 @@ public sealed class RegistrationCallTests
         application.MapHermesPublicConversations("/public");
 
         Microsoft.AspNetCore.Routing.RouteEndpoint[] routes = [.. ((Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)application).DataSources.SelectMany(source => source.Endpoints).OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>().Where(endpoint => endpoint.RoutePattern.RawText!.StartsWith("/public/support", StringComparison.Ordinal))];
-        Assert.Equal(9, routes.Length);
+        Assert.Equal(12, routes.Length);
         Assert.All(routes, route => Assert.NotNull(route.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>()));
     }
 

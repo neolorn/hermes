@@ -56,8 +56,28 @@ internal sealed class ConversationsStartup(IServiceProvider services) : IHostedL
         settings.AwayKind = away;
         settings.Support = support!;
 
+        // The transcript's page, in every declared language, where topics are configured (03 MSG-TPL-004, M-036).
+        if (support!.Topics.Count > 0)
+        {
+            AsyncServiceScope scope = services.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                Dictionary<string, string>? failed = await services.GetRequiredService<TranscriptTemplates>().LoadAsync(
+                    services.GetRequiredService<IOptionsMonitor<MessagingOptions>>().CurrentValue,
+                    scope.ServiceProvider.GetService<ITemplateSource>(),
+                    services.GetRequiredService<IHostEnvironment>().ContentRootPath,
+                    services.GetRequiredService<Declarations>().Assemblies,
+                    services.GetRequiredService<Content.TemplateParser>(),
+                    cancellationToken).ConfigureAwait(false);
+                if (failed is not null)
+                {
+                    throw new MessagingStartupException(Codes.DeclarationInvalid, failed);
+                }
+            }
+        }
+
         // Every rule's template, in every declared language, read and checked as kinds' are (03 MSG-TPL-004).
-        if (support!.Rules.Count > 0)
+        if (support.Rules.Count > 0)
         {
             AsyncServiceScope scope = services.CreateAsyncScope();
             await using (scope.ConfigureAwait(false))

@@ -26,6 +26,8 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
 {
     internal const string ReplyKind = "support.reply";
 
+    internal const string TranscriptKind = "support.transcript";
+
     internal static readonly ConversationScope Team = new() { Kind = ScopeKind.Group, Reference = "team-billing" };
 
     [Fact]
@@ -487,6 +489,7 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
             {
                 declare.Category("support").Essential();
                 declare.Kind(ReplyKind, "support").Email();
+                declare.Kind(TranscriptKind, "support").Email();
             });
         chat.Membership.Add(Team, "amal", "omar");
         chat.Membership.Add(new ConversationScope { Kind = ScopeKind.Group, Reference = "team-other" }, "amal");
@@ -511,6 +514,7 @@ public sealed class SupportTests(PostgresFixture postgres) : IClassFixture<Postg
         }
 
         configuration["Hermes:Conversations:Support:OfflineReplyKind"] = ReplyKind;
+        configuration["Hermes:Conversations:Support:TranscriptKind"] = TranscriptKind;
         configuration["Hermes:Conversations:Support:NoticeVersion"] = "v1";
         configuration["Hermes:PublicBaseAddress"] = "https://shop.example";
         configuration["Hermes:Email:From:Address"] = "support@shop.example";

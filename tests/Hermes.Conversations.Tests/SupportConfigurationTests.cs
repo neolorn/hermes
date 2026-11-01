@@ -68,6 +68,7 @@ public sealed class SupportConfigurationTests
     [InlineData("Hermes:Conversations:Topics:billing:Scope:Kind", "Team", "Conversations:Topics:billing:Scope:Kind")]
     [InlineData("Hermes:Conversations:Support:Limit", "101", "Conversations:Support:Limit")]
     [InlineData("Hermes:Conversations:Support:OfflineReplyKind", "unknown-kind", "Conversations:Support:OfflineReplyKind")]
+    [InlineData("Hermes:Conversations:Support:TranscriptKind", "unknown-kind", "Conversations:Support:TranscriptKind")]
     [InlineData("Hermes:Conversations:Support:NoticeVersion", "", "Conversations:Support:NoticeVersion")]
     [InlineData("Hermes:Conversations:Limits:VisitorStarts", "0", "Conversations:Limits:VisitorStarts")]
     [InlineData("Hermes:Conversations:Limits:VisitorMessages", "10001", "Conversations:Limits:VisitorMessages")]
@@ -85,6 +86,7 @@ public sealed class SupportConfigurationTests
     [InlineData("Hermes:Conversations:Topics:billing:TimeZone", "Conversations:Topics:billing:TimeZone")]
     [InlineData("Hermes:Conversations:Topics:billing:Scope:Reference", "Conversations:Topics:billing:Scope:Reference")]
     [InlineData("Hermes:Conversations:Support:OfflineReplyKind", "Conversations:Support:OfflineReplyKind")]
+    [InlineData("Hermes:Conversations:Support:TranscriptKind", "Conversations:Support:TranscriptKind")]
     [InlineData("Hermes:Conversations:Support:NoticeVersion", "Conversations:Support:NoticeVersion")]
     public void Read_AKeyRequiredWhereTopicsAreConfiguredMissing_IsItsKey(string key, string expected)
     {
@@ -278,6 +280,7 @@ public sealed class SupportConfigurationTests
             [topic + ":Scope:Kind"] = "Group",
             [topic + ":Scope:Reference"] = "team-billing",
             ["Hermes:Conversations:Support:OfflineReplyKind"] = "support-reply",
+            ["Hermes:Conversations:Support:TranscriptKind"] = "support-reply",
             ["Hermes:Conversations:Support:NoticeVersion"] = "v3",
         };
     }
