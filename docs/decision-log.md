@@ -2151,6 +2151,39 @@ This entry settles the map's C7, C12 to C19, C50 to C52 and C57 to C60.
 > MSG-CONV-002, MSG-CONV-009, MSG-CONV-010, MSG-CONV-011; `implementation-plan.md`
 > (phase 16).
 
+> **Amended.** 2026-11-01, on the review of phase 16's work:
+> - A visitor's values are protected as an anonymous recipient's are, with no person,
+>   bound to their row. A visitor's conversations go by retention, never by erasure.
+> - `messaging_conversations` gains the events `place`, `assigned`, `closed` and
+>   `conversation`, each `<event>:<conversationId>:<conversationId>`.
+> - A member of the topic's scope reads a support conversation of the topic, transfers,
+>   closes and blocks it, and reads the topic's queue. Anyone else is answered 404, or an
+>   empty list for the queue. A member who is not the assignee writing is answered 404.
+>   Staff-side pushes go to the assignee alone; phase 18 adds the topic's supervisors.
+> - A staff member's list of conversations holds the open support conversations assigned
+>   to them, and the staff hub's `conversation` push tells them of one.
+> - `OfflineReplyKind`'s values are `conversation`, `message`, `topic` and `text`, the
+>   reply itself.
+> - `POST {public}/support/notice` answers 429 where the visitor or the source address is
+>   already at its starts limit, and counts nothing.
+> - A visitor or a customer holds one open conversation per topic: a second start on the
+>   same topic answers 409 `messaging.support.alreadyopen`, with `details.conversation`.
+>   `current` answers the newest open one.
+> - Support's storage columns join `08` section 8: `conversations.customer`,
+>   `conversations.email` and `conversations.email_key_version`, `messages.owner`, and
+>   `hash_version` on `participants`, `support_blocks`, `support_counters` and
+>   `support_acknowledgements`. `messages.owner` holds the person reference whose key
+>   protects the text: the author in a staff chat, the customer in a customer's support
+>   conversation, and none in a visitor's.
+>   Signed-in customers are limited as visitors are, counted by their person's keyed
+>   hash. Assignment runs only within hours: on queueing, a member freeing up, setting
+>   themselves available or connecting, and every 30 seconds. A topic is `open` within
+>   its hours while a member is available.
+>
+> Propagated to `01` MSG-SEND-018; `05` MSG-API-009, MSG-API-010; `08` sections 1 and 8;
+> `09` MSG-CONV-002, MSG-CONV-008, MSG-CONV-009, MSG-CONV-011; `implementation-plan.md`
+> (phase 16).
+
 ---
 
 # Index
