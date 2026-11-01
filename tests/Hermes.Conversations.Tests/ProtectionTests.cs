@@ -33,7 +33,7 @@ public sealed class ProtectionTests(PostgresFixture postgres) : IClassFixture<Po
             command.Parameters.AddWithValue("target", target.Value);
             return command;
         });
-        MessagePage page = (await chat.CallAsync(chats => chats.MessagesAsync("omar", direct, null, null, default))).Value!;
+        MessagePage page = (await chat.CallAsync(chats => chats.MessagesAsync("omar", direct, null, null, null, default))).Value!;
 
         Assert.Equal("the source's words", page.Messages.Single(each => each.Message == source).Text);
         MessageRecord copied = page.Messages.Single(each => each.Message == target);
@@ -62,20 +62,21 @@ public sealed class ProtectionTests(PostgresFixture postgres) : IClassFixture<Po
         MessageId inGroup = (await chat.CallAsync(chats => chats.WriteAsync("amal", group, "Amal in the group", MessageType.Text, null, null, default))).Value!.Message;
         MessageId kept = (await chat.CallAsync(chats => chats.WriteAsync("omar", direct, "Omar's words", MessageType.Text, erased, ["amal", "sara"], default))).Value!.Message;
 
+        await chat.ScalarAsync(database => new NpgsqlCommand("INSERT INTO messaging.connections (id, person, process, last_seen_at) VALUES (gen_random_uuid(), 'amal', gen_random_uuid(), now())", database));
         Result erasure = await chat.SubjectsAsync(subjects => subjects.EraseAsync("amal", default));
 
         Assert.True(erasure.IsSuccess);
-        MessagePage page = (await chat.CallAsync(chats => chats.MessagesAsync("omar", direct, null, null, default))).Value!;
+        MessagePage page = (await chat.CallAsync(chats => chats.MessagesAsync("omar", direct, null, null, null, default))).Value!;
         MessageRecord cleared = page.Messages.Single(each => each.Message == erased);
         Assert.Equal((AuthorKind.Person, (string?)null, (string?)null, true), (cleared.AuthorKind, cleared.Author, cleared.Text, cleared.Erased));
         Assert.Equal(["omar"], cleared.Mentions);
         MessageRecord other = page.Messages.Single(each => each.Message == kept);
         Assert.Equal(("omar", "Omar's words", false, (MessageId?)erased), (other.Author, other.Text, other.Erased, other.ReplyTo));
         Assert.Equal(["sara"], other.Mentions);
-        Assert.True(Assert.Single((await chat.CallAsync(chats => chats.MessagesAsync("omar", group, null, null, default))).Value!.Messages).Erased);
+        Assert.True(Assert.Single((await chat.CallAsync(chats => chats.MessagesAsync("omar", group, null, null, null, default))).Value!.Messages).Erased);
         Assert.Equal(["omar", "sara"], (await chat.CallAsync(chats => chats.ReadAsync("omar", direct, default))).Value!.Participants.Select(each => each.Person));
-        Assert.Equal(0L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT (SELECT count(*) FROM messaging.participants WHERE person = 'amal') + (SELECT count(*) FROM messaging.mentions WHERE person = 'amal') + (SELECT count(*) FROM messaging.messages WHERE author = 'amal' OR (author IS NULL AND text IS NOT NULL))", database)));
-        Assert.Equal(inGroup, Assert.Single((await chat.CallAsync(chats => chats.MessagesAsync("omar", group, null, null, default))).Value!.Messages).Message);
+        Assert.Equal(0L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT (SELECT count(*) FROM messaging.participants WHERE person = 'amal') + (SELECT count(*) FROM messaging.mentions WHERE person = 'amal') + (SELECT count(*) FROM messaging.connections WHERE person = 'amal') + (SELECT count(*) FROM messaging.messages WHERE author = 'amal' OR (author IS NULL AND text IS NOT NULL))", database)));
+        Assert.Equal(inGroup, Assert.Single((await chat.CallAsync(chats => chats.MessagesAsync("omar", group, null, null, null, default))).Value!.Messages).Message);
         Assert.Equal("messaging.conversation.notfound", (await chat.CallAsync(chats => chats.ReadAsync("amal", direct, default))).Failure?.Code);
     }
 }

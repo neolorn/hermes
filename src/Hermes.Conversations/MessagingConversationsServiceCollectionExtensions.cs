@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 
 using Hermes.Conversations.Chats;
+using Hermes.Conversations.Live;
 using Hermes.Core;
 using Hermes.Operations;
 
@@ -34,8 +35,15 @@ public static class MessagingConversationsServiceCollectionExtensions
             throw new InvalidOperationException("AddHermes is registered before AddHermesConversations is called.");
         }
 
-        services.TryAddScoped<IConversations, StaffChats>();
+        services.AddSignalR();
+        services.TryAddSingleton<ConversationsSettings>();
+        services.TryAddSingleton<LiveConnections>();
+        services.TryAddSingleton<LivePresence>();
+        services.TryAddSingleton<LivePush>();
+        services.TryAddScoped<StaffChats>();
+        services.TryAddScoped<IConversations>(provider => provider.GetRequiredService<StaffChats>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ConversationsStartup>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, LiveListener>());
         return services;
     }
 }

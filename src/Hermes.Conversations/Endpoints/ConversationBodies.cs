@@ -25,7 +25,8 @@ internal sealed record ScopeBody(string Kind, string Reference);
 /// <summary>A participant, <c>&lt;participant&gt;</c> of <c>05</c> MSG-API-009.</summary>
 /// <param name="Id">The participant's identifier, lower-case and hyphenated.</param>
 /// <param name="Person">The participant's person reference.</param>
-internal sealed record ParticipantBody(string Id, string Person);
+/// <param name="Online">Whether the participant holds a staff-hub connection.</param>
+internal sealed record ParticipantBody(string Id, string Person, bool Online);
 
 /// <summary>The answer of <c>GET /conversations/{id}/messages</c> (<c>05</c> MSG-API-009).</summary>
 /// <param name="Messages">The page's messages, newest first.</param>

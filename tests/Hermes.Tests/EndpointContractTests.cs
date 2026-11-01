@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Hermes.Endpoints;
 
@@ -122,6 +123,37 @@ public sealed class EndpointContractTests
 
         Assert.Contains("The mapped endpoints give GET /notifications/push/key, which 05 does not.", violations);
         Assert.Contains("The mapped endpoints give GET /notifications/push/key 200 body publicKey, which 05 does not.", violations);
+    }
+
+    [Fact]
+    public void MSG_API_009_AC2_TheContractTestFindsTheStaffHubsRouteAndMethods()
+    {
+        SortedSet<string> given = ApiContract.Read();
+        SortedSet<string> mapped = MappedEndpoints.Lines();
+
+        Assert.Empty(ApiContract.Violations(given, mapped));
+        Assert.Contains("HUB /notifications/live", mapped);
+        Assert.Contains("HUB /notifications/live server message conversationId,message", mapped);
+        Assert.Contains("HUB /notifications/live server presence participantId,online", mapped);
+        Assert.Contains("HUB /notifications/live client Typing conversationId", mapped);
+        Assert.Equal(8, mapped.Count(line => line.StartsWith("HUB ", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void MSG_API_009_AC2_AHubMethod05GivesThatTheHubDoesNotHaveIsFound()
+    {
+        const string Typing = "| `Typing` | The client | `conversationId` |";
+        string text = ApiContract.Text();
+        Assert.Contains(Typing, text, StringComparison.Ordinal);
+
+        IReadOnlyList<string> violations = Compare(text.Replace(Typing, Typing.Replace("`conversationId`", "`conversationId`, `draft`", StringComparison.Ordinal), StringComparison.Ordinal));
+
+        Assert.Equal(
+            [
+                "05 gives HUB /notifications/live client Typing conversationId,draft, which the mapped endpoints do not.",
+                "The mapped endpoints give HUB /notifications/live client Typing conversationId, which 05 does not.",
+            ],
+            violations);
     }
 
     [Theory]

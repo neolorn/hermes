@@ -246,9 +246,20 @@ internal static class StaffEndpoints
             before = new MessageId(named);
         }
 
+        MessageId? after = null;
+        if (query.TryGetValue("after", out StringValues afters))
+        {
+            if (afters.Count != 1 || before is not null || !Guid.TryParseExact(afters[0], "D", out Guid named))
+            {
+                return RequestBodies.Malformed("after");
+            }
+
+            after = new MessageId(named);
+        }
+
         return await CallAsync<JsonAnswer<MessagesBody>>(context, async conversations =>
         {
-            Result<MessagePage> page = await conversations.MessagesAsync(person, new ConversationId(conversation), before, size, context.RequestAborted).ConfigureAwait(false);
+            Result<MessagePage> page = await conversations.MessagesAsync(person, new ConversationId(conversation), before, after, size, context.RequestAborted).ConfigureAwait(false);
             return page.Failure is { } refused
                 ? Refused(context, refused)
                 : new JsonAnswer<MessagesBody>(new MessagesBody([.. page.Value!.Messages.Select(Of)]), ConversationsJson.Default.MessagesBody);
@@ -518,13 +529,13 @@ internal static class StaffEndpoints
             record.Conversation.Value.ToString("D"),
             ConversationSpellings.Of(record.Type),
             record.Scope is { } scope ? new ScopeBody(ConversationSpellings.Of(scope.Kind), scope.Reference) : null,
-            [.. record.Participants.Select(participant => new ParticipantBody(participant.Participant.Value.ToString("D"), participant.Person))],
+            [.. record.Participants.Select(participant => new ParticipantBody(participant.Participant.Value.ToString("D"), participant.Person, participant.Online))],
             record.Unread,
             record.Muted,
             Text(record.LastAt));
     }
 
-    private static MessageBody Of(MessageRecord record)
+    internal static MessageBody Of(MessageRecord record)
     {
         return new MessageBody(
             record.Message.Value.ToString("D"),

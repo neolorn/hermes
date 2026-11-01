@@ -123,6 +123,7 @@ internal static partial class ApiContract
         }
 
         lines.UnionWith(InboxSection.Read(text, prefix));
+        lines.UnionWith(HubContract.Read(text, prefix));
         return lines;
     }
 

@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   connection's person, process and last-seen instant, deleted at its person's erasure, and
   to each participant the message they were last told of while away; it drops and
   rewrites nothing
+- The live connection: `MapHermesStaffConversations` also maps the staff hub at `/live`,
+  which pushes a message, its edit or delete, a read position, typing and presence to the
+  persons connected to any process who may read the conversation, each process listening
+  for the others' writes on a connection of its own; `ParticipantRecord.Online` and a
+  participant's `online`; the messages route's `after`, oldest first; and away notices, sent
+  as the kind `Hermes:Conversations:AwayKind` names to a person away from a conversation,
+  once until they read, an undeclared kind stopping the start
 
 ### Fixed
 

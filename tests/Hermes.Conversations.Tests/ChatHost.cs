@@ -10,6 +10,8 @@ using Hermes.Testing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,23 +48,40 @@ internal sealed class ChatHost : IAsyncDisposable
 
     internal MembershipFake Membership { get; }
 
-    /// <summary>Starts a host, with the services <paramref name="services"/> registers before the engine's.</summary>
-    internal static async Task<ChatHost> StartAsync(PostgresFixture postgres, Action<IServiceCollection>? services = null)
+    /// <summary>
+    /// Starts a host, with the services <paramref name="services"/> registers before the
+    /// engine's, the configuration <paramref name="configure"/> adds and the kinds
+    /// <paramref name="declare"/> declares; on the database of <paramref name="shared"/> where
+    /// given, as a second process of the same deployment, and its membership seam.
+    /// </summary>
+    internal static async Task<ChatHost> StartAsync(
+        PostgresFixture postgres,
+        Action<IServiceCollection>? services = null,
+        ChatHost? shared = null,
+        Action<Dictionary<string, string?>>? configure = null,
+        Action<DeclarationBuilder>? declare = null)
     {
-        string connection = await postgres.NewDatabaseAsync();
-        await MessagingTestDatabase.MigrateAsync(connection, TestContext.Current.CancellationToken);
+        string connection = shared?.Connection ?? await postgres.NewDatabaseAsync();
+        if (shared is null)
+        {
+            await MessagingTestDatabase.MigrateAsync(connection, TestContext.Current.CancellationToken);
+        }
+
         WebApplicationBuilder builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions { EnvironmentName = Environments.Production });
         builder.WebHost.UseTestServer();
         builder.Services.AddRouting();
         builder.Logging.ClearProviders();
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+        Dictionary<string, string?> configuration = new(StringComparer.Ordinal)
         {
             ["Hermes:Languages:0"] = "en",
             ["Hermes:DefaultLanguage"] = "en",
             ["Hermes:Dispatch:Enabled"] = "false",
             ["Hermes:Jobs:Enabled"] = "false",
-        });
-        MembershipFake membership = new();
+        };
+        configure?.Invoke(configuration);
+        builder.Configuration.AddInMemoryCollection(configuration);
+        MembershipFake membership = shared?.Membership ?? new();
+        builder.Services.AddSingleton<ITemplateSource>(new AwayTemplates());
         builder.Services.AddHermesTesting(secrets => secrets.SetSecret(
             "connection",
             new SecretVersions { Versions = [new SecretVersion { Version = 1, Value = Encoding.UTF8.GetBytes(connection) }] }));
@@ -70,7 +89,7 @@ internal sealed class ChatHost : IAsyncDisposable
         builder.Services.AddSingleton<IRecipientIdentity, HeaderIdentity>();
         builder.Services.AddSingleton<IConversationMembership>(membership);
         services?.Invoke(builder.Services);
-        builder.Services.AddHermes(builder.Configuration, _ => { });
+        builder.Services.AddHermes(builder.Configuration, declare ?? (_ => { }));
         builder.Services.AddHermesConversations();
         WebApplication application = builder.Build();
         application.MapHermesStaffConversations(Prefix);
@@ -86,6 +105,40 @@ internal sealed class ChatHost : IAsyncDisposable
         {
             return await call(scope.ServiceProvider.GetRequiredService<IConversations>());
         }
+    }
+
+    /// <summary>Connects to the staff hub as <paramref name="person"/>, over long polling through the test server, waiting until the hub recorded the connection where <paramref name="recorded"/>.</summary>
+    internal async Task<HubConnection> ConnectAsync(string person, bool recorded = true)
+    {
+        TestServer server = Application.GetTestServer();
+        HubConnection hub = new HubConnectionBuilder()
+            .WithUrl(new Uri(server.BaseAddress, Prefix + "/live"), options =>
+            {
+                options.HttpMessageHandlerFactory = _ => server.CreateHandler();
+                options.Transports = HttpTransportType.LongPolling;
+                options.Headers[PersonHeader] = person;
+            })
+            .Build();
+        await hub.StartAsync(TestContext.Current.CancellationToken);
+
+        // The hub records a connection once its handshake is answered, so a test waits for its row.
+        for (int wait = 0; recorded && wait < 500; wait++)
+        {
+            object? held = await ScalarAsync(database =>
+            {
+                NpgsqlCommand command = new("SELECT count(*) FROM messaging.connections WHERE person = @person", database);
+                command.Parameters.AddWithValue("person", person);
+                return command;
+            });
+            if (held is long and > 0)
+            {
+                break;
+            }
+
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        }
+
+        return hub;
     }
 
     /// <summary>Calls <see cref="ISubjects"/> in a scope of its own.</summary>
@@ -135,6 +188,15 @@ internal sealed class ChatHost : IAsyncDisposable
     {
         await Application.StopAsync(TestContext.Current.CancellationToken);
         await Application.DisposeAsync();
+    }
+
+    /// <summary>The templates of the away kind a test declares: a title and a body naming the conversation's type.</summary>
+    private sealed class AwayTemplates : ITemplateSource
+    {
+        public ValueTask<string?> ReadAsync(TemplateKey key, System.Threading.CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<string?>(key.Kind is null ? null : key.Part == "title" ? "A message" : "In a {{ conversationType }} conversation");
+        }
     }
 
     private sealed class HeaderIdentity(IHttpContextAccessor accessor) : IRecipientIdentity

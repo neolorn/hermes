@@ -12,9 +12,12 @@ public sealed record ParticipantRecord
     /// <summary>The participant's person reference.</summary>
     public required string Person { get; init; }
 
+    /// <summary>Whether the person holds a connection to the staff hub on any process (<c>09</c> MSG-CONV-006).</summary>
+    public bool Online { get; init; }
+
     private bool PrintMembers(StringBuilder builder)
     {
-        builder.Append(CultureInfo.InvariantCulture, $"Participant = {Participant.Value}");
+        builder.Append(CultureInfo.InvariantCulture, $"Participant = {Participant.Value}, Online = {Online}");
         return true;
     }
 }

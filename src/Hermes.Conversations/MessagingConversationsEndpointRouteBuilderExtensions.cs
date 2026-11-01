@@ -1,6 +1,7 @@
 using System;
 
 using Hermes.Conversations.Endpoints;
+using Hermes.Conversations.Live;
 using Hermes.Core;
 using Hermes.Endpoints;
 using Hermes.Operations;
@@ -17,7 +18,8 @@ public static class MessagingConversationsEndpointRouteBuilderExtensions
     /// <summary>
     /// Maps the staff conversations group: the direct and group conversations of the person the
     /// registered <c>IRecipientIdentity</c> answers, under <c>/conversations</c>, reading JSON
-    /// bodies as <c>application/json</c> alone. The host adds to the group the authorization
+    /// bodies as <c>application/json</c> alone, and the staff hub at <c>/live</c>, which pushes
+    /// what the routes wrote to the persons connected who may read it. The host adds to the group the authorization
     /// that decides who may use it. A group is mapped before the host starts, since the startup
     /// checks read which groups are mapped.
     /// </summary>
@@ -45,6 +47,7 @@ public static class MessagingConversationsEndpointRouteBuilderExtensions
         groups.StaffConversations = true;
         RouteGroupBuilder group = endpoints.MapGroup(prefix);
         StaffEndpoints.Map(group);
+        group.MapHub<StaffHub>("/live");
         return group;
     }
 }
