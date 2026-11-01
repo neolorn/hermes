@@ -17,6 +17,13 @@ namespace Hermes.Development.Tests;
 public sealed class DevelopmentInboxTests
 {
     [Fact]
+    public void Used_EachValue_HoldsACharacterAFolderGuidNeverHas()
+    {
+        // The inbox's start line names its folder, a GUID: a value of hexadecimal digits alone could appear in it by chance.
+        Assert.All(Captured.Used, value => Assert.Contains(value, character => !Uri.IsHexDigit(character) && character != '-'));
+    }
+
+    [Fact]
     public async Task MSG_DEV_006_AC1_ATestThatMakesAnInboxThenSendsAnEmailHoldingALinkWaitsForItAndFindsTheLink()
     {
         using ScratchFolder folder = new();
@@ -28,11 +35,11 @@ public sealed class DevelopmentInboxTests
         Task<InboxMessage> waited = inbox.WaitForAsync(new InboxFilter { To = "SomeOne@Example.com" }, TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken).AsTask();
         await Task.Delay(300, TestContext.Current.CancellationToken);
         Assert.False(waited.IsCompleted);
-        Attempt sent = await capture.EmailAsync(Captured.Email() with { Text = "Sign in: https://bakery.example/sign-in?code=4521", Html = null }, TestContext.Current.CancellationToken);
+        Attempt sent = await capture.EmailAsync(Captured.Email() with { Text = "Sign in: https://bakery.example/sign-in?code=45K1", Html = null }, TestContext.Current.CancellationToken);
         InboxMessage message = await waited;
 
         Assert.Equal(((Attempt.Accepted)sent).ProviderReference, message.Id);
-        Assert.Contains("https://bakery.example/sign-in?code=4521", message.Links);
+        Assert.Contains("https://bakery.example/sign-in?code=45K1", message.Links);
         Assert.Equal(Path.GetFullPath(folder.Path), inbox.Folder);
     }
 

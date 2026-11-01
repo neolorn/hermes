@@ -163,7 +163,7 @@ internal sealed class InboxHost : IAsyncDisposable
                     Email = "someone@example.com",
                     Phone = "+201000000001",
                     Language = language,
-                    Values = new Dictionary<string, SendValue>(StringComparer.Ordinal) { ["code"] = new SendValue.PlainText("4521") },
+                    Values = new Dictionary<string, SendValue>(StringComparer.Ordinal) { ["code"] = new SendValue.PlainText("45K1") },
                     Channels = channels,
                 },
                 TestContext.Current.CancellationToken);

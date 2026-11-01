@@ -148,6 +148,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The development inbox's tests no longer fail by chance: no value their log check refuses
+  can appear in the inbox folder's random name
 - `GET /conversations` of the staff conversations group declares its 503, which it answers
   when the person's locks are not had in time
 - `GET /support/queue` and every public route that starts or names a conversation declare

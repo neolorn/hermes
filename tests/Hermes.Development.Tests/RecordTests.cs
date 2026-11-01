@@ -41,8 +41,8 @@ public sealed class RecordTests(PostgresFixture postgres) : IClassFixture<Postgr
         });
 
         InboxMessage email = messages.Single(message => message.Channel == Channel.Email);
-        Assert.Equal(("someone@example.com", "Your code", "Your code is 4521. Sign in at https://bakery.example/sign-in?code=4521."), (email.To, email.Summary, email.Text));
-        Assert.Equal(["https://bakery.example/sign-in?code=4521", "https://bakery.example/help"], email.Links);
+        Assert.Equal(("someone@example.com", "Your code", "Your code is 45K1. Sign in at https://bakery.example/sign-in?code=45K1."), (email.To, email.Summary, email.Text));
+        Assert.Equal(["https://bakery.example/sign-in?code=45K1", "https://bakery.example/help"], email.Links);
         Assert.Equal(("orders@bakery.example", "Bakery"), (email.Email!.From.Address, email.Email.From.DisplayName));
         Assert.Equal(("Your code", email.Text), (email.Email.Subject, email.Email.Text));
         Assert.Contains("href=\"https://bakery.example/help\"", email.Email.Html, StringComparison.Ordinal);
@@ -51,16 +51,16 @@ public sealed class RecordTests(PostgresFixture postgres) : IClassFixture<Postgr
         Assert.True(File.Exists(email.Email.EmlPath));
 
         InboxMessage sms = messages.Single(message => message.Channel == Channel.Sms);
-        Assert.Equal(("+201000000001", "رمز الدخول 4521", "رمز الدخول 4521"), (sms.To, sms.Summary, sms.Text));
-        Assert.Equal(("Bakery", "رمز الدخول 4521", SmsEncoding.Ucs2, 1), (sms.Sms!.Sender, sms.Sms.Text, sms.Sms.Encoding, sms.Sms.Segments));
+        Assert.Equal(("+201000000001", "رمز الدخول 45K1", "رمز الدخول 45K1"), (sms.To, sms.Summary, sms.Text));
+        Assert.Equal(("Bakery", "رمز الدخول 45K1", SmsEncoding.Ucs2, 1), (sms.Sms!.Sender, sms.Sms.Text, sms.Sms.Encoding, sms.Sms.Segments));
         Assert.NotEmpty(sms.Sms.DeliveryReference);
         Assert.Empty(sms.Links);
 
         InboxMessage push = messages.Single(message => message.Channel == Channel.Push);
-        Assert.Equal((null, "Your order", "Order 4521 is ready."), (push.To, push.Summary, push.Text));
-        Assert.Equal(["https://bakery.example/orders/4521"], push.Links);
+        Assert.Equal((null, "Your order", "Order 45K1 is ready."), (push.To, push.Summary, push.Text));
+        Assert.Equal(["https://bakery.example/orders/45K1"], push.Links);
         Assert.Equal((PushService.Fcm, PushUrgency.Normal, TimeSpan.FromDays(1)), (push.Push!.Service, push.Push.Urgency, push.Push.Ttl));
-        Assert.Equal(("Your order", "Order 4521 is ready.", "https://bakery.example/orders/4521", "ar", "rtl"), (push.Push.Notification.Title, push.Push.Notification.Body, push.Push.Notification.Url, push.Push.Notification.Lang, push.Push.Notification.Dir));
+        Assert.Equal(("Your order", "Order 45K1 is ready.", "https://bakery.example/orders/45K1", "ar", "rtl"), (push.Push.Notification.Title, push.Push.Notification.Body, push.Push.Notification.Url, push.Push.Notification.Lang, push.Push.Notification.Dir));
         Assert.Equal(0, host.Providers.Calls);
     }
 

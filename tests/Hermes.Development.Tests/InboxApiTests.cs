@@ -27,7 +27,7 @@ public sealed class InboxApiTests
         await using InboxSite site = await InboxSite.StartAsync(folder.Path, clock: clock);
         string email = await site.EmailAsync(Captured.Email());
         clock.Advance(TimeSpan.FromSeconds(1));
-        string sms = await site.SmsAsync(Captured.Sms() with { Text = "رمز الدخول 4521", Encoding = SmsEncoding.Ucs2 });
+        string sms = await site.SmsAsync(Captured.Sms() with { Text = "رمز الدخول 45K1", Encoding = SmsEncoding.Ucs2 });
         clock.Advance(TimeSpan.FromSeconds(1));
         string push = await site.PushAsync(Captured.Push("https://fcm.googleapis.com/fcm/send/abc"));
 
@@ -49,7 +49,7 @@ public sealed class InboxApiTests
         Assert.Contains(emailBody["email"]!["headers"]!.AsArray(), header => header!["name"]!.GetValue<string>() == "Subject" && header["value"]!.GetValue<string>() == "Your receipt");
 
         JsonObject smsBody = await JsonAsync(site, "/messages/" + sms);
-        Assert.Equal(("رمز الدخول 4521", "ucs2", 1), (smsBody["sms"]!["text"]!.GetValue<string>(), smsBody["sms"]!["encoding"]!.GetValue<string>(), smsBody["sms"]!["segments"]!.GetValue<int>()));
+        Assert.Equal(("رمز الدخول 45K1", "ucs2", 1), (smsBody["sms"]!["text"]!.GetValue<string>(), smsBody["sms"]!["encoding"]!.GetValue<string>(), smsBody["sms"]!["segments"]!.GetValue<int>()));
 
         JsonObject pushBody = await JsonAsync(site, "/messages/" + push);
         Assert.Equal(("fcm", "high", 3600), (pushBody["push"]!["service"]!.GetValue<string>(), pushBody["push"]!["urgency"]!.GetValue<string>(), pushBody["push"]!["ttl"]!.GetValue<int>()));
