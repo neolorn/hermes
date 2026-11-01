@@ -4,6 +4,12 @@ The endpoints the library ships. Each group is mapped by its own call under the 
 the host chooses (`04` MSG-LIB-004); the routes below are relative to that prefix. Every
 value named `Hermes:...` is configuration (`08` section 4).
 
+Each hub of `Hermes.Conversations` (`09` MSG-CONV-008) is listed here beside the routes
+of its group, with its route, its method names and its payload shapes, which are public
+surface as the routes and wire shapes are (`04` MSG-LIB-006): the endpoint contract test
+finds them from the phase that adds the hub (`07` MSG-ENG-006), and from plan phase 21
+the release gate reads them and its baseline records them (M-031).
+
 ---
 
 ## 1. Conventions
