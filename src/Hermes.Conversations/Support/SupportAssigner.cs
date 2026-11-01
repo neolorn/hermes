@@ -45,7 +45,7 @@ internal sealed class SupportAssigner(
 
     private const string Candidates = """
         SELECT a.person AS "Person",
-               (SELECT count(*) FROM messaging.conversations AS c WHERE c.type = 'support' AND c.status = 'open' AND c.assignee = a.person)::integer AS "Open",
+               (SELECT count(*) FROM messaging.conversations AS c WHERE c.type = 'support' AND c.status IN ('open', 'snoozed') AND c.assignee = a.person)::integer AS "Open",
                a.last_assigned_at AS "LastAssignedAt"
         FROM messaging.support_agents AS a
         WHERE a.available AND a.person = ANY(@members)
@@ -54,7 +54,7 @@ internal sealed class SupportAssigner(
 
     private const string LockAgent = "SELECT * FROM messaging.support_agents WHERE person = @person FOR UPDATE";
 
-    private const string OpenOf = "SELECT count(*)::integer AS \"Value\" FROM messaging.conversations WHERE type = 'support' AND status = 'open' AND assignee = @person";
+    private const string OpenOf = "SELECT count(*)::integer AS \"Value\" FROM messaging.conversations WHERE type = 'support' AND status IN ('open', 'snoozed') AND assignee = @person";
 
     private const string Join = """
         INSERT INTO messaging.participants (id, conversation_id, person, muted, joined_at)
@@ -134,6 +134,7 @@ internal sealed class SupportAssigner(
         bool queued = conversation.Assignee is null;
         conversation.Assignee = person;
         conversation.AssignedAt = now;
+        conversation.WaitingAt = null;
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await context.Database.ExecuteSqlRawAsync(
             Join,

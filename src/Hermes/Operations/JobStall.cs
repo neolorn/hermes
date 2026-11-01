@@ -19,6 +19,7 @@ internal static class JobStall
             "balance" => channels.Sms.BalancePoll,
             "retention" => TimeSpan.FromDays(1),
             "subscriptions" => options.Jobs.SubscriptionsInterval,
+            JobRow.ConversationTimers => JobRow.ConversationTimersInterval,
             _ => options.Dispatch.Interval,
         };
     }

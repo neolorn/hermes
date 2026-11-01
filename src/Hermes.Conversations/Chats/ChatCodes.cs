@@ -23,4 +23,19 @@ internal static class ChatCodes
 
     /// <summary>Editing a deleted message.</summary>
     internal const string MessageDeleted = "messaging.message.deleted";
+
+    /// <summary>A tag or snooze on a closed conversation.</summary>
+    internal const string ConversationClosed = "messaging.conversation.closed";
+
+    /// <summary>A saved reply unknown, another person's own, or a topic's for a person outside its scope.</summary>
+    internal const string ReplyNotFound = "messaging.reply.notfound";
+
+    /// <summary>A saved reply's name or text outside its bounds, <c>field</c> naming which.</summary>
+    internal const string ReplyInvalid = "messaging.reply.invalid";
+
+    /// <summary>A saved reply past its owner's count.</summary>
+    internal const string ReplyFull = "messaging.reply.full";
+
+    /// <summary>A saved reply's name its owner already has.</summary>
+    internal const string ReplyNameExists = "messaging.reply.nameexists";
 }

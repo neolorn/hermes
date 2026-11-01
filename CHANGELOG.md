@@ -84,13 +84,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   starts or gains participants, or a support conversation is assigned to them
 - An offline conversation's address that does not open under its binding sends nothing
   and raises `content-rejected` for `conversations`
+- The migration `DeskTools`, which adds to `conversations` a support conversation's tags,
+  language, the automatic replies fired and its timers' instants, the table
+  `support_replies` of saved replies, a person's own deleted at their erasure, and the
+  job `conversation-timers` to the job table; it drops and rewrites nothing
+- `TemplateKey.Reply`, naming an automatic reply's template with `Kind` and `Page` none;
+  the library's own source reads it from `replies/<name>.<language>.text.liquid`. A host
+  `ITemplateSource` that reads `Kind == null` as a page must now also read `Reply`
+- The support desk's tools through the staff group: saved replies, each a name of 1 to 64
+  characters and a text of 1 to 4,000, shared by a topic (at most 200) or a person's own
+  (at most 100), a topic's unknown to a person outside its scope and another person's
+  own unknown to them; tags from `Hermes:Conversations:Tags`, at most 50, put as a whole
+  set; and snoozing until an instant 5 minutes to 30 days ahead, a snoozed conversation
+  keeping its assignee and counting toward their limit, and waking at once on the
+  visitor's or the customer's message. `IConversations` gains them, with
+  `SavedReplyId` and `SavedReplyRecord`, and a support conversation's tags and waking
+  instant are on staff bodies only. The keys `Hermes:Conversations:Replies`,
+  `Support:CloseAfter` and `Support:CloseWarning` are read at start, and every automatic
+  reply rule's template is checked in every declared language
+- Automatic replies: each rule under `Hermes:Conversations:Replies` writes one `automatic`
+  message, by the library, in the conversation's language, read from `Accept-Language` at
+  its start, else the default language: `started` on every conversation created queued,
+  `unavailable` and `outsidehours` on an offline form's, `waiting` once a queued
+  conversation has waited its `After`, and `closing` before an automatic close; once per
+  conversation, in name order where two fire at once, never emailed, and a reply that
+  fails to render or to be protected writes nothing, is logged and counts as fired. A
+  reply's template reads `topic`, `place`, `wait` and `opens`, a value that is none being
+  false and empty
+- The job `conversation-timers`, every 30 seconds under the engine's job claims where
+  `Hermes:Jobs:Enabled` is on: it wakes snoozed conversations at their instant, fires
+  `waiting` and `closing`, and closes a support conversation silent for
+  `Support:CloseAfter` with a `system` message without text; only a staff member's, a
+  visitor's or a customer's `text` restarts the silence
 
 ### Fixed
 
 - `GET /conversations` of the staff conversations group declares its 503, which it answers
   when the person's locks are not had in time
+- `GET /support/queue` and every public route that starts or names a conversation declare
+  the 503 they answer where a person's locks are not had in time
 - A block's `until` given through the staff group is read in UTC, as written, on a host
   whose time zone is not UTC
+- Two staff members adding or renaming one owner's saved replies at once are taken in
+  turn, so a name stays unique and a count within its bound without an error
 - `Hermes:Languages` set item by item through a web host's test factory, which gives the
   list itself an empty value, no longer stops the start
 

@@ -36,6 +36,18 @@ internal static partial class SupportConfiguration
 
     internal const string RetentionVisitor = "Conversations:Retention:Visitor";
 
+    internal const string Replies = "Conversations:Replies";
+
+    internal const string Tags = "Conversations:Tags";
+
+    internal const string CloseAfter = "Conversations:Support:CloseAfter";
+
+    internal const string CloseWarning = "Conversations:Support:CloseWarning";
+
+    private const int MostTags = 50;
+
+    private static readonly string[] Triggers = [ReplyTriggers.Started, ReplyTriggers.Unavailable, ReplyTriggers.Waiting, ReplyTriggers.OutsideHours, ReplyTriggers.Closing];
+
     private const int MostLimit = 100;
 
     private const int MostCount = 10_000;
@@ -49,12 +61,12 @@ internal static partial class SupportConfiguration
     private static readonly string[] Days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
     /// <summary>The fixed keys of support.</summary>
-    internal static IReadOnlyList<string> Fixed { get; } = [Limit, OfflineReplyKind, NoticeVersion, VisitorStarts, VisitorMessages, SourceStarts, RetentionVisitor];
+    internal static IReadOnlyList<string> Fixed { get; } = [Limit, OfflineReplyKind, NoticeVersion, VisitorStarts, VisitorMessages, SourceStarts, RetentionVisitor, CloseAfter, CloseWarning];
 
     /// <summary>Whether <paramref name="key"/>, spelled as <c>08</c> section 4 spells keys, is one of a topic's keys.</summary>
     internal static bool IsTopicKey(string key)
     {
-        return TopicKey().IsMatch(key);
+        return TopicKey().IsMatch(key) || RuleKey().IsMatch(key) || TagKey().IsMatch(key);
     }
 
     /// <summary>
@@ -109,6 +121,39 @@ internal static partial class SupportConfiguration
             return (null, SourceStarts);
         }
 
+        (List<ReplyRule>? rules, string? invalidRule) = ReadRules(hermes.GetSection(Replies), topics);
+        if (invalidRule is not null)
+        {
+            return (null, invalidRule);
+        }
+
+        List<string> tags = [];
+        IConfigurationSection tagSection = hermes.GetSection(Tags);
+        if (tagSection.Value is { Length: > 0 })
+        {
+            return (null, Tags);
+        }
+
+        foreach (IConfigurationSection tag in tagSection.GetChildren())
+        {
+            if (tag.Value is not { } name || !DeclarationCheck.IsName(name) || tags.Contains(name, StringComparer.Ordinal) || tags.Count == MostTags)
+            {
+                return (null, Tags + ConfigurationPath.KeyDelimiter + tag.Key);
+            }
+
+            tags.Add(name);
+        }
+
+        if (!Span(hermes, CloseAfter, TimeSpan.FromDays(1), TimeSpan.FromHours(1), TimeSpan.FromDays(30), out TimeSpan closeAfter))
+        {
+            return (null, CloseAfter);
+        }
+
+        if (!Span(hermes, CloseWarning, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(1), TimeSpan.FromHours(1), out TimeSpan closeWarning) || closeWarning >= closeAfter)
+        {
+            return (null, CloseWarning);
+        }
+
         TimeSpan retention = TimeSpan.FromDays(365);
         if (hermes[RetentionVisitor] is { } text
             && (!TimeSpan.TryParse(text, CultureInfo.InvariantCulture, out retention) || retention < LeastRetention || retention > MostRetention))
@@ -126,7 +171,73 @@ internal static partial class SupportConfiguration
             VisitorMessages = visitorMessages,
             SourceStarts = sourceStarts,
             RetentionVisitor = retention,
+            Rules = rules!,
+            Tags = tags,
+            CloseAfter = closeAfter,
+            CloseWarning = closeWarning,
         }, null);
+    }
+
+    /// <summary>The automatic reply rules, by name: each a trigger, its topics, all where none are given, and for <c>waiting</c> its wait; answers the first key outside its rule.</summary>
+    private static (List<ReplyRule>? Rules, string? Invalid) ReadRules(IConfigurationSection replies, Dictionary<string, SupportTopic> topics)
+    {
+        List<ReplyRule> rules = [];
+        foreach (IConfigurationSection section in replies.GetChildren().OrderBy(child => child.Key, StringComparer.Ordinal))
+        {
+            string key = Replies + ConfigurationPath.KeyDelimiter + section.Key;
+            if (!DeclarationCheck.IsName(section.Key))
+            {
+                return (null, key);
+            }
+
+            if (section["Trigger"] is not { } trigger || !Triggers.Contains(trigger, StringComparer.Ordinal))
+            {
+                return (null, key + ":Trigger");
+            }
+
+            List<string> served = [];
+            IConfigurationSection topicSection = section.GetSection("Topics");
+            if (topicSection.Value is { Length: > 0 })
+            {
+                return (null, key + ":Topics");
+            }
+
+            foreach (IConfigurationSection topic in topicSection.GetChildren())
+            {
+                if (topic.Value is not { } name || !topics.ContainsKey(name))
+                {
+                    return (null, key + ":Topics:" + topic.Key);
+                }
+
+                served.Add(name);
+            }
+
+            TimeSpan? after = null;
+            if (section["After"] is { } text)
+            {
+                if (trigger != ReplyTriggers.Waiting || !TimeSpan.TryParse(text, CultureInfo.InvariantCulture, out TimeSpan read) || read < TimeSpan.FromMinutes(1) || read > TimeSpan.FromHours(1))
+                {
+                    return (null, key + ":After");
+                }
+
+                after = read;
+            }
+            else if (trigger == ReplyTriggers.Waiting)
+            {
+                return (null, key + ":After");
+            }
+
+            rules.Add(new ReplyRule(section.Key, trigger, served, after));
+        }
+
+        return (rules, null);
+    }
+
+    private static bool Span(IConfiguration hermes, string key, TimeSpan fallback, TimeSpan least, TimeSpan most, out TimeSpan span)
+    {
+        span = fallback;
+        return hermes[key] is not { } text
+            || (TimeSpan.TryParse(text, CultureInfo.InvariantCulture, out span) && span >= least && span <= most);
     }
 
     private static (SupportTopic? Topic, string? Invalid) ReadTopic(IConfigurationSection section)
@@ -248,6 +359,12 @@ internal static partial class SupportConfiguration
 
     [GeneratedRegex(@"^Conversations:Topics:[^:]+:(TimeZone|Scope:Kind|Scope:Reference|Hours:[^:]+(:[^:]+)?|Exceptions:[^:]+(:[^:]+)?)\z", RegexOptions.CultureInvariant)]
     private static partial Regex TopicKey();
+
+    [GeneratedRegex(@"^Conversations:Replies:[^:]+:(Trigger|After|Topics:[^:]+)\z", RegexOptions.CultureInvariant)]
+    private static partial Regex RuleKey();
+
+    [GeneratedRegex(@"^Conversations:Tags:[^:]+\z", RegexOptions.CultureInvariant)]
+    private static partial Regex TagKey();
 }
 
 /// <summary>Support's settings read at start.</summary>
@@ -268,4 +385,40 @@ internal sealed class SupportSettings
     internal int SourceStarts { get; init; } = 20;
 
     internal TimeSpan RetentionVisitor { get; init; } = TimeSpan.FromDays(365);
+
+    /// <summary>The automatic reply rules, in name order (<c>09</c> MSG-CONV-003).</summary>
+    internal IReadOnlyList<ReplyRule> Rules { get; init; } = [];
+
+    /// <summary>The declared tags (<c>09</c> MSG-CONV-005).</summary>
+    internal IReadOnlyList<string> Tags { get; init; } = [];
+
+    /// <summary>The silence after which an open or snoozed support conversation closes.</summary>
+    internal TimeSpan CloseAfter { get; init; } = TimeSpan.FromDays(1);
+
+    /// <summary>How long before an automatic close the <c>closing</c> rule fires.</summary>
+    internal TimeSpan CloseWarning { get; init; } = TimeSpan.FromMinutes(5);
+}
+
+/// <summary>An automatic reply rule (<c>09</c> MSG-CONV-003): its name, its trigger, the topics it serves, all where none, and for <c>waiting</c> how long a queued conversation waits.</summary>
+internal sealed record ReplyRule(string Name, string Trigger, IReadOnlyList<string> Topics, TimeSpan? After)
+{
+    /// <summary>Whether the rule serves <paramref name="topic"/>.</summary>
+    internal bool Serves(string topic)
+    {
+        return Topics.Count == 0 || Topics.Contains(topic, StringComparer.Ordinal);
+    }
+}
+
+/// <summary>The triggers of automatic reply rules.</summary>
+internal static class ReplyTriggers
+{
+    internal const string Started = "started";
+
+    internal const string Unavailable = "unavailable";
+
+    internal const string Waiting = "waiting";
+
+    internal const string OutsideHours = "outsidehours";
+
+    internal const string Closing = "closing";
 }

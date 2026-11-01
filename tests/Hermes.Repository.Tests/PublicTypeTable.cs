@@ -20,7 +20,7 @@ internal static class PublicTypeTable
             "Send",
             "SendValue", "SendValue.PlainText", "SendValue.WholeNumber", "SendValue.DecimalNumber", "SendValue.Flag", "SendValue.Instant", "SendValue.List",
             "Recipient", "Recipient.Person", "Recipient.Anonymous",
-            "SendId", "DeliveryId", "EntryId", "ConversationId", "MessageId", "ParticipantId",
+            "SendId", "DeliveryId", "EntryId", "ConversationId", "MessageId", "ParticipantId", "SavedReplyId",
             "SendReceipt", "DeliveryReceipt",
             "SendRecord", "DeliveryRecord", "AttemptRecord", "CallRecord",
             "Result", "Result`1", "Failure",
@@ -29,7 +29,7 @@ internal static class PublicTypeTable
             "CategoryPreferences", "ChannelPreference",
             "SubjectExport", "SubscriptionExport", "DeliveryExport", "InAppEntryExport", "IdempotencyKeyExport",
             "InAppPage", "InAppEntry",
-            "ConversationScope", "ConversationPage", "ConversationRecord", "ParticipantRecord", "MessagePage", "MessageRecord",
+            "ConversationScope", "ConversationPage", "ConversationRecord", "ParticipantRecord", "MessagePage", "MessageRecord", "SavedReplyRecord",
             "Channel", "DeliveryStatus", "AttemptClass", "AttemptReason", "PushUrgency", "PushService", "PushPlatform", "SmsEncoding", "SmsReportOutcome", "ConsentAnswer",
             "ConversationType", "ConversationStatus", "MessageType", "ScopeKind", "AuthorKind",
 

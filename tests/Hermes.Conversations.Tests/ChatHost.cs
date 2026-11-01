@@ -242,11 +242,26 @@ internal sealed class ChatHost : IAsyncDisposable
         await Application.DisposeAsync();
     }
 
-    /// <summary>The templates of the away kind a test declares: a title and a body naming the conversation's type.</summary>
+    /// <summary>
+    /// The templates of the away kind a test declares, a title and a body naming the
+    /// conversation's type; and each reply rule's, naming the rule and its values, but none
+    /// for the rule <c>missing</c> and one that does not parse for <c>broken</c>.
+    /// </summary>
     private sealed class AwayTemplates : ITemplateSource
     {
         public ValueTask<string?> ReadAsync(TemplateKey key, System.Threading.CancellationToken cancellationToken)
         {
+            if (key.Reply is { } reply)
+            {
+                return ValueTask.FromResult<string?>(reply switch
+                {
+                    "missing" => null,
+                    "broken" => "{{ topic ",
+                    "long" => "{% for i in (1..4001) %}x{% endfor %}",
+                    _ => reply + " " + key.Language + ": {{ topic }} {{ place }} {{ wait }} {{ opens }}",
+                });
+            }
+
             return ValueTask.FromResult<string?>(key.Kind is null ? null
                 : key.Kind == SupportTests.ReplyKind ? key.Part == "subject" ? "About {{ topic }}" : "{{ text }}"
                 : key.Part == "title" ? "A message" : "In a {{ conversationType }} conversation");

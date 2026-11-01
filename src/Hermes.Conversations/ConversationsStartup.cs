@@ -11,6 +11,7 @@ using Hermes.Sending;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace Hermes.Conversations;
 
@@ -19,12 +20,13 @@ namespace Hermes.Conversations;
 /// <c>AddHermes</c> registers before it (M-031): no key under <c>Hermes:Conversations:</c> is
 /// one the package does not know, read raw from the configuration given to <c>AddHermes</c>, and
 /// <c>Conversations:AwayKind</c> names a declared kind where it is given; support's keys are
-/// within their rules (<c>09</c> MSG-CONV-002); and the membership seam is registered
-/// (<c>04</c> MSG-LIB-005).
+/// within their rules (<c>09</c> MSG-CONV-002); the membership seam is registered (<c>04</c>
+/// MSG-LIB-005); and each automatic reply rule's template is held in each declared language
+/// (<c>09</c> MSG-CONV-003).
 /// </summary>
 internal sealed class ConversationsStartup(IServiceProvider services) : IHostedLifecycleService
 {
-    public Task StartingAsync(CancellationToken cancellationToken)
+    public async Task StartingAsync(CancellationToken cancellationToken)
     {
         ConfigurationState state = services.GetRequiredService<ConfigurationState>();
         if (ConversationsConfiguration.UnknownKey(state.Section) is { } key)
@@ -54,7 +56,26 @@ internal sealed class ConversationsStartup(IServiceProvider services) : IHostedL
         settings.AwayKind = away;
         settings.Support = support!;
 
-        return Task.CompletedTask;
+        // Every rule's template, in every declared language, read and checked as kinds' are (03 MSG-TPL-004).
+        if (support!.Rules.Count > 0)
+        {
+            AsyncServiceScope scope = services.CreateAsyncScope();
+            await using (scope.ConfigureAwait(false))
+            {
+                (string Code, Dictionary<string, string> Details)? failed = await services.GetRequiredService<ReplyTemplates>().LoadAsync(
+                    support.Rules,
+                    services.GetRequiredService<IOptionsMonitor<MessagingOptions>>().CurrentValue,
+                    scope.ServiceProvider.GetService<ITemplateSource>(),
+                    services.GetRequiredService<IHostEnvironment>().ContentRootPath,
+                    services.GetRequiredService<Declarations>().Assemblies,
+                    services.GetRequiredService<Content.TemplateParser>(),
+                    cancellationToken).ConfigureAwait(false);
+                if (failed is { } refusal)
+                {
+                    throw new MessagingStartupException(refusal.Code, refusal.Details);
+                }
+            }
+        }
     }
 
     public Task StartAsync(CancellationToken cancellationToken)

@@ -135,7 +135,7 @@ internal sealed partial class StaffChats
     }
 
     /// <summary>Starts a support conversation of <paramref name="topic"/> with <paramref name="text"/>, queued, or one through the offline form with <paramref name="email"/>.</summary>
-    internal async Task<SupportAnswer<ConversationRecord>> StartSupportAsync(SupportCaller caller, string topic, string text, string? email, byte[]? source, CancellationToken cancellationToken)
+    internal async Task<SupportAnswer<ConversationRecord>> StartSupportAsync(SupportCaller caller, string topic, string text, string? email, byte[]? source, string language, CancellationToken cancellationToken)
     {
         ready.ThrowIfNotReady();
         if (!settings.Support.Topics.TryGetValue(topic, out SupportTopic? configured))
@@ -169,9 +169,22 @@ internal sealed partial class StaffChats
             });
         }
 
-        if (!offline && !await assigner.IsOpenAsync(configured, cancellationToken).ConfigureAwait(false))
+        bool staffed = await assigner.IsOpenAsync(configured, cancellationToken).ConfigureAwait(false);
+        if (!offline && !staffed)
         {
             return SupportAnswer<ConversationRecord>.Fail(Plain(SupportCodes.Offline));
+        }
+
+        // Every conversation is created queued, so started fires; an offline form's also fires
+        // outsidehours outside the topic's hours, or unavailable within them (09 MSG-CONV-003).
+        List<string> triggers = [ReplyTriggers.Started];
+        if (offline && !configured.IsWithinHours(clock.GetUtcNow()))
+        {
+            triggers.Add(ReplyTriggers.OutsideHours);
+        }
+        else if (offline && !staffed)
+        {
+            triggers.Add(ReplyTriggers.Unavailable);
         }
 
         Guid conversation = Guid.CreateVersion7();
@@ -205,7 +218,7 @@ internal sealed partial class StaffChats
                     return SupportAnswer<bool>.Fail(Plain(SupportCodes.Limited), wait);
                 }
 
-                context.Conversations.Add(new ConversationRow
+                ConversationRow created = new()
                 {
                     Id = conversation,
                     Type = SupportType,
@@ -219,7 +232,11 @@ internal sealed partial class StaffChats
                     Customer = caller.Customer,
                     Email = madeEmail?.Stored,
                     EmailKeyVersion = madeEmail?.Version,
-                });
+                    Language = language,
+                };
+                Silence(created, now);
+                created.WaitingAt = WaitingOf(created);
+                context.Conversations.Add(created);
                 (byte[] hash, int hashVersion) = caller.Visitor is null ? (null!, 0) : caller.Counted(hashes);
                 context.Participants.Add(new ParticipantRow
                 {
@@ -242,6 +259,7 @@ internal sealed partial class StaffChats
         }
 
         await assigner.AssignAsync([topic], cancellationToken).ConfigureAwait(false);
+        await FireAsync(conversation, triggers, clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
         return SupportAnswer<ConversationRecord>.Of((await CallerRecordAsync(caller, conversation, cancellationToken).ConfigureAwait(false))!);
     }
 
@@ -254,7 +272,7 @@ internal sealed partial class StaffChats
         await using (context.ConfigureAwait(false))
         {
             newest = await CallerConversations(context, caller)
-                .Where(each => each.Status == OpenStatus)
+                .Where(each => each.Status != ClosedStatus)
                 .OrderByDescending(each => each.CreatedAt).ThenByDescending(each => each.Id)
                 .Select(each => (Guid?)each.Id)
                 .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
@@ -343,7 +361,7 @@ internal sealed partial class StaffChats
     {
         ready.ThrowIfNotReady();
         ConversationRow? reached = await CallerConversationAsync(caller, conversation, cancellationToken).ConfigureAwait(false);
-        if (reached is null || !string.Equals(reached.Status, OpenStatus, StringComparison.Ordinal))
+        if (reached is null || string.Equals(reached.Status, ClosedStatus, StringComparison.Ordinal))
         {
             return SupportAnswer<MessageRecord>.Fail(NotFound());
         }
@@ -383,6 +401,14 @@ internal sealed partial class StaffChats
                 context.Messages.Add(row);
                 ConversationRow tracked = await context.Conversations.SingleAsync(each => each.Id == reached.Id, token).ConfigureAwait(false);
                 tracked.LastMessageAt = now;
+                Silence(tracked, now);
+
+                // The visitor's or customer's message wakes a snoozed conversation at once (09 MSG-CONV-005).
+                if (string.Equals(tracked.Status, SnoozedStatus, StringComparison.Ordinal))
+                {
+                    tracked.Status = OpenStatus;
+                    tracked.SnoozedUntil = null;
+                }
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
                 await LiveNotices.TellAsync(context, LiveNotices.Message, reached.Id, message, token).ConfigureAwait(false);
                 return SupportAnswer<MessageRow>.Of(row);
@@ -462,7 +488,7 @@ internal sealed partial class StaffChats
             async (context, token) =>
             {
                 await LockCallerAsync(context, current, caller, token).ConfigureAwait(false);
-                ConversationRow? reached = await CallerConversations(context, caller).AsNoTracking().FirstOrDefaultAsync(each => each.Id == conversation && each.Status == OpenStatus, token).ConfigureAwait(false);
+                ConversationRow? reached = await CallerConversations(context, caller).AsNoTracking().FirstOrDefaultAsync(each => each.Id == conversation && each.Status != ClosedStatus, token).ConfigureAwait(false);
                 if (reached is not null && await CallerParticipantAsync(context, caller, reached.Id, token).ConfigureAwait(false) is { } participant)
                 {
                     await LiveNotices.TellAsync(context, LiveNotices.Typing, reached.Id, participant.Id, token).ConfigureAwait(false);
@@ -556,7 +582,7 @@ internal sealed partial class StaffChats
         await using (context.ConfigureAwait(false))
         {
             return await CallerConversations(context, caller)
-                .Where(each => each.Topic == topic && each.Status == OpenStatus)
+                .Where(each => each.Topic == topic && each.Status != ClosedStatus)
                 .Select(each => (Guid?)each.Id)
                 .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
         }

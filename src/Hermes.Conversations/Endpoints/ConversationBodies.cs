@@ -19,7 +19,23 @@ internal sealed record ConversationsBody(IReadOnlyList<ConversationBody> Convers
 /// <param name="Status">A support conversation's status, as <c>08</c> section 3 spells it, none for another.</param>
 /// <param name="Place">A queued support conversation's place in its topic's queue, none once assigned and for another.</param>
 /// <param name="Offline">Whether a support conversation came through the offline form, none for another.</param>
-internal sealed record ConversationBody(string Id, string Type, ScopeBody? Scope, IReadOnlyList<ParticipantBody> Participants, int Unread, bool Muted, string LastAt, string? Topic, string? Status, int? Place, bool? Offline);
+/// <param name="Tags">A support conversation's tags, empty for another.</param>
+/// <param name="SnoozedUntil">The instant a snoozed conversation wakes, none otherwise.</param>
+internal sealed record ConversationBody(string Id, string Type, ScopeBody? Scope, IReadOnlyList<ParticipantBody> Participants, int Unread, bool Muted, string LastAt, string? Topic, string? Status, int? Place, bool? Offline, IReadOnlyList<string> Tags, string? SnoozedUntil);
+
+/// <summary>A conversation on the public side (<c>05</c> MSG-API-010): the staff group's shape without its tags and waking instant, which are on staff bodies only.</summary>
+/// <param name="Id">The conversation's identifier, lower-case and hyphenated.</param>
+/// <param name="Type">Its type, <c>support</c>.</param>
+/// <param name="Scope">None.</param>
+/// <param name="Participants">None.</param>
+/// <param name="Unread">The messages after the caller's read position that are neither theirs, nor deleted, nor notes.</param>
+/// <param name="Muted">Whether the caller muted it.</param>
+/// <param name="LastAt">The instant of its last message, or of its creation where it has none.</param>
+/// <param name="Topic">Its topic.</param>
+/// <param name="Status">Its status, as <c>08</c> section 3 spells it.</param>
+/// <param name="Place">The visitor's place in the queue, none once assigned.</param>
+/// <param name="Offline">Whether it came through the offline form.</param>
+internal sealed record PublicConversationBody(string Id, string Type, ScopeBody? Scope, IReadOnlyList<ParticipantBody> Participants, int Unread, bool Muted, string LastAt, string? Topic, string? Status, int? Place, bool? Offline);
 
 /// <summary>A group conversation's scope (<c>05</c> MSG-API-009).</summary>
 /// <param name="Kind">The scope's kind, as <c>08</c> section 2 spells it.</param>
@@ -124,3 +140,33 @@ internal sealed record StartRequest(string? Topic, string? Text);
 /// <param name="Email">The address replies are sent to.</param>
 /// <param name="Text">The message's text.</param>
 internal sealed record OfflineRequest(string? Topic, string? Email, string? Text);
+
+/// <summary>The answer of <c>GET /support/replies</c> (<c>05</c> MSG-API-009).</summary>
+/// <param name="Replies">The replies, by name.</param>
+internal sealed record RepliesBody(IReadOnlyList<ReplyBody> Replies);
+
+/// <summary>A saved reply, <c>&lt;reply&gt;</c> of <c>05</c> MSG-API-009.</summary>
+/// <param name="Id">The reply's identifier, lower-case and hyphenated.</param>
+/// <param name="Name">Its name.</param>
+/// <param name="Text">Its text.</param>
+/// <param name="Topic">The topic that shares it, none for one's own.</param>
+internal sealed record ReplyBody(string Id, string Name, string Text, string? Topic);
+
+/// <summary>The body of <c>POST /support/replies</c> (<c>05</c> MSG-API-009).</summary>
+/// <param name="Name">The name.</param>
+/// <param name="Text">The text.</param>
+/// <param name="Topic">The topic that shares it, none for one's own.</param>
+internal sealed record ReplyRequest(string? Name, string? Text, string? Topic);
+
+/// <summary>The body of <c>PUT /support/replies/{id}</c> (<c>05</c> MSG-API-009).</summary>
+/// <param name="Name">The name.</param>
+/// <param name="Text">The text.</param>
+internal sealed record ReplyChange(string? Name, string? Text);
+
+/// <summary>The body of <c>PUT /support/conversations/{id}/tags</c> (<c>05</c> MSG-API-009).</summary>
+/// <param name="Tags">The tags, the whole set.</param>
+internal sealed record TagsRequest(IReadOnlyList<string>? Tags);
+
+/// <summary>The body of <c>POST /support/conversations/{id}/snooze</c> (<c>05</c> MSG-API-009).</summary>
+/// <param name="Until">The instant it wakes.</param>
+internal sealed record SnoozeRequest(string? Until);

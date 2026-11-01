@@ -132,7 +132,7 @@ internal sealed partial class StaffChats
             {
                 await LockAsync(context, current, toPerson is null ? [person] : [person, toPerson], token).ConfigureAwait(false);
                 ConversationRow? row = await LockedConversationAsync(context, reached.Id, token).ConfigureAwait(false);
-                if (row is null || !string.Equals(row.Status, OpenStatus, StringComparison.Ordinal))
+                if (row is null || string.Equals(row.Status, ClosedStatus, StringComparison.Ordinal))
                 {
                     return false;
                 }
@@ -150,6 +150,7 @@ internal sealed partial class StaffChats
                 row.Assignee = null;
                 row.AssignedAt = null;
                 row.QueuedAt = now;
+                row.WaitingAt = WaitingOf(row);
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
                 await LiveNotices.TellQueueAsync(context, to.Name, token).ConfigureAwait(false);
                 if (wasQueued && !string.Equals(left, to.Name, StringComparison.Ordinal))
@@ -275,9 +276,7 @@ internal sealed partial class StaffChats
                 }
 
                 bool wasQueued = row.Assignee is null;
-                row.Status = ClosedStatus;
-                row.ClosedAt = clock.GetUtcNow();
-                row.ClosedBy = by;
+                Closed(row, clock.GetUtcNow(), by);
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
                 await LiveNotices.TellAsync(context, LiveNotices.Closed, row.Id, row.Id, token).ConfigureAwait(false);
                 if (wasQueued)

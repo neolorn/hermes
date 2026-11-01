@@ -26,4 +26,11 @@ namespace Hermes.Conversations.Endpoints;
 [JsonSerializable(typeof(NoticeRequest))]
 [JsonSerializable(typeof(StartRequest))]
 [JsonSerializable(typeof(OfflineRequest))]
+[JsonSerializable(typeof(PublicConversationBody))]
+[JsonSerializable(typeof(RepliesBody))]
+[JsonSerializable(typeof(ReplyBody))]
+[JsonSerializable(typeof(ReplyRequest))]
+[JsonSerializable(typeof(ReplyChange))]
+[JsonSerializable(typeof(TagsRequest))]
+[JsonSerializable(typeof(SnoozeRequest))]
 internal sealed partial class ConversationsJson : JsonSerializerContext;

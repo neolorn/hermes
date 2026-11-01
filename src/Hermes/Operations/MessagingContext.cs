@@ -78,6 +78,8 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
 
     internal DbSet<SupportCounterRow> SupportCounters => Set<SupportCounterRow>();
 
+    internal DbSet<SupportReplyRow> SupportReplies => Set<SupportReplyRow>();
+
     /// <summary>A context on its own connection to <paramref name="connection"/>, as the migrations run.</summary>
     internal static MessagingContext Create(string connection)
     {
@@ -551,6 +553,17 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             conversation.Property(row => row.Customer).HasColumnName("customer");
             conversation.Property(row => row.Email).HasColumnName("email");
             conversation.Property(row => row.EmailKeyVersion).HasColumnName("email_key_version");
+            conversation.Property(row => row.Tags).HasColumnName("tags");
+            conversation.Property(row => row.Language).HasColumnName("language");
+            conversation.Property(row => row.RepliesFired).HasColumnName("replies_fired");
+            conversation.Property(row => row.SnoozedUntil).HasColumnName("snoozed_until");
+            conversation.Property(row => row.WaitingAt).HasColumnName("waiting_at");
+            conversation.Property(row => row.ClosingAt).HasColumnName("closing_at");
+            conversation.Property(row => row.CloseAt).HasColumnName("close_at");
+            conversation.HasIndex(row => row.SnoozedUntil).HasDatabaseName("ix_conversations_snoozed_until");
+            conversation.HasIndex(row => row.WaitingAt).HasDatabaseName("ix_conversations_waiting_at");
+            conversation.HasIndex(row => row.ClosingAt).HasDatabaseName("ix_conversations_closing_at");
+            conversation.HasIndex(row => row.CloseAt).HasDatabaseName("ix_conversations_close_at");
         });
 
         modelBuilder.Entity<ParticipantRow>(participant =>
@@ -684,6 +697,20 @@ internal sealed class MessagingContext(DbContextOptions<MessagingContext> option
             counter.Property(row => row.HashVersion).HasColumnName("hash_version");
             counter.Property(row => row.WindowStart).HasColumnName("window_start");
             counter.Property(row => row.Count).HasColumnName("count");
+        });
+
+        modelBuilder.Entity<SupportReplyRow>(reply =>
+        {
+            reply.ToTable("support_replies", table => table.HasCheckConstraint("ck_support_replies_owner", "(topic IS NULL) <> (person IS NULL)"));
+            reply.HasKey(row => row.Id).HasName("pk_support_replies");
+            reply.HasIndex(row => new { row.Topic, row.Name }).IsUnique().HasFilter("topic IS NOT NULL").HasDatabaseName("ux_support_replies_topic_name");
+            reply.HasIndex(row => new { row.Person, row.Name }).IsUnique().HasFilter("person IS NOT NULL").HasDatabaseName("ux_support_replies_person_name");
+            reply.Property(row => row.Id).HasColumnName("id").ValueGeneratedNever();
+            reply.Property(row => row.Topic).HasColumnName("topic");
+            reply.Property(row => row.Person).HasColumnName("person");
+            reply.Property(row => row.Name).HasColumnName("name");
+            reply.Property(row => row.Text).HasColumnName("text");
+            reply.Property(row => row.CreatedAt).HasColumnName("created_at");
         });
     }
 

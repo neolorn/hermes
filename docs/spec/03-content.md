@@ -22,9 +22,11 @@ A template part is found by its `TemplateKey` (`04` MSG-LIB-002): the kind, the 
 the language and the part, through the template source (MSG-TPL-006). An in-app
 template's parts are rendered in every declared language when the send is recorded,
 every other channel's in the send's language alone (`02` MSG-INAPP-002). The library's
-own pages (MSG-TPL-006) are keyed by page, language and part instead.
+own pages (MSG-TPL-006) are keyed by page, language and part instead, and an automatic
+reply's template (`09` MSG-CONV-003) by its rule's name as `Reply`, the language and the
+part `text` (M-035).
 
-*Source: M-002, M-005, M-026*
+*Source: M-002, M-005, M-026, M-035*
 
 **Acceptance criteria**
 1. A kind's email in Arabic renders its Arabic subject and text, and its HTML part where
@@ -136,7 +138,14 @@ application starts, and any failure SHALL stop the start.
 - where an optional category has an email kind, a page part missing for a declared
   language (MSG-TPL-006).
 
-*Source: M-002, M-005*
+Where conversations are registered, every automatic reply rule's template (`09`
+MSG-CONV-003) is checked in every declared language as a kind's is, and a missing one
+fails the start with `messaging.startup.templatemissing`, naming the rule and the
+language (M-035). One that does not parse fails it with
+`messaging.startup.declarationinvalid`, `details.declaration` the rule and
+`details.field` `<language>.text`.
+
+*Source: M-002, M-005, M-035*
 
 **Acceptance criteria**
 1. Each condition above stops the start and names the template.
@@ -181,7 +190,8 @@ and ships the templates of its own pages.
 (`04` MSG-LIB-002) answers a part's text, or none. Where a host registers one, it is
 asked first; for a key it answers none, the library's own is asked, in this order:
 1. the file under `Hermes:Templates:Path`: `<kind>/<channel>.<language>.<part>.liquid`,
-   or for a page `pages/<page>.<language>.<part>.liquid`;
+   for a page `pages/<page>.<language>.<part>.liquid`, or for an automatic reply
+   `replies/<name>.<language>.text.liquid` (`09` MSG-CONV-003);
 2. the embedded resources of each assembly the host passes in `AddHermes`
    (`declare.Templates(assembly)`), matched by a resource's logical name equal to that
    relative path;
@@ -205,7 +215,7 @@ does not verify (`05` MSG-API-005). A category's label is the host's (`01`
 MSG-SEND-002): the library holds no wording of its own besides the shipped pages, which
 a host replaces by supplying its own.
 
-*Source: M-005, M-016*
+*Source: M-005, M-016, M-035*
 
 **Acceptance criteria**
 1. A template file under the folder is used for its kind, channel, language and part.

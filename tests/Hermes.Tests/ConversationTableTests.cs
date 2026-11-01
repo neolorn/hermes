@@ -130,6 +130,29 @@ public sealed class ConversationTableTests(PostgresFixture postgres) : IClassFix
         Assert.Equal(1L, await ScalarAsync<long>(host, database => new NpgsqlCommand("SELECT count(*) FROM messaging.support_agents", database)));
     }
 
+    [Fact]
+    public async Task Erase_AStaffMember_DeletesTheirOwnSavedRepliesAndKeepsATopicsShared()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        await using EngineHost host = await EngineHost.StartAsync(connection);
+        host.Uses(Staff);
+        await host.RunAsync(database =>
+        {
+            NpgsqlCommand command = new(
+                """
+                INSERT INTO messaging.support_replies (id, topic, person, name, text, created_at) VALUES (gen_random_uuid(), NULL, @staff, 'Mine', 'My own', now());
+                INSERT INTO messaging.support_replies (id, topic, person, name, text, created_at) VALUES (gen_random_uuid(), 'billing', NULL, 'Shared', 'For the topic', now());
+                """,
+                database);
+            command.Parameters.AddWithValue("staff", Staff);
+            return command;
+        });
+
+        Assert.Null((await host.WithSubjectsAsync(subjects => subjects.EraseAsync(Staff, TestContext.Current.CancellationToken).AsTask())).Failure);
+
+        Assert.Equal("Shared", await ScalarAsync<string>(host, database => new NpgsqlCommand("SELECT string_agg(name, ',') FROM messaging.support_replies", database)));
+    }
+
     private const string Customer = "person-customer-81aa";
 
     private const string Staff = "person-staff-0c3e";

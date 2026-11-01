@@ -28,6 +28,9 @@ internal sealed class Browser(ChatHost host, string? person = null, string sourc
 
     internal string Source { get; set; } = source;
 
+    /// <summary>The <c>Accept-Language</c> the browser sends, none where none.</summary>
+    internal string? Language { get; set; }
+
     /// <summary>Sends a request to <paramref name="route"/> under the public prefix, with <paramref name="json"/> as <c>application/json</c> where given, keeping any cookie it answers.</summary>
     internal async Task<HttpResponseMessage> SendAsync(HttpMethod method, string route, string? json = null)
     {
@@ -49,6 +52,11 @@ internal sealed class Browser(ChatHost host, string? person = null, string sourc
         }
 
         request.Headers.Add(ChatHost.SourceHeader, Source);
+        if (Language is not null)
+        {
+            request.Headers.Add("Accept-Language", Language);
+        }
+
         HttpResponseMessage response = await client.SendAsync(request, TestContext.Current.CancellationToken);
         if (response.Headers.TryGetValues("Set-Cookie", out System.Collections.Generic.IEnumerable<string>? set) && set.FirstOrDefault(each => each.StartsWith("messaging_visitor=", StringComparison.Ordinal)) is { } kept)
         {

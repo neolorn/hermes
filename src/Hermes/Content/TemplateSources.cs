@@ -52,12 +52,18 @@ internal sealed class TemplateSources(ITemplateSource? host, string folder, IRea
 
     /// <summary>
     /// The part's path under the folder, with <c>/</c> between its folder and its file:
-    /// <c>&lt;kind&gt;/&lt;channel&gt;.&lt;language&gt;.&lt;part&gt;.liquid</c>, or for a page
-    /// <c>pages/&lt;page&gt;.&lt;language&gt;.&lt;part&gt;.liquid</c>.
+    /// <c>&lt;kind&gt;/&lt;channel&gt;.&lt;language&gt;.&lt;part&gt;.liquid</c>, for a page
+    /// <c>pages/&lt;page&gt;.&lt;language&gt;.&lt;part&gt;.liquid</c>, or for an automatic reply
+    /// <c>replies/&lt;name&gt;.&lt;language&gt;.text.liquid</c> (<c>09</c> MSG-CONV-003).
     /// </summary>
     internal static string RelativePath(TemplateKey key)
     {
         ArgumentNullException.ThrowIfNull(key);
+        if (key.Reply is { } reply)
+        {
+            return $"replies/{reply}.{key.Language}.{key.Part}.liquid";
+        }
+
         return key.Page is { } page
             ? $"pages/{page}.{key.Language}.{key.Part}.liquid"
             : $"{key.Kind}/{Spellings.Of(key.Channel ?? throw new ArgumentException("A kind's key names its channel.", nameof(key)))}.{key.Language}.{key.Part}.liquid";

@@ -66,3 +66,19 @@ internal sealed class SupportCounterRow
 
     public required int Count { get; set; }
 }
+
+/// <summary>A saved reply (<c>09</c> MSG-CONV-005): shared by a topic or a staff member's own, exactly one of the two, its name unique among its owner's.</summary>
+internal sealed class SupportReplyRow
+{
+    public required Guid Id { get; set; }
+
+    public string? Topic { get; set; }
+
+    public string? Person { get; set; }
+
+    public required string Name { get; set; }
+
+    public required string Text { get; set; }
+
+    public required DateTimeOffset CreatedAt { get; set; }
+}

@@ -2184,6 +2184,189 @@ This entry settles the map's C7, C12 to C19, C50 to C52 and C57 to C60.
 > `09` MSG-CONV-002, MSG-CONV-008, MSG-CONV-009, MSG-CONV-011; `implementation-plan.md`
 > (phase 16).
 
+> **Amended.** 2026-11-01, on the review of phase 17's work:
+> - `05` declares 503 as for `GET /inapp` on `GET {staff}/support/queue` and on every
+>   public route that takes a person's lock: for a signed-in customer, every route that
+>   starts or names a conversation takes the person's locks shared, as the in-app list's
+>   routes do.
+>
+> Propagated to `05` MSG-API-009, MSG-API-010.
+
+---
+
+## M-035 — Phase 17: automatic replies and desk tools
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-CONV-003, MSG-CONV-005, MSG-LIB-002 (`TemplateKey`)
+
+**TL;DR.**
+- Automatic replies are rules in configuration, each a trigger and a reply template found
+  through a new `TemplateKey` member, `Reply`.
+- The desk gets saved replies (shared per topic, or a staff member's own), tags declared in
+  configuration, snoozing until an instant, and automatic closing after a silence, with
+  the closing rule's warning first.
+- One job runs every timer.
+
+This entry settles the map's C20 to C23, C28 to C31 and L19.
+
+- **Rules (C20, C22).**
+  - Each rule is `Hermes:Conversations:Replies:<name>`, its name under `01` MSG-SEND-001's
+    name rule, with:
+    - `Trigger`: `started`, `unavailable`, `waiting`, `outsidehours` or `closing`;
+    - `Topics`: the topics it serves, all when absent;
+    - for `waiting`, `After`, from 1 minute to 1 hour.
+  - A rule fires at most once per conversation.
+  - `started` fires when a conversation is queued. `unavailable` fires when it is queued
+    while no member is available. `outsidehours` fires on an offline form's conversation.
+    `waiting` fires once a queued conversation has waited `After`. `closing` fires
+    `Support:CloseWarning` before an automatic close.
+  - The message written is of type `automatic`, `authorKind` `library`, in the
+    conversation's language. That is the visitor's or the customer's language as the
+    public side read it (`Accept-Language` for a visitor, the person's for a customer),
+    matched as `01` MSG-SEND-003 matches.
+  - Where two rules fire at once, both write, in name order.
+- **The template (C21, L19).**
+  - `TemplateKey` gains `string? Reply`. A key now names one of three things:
+    - a kind and a part;
+    - a page;
+    - a reply, by `Reply` alone with `Kind` and `Page` null.
+  - MSG-LIB-002's rule is rewritten to say so. The release notes warn that a host source
+    reading `Kind == null` as a page must now also read `Reply`.
+  - The library's own source looks in `replies/<name>.<language>.text.liquid`.
+  - A reply's values are:
+    - `topic`;
+    - `place`, the visitor's place, or none;
+    - `wait`, the minutes waited;
+    - `opens`, the topic's next opening instant, or none, formatted by the template.
+- **The start check (C23).** Every rule's template is checked in every declared language,
+  as `03` MSG-TPL-001 and MSG-TPL-004 check kinds. A missing one fails the start with
+  `messaging.startup.templatemissing`, naming the rule and the language.
+- **Saved replies (C28).**
+  - A saved reply has a name (1 to 64 characters) and a text (1 to 4,000), plain text
+    without templating. It is either shared by a topic or a staff member's own.
+  - A topic holds at most 200, and a person at most 100.
+  - Staff of a topic manage its shared replies, and each person their own:
+    `GET`, `POST`, `PUT` and `DELETE {staff}/support/replies`, with `topic` or `mine`.
+  - The table `support_replies` holds a person reference for one's own, so M-031's rule
+    applies. Erasure deletes a person's own replies.
+- **Tags (C29).**
+  - The tags are declared in `Hermes:Conversations:Tags`, a list of names under the
+    name rule, at most 50.
+  - Staff add and remove them on a support conversation they may read:
+    `PUT {staff}/support/conversations/{id}/tags` with the whole set.
+  - An undeclared tag answers 400 `messaging.conversation.invalid`, `field` `tags`.
+  - Tags are not statuses: statuses stay M-032's fixed set.
+- **Snoozing (C30).**
+  - `POST {staff}/support/conversations/{id}/snooze` with `until`, from 5 minutes to 30
+    days ahead, sets the status `snoozed`.
+  - The conversation wakes to `open` at `until`, or at once when the visitor or the
+    customer writes.
+  - A snoozed conversation keeps its assignee, and counts toward their limit.
+- **Automatic closing (C31).**
+  - `Hermes:Conversations:Support:CloseAfter` (default 24 hours, 1 hour to 30 days) is the
+    silence after which an open or snoozed support conversation closes.
+  - The silence is measured from its last message of any type but `note`.
+  - `Support:CloseWarning` (default 5 minutes, 1 minute to 1 hour, shorter than
+    `CloseAfter`) is how long before the close the `closing` rule fires.
+  - A message after the warning restarts the silence. The close is a `system` message and
+    the status `closed`, as a staff close is.
+- **The job.**
+  - A new job, `conversation-timers`, runs every 30 seconds under the engine's job claims
+    (`06` MSG-OPS-004). It fires `waiting` and `closing`, wakes snoozes, and closes.
+  - Each timer fires once, survives a restart, and fires nothing on a closed
+    conversation. Each timer's next instant is a column, moved in the transaction that
+    fires it.
+- **Phase 17's criteria.**
+  1. Each trigger writes one `automatic` message in the conversation's language from its
+     template, once per conversation.
+  2. A rule's missing template fails the start, naming it.
+  3. A host source that answers pages for `Kind == null` and reads `Reply` serves a reply.
+     The library's own source serves one from `replies/`.
+  4. Saved replies keep their bounds and owners. Another person's own reply answers 404.
+  5. An undeclared tag is refused.
+  6. A snoozed conversation wakes at its instant, and at once on the visitor's message.
+  7. A conversation silent past `CloseAfter` closes, the warning first, and a message
+     after the warning restarts the silence.
+  8. A restart fires no timer twice and misses none, and nothing fires on a closed
+     conversation.
+
+**Propagated to:**
+- `03` MSG-TPL-001, MSG-TPL-004, MSG-TPL-006;
+- `04` MSG-LIB-002 (`TemplateKey`);
+- `05` (the routes);
+- `06` MSG-OPS-004 (the job);
+- `08` sections 1, 4 and 8;
+- `09` MSG-CONV-003, MSG-CONV-005, with their criteria.
+
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - `messaging.startup.templatemissing` is a startup code of its own, its details `rule`
+>   and `language`.
+> - The saved replies' routes: `GET /support/replies`, with `topic` or `mine`, answers
+>   `{ "replies": [ <reply> ] }`, `<reply>` being `{ "id", "name", "text", "topic" }`
+>   with `topic` `null` for one's own, and a topic not configured 400
+>   `messaging.request.malformed`, `member` `topic`. `POST /support/replies` with
+>   `{ "name", "text", "topic" }` answers 201 with the reply. `PUT` and
+>   `DELETE /support/replies/{id}`, the first with `{ "name", "text" }`, answer 204.
+> - A name or text outside its bounds answers 400 `messaging.reply.invalid`, `field`
+>   `name` or `text`; a reply past its owner's count 409 `messaging.reply.full`; another
+>   person's own reply 404 `messaging.reply.notfound`. A name is unique per owner, and a
+>   second answers 409 `messaging.reply.nameexists`.
+> - `IConversations` gains `SetTagsAsync`, `SnoozeAsync`, `RepliesAsync`,
+>   `AddReplyAsync`, `ChangeReplyAsync` and `RemoveReplyAsync`, with a `SavedReplyId`
+>   and a `SavedReplyRecord` (`Id`, `Name`, `Text`, `Topic`). `ConversationRecord`
+>   gains `Tags` and `SnoozedUntil`, and `<conversation>` gains `tags` and
+>   `snoozedUntil`.
+> - The tags and snooze routes answer 204, 404 `messaging.conversation.notfound` and
+>   503. An `until` outside its range answers 400 `messaging.conversation.invalid`,
+>   `field` `until`. Either route on a conversation that is not support answers the same
+>   with `field` `type`, and on a closed one 409 `messaging.conversation.closed`, a new
+>   code. Snoozing follows the tags' rule: a support conversation the staff member may
+>   read.
+> - Tags are kept in the column `tags` of `conversations`. A tag dropped from the
+>   declaration stays on its conversations, and is refused only when it is put again.
+> - `conversation-timers` is turned on by `Hermes:Jobs:Enabled`, where conversations are
+>   registered, and has its row in `06` MSG-OPS-004's table.
+> - The conversation's language is matched when it starts and kept in the column
+>   `language` of `conversations`: a visitor's from `Accept-Language`, a customer's read
+>   as `01` MSG-SEND-003 reads a person's language.
+> - `unavailable` fires on an offline form's conversation started within its topic's
+>   hours while no member is available, and `outsidehours` on one started outside them.
+>   An automatic reply on an offline form's conversation is written to the conversation
+>   only, never emailed.
+> - A reply's `opens` is given in the topic's time zone, and its template sees the four
+>   values alone. A rendered reply is bounded at 4,000 characters, as a message's text
+>   is. One that fails to render, or renders past the bound, writes nothing and is
+>   logged, and its rule counts as fired.
+> - A rule's `Topics` naming a topic not configured, `After` on a rule that is not
+>   `waiting`, a tag name outside the name rule, and a 51st tag each fail the start with
+>   `messaging.startup.configurationinvalid`.
+> - The release notes state the `TemplateKey` warning among what the deployment meets
+>   (`06` MSG-OPS-007).
+> - `08` section 3 gives `snoozed` its meaning.
+> - A topic's replies, for a person outside its scope, answer 404
+>   `messaging.reply.notfound` on every replies route, never 403.
+> - `tags` and `snoozedUntil` are on staff bodies only: the public routes and hub never
+>   answer them.
+>
+> Propagated to `04` MSG-LIB-002; `05` MSG-API-009, MSG-API-010; `06` MSG-OPS-004,
+> MSG-OPS-007; `08` sections 1, 3 and 4; `09` MSG-CONV-003, MSG-CONV-005;
+> `implementation-plan.md` (phase 17).
+
+> **Amended.** 2026-11-01, on the review of phase 17's work:
+> - Only a `text` written by a staff member, a visitor or a customer restarts the
+>   silence. Library messages (`automatic`, `system`) and notes never do.
+> - The automatic close's `system` message carries no text: its type says what happened.
+> - The timers' columns are `waiting_at`, `closing_at`, `close_at` and `snoozed_until`,
+>   with `replies_fired` for the rules already fired (`08` section 8).
+> - `started` fires on a conversation created queued, by a start or an offline form,
+>   never on a transfer.
+> - `opens` is none within the topic's hours, otherwise the start of its next range,
+>   searched up to a year ahead.
+> - A reply template that does not parse fails the start with
+>   `messaging.startup.declarationinvalid`, `declaration` the rule and `field`
+>   `<language>.text`.
+>
+> Propagated to `03` MSG-TPL-004; `08` section 8; `09` MSG-CONV-003, MSG-CONV-005.
+
 ---
 
 # Index
@@ -2224,3 +2407,4 @@ This entry settles the map's C7, C12 to C19, C50 to C52 and C57 to C60.
 | Phase 14: the model and staff chats | M-032 |
 | Phase 15: the live connection | M-033 |
 | Phase 16: support's public side | M-034 |
+| Phase 17: automatic replies and desk tools | M-035 |
