@@ -1,5 +1,37 @@
 # Release notes
 
+## 1.0.0-rc.4
+
+The fourth release candidate of 1.0.0. It widens the characters an SMS sender name may
+hold. It ships the seven packages of 1.0.0-rc.3, each at this version and each depending on
+the others it uses at exactly this version. Until a final release, a release candidate may
+change or remove anything; this one changes no public type or member, no route, code or
+key, and removes nothing.
+
+### Changes since 1.0.0-rc.3
+
+- **Sender names.** A sender name, `Sms(sender: ...)` or `Hermes:Sms:Sender`, may now hold
+  any printable ASCII character of the GSM 7-bit default alphabet's basic set (3GPP TS
+  23.038 section 6.2.1): `A` to `Z`, `a` to `z`, `0` to `9`, space and
+  `! " # $ % & ' ( ) * + , - . / : ; < = > ? @ _`. It is still 1 to 11 characters, or a
+  number of 1 to 15 digits. Before, only letters, digits and space were taken, so a name
+  the operators registered with punctuation, such as one ending in a full stop, stopped the
+  start with `messaging.startup.configurationinvalid` (`key` `Sms:Sender`), or
+  `messaging.startup.declarationinvalid` for a kind's own sender. The extension table's
+  characters (`[ ] { } \ ^ ~ |` and the euro sign), which take two septets, and the basic
+  set's letters outside ASCII are still refused. A provider may still narrow the rule
+  through `ISmsProvider.IsValidSender`, and `InMemorySmsProvider` and the development
+  inbox's provider apply the same rule.
+
+### Migrations that drop or rewrite data
+
+None, and no migration is added since 1.0.0-rc.3.
+
+### What the deployment does
+
+Nothing new since 1.0.0-rc.3, whose list holds. A sender name is still registered with the
+provider and the operators beforehand, exactly as it is configured.
+
 ## 1.0.0-rc.3
 
 The third release candidate of 1.0.0. It holds release 2: conversations, in the new package
