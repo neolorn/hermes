@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,9 +21,9 @@ public interface IConversations
     /// <param name="size">The most conversations the page holds, 1 to 100, or none for 20.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The page; or a failure: <c>messaging.request.malformed</c> (<c>member</c> <c>cursor</c>) for a cursor that does not read.</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.ArgumentOutOfRangeException">A size outside 1 to 100.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A size outside 1 to 100.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result<ConversationPage>> ListAsync(string person, string? cursor, int? size, CancellationToken cancellationToken);
 
@@ -31,8 +32,8 @@ public interface IConversations
     /// <param name="participants">The others' person references, distinct and not the person's.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The conversation; or a failure: <c>messaging.conversation.invalid</c> (<c>field</c> <c>participants</c>).</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result<ConversationRecord>> StartDirectAsync(string person, IReadOnlyList<string> participants, CancellationToken cancellationToken);
 
@@ -41,8 +42,8 @@ public interface IConversations
     /// <param name="scope">The scope.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The conversation; or a failure: <c>messaging.conversation.notfound</c> for a person who is not a member; <c>messaging.request.malformed</c> (<c>member</c> <c>reference</c>) for a scope reference outside 1 to 128 characters.</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result<ConversationRecord>> OpenGroupAsync(string person, ConversationScope scope, CancellationToken cancellationToken);
 
@@ -51,8 +52,8 @@ public interface IConversations
     /// <param name="conversation">The conversation.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The conversation; or a failure: <c>messaging.conversation.notfound</c>.</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result<ConversationRecord>> ReadAsync(string person, ConversationId conversation, CancellationToken cancellationToken);
 
@@ -64,9 +65,9 @@ public interface IConversations
     /// <param name="size">The most messages the page holds, 1 to 100, or none for 50.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The page; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.request.malformed</c> (<c>member</c> <c>before</c> or <c>after</c>) for a message the conversation does not hold, or both given; <c>messaging.key.unavailable</c>.</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.ArgumentOutOfRangeException">A size outside 1 to 100.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">A size outside 1 to 100.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result<MessagePage>> MessagesAsync(string person, ConversationId conversation, MessageId? before, MessageId? after, int? size, CancellationToken cancellationToken);
 
@@ -79,8 +80,8 @@ public interface IConversations
     /// <param name="mentions">The persons it mentions, at most 32 distinct, each a participant or member of the conversation; or none.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The message; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.message.invalid</c> (<c>field</c> <c>text</c>, <c>mentions</c>, <c>replyTo</c> or <c>type</c>); <c>messaging.key.unavailable</c>.</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result<MessageRecord>> WriteAsync(string person, ConversationId conversation, string text, MessageType type, MessageId? replyTo, IReadOnlyList<string>? mentions, CancellationToken cancellationToken);
 
@@ -91,8 +92,8 @@ public interface IConversations
     /// <param name="text">The new text, 1 to 4,000 characters.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.message.notfound</c>; <c>messaging.message.notauthor</c>; <c>messaging.message.deleted</c>; <c>messaging.message.invalid</c> (<c>field</c> <c>text</c>); <c>messaging.key.unavailable</c>.</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result> EditAsync(string person, ConversationId conversation, MessageId message, string text, CancellationToken cancellationToken);
 
@@ -102,8 +103,8 @@ public interface IConversations
     /// <param name="message">The message.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.message.notfound</c>; <c>messaging.message.notauthor</c>.</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result> DeleteAsync(string person, ConversationId conversation, MessageId message, CancellationToken cancellationToken);
 
@@ -113,8 +114,8 @@ public interface IConversations
     /// <param name="message">The last message read.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.message.notfound</c>.</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result> MarkReadAsync(string person, ConversationId conversation, MessageId message, CancellationToken cancellationToken);
 
@@ -124,8 +125,8 @@ public interface IConversations
     /// <param name="muted">Whether it is muted.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>.</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result> MuteAsync(string person, ConversationId conversation, bool muted, CancellationToken cancellationToken);
 
@@ -135,8 +136,8 @@ public interface IConversations
     /// <param name="participants">The others' person references.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.conversation.invalid</c> (<c>field</c> <c>type</c> for a group conversation, <c>participants</c> for a reference outside its bounds); <c>messaging.conversation.full</c>.</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result> AddParticipantsAsync(string person, ConversationId conversation, IReadOnlyList<string> participants, CancellationToken cancellationToken);
 
@@ -145,8 +146,71 @@ public interface IConversations
     /// <param name="conversation">The conversation.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.conversation.invalid</c> (<c>field</c> <c>type</c>) for a group conversation.</returns>
-    /// <exception cref="System.ArgumentException">A person reference outside its bounds.</exception>
-    /// <exception cref="System.InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
     /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
     ValueTask<Result> LeaveAsync(string person, ConversationId conversation, CancellationToken cancellationToken);
+
+    /// <summary>Sets whether the person, a staff member, is available for support; available and connected to the staff hub, they are assigned queued conversations of the topics whose scope they belong to (<c>09</c> MSG-CONV-002).</summary>
+    /// <param name="person">The person reference.</param>
+    /// <param name="available">Whether they are available.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>Success.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result> SetAvailableAsync(string person, bool available, CancellationToken cancellationToken);
+
+    /// <summary>Reads a topic's queued support conversations, oldest first; none for a person outside the topic's scope.</summary>
+    /// <param name="person">The person reference.</param>
+    /// <param name="topic">The topic's name.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The queue; or a failure: <c>messaging.request.malformed</c> (<c>member</c> <c>topic</c>) for a topic not configured.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result<ConversationPage>> QueueAsync(string person, string topic, CancellationToken cancellationToken);
+
+    /// <summary>Transfers an open support conversation to another member of its topic's scope, assigned at once, or to another topic's queue; exactly one of the two is given.</summary>
+    /// <param name="person">The person reference, a member of the topic's scope.</param>
+    /// <param name="conversation">The conversation.</param>
+    /// <param name="toPerson">The member it goes to, or none.</param>
+    /// <param name="topic">The topic whose queue it goes to, or none.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>; <c>messaging.conversation.invalid</c> (<c>field</c> <c>person</c> for a person outside the topic's scope, <c>topic</c> for a topic not configured).</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds, or neither or both of <paramref name="toPerson"/> and <paramref name="topic"/>.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result> TransferAsync(string person, ConversationId conversation, string? toPerson, string? topic, CancellationToken cancellationToken);
+
+    /// <summary>Closes a support conversation; one already closed changes nothing.</summary>
+    /// <param name="person">The person reference, a member of the topic's scope.</param>
+    /// <param name="conversation">The conversation.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result> CloseAsync(string person, ConversationId conversation, CancellationToken cancellationToken);
+
+    /// <summary>Blocks a support conversation's visitor or customer from starting and writing, until <paramref name="until"/> or until lifted (<c>09</c> MSG-CONV-011).</summary>
+    /// <param name="person">The person reference, a member of the topic's scope.</param>
+    /// <param name="conversation">The conversation.</param>
+    /// <param name="until">The instant the block ends, or none until it is lifted.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result> BlockAsync(string person, ConversationId conversation, DateTimeOffset? until, CancellationToken cancellationToken);
+
+    /// <summary>Lifts every block of a support conversation's visitor or customer.</summary>
+    /// <param name="person">The person reference, a member of the topic's scope.</param>
+    /// <param name="conversation">The conversation.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>Success; or a failure: <c>messaging.conversation.notfound</c>.</returns>
+    /// <exception cref="ArgumentException">A person reference outside its bounds.</exception>
+    /// <exception cref="InvalidOperationException">The library's startup checks have not completed.</exception>
+    /// <exception cref="System.Data.Common.DbException">The person's locks were not had within <c>Hermes:Dispatch:Timeout</c>.</exception>
+    ValueTask<Result> UnblockAsync(string person, ConversationId conversation, CancellationToken cancellationToken);
 }

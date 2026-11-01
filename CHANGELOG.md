@@ -63,6 +63,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Support:NoticeVersion`, the last two required where topics are configured; the
   `Limits:` of visitors and source addresses; and `Retention:Visitor`. A value outside its
   rule stops the start with `messaging.startup.configurationinvalid` naming its key
+- Support: `MapHermesPublicConversations` maps the public conversations group, where a
+  visitor, known by the HttpOnly cookie `messaging_visitor` and held only as a keyed hash,
+  or a signed-in customer acknowledges the privacy notice, starts a conversation of a
+  topic or leaves one through the offline form, and reads and writes their own, never
+  seeing a note; a queued conversation goes, within its topic's hours, to the available
+  member of the topic's scope with the fewest open conversations, first in, first out;
+  outside hours or with nobody available the start answers `messaging.support.offline`;
+  limits per visitor and per source address answer `messaging.support.limited` with
+  `Retry-After`, across processes; and staff set themselves available, read a topic's
+  queue, transfer, close and block through the staff group, the support conversations
+  assigned to them in their list. `ConversationRecord` gains `Topic`, `Status`, `Place`
+  and `Offline`, and `IConversations` support's members. An offline conversation's
+  replies are sent by email as `Hermes:Conversations:Support:OfflineReplyKind`
 
 ### Fixed
 

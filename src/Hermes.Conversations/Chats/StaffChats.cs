@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Hermes.Conversations.Live;
+using Hermes.Conversations.Support;
 using Hermes.Core;
 using Hermes.Operations;
 using Hermes.Sending;
@@ -38,6 +39,7 @@ internal sealed partial class StaffChats(
     IConversationMembership membership,
     IMessages messages,
     ConversationsSettings settings,
+    SupportAssigner assigner,
     TimeProvider clock,
     ILogger<StaffChats> logger) : IConversations
 {
@@ -67,7 +69,8 @@ internal sealed partial class StaffChats(
     private const string Page = """
         SELECT * FROM messaging.conversations AS c
         WHERE ((c.type = 'direct' AND EXISTS (SELECT 1 FROM messaging.participants AS p WHERE p.conversation_id = c.id AND p.person = @person AND p.left_at IS NULL))
-            OR (c.type = 'group' AND (c.scope_kind, c.scope_reference) IN (SELECT kind, reference FROM unnest(@kinds, @references) AS scopes(kind, reference))))
+            OR (c.type = 'group' AND (c.scope_kind, c.scope_reference) IN (SELECT kind, reference FROM unnest(@kinds, @references) AS scopes(kind, reference)))
+            OR (c.type = 'support' AND c.status = 'open' AND c.assignee = @person))
           AND (NOT @after OR (COALESCE(c.last_message_at, c.created_at), c.id) < (@last_at, @id))
         ORDER BY COALESCE(c.last_message_at, c.created_at) DESC, c.id DESC
         LIMIT @limit
@@ -378,9 +381,20 @@ internal sealed partial class StaffChats(
             return Result.Fail<MessageRecord>(Invalid(ChatCodes.MessageInvalid, "text"));
         }
 
-        if (type != MessageType.Text)
+        bool support = string.Equals(reached.Type, SupportType, StringComparison.Ordinal);
+        if (support && (!string.Equals(reached.Assignee, person, StringComparison.Ordinal) || !string.Equals(reached.Status, OpenStatus, StringComparison.Ordinal)))
+        {
+            return Result.Fail<MessageRecord>(NotFound());
+        }
+
+        if (type != MessageType.Text && !(support && type == MessageType.Note))
         {
             return Result.Fail<MessageRecord>(Invalid(ChatCodes.MessageInvalid, "type"));
+        }
+
+        if (support && mentions is { Count: > 0 })
+        {
+            return Result.Fail<MessageRecord>(Invalid(ChatCodes.MessageInvalid, "mentions"));
         }
 
         string[] mentioned = [.. (mentions ?? []).Distinct(StringComparer.Ordinal)];
@@ -403,7 +417,8 @@ internal sealed partial class StaffChats(
 
         MessagingOptions current = options.CurrentValue;
         Guid id = Guid.CreateVersion7();
-        Protected made = await ProtectAsync(person, text, id, current, cancellationToken).ConfigureAwait(false);
+        string? owner = support ? reached.Customer : person;
+        Protected made = await ProtectAsync(owner, text, id, current, cancellationToken).ConfigureAwait(false);
         if (made.Failure is { } unavailable)
         {
             return Result.Fail<MessageRecord>(unavailable);
@@ -441,8 +456,8 @@ internal sealed partial class StaffChats(
                     ConversationId = reached.Id,
                     AuthorKind = Person,
                     Author = person,
-                    Owner = person,
-                    Type = ConversationSpellings.Of(MessageType.Text),
+                    Owner = owner,
+                    Type = ConversationSpellings.Of(type),
                     Text = made.Stored,
                     ContentKeyVersion = made.Version,
                     ReplyTo = replyTo?.Value,
@@ -466,7 +481,17 @@ internal sealed partial class StaffChats(
             return Result.Fail<MessageRecord>(refused);
         }
 
-        await AwayAsync(person, reached, id, mentioned, cancellationToken).ConfigureAwait(false);
+        if (support)
+        {
+            if (reached.Offline && type == MessageType.Text)
+            {
+                await OfflineReplyAsync(reached, id, text, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        else
+        {
+            await AwayAsync(person, reached, id, mentioned, cancellationToken).ConfigureAwait(false);
+        }
 
         return Result.Success(Of(written.Row!, text, erased: false, [.. mentioned.Order(StringComparer.Ordinal)]));
     }
@@ -492,7 +517,7 @@ internal sealed partial class StaffChats(
         }
 
         MessagingOptions current = options.CurrentValue;
-        Protected made = await ProtectAsync(person, text, message.Value, current, cancellationToken).ConfigureAwait(false);
+        Protected made = await ProtectAsync(found!.Owner, text, message.Value, current, cancellationToken).ConfigureAwait(false);
         if (made.Failure is { } unavailable)
         {
             return Result.Fail(unavailable);
@@ -919,6 +944,11 @@ internal sealed partial class StaffChats(
                 return null;
             }
 
+            if (string.Equals(row.Type, SupportType, StringComparison.Ordinal))
+            {
+                return await IsSupportMemberAsync(person, row, cancellationToken).ConfigureAwait(false) ? row : null;
+            }
+
             if (ScopeOf(row) is { } scope)
             {
                 return await membership.IsMemberAsync(person, scope, cancellationToken).ConfigureAwait(false) ? row : null;
@@ -939,7 +969,7 @@ internal sealed partial class StaffChats(
     /// </summary>
     private async Task<bool> StaysAsync(MessagingContext context, ConversationRow reached, string person, CancellationToken cancellationToken)
     {
-        if (string.Equals(reached.Type, Group, StringComparison.Ordinal))
+        if (string.Equals(reached.Type, Group, StringComparison.Ordinal) || string.Equals(reached.Type, SupportType, StringComparison.Ordinal))
         {
             await JoinAsync(context, reached.Id, person, clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
             return true;
@@ -1036,6 +1066,10 @@ internal sealed partial class StaffChats(
                 Unread = unread.FirstOrDefault(each => each.Conversation == row.Id)?.Count ?? 0,
                 Muted = mine?.Muted ?? false,
                 LastAt = row.LastMessageAt ?? row.CreatedAt,
+                Topic = row.Topic,
+                Status = row.Topic is null ? null : ConversationSpellings.StatusOf(row.Status),
+                Place = row.Topic is null ? null : await PlaceAsync(context, row, cancellationToken).ConfigureAwait(false),
+                Offline = row.Topic is null ? null : row.Offline,
             });
         }
 
@@ -1049,8 +1083,8 @@ internal sealed partial class StaffChats(
         await AdvisoryLocks.TakeAsync(context, keys, shared: true, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Protects <paramref name="text"/> under <paramref name="person"/>'s key, bound to the message's row, bounded by <c>Hermes:Dispatch:Timeout</c>.</summary>
-    private async Task<Protected> ProtectAsync(string person, string text, Guid message, MessagingOptions current, CancellationToken cancellationToken)
+    /// <summary>Protects <paramref name="text"/> under <paramref name="person"/>'s key, or as an anonymous recipient's value where none, bound to the message's row, bounded by <c>Hermes:Dispatch:Timeout</c>.</summary>
+    private async Task<Protected> ProtectAsync(string? person, string text, Guid message, MessagingOptions current, CancellationToken cancellationToken)
     {
         string context = ContentContext.Of(ContentContext.Messages, message, ConversationTables.Text);
         try

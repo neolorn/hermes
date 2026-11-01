@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using Hermes.Conversations.Chats;
+using Hermes.Conversations.Support;
 using Hermes.Core;
 using Hermes.Endpoints;
 using Hermes.Operations;
@@ -29,6 +30,9 @@ namespace Hermes.Conversations.Endpoints;
 internal static class StaffEndpoints
 {
     private const string Instant = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+
+    /// <summary>The forms an instant is read in: ISO 8601 in UTC, with or without milliseconds.</summary>
+    private static readonly string[] Instants = [Instant, "yyyy-MM-dd'T'HH:mm:ss'Z'"];
 
     private const int MostSize = 100;
 
@@ -114,6 +118,171 @@ internal static class StaffEndpoints
             .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
             .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
             .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapGet("/support/queue", (Delegate)QueueAsync)
+            .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized);
+        group.MapPut("/support/availability", (Delegate)AvailabilityAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
+            .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapPost("/support/conversations/{id}/transfer", (Delegate)TransferAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
+            .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapPost("/support/conversations/{id}/close", (Delegate)CloseAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
+            .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapPost("/support/conversations/{id}/block", (Delegate)BlockAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ErrorBody>(StatusCodes.Status400BadRequest)
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status413PayloadTooLarge)
+            .Produces<ErrorBody>(StatusCodes.Status415UnsupportedMediaType)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+        group.MapDelete("/support/conversations/{id}/block", (Delegate)UnblockAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ErrorBody>(StatusCodes.Status401Unauthorized)
+            .Produces<ErrorBody>(StatusCodes.Status404NotFound)
+            .Produces<ErrorBody>(StatusCodes.Status503ServiceUnavailable);
+    }
+
+    private static async Task<Results<JsonAnswer<QueueBody>, Refusal>> QueueAsync(HttpContext context)
+    {
+        if (await Identity.PersonAsync(context).ConfigureAwait(false) is not { } person)
+        {
+            return Identity.Unauthenticated();
+        }
+
+        if (!context.Request.Query.TryGetValue("topic", out StringValues topics) || topics.Count != 1 || topics[0] is not { } topic)
+        {
+            return RequestBodies.Malformed("topic");
+        }
+
+        return await CallAsync<JsonAnswer<QueueBody>>(context, async conversations =>
+        {
+            Result<ConversationPage> queue = await conversations.QueueAsync(person, topic, context.RequestAborted).ConfigureAwait(false);
+            return queue.Failure is { } refused
+                ? Refused(context, refused)
+                : new JsonAnswer<QueueBody>(new QueueBody([.. queue.Value!.Conversations.Select(Of)]), ConversationsJson.Default.QueueBody);
+        }).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<NoContent, Refusal>> AvailabilityAsync(HttpContext context)
+    {
+        if (await Identity.PersonAsync(context).ConfigureAwait(false) is not { } person)
+        {
+            return Identity.Unauthenticated();
+        }
+
+        (AvailabilityRequest? body, Refusal? malformed) = await RequestBodies.JsonAsync(context.Request, ConversationsJson.Default.AvailabilityRequest, read => read.Available is null ? "available" : null).ConfigureAwait(false);
+        if (malformed is not null)
+        {
+            return malformed;
+        }
+
+        return await DoneAsync(context, conversations => conversations.SetAvailableAsync(person, body!.Available!.Value, context.RequestAborted)).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<NoContent, Refusal>> TransferAsync(HttpContext context, string id)
+    {
+        if (await Identity.PersonAsync(context).ConfigureAwait(false) is not { } person)
+        {
+            return Identity.Unauthenticated();
+        }
+
+        (TransferRequest? body, Refusal? malformed) = await RequestBodies.JsonAsync(context.Request, ConversationsJson.Default.TransferRequest, read => (read.Person is null) == (read.Topic is null) ? "person" : null).ConfigureAwait(false);
+        if (malformed is not null)
+        {
+            return malformed;
+        }
+
+        if (!Guid.TryParseExact(id, "D", out Guid conversation))
+        {
+            return NotFound();
+        }
+
+        return await DoneAsync(context, conversations => conversations.TransferAsync(person, new ConversationId(conversation), body!.Person, body.Topic, context.RequestAborted)).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<NoContent, Refusal>> CloseAsync(HttpContext context, string id)
+    {
+        if (await Identity.PersonAsync(context).ConfigureAwait(false) is not { } person)
+        {
+            return Identity.Unauthenticated();
+        }
+
+        (_, Refusal? malformed) = await RequestBodies.JsonAsync(context.Request, EndpointJson.Default.EmptyBody, _ => null).ConfigureAwait(false);
+        if (malformed is not null)
+        {
+            return malformed;
+        }
+
+        if (!Guid.TryParseExact(id, "D", out Guid conversation))
+        {
+            return NotFound();
+        }
+
+        return await DoneAsync(context, conversations => conversations.CloseAsync(person, new ConversationId(conversation), context.RequestAborted)).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<NoContent, Refusal>> BlockAsync(HttpContext context, string id)
+    {
+        if (await Identity.PersonAsync(context).ConfigureAwait(false) is not { } person)
+        {
+            return Identity.Unauthenticated();
+        }
+
+        (BlockRequest? body, Refusal? malformed) = await RequestBodies.JsonAsync(context.Request, ConversationsJson.Default.BlockRequest, _ => null).ConfigureAwait(false);
+        if (malformed is not null)
+        {
+            return malformed;
+        }
+
+        DateTimeOffset? until = null;
+        if (body!.Until is { } text)
+        {
+            if (!DateTimeOffset.TryParseExact(text, Instants, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out DateTimeOffset read))
+            {
+                return RequestBodies.Malformed("until");
+            }
+
+            until = read;
+        }
+
+        if (!Guid.TryParseExact(id, "D", out Guid conversation))
+        {
+            return NotFound();
+        }
+
+        return await DoneAsync(context, conversations => conversations.BlockAsync(person, new ConversationId(conversation), until, context.RequestAborted)).ConfigureAwait(false);
+    }
+
+    private static async Task<Results<NoContent, Refusal>> UnblockAsync(HttpContext context, string id)
+    {
+        if (await Identity.PersonAsync(context).ConfigureAwait(false) is not { } person)
+        {
+            return Identity.Unauthenticated();
+        }
+
+        if (!Guid.TryParseExact(id, "D", out Guid conversation))
+        {
+            return NotFound();
+        }
+
+        return await DoneAsync(context, conversations => conversations.UnblockAsync(person, new ConversationId(conversation), context.RequestAborted)).ConfigureAwait(false);
     }
 
     private static async Task<Results<JsonAnswer<ConversationsBody>, Refusal>> ListAsync(HttpContext context)
@@ -459,7 +628,7 @@ internal static class StaffEndpoints
     }
 
     /// <summary>Reads the query's <c>size</c>, 1 to 100, none where it is not given; false where it does not read.</summary>
-    private static bool TrySize(IQueryCollection query, out int? size)
+    internal static bool TrySize(IQueryCollection query, out int? size)
     {
         size = null;
         if (!query.TryGetValue("size", out StringValues sizes))
@@ -499,31 +668,32 @@ internal static class StaffEndpoints
         }).ConfigureAwait(false);
     }
 
-    private static Refusal Unavailable(HttpContext context)
+    internal static Refusal Unavailable(HttpContext context)
     {
         return Refusal.Unavailable(context.RequestServices.GetRequiredService<IOptionsMonitor<MessagingOptions>>().CurrentValue.Dispatch.Interval);
     }
 
     /// <summary>A failure an operation answered, with the status <c>08</c> section 1 gives its code; a key unavailable answers 503.</summary>
-    private static Refusal Refused(HttpContext context, Failure failure)
+    internal static Refusal Refused(HttpContext context, Failure failure)
     {
         int status = failure.Code switch
         {
             ChatCodes.ConversationNotFound or ChatCodes.MessageNotFound => StatusCodes.Status404NotFound,
             ChatCodes.ConversationInvalid or ChatCodes.MessageInvalid or Codes.RequestMalformed => StatusCodes.Status400BadRequest,
-            ChatCodes.ConversationFull or ChatCodes.MessageDeleted => StatusCodes.Status409Conflict,
-            ChatCodes.MessageNotAuthor => StatusCodes.Status403Forbidden,
+            ChatCodes.ConversationFull or ChatCodes.MessageDeleted or SupportCodes.Offline or SupportCodes.NoticeRequired or SupportCodes.AlreadyOpen => StatusCodes.Status409Conflict,
+            ChatCodes.MessageNotAuthor or SupportCodes.Blocked => StatusCodes.Status403Forbidden,
+            SupportCodes.Limited => StatusCodes.Status429TooManyRequests,
             _ => StatusCodes.Status503ServiceUnavailable,
         };
         return status == StatusCodes.Status503ServiceUnavailable ? Unavailable(context) : Refusal.Of(status, failure);
     }
 
-    private static Refusal NotFound()
+    internal static Refusal NotFound()
     {
         return Refusal.Of(StatusCodes.Status404NotFound, ChatCodes.ConversationNotFound);
     }
 
-    private static ConversationBody Of(ConversationRecord record)
+    internal static ConversationBody Of(ConversationRecord record)
     {
         return new ConversationBody(
             record.Conversation.Value.ToString("D"),
@@ -532,7 +702,11 @@ internal static class StaffEndpoints
             [.. record.Participants.Select(participant => new ParticipantBody(participant.Participant.Value.ToString("D"), participant.Person, participant.Online))],
             record.Unread,
             record.Muted,
-            Text(record.LastAt));
+            Text(record.LastAt),
+            record.Topic,
+            record.Status is { } status ? ConversationSpellings.Of(status) : null,
+            record.Place,
+            record.Offline);
     }
 
     internal static MessageBody Of(MessageRecord record)

@@ -3,6 +3,7 @@ using System.Linq;
 
 using Hermes.Conversations.Chats;
 using Hermes.Conversations.Live;
+using Hermes.Conversations.Support;
 using Hermes.Core;
 using Hermes.Operations;
 
@@ -40,6 +41,7 @@ public static class MessagingConversationsServiceCollectionExtensions
         services.TryAddSingleton<LiveConnections>();
         services.TryAddSingleton<LivePresence>();
         services.TryAddSingleton<LivePush>();
+        services.TryAddSingleton<SupportAssigner>();
         services.TryAddScoped<StaffChats>();
         services.TryAddScoped<IConversations>(provider => provider.GetRequiredService<StaffChats>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ConversationsStartup>());

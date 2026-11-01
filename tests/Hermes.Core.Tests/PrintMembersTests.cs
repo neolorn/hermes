@@ -324,4 +324,24 @@ public sealed class PrintMembersTests
         Assert.Contains("Unread = 3", printed[1], StringComparison.Ordinal);
         Assert.Contains("Type = Text", printed[2], StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void MSG_LIB_002_ASupportConversationPrintsItsTopicStatusPlaceAndOffline()
+    {
+        ConversationRecord conversation = new()
+        {
+            Conversation = new ConversationId(Guid.CreateVersion7()),
+            Type = ConversationType.Support,
+            Participants = [],
+            Unread = 0,
+            Muted = false,
+            LastAt = DateTimeOffset.UnixEpoch,
+            Topic = "billing",
+            Status = ConversationStatus.Open,
+            Place = 2,
+            Offline = false,
+        };
+
+        Assert.Contains("Topic = billing, Status = Open, Place = 2, Offline = False", conversation.ToString(), StringComparison.Ordinal);
+    }
 }

@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 namespace Hermes.Conversations.Endpoints;
 
 /// <summary>
-/// The package's own serializer context for the staff conversations group's bodies (<c>05</c>
-/// MSG-API-001, MSG-API-009), under the options of the engine's: camelCase members read
+/// The package's own serializer context for the conversations groups' bodies (<c>05</c>
+/// MSG-API-001, MSG-API-009, MSG-API-010), under the options of the engine's: camelCase members read
 /// case-sensitively, an unknown member ignored, numbers only as JSON numbers, never the
 /// application's.
 /// </summary>
@@ -18,4 +18,12 @@ namespace Hermes.Conversations.Endpoints;
 [JsonSerializable(typeof(EditRequest))]
 [JsonSerializable(typeof(ReadRequest))]
 [JsonSerializable(typeof(MuteRequest))]
+[JsonSerializable(typeof(QueueBody))]
+[JsonSerializable(typeof(AvailabilityRequest))]
+[JsonSerializable(typeof(TransferRequest))]
+[JsonSerializable(typeof(BlockRequest))]
+[JsonSerializable(typeof(TopicsBody))]
+[JsonSerializable(typeof(NoticeRequest))]
+[JsonSerializable(typeof(StartRequest))]
+[JsonSerializable(typeof(OfflineRequest))]
 internal sealed partial class ConversationsJson : JsonSerializerContext;

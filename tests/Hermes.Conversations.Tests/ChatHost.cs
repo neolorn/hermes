@@ -35,6 +35,11 @@ internal sealed class ChatHost : IAsyncDisposable
 
     internal const string PersonHeader = "X-Person";
 
+    internal const string PublicPrefix = "/public";
+
+    /// <summary>The header a test names a request's remote address in.</summary>
+    internal const string SourceHeader = "X-Source";
+
     private ChatHost(WebApplication application, string connection, MembershipFake membership)
     {
         Application = application;
@@ -92,7 +97,17 @@ internal sealed class ChatHost : IAsyncDisposable
         builder.Services.AddHermes(builder.Configuration, declare ?? (_ => { }));
         builder.Services.AddHermesConversations();
         WebApplication application = builder.Build();
+        application.Use((context, next) =>
+        {
+            if (context.Request.Headers[SourceHeader].ToString() is { Length: > 0 } source)
+            {
+                context.Connection.RemoteIpAddress = System.Net.IPAddress.Parse(source);
+            }
+
+            return next(context);
+        });
         application.MapHermesStaffConversations(Prefix);
+        application.MapHermesPublicConversations(PublicPrefix);
         await application.StartAsync(TestContext.Current.CancellationToken);
         return new ChatHost(application, connection, membership);
     }
@@ -195,7 +210,9 @@ internal sealed class ChatHost : IAsyncDisposable
     {
         public ValueTask<string?> ReadAsync(TemplateKey key, System.Threading.CancellationToken cancellationToken)
         {
-            return ValueTask.FromResult<string?>(key.Kind is null ? null : key.Part == "title" ? "A message" : "In a {{ conversationType }} conversation");
+            return ValueTask.FromResult<string?>(key.Kind is null ? null
+                : key.Kind == SupportTests.ReplyKind ? key.Part == "subject" ? "About {{ topic }}" : "{{ text }}"
+                : key.Part == "title" ? "A message" : "In a {{ conversationType }} conversation");
         }
     }
 

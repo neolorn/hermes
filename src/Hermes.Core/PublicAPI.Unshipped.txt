@@ -28,10 +28,18 @@ Hermes.Core.ConversationRecord.LastAt.get -> System.DateTimeOffset
 Hermes.Core.ConversationRecord.LastAt.init -> void
 Hermes.Core.ConversationRecord.Muted.get -> bool
 Hermes.Core.ConversationRecord.Muted.init -> void
+Hermes.Core.ConversationRecord.Offline.get -> bool?
+Hermes.Core.ConversationRecord.Offline.init -> void
 Hermes.Core.ConversationRecord.Participants.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.ParticipantRecord!>!
 Hermes.Core.ConversationRecord.Participants.init -> void
+Hermes.Core.ConversationRecord.Place.get -> int?
+Hermes.Core.ConversationRecord.Place.init -> void
 Hermes.Core.ConversationRecord.Scope.get -> Hermes.Core.ConversationScope?
 Hermes.Core.ConversationRecord.Scope.init -> void
+Hermes.Core.ConversationRecord.Status.get -> Hermes.Core.ConversationStatus?
+Hermes.Core.ConversationRecord.Status.init -> void
+Hermes.Core.ConversationRecord.Topic.get -> string?
+Hermes.Core.ConversationRecord.Topic.init -> void
 Hermes.Core.ConversationRecord.Type.get -> Hermes.Core.ConversationType
 Hermes.Core.ConversationRecord.Type.init -> void
 Hermes.Core.ConversationRecord.Unread.get -> int
@@ -58,6 +66,8 @@ Hermes.Core.IConversationMembership.MembersAsync(Hermes.Core.ConversationScope! 
 Hermes.Core.IConversationMembership.ScopesAsync(string! person, System.Threading.CancellationToken cancellationToken) -> System.Collections.Generic.IAsyncEnumerable<Hermes.Core.ConversationScope!>!
 Hermes.Core.IConversations
 Hermes.Core.IConversations.AddParticipantsAsync(string! person, Hermes.Core.ConversationId conversation, System.Collections.Generic.IReadOnlyList<string!>! participants, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.IConversations.BlockAsync(string! person, Hermes.Core.ConversationId conversation, System.DateTimeOffset? until, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.IConversations.CloseAsync(string! person, Hermes.Core.ConversationId conversation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.DeleteAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.MessageId message, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.EditAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.MessageId message, string! text, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.LeaveAsync(string! person, Hermes.Core.ConversationId conversation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
@@ -66,8 +76,12 @@ Hermes.Core.IConversations.MarkReadAsync(string! person, Hermes.Core.Conversatio
 Hermes.Core.IConversations.MessagesAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.MessageId? before, Hermes.Core.MessageId? after, int? size, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.MessagePage!>!>
 Hermes.Core.IConversations.MuteAsync(string! person, Hermes.Core.ConversationId conversation, bool muted, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.OpenGroupAsync(string! person, Hermes.Core.ConversationScope! scope, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationRecord!>!>
+Hermes.Core.IConversations.QueueAsync(string! person, string! topic, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationPage!>!>
 Hermes.Core.IConversations.ReadAsync(string! person, Hermes.Core.ConversationId conversation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationRecord!>!>
+Hermes.Core.IConversations.SetAvailableAsync(string! person, bool available, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.StartDirectAsync(string! person, System.Collections.Generic.IReadOnlyList<string!>! participants, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationRecord!>!>
+Hermes.Core.IConversations.TransferAsync(string! person, Hermes.Core.ConversationId conversation, string? toPerson, string? topic, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.IConversations.UnblockAsync(string! person, Hermes.Core.ConversationId conversation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.WriteAsync(string! person, Hermes.Core.ConversationId conversation, string! text, Hermes.Core.MessageType type, Hermes.Core.MessageId? replyTo, System.Collections.Generic.IReadOnlyList<string!>? mentions, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.MessageRecord!>!>
 Hermes.Core.MessageId
 Hermes.Core.MessageId.Deconstruct(out System.Guid Value) -> void
