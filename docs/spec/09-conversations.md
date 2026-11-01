@@ -191,7 +191,14 @@ answers 400 `messaging.conversation.invalid`, `details.field` `person` or `topic
 - Staff-side pushes of a support conversation go to its assignee alone (MSG-CONV-008),
   and from plan phase 18 to the topic's supervisors too (MSG-CONV-005).
 
-*Source: M-011, M-034, M-036*
+**Closing (M-035).** Staff close a support conversation through the staff group's close
+route, the visitor or the customer their own through the public group's (`05`
+MSG-API-009, MSG-API-010), and it closes by itself after a silence (MSG-CONV-005).
+Every close sets the status `closed` and writes one `system` message without text, in
+the close's transaction, stored and pushed as any message: its type says what happened.
+Plan phase 18 builds it for the staff's and the visitor's closes.
+
+*Source: M-011, M-034, M-035, M-036*
 
 **Acceptance criteria**
 1. FIFO per topic, to the available member with the fewest open conversations, within
@@ -248,6 +255,8 @@ type is an `init`-only record (`04` MSG-LIB-002); the message it writes has the 
   zone, which the template formats: none within the topic's hours, otherwise the start
   of its next range, searched up to a year ahead, and none where there is none. A
   reply's template sees these four values alone.
+- A value that is none (`place`, `opens`) reads as defined: false in a condition, empty
+  in an output, blank to `default`. A template guards it with `{% if %}`.
 - A rendered reply is bounded as a message's text is, at 4,000 characters
   (MSG-CONV-001). A reply that fails to render, or renders past the bound, writes
   nothing and is logged, and its rule counts as fired.
@@ -308,7 +317,9 @@ for reports per staff member and topic.
   email fits (`02` MSG-EMAIL-003).
 - A conversation's transcript is sent at most 3 times, each send's idempotency key
   `conversation:<id>:transcript:<n>`, `n` from 1 to 3. The fourth answers 409
-  `messaging.support.transcriptlimit`.
+  `messaging.support.transcriptlimit`. The sends are counted in the column
+  `transcript_sends` of `conversations`, 0 to 3, since idempotency rows lapse and cannot
+  count.
 - It is sent for a closed conversation only, as the transcript is served. Every check of
   `01` applies to the send, and a send the engine refuses answers its failure code (`08`
   section 1) as 400.
@@ -324,7 +335,8 @@ for reports per staff member and topic.
 - It rates the staff member assigned when the conversation closed. A conversation never
   assigned keeps its survey with no staff member.
 - It is kept in columns of `conversations`: `survey_at`, `survey_resolved`,
-  `survey_rating`, `survey_comment` and `survey_person`, the staff member rated, a
+  `survey_rating`, `survey_comment` with `survey_comment_key_version` (as
+  `email_key_version`), and `survey_person`, the staff member rated, a
   person reference under the rule that the engine knows each table (`06` MSG-OPS-002).
   Erasing that staff member handles `survey_person` as a delivery's person reference:
   the survey stays, and counts for the topic alone.
@@ -405,9 +417,9 @@ live conversations, and reports of waiting time, handling time and survey scores
   customer. Library messages (`automatic`, `system`) and notes never restart it.
 - `Hermes:Conversations:Support:CloseWarning` (default 5 minutes, shorter than
   `CloseAfter`) is how long before the close the `closing` rule fires (MSG-CONV-003).
-- Such a `text` after the warning restarts the silence. The close is a `system` message
-  and the status `closed`, as a staff close is. The `system` message carries no text:
-  its type says what happened.
+- Such a `text` after the warning restarts the silence. The close sets the status
+  `closed` and writes one `system` message without text, as every close does
+  (MSG-CONV-002).
 
 **The timers (M-035).**
 - The job `conversation-timers` runs every 30 seconds under the engine's job claims (`06`

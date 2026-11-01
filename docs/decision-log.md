@@ -2371,8 +2371,16 @@ This entry settles the map's C20 to C23, C28 to C31 and L19.
 > - A reply template that does not parse fails the start with
 >   `messaging.startup.declarationinvalid`, `declaration` the rule and `field`
 >   `<language>.text`.
+> - Every close writes one `system` message without text: a staff close, the visitor's
+>   or customer's own close, and the automatic close alike, in the close's transaction,
+>   stored and pushed as any message. Plan phase 18 builds it for the staff and the
+>   visitor's closes.
+> - In a reply's template, a value that is none (`place`, `opens`) reads as defined:
+>   false in a condition, empty in an output, blank to `default`. A template guards it
+>   with `{% if %}`.
 >
-> Propagated to `03` MSG-TPL-004; `08` section 8; `09` MSG-CONV-003, MSG-CONV-005.
+> Propagated to `03` MSG-TPL-004; `08` section 8; `09` MSG-CONV-002, MSG-CONV-003,
+> MSG-CONV-005; `implementation-plan.md` (phase 18).
 
 ---
 
@@ -2521,6 +2529,13 @@ This entry settles the map's C24 to C27, C32 and C33.
 > MSG-LIB-002; `05` MSG-API-009, MSG-API-010; `08` sections 1, 4 and 8; `09`
 > MSG-CONV-002, MSG-CONV-004, MSG-CONV-005, MSG-CONV-006, MSG-CONV-008, MSG-CONV-009;
 > `implementation-plan.md` (phase 18).
+
+> **Amended.** 2026-11-01, before phase 18's build:
+> - `conversations` gains `survey_comment_key_version` (as `email_key_version`) and
+>   `transcript_sends`, an integer from 0 to 3 counting the transcript's emails, since
+>   idempotency rows lapse and cannot count.
+>
+> Propagated to `08` section 8; `09` MSG-CONV-004.
 
 ---
 
