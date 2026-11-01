@@ -2684,6 +2684,16 @@ This entry settles the map's C42 to C46.
 >
 > Propagated to `08` section 8; `09` MSG-CONV-007.
 
+> **Amended.** 2026-11-01, on the review of phase 19's work:
+> - On the public group, an upload takes exactly the public message write's checks and
+>   answers before any byte is stored: the visitor's or customer's limits and the
+>   source's (each upload counts as one message toward them), a block refusing it as it
+>   refuses a message, and no upload before the current notice is acknowledged, each
+>   with the same code as the message write.
+>
+> Propagated to `05` MSG-API-010; `08` section 1; `09` MSG-CONV-007, MSG-CONV-010,
+> MSG-CONV-011.
+
 ---
 
 # Index
