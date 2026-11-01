@@ -178,6 +178,36 @@ public sealed class ChannelsStartupTests
         Assert.Equal(key, failure.Details["key"]);
     }
 
+    [Fact]
+    public async Task MSG_SMS_002_AC4_ASenderWithAFullStopPassesStartup()
+    {
+        Dictionary<string, string?> configuration = ChannelsHost.Used();
+        configuration["Hermes:Sms:Sender"] = "Bakery Co.";
+        using IHost host = ChannelsHost.Build(configuration);
+
+        await host.StartAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(host.Services.GetRequiredService<ChannelsConfiguration>().InvalidKeys);
+        Assert.Equal("Bakery Co.", host.Services.GetRequiredService<IOptions<ChannelsOptions>>().Value.Sms.Sender);
+    }
+
+    [Theory]
+    [InlineData("Bakery[1]")]
+    [InlineData("Bakery Co.12")]
+    [InlineData("Bakery~")]
+    [InlineData("Bakery€")]
+    public async Task MSG_SMS_002_AC4_ASenderWithABracketPastElevenCharactersOrOutsideTheSetIsRefusedAtStartup(string sender)
+    {
+        Dictionary<string, string?> configuration = ChannelsHost.Used();
+        configuration["Hermes:Sms:Sender"] = sender;
+        using IHost host = ChannelsHost.Build(configuration);
+
+        MessagingStartupException failure = await Assert.ThrowsAsync<MessagingStartupException>(() => host.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("messaging.startup.configurationinvalid", failure.Code);
+        Assert.Equal("Sms:Sender", failure.Details["key"]);
+    }
+
     [Theory]
     [InlineData("Sms:AllowedPrefixes", "+966", "20")]
     [InlineData("Sms:AllowedPrefixes", "+966", "+1234567")]

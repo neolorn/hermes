@@ -942,6 +942,17 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
     }
 
     [Fact]
+    public async Task MSG_SMS_002_AC4_ASenderWithAFullStopPassesStartupAndIsTheSenderOfItsSms()
+    {
+        await using DispatchEngine engine = await StartAsync(configure: configuration => configuration["Hermes:Sms:Sender"] = "Bakery Co.");
+        await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms]));
+
+        await engine.Host.DispatchAsync();
+
+        Assert.Equal("Bakery Co.", Assert.Single(engine.Sms.Received).Sender);
+    }
+
+    [Fact]
     public async Task MSG_SMS_002_AC3_APrefixRemovedWhileADeliveryToItWaitsEndsItFailedWithDestinationnotallowedWithoutARestart()
     {
         await using DispatchEngine engine = await StartAsync();

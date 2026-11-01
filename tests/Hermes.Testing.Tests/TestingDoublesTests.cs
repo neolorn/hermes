@@ -94,7 +94,8 @@ public sealed class TestingDoublesTests
     [InlineData("201000000001", true)]
     [InlineData("", false)]
     [InlineData("A sender name", false)]
-    [InlineData("Shop-24", false)]
+    [InlineData("Shop Co.", true)]
+    [InlineData("Shop[24]", false)]
     public void InMemorySmsProvider_IsValidSender_AppliesTheSenderRule(string sender, bool valid)
     {
         Assert.Equal(valid, new InMemorySmsProvider().IsValidSender(sender));

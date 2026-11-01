@@ -66,7 +66,7 @@ public sealed class ChannelCheckTests
     [Theory]
     [InlineData("Order Notices")]
     [InlineData("1234567890123456")]
-    [InlineData("Orders!")]
+    [InlineData("Orders[1]")]
     [InlineData("")]
     public async Task StartAsync_KindSenderOutsideTheBaseRule_StopsTheStart(string sender)
     {
