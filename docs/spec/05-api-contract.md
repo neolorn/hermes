@@ -331,6 +331,12 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | `PUT /conversations/{id}/mute` | `{ "muted" }` | **404** `messaging.conversation.notfound` |
 | `POST /conversations/{id}/participants` | `{ "participants" }` | **409** `messaging.conversation.full` past 16 participants; **404** `messaging.conversation.notfound` |
 | `POST /conversations/{id}/leave` | | **404** `messaging.conversation.notfound` |
+| `GET /support/queue` | | **200**: the queue of a topic; query `topic` |
+| `PUT /support/availability` | Whether the person is available (`09` MSG-CONV-002) | |
+| `POST /support/conversations/{id}/transfer` | `{ "person", "topic" }`, one of the two | |
+| `POST /support/conversations/{id}/close` | | |
+| `POST /support/conversations/{id}/block` | Until an instant, or until lifted (`09` MSG-CONV-011) | |
+| `DELETE /support/conversations/{id}/block` | | |
 
 Every route needs a signed-in person (MSG-API-002), the one `IRecipientIdentity`
 answers. A route naming a conversation the person may not read answers 404
@@ -338,7 +344,10 @@ answers. A route naming a conversation the person may not read answers 404
 leave routes are for direct conversations alone. Bodies and refusals are the engine's,
 as MSG-API-001 gives. `MapHermesStaffConversations` answers the group's
 `RouteGroupBuilder`, to which the host adds the authorization that decides who may use
-it (`09` MSG-CONV-006).
+it (`09` MSG-CONV-006). The support routes (M-034) work support's queue (`09`
+MSG-CONV-002, MSG-CONV-011); a staff member writes `text` or `note` in a support
+conversation they are assigned through the messages route, and a visitor never sees a
+`note` (`09` MSG-CONV-001).
 
 **The staff hub (M-033).** The group also maps the staff hub at `/live`, so the host's
 authorization covers it too (`09` MSG-CONV-008). The person comes from
@@ -356,4 +365,46 @@ it missed from the messages route with `after`, since every push follows the sto
 | `conversation` | The server | `conversation`: one added to the person's list |
 | `Typing` | The client | `conversationId` |
 
-*Source: M-032, M-033*
+*Source: M-032, M-033, M-034*
+
+---
+
+## 9. Public conversations (`MapHermesPublicConversations`)
+
+**MSG-API-010** — The public conversations group of `Hermes.Conversations` SHALL let a
+visitor or a signed-in customer start a support conversation, or leave a message through
+the offline form, and read and write their conversation (`09` MSG-CONV-001,
+MSG-CONV-002).
+
+| Method and route | Body | Answers |
+|---|---|---|
+| `GET /support/topics` | | **200**: each topic, open now or offline |
+| `POST /support/notice` | `{ "version" }` | |
+| `POST /support/conversations` | `{ "topic", "text" }` | **201**; **409** `messaging.support.offline` outside the topic's hours, or within them while no member is available; **409** `messaging.support.noticerequired` for a visitor before an acknowledgement of the current notice; **403** `messaging.support.blocked`; **429** `messaging.support.limited` with `Retry-After` |
+| `POST /support/offline` | `{ "topic", "email", "text" }` | **201** |
+| `GET /support/conversations/current` | | **200**: the open conversation, with the visitor's place |
+| `GET /support/conversations/{id}/messages` | | **200**: the messages; query `after`, as for the staff messages route |
+| `POST /support/conversations/{id}/messages` | The message's text | **409** `messaging.support.noticerequired` for a visitor before an acknowledgement of the current notice; **403** `messaging.support.blocked`; **429** `messaging.support.limited` with `Retry-After` |
+| `POST /support/conversations/{id}/read` | | |
+| `POST /support/conversations/{id}/close` | | |
+
+No route needs a signed-in person. Where `IRecipientIdentity` answers a person, the
+conversation is that person's, with no cookie and no notice; otherwise the visitor is
+known by the cookie `hermes_visitor`, drawn on the first call that needs one (`09`
+MSG-CONV-001). Bodies and refusals are the engine's, as MSG-API-001 gives.
+`MapHermesPublicConversations` answers the group's `RouteGroupBuilder`.
+
+**The public hub.** The group also maps the public hub at `/live`, authenticated by the
+same cookie (`09` MSG-CONV-008).
+
+| Hub method | Sent by | Arguments |
+|---|---|---|
+| `message` | The server | A new message |
+| `messageChanged` | The server | An edit or a delete |
+| `typing` | The server | Typing in the conversation |
+| `place` | The server | `position`: the visitor's place in the queue (`09` MSG-CONV-002) |
+| `assigned` | The server | The conversation assigned |
+| `closed` | The server | The conversation closed |
+| `Typing` | The client | Typing in the conversation |
+
+*Source: M-034*

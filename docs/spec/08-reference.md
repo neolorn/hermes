@@ -50,6 +50,10 @@ MSG-OPS-002).
 | `messaging.message.invalid` | 400 | A message's text, mentions, reply or type outside its rule (`09` MSG-CONV-001, MSG-CONV-006) | `field`: `text`, `mentions`, `replyTo` or `type` |
 | `messaging.message.notauthor` | 403 | Editing or deleting another person's message, which the person can see, so nothing leaks (`09` MSG-CONV-006) | |
 | `messaging.message.deleted` | 409 | Editing a deleted message (`09` MSG-CONV-006) | |
+| `messaging.support.offline` | 409 | Starting a support conversation outside its topic's hours, or within them while no member is available (`09` MSG-CONV-002; `05` MSG-API-010) | |
+| `messaging.support.noticerequired` | 409 | A visitor's message before an acknowledgement of the current privacy notice (`09` MSG-CONV-010; `05` MSG-API-010) | |
+| `messaging.support.limited` | 429 | A visitor or a source address over a limit of `Conversations:Limits:` (`09` MSG-CONV-011; `05` MSG-API-010); answered with `Retry-After` | |
+| `messaging.support.blocked` | 403 | A blocked visitor or customer starting or writing (`09` MSG-CONV-011; `05` MSG-API-010) | |
 | `messaging.request.malformed` | 400 | A body, a query parameter or a header that does not read (`05` MSG-API-001, MSG-API-007, MSG-API-008) | `member` |
 | `messaging.request.unauthenticated` | 401 | No signed-in person where one is needed (`05` MSG-API-002) | |
 | `messaging.request.toolarge` | 413 | A body over 16 KiB (`05` MSG-API-001, MSG-API-005, MSG-API-006) | |
@@ -223,6 +227,15 @@ length in characters is counted as `00` section 1.5 gives.
 | `Push:AuthFailWindow` | `01:00:00` | 1 minute to 1 day |
 | `InApp:AlwaysOn` | `false` | Whether the in-app channel of every optional category cannot be turned off (`02` MSG-INAPP-004), set alike in every application of the deployment |
 | `Conversations:AwayKind` | none: no away notice is sent | A declared kind (`01` MSG-SEND-001), the one a person who is away is told of a conversation's message as (`09` MSG-CONV-008); one not declared stops the start, naming the key |
+| `Conversations:Topics:<name>:TimeZone` | none | The topic's time zone, an IANA time zone identifier (`09` MSG-CONV-002) |
+| `Conversations:Topics:<name>:Hours:Monday` to `Conversations:Topics:<name>:Hours:Sunday` | none | The topic's hours on that day, a list of `HH:mm-HH:mm` (`09` MSG-CONV-002) |
+| `Conversations:Topics:<name>:Exceptions` | none | By date, each `Closed` or its own list of `HH:mm-HH:mm` (`09` MSG-CONV-002) |
+| `Conversations:Support:Limit` | `3` | The open support conversations a staff member holds below which they are available (`09` MSG-CONV-002) |
+| `Conversations:Support:OfflineReplyKind` | none; required where topics are configured | The kind staff replies to an offline conversation are sent as (`09` MSG-CONV-002) |
+| `Conversations:Support:NoticeVersion` | none; required where topics are configured | The version of the host's privacy notice a visitor acknowledges (`09` MSG-CONV-010) |
+| `Conversations:Limits:VisitorStarts` | `5` | Conversations a visitor starts per day (`09` MSG-CONV-011) |
+| `Conversations:Limits:VisitorMessages` | `20` | Messages a visitor writes per minute (`09` MSG-CONV-011) |
+| `Conversations:Limits:SourceStarts` | `20` | Conversations started per hour from one source address (`09` MSG-CONV-011) |
 | `DevelopmentInbox:Folder` | `hermes-inbox` in the operating system's temporary folder | An absolute path (`02` MSG-DEV-002); start only |
 | `DevelopmentInbox:KeepFor` | `7.00:00:00` | 1 hour to 90 days; start only |
 | `DevelopmentInbox:MaxMessages` | `1000` | 10 to 100,000; start only |
@@ -305,8 +318,9 @@ The meter is `Hermes`, with these instruments:
 These names carry the library's name (`00`): the meter and its instruments, the solution
 file `Hermes.sln` (`07` MSG-ENG-001), the health check `hermes.dispatch` (`06`
 MSG-OPS-005), the named HTTP client `Hermes.Push` (`02` MSG-CHAN-001), the configuration
-section, the command `hermes`, and the development inbox's default folder `hermes-inbox`
-and header `X-Hermes-Inbox` (`02` MSG-DEV-002, MSG-DEV-005).
+section, the command `hermes`, the development inbox's default folder `hermes-inbox`
+and header `X-Hermes-Inbox` (`02` MSG-DEV-002, MSG-DEV-005), and the visitor's cookie
+`hermes_visitor` (`09` MSG-CONV-001).
 
 These names are stored, or shared by the processes of two releases, and never change:
 
@@ -317,8 +331,8 @@ These names are stored, or shared by the processes of two releases, and never ch
 | `messaging_dispatch` | The notification channel a send wakes the dispatchers on (`01` MSG-SEND-004) |
 | `messaging_conversations`; `message`, `changed`, `read`, `typing`, `presence` | The notification channel a conversation's write tells the processes on, and the events of its payload `<event>:<conversationId>:<id>` (`09` MSG-CONV-008) |
 | `deliveries`, `subscriptions`, `entries`, `messages`; `destination`, `idempotencykey`, `unsubscribe`, the part names of `03` MSG-TPL-001, an in-app part's name and language tag joined by `.`, `target`, `endpoint`, `p256dh`, `auth`, and a message's `text` | The tables and fields a protected value's context names, the layout of that context (`01` MSG-SEND-018; `09` MSG-CONV-001) |
-| `conversations`, `participants`, `messages`, `mentions`, `connections` | The conversations' tables (`09` MSG-CONV-001, MSG-CONV-006) |
-| `email`, `sms`, `push-endpoint`, `push-topic`, `person`, `idempotency` | The keyed hash's domains (`06` MSG-OPS-008) |
+| `conversations`, `participants`, `messages`, `mentions`, `connections`, `agents`, `blocks` | The conversations' tables (`09` MSG-CONV-001, MSG-CONV-002, MSG-CONV-006, MSG-CONV-011) |
+| `email`, `sms`, `push-endpoint`, `push-topic`, `person`, `idempotency`, `visitor`, `source` | The keyed hash's domains (`06` MSG-OPS-008; `09` MSG-CONV-001, MSG-CONV-011) |
 | `sms-report`, `idempotency` | The texts that begin the unkeyed lock keys (`01` MSG-SEND-009; `02` MSG-SMS-004) |
 | `sms-report-hold` | The text of the lock the held reports are counted under (`02` MSG-SMS-004) |
 | `messaging-key-check` | The text a key version's check value is made from (`06` MSG-OPS-008) |
