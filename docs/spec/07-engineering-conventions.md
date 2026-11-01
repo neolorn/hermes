@@ -89,7 +89,13 @@ scripts, and the pipeline runs on GitHub's `ubuntu-24.04` runner using no action
 latest release when the workflow is written and pinned by that release's full commit SHA
 (all checked in review).
 
-*Source: M-012, M-013, M-015, M-020, M-024, M-031, M-033*
+**The sample host for release 2 (M-039).** It builds from the packed packages and maps
+every group: the engine's routes, in-app, the staff conversations and their hub, and
+the public side and its hub, with attachments on and in-memory store and scanner fakes
+from `Hermes.Testing`. Its tests cover a staff chat and a support conversation end to
+end.
+
+*Source: M-012, M-013, M-015, M-020, M-024, M-031, M-033, M-039*
 
 **Acceptance criteria**
 1. A test fails on a project outside this layout, a grant outside this rule, or an entry
@@ -98,6 +104,8 @@ latest release when the workflow is written and pinned by that release's full co
    pass.
 3. The sample host references `Hermes.Conversations`, registers conversations, and
    starts.
+4. The sample host builds from the packed packages, maps every group, and its tests
+   pass.
 
 ---
 
@@ -256,7 +264,11 @@ each declaring the responses `05` gives it.
 whose route, method names and payload shapes are public surface (`04` MSG-LIB-006); the
 contract test below finds each from the phase that adds it.
 
-*Source: M-012, M-025, M-031, M-034*
+**The contract for release 2 (M-039).** The endpoint contract test maps every group and
+hub, each under its own prefix (M-034), and finds exactly `05`'s routes, hub routes, hub
+methods and payload shapes: nothing more and nothing less.
+
+*Source: M-012, M-025, M-031, M-034, M-039*
 
 **Acceptance criteria**
 1. A contract test in `tests/Hermes.Tests`, which maps every group of `05`, the
@@ -267,6 +279,7 @@ contract test below finds each from the phase that adds it.
    be those `05` gives; and it finds each hub's route, method names and payload shapes
    to be those `05` gives (M-031). It maps each group of `Hermes.Conversations` under a
    prefix of its own, since the staff and public groups share relative routes (M-034).
+2. The contract test finds exactly `05`'s routes and hubs.
 
 ---
 
