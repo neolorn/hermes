@@ -86,6 +86,7 @@ MSG-OPS-002).
 | Conversation origins | `web`, the only value in release 2 (`09` MSG-CONV-001) | A stored value, not a C# type |
 | Message types, an open enumeration | `text` · `note` · `automatic` · `system` (`09` MSG-CONV-001) | `MessageType`: `Text` · `Note` · `Automatic` · `System` |
 | Scope kinds | `organization` · `group` (`09` MSG-CONV-006) | `ScopeKind`: `Organization` · `Group` |
+| Author kinds | `person` · `visitor` · `library` (for an `automatic` or `system` message) (`09` MSG-CONV-001) | `AuthorKind`: `Person` · `Visitor` · `Library` |
 
 ---
 
