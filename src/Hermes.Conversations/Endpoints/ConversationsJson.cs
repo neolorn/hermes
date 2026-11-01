@@ -15,6 +15,8 @@ namespace Hermes.Conversations.Endpoints;
 [JsonSerializable(typeof(MessageBody))]
 [JsonSerializable(typeof(ParticipantsRequest))]
 [JsonSerializable(typeof(MessageRequest))]
+[JsonSerializable(typeof(CallerMessageRequest))]
+[JsonSerializable(typeof(AttachmentBody))]
 [JsonSerializable(typeof(EditRequest))]
 [JsonSerializable(typeof(ReadRequest))]
 [JsonSerializable(typeof(MuteRequest))]

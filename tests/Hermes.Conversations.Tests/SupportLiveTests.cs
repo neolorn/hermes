@@ -43,8 +43,8 @@ public sealed class SupportLiveTests(PostgresFixture postgres) : IClassFixture<P
         HubInbox told = HubInbox.Of(hub);
         HubInbox staff = HubInbox.Of(amal);
 
-        await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Only for staff", MessageType.Note, null, null, default));
-        await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Hello there", MessageType.Text, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Only for staff", MessageType.Note, null, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "Hello there", MessageType.Text, null, null, null, default));
 
         await staff.NextAsync("message", arguments => arguments[1].GetProperty("text").GetString() == "Hello there");
         await told.NextAsync("message", arguments => arguments[1].GetProperty("text").GetString() == "Hello there");

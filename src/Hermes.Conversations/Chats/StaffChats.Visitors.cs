@@ -335,6 +335,12 @@ internal sealed partial class StaffChats
             return Result.Fail<MessagePage>(NotFound());
         }
 
+        (ILookup<Guid, AttachmentRecord> attached, Failure? heldName) = await AttachmentsOfAsync([.. read.Rows.Select(row => row.Id)], current, cancellationToken).ConfigureAwait(false);
+        if (heldName is not null)
+        {
+            return Result.Fail<MessagePage>(heldName);
+        }
+
         List<MessageRecord> messages = [];
         bool rejected = false;
         foreach (MessageRow row in read.Rows)
@@ -346,7 +352,7 @@ internal sealed partial class StaffChats
             }
 
             rejected |= opened.Rejected;
-            messages.Add(Of(row, opened.Text, opened.Erased, []));
+            messages.Add(Of(row, opened.Text, opened.Erased, []) with { Attachments = [.. attached[row.Id]] });
         }
 
         if (rejected)
@@ -358,7 +364,7 @@ internal sealed partial class StaffChats
     }
 
     /// <summary>Writes the caller's message in their open conversation, counted against the messages limit.</summary>
-    internal async Task<SupportAnswer<MessageRecord>> CallerWriteAsync(SupportCaller caller, Guid conversation, string text, CancellationToken cancellationToken)
+    internal async Task<SupportAnswer<MessageRecord>> CallerWriteAsync(SupportCaller caller, Guid conversation, string text, IReadOnlyList<AttachmentId>? attachments, CancellationToken cancellationToken)
     {
         ready.ThrowIfNotReady();
         ConversationRow? reached = await CallerConversationAsync(caller, conversation, cancellationToken).ConfigureAwait(false);
@@ -370,6 +376,11 @@ internal sealed partial class StaffChats
         if (!IsText(text))
         {
             return SupportAnswer<MessageRecord>.Fail(Invalid(ChatCodes.MessageInvalid, "text"));
+        }
+
+        if (AttachmentsOf(attachments, settings.Attachments.Public) is not { } named)
+        {
+            return SupportAnswer<MessageRecord>.Fail(Invalid(ChatCodes.MessageInvalid, "attachments"));
         }
 
         if (await RefusedCallerAsync(caller, cancellationToken).ConfigureAwait(false) is { } refused)
@@ -391,6 +402,11 @@ internal sealed partial class StaffChats
             async (context, token) =>
             {
                 await LockCallerAsync(context, current, caller, token).ConfigureAwait(false);
+                if (await NamedAsync(context, reached.Id, named, caller.Customer, caller.Hashes(hashes), token).ConfigureAwait(false) is not { } naming)
+                {
+                    return SupportAnswer<MessageRow>.Fail(Invalid(ChatCodes.MessageInvalid, "attachments"));
+                }
+
                 DateTimeOffset now = clock.GetUtcNow();
                 (byte[] hash, int hashVersion) = caller.Counted(hashes);
                 if (await CountAsync(context, VisitorMessagesKind, hash, hashVersion, now, TimeSpan.FromMinutes(1), settings.Support.VisitorMessages, token).ConfigureAwait(false) is { } wait)
@@ -411,13 +427,18 @@ internal sealed partial class StaffChats
                     tracked.SnoozedUntil = null;
                 }
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
+                await NameAsync(context, naming, message, now, token).ConfigureAwait(false);
                 await LiveNotices.TellAsync(context, LiveNotices.Message, reached.Id, message, token).ConfigureAwait(false);
                 return SupportAnswer<MessageRow>.Of(row);
             },
             cancellationToken).ConfigureAwait(false);
-        return written.Failure is { } failed
-            ? SupportAnswer<MessageRecord>.Fail(failed, written.RetryAfter)
-            : SupportAnswer<MessageRecord>.Of(Of(written.Value!, text, erased: false, []));
+        if (written.Failure is { } failed)
+        {
+            return SupportAnswer<MessageRecord>.Fail(failed, written.RetryAfter);
+        }
+
+        (ILookup<Guid, AttachmentRecord> listed, Failure? _) = await AttachmentsOfAsync(named.Length > 0 ? [message] : [], current, cancellationToken).ConfigureAwait(false);
+        return SupportAnswer<MessageRecord>.Of(Of(written.Value!, text, erased: false, []) with { Attachments = [.. listed[message]] });
     }
 
     /// <summary>Moves the caller's read position forward to <paramref name="message"/>, which is not a <c>note</c>.</summary>
@@ -711,23 +732,8 @@ internal sealed partial class StaffChats
     }
 
     /// <summary>Protects <paramref name="value"/> for <paramref name="person"/>, or as an anonymous recipient's value where none, bound to <paramref name="context"/>.</summary>
-    private async Task<Protected> ProtectValueAsync(string? person, string value, string context, MessagingOptions current, CancellationToken cancellationToken)
+    private Task<Protected> ProtectValueAsync(string? person, string value, string context, MessagingOptions current, CancellationToken cancellationToken)
     {
-        try
-        {
-            using CancellationTokenSource bound = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            bound.CancelAfter(current.Dispatch.Timeout);
-            ContentProtecting made = await protection.ProtectAsync(person, Encoding.UTF8.GetBytes(value), context, bound.Token)
-                .AsTask()
-                .WaitAsync(current.Dispatch.Timeout, clock, cancellationToken)
-                .ConfigureAwait(false);
-            return made.Stored is { } stored
-                ? new Protected(stored, Sending.Messages.LibraryVersion(stored), null)
-                : new Protected(null, null, await UnavailableAsync(made.Key!, made.Version).ConfigureAwait(false));
-        }
-        catch (Exception failure) when (failure is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            return new Protected(null, null, await UnavailableAsync(protection.WriterId(), version: null).ConfigureAwait(false));
-        }
+        return ProtectBytesAsync(person, Encoding.UTF8.GetBytes(value), context, current, cancellationToken);
     }
 }

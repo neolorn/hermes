@@ -57,7 +57,7 @@ internal static class MappedEndpoints
         [$"POST {Endpoints.PublicPrefix}/support/notice"] = BodyMembers.ConversationsBody("NoticeRequest"),
         [$"POST {Endpoints.PublicPrefix}/support/conversations"] = BodyMembers.ConversationsBody("StartRequest"),
         [$"POST {Endpoints.PublicPrefix}/support/offline"] = BodyMembers.ConversationsBody("OfflineRequest"),
-        [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/messages"] = BodyMembers.ConversationsBody("EditRequest"),
+        [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/messages"] = BodyMembers.ConversationsBody("CallerMessageRequest"),
         [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/read"] = BodyMembers.ConversationsBody("ReadRequest"),
         [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/close"] = typeof(EmptyBody),
         [$"POST {Endpoints.PublicPrefix}/support/conversations/{{id}}/transcript/email"] = BodyMembers.ConversationsBody("TranscriptEmailRequest"),

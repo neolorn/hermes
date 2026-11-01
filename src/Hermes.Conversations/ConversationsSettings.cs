@@ -1,3 +1,4 @@
+using Hermes.Conversations.Attachments;
 using Hermes.Conversations.Support;
 
 namespace Hermes.Conversations;
@@ -10,4 +11,7 @@ internal sealed class ConversationsSettings
 
     /// <summary>Support's topics, limits and keys (<c>09</c> MSG-CONV-002).</summary>
     internal SupportSettings Support { get; set; } = new();
+
+    /// <summary>The attachments' switches and bounds (<c>09</c> MSG-CONV-007).</summary>
+    internal AttachmentSettings Attachments { get; set; } = new();
 }

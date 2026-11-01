@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Hermes.Conversations.Attachments;
 using Hermes.Conversations.Support;
 using Hermes.Core;
 using Hermes.Operations;
@@ -21,7 +22,8 @@ namespace Hermes.Conversations;
 /// one the package does not know, read raw from the configuration given to <c>AddHermes</c>, and
 /// <c>Conversations:AwayKind</c> names a declared kind where it is given; support's keys are
 /// within their rules (<c>09</c> MSG-CONV-002); the membership seam is registered (<c>04</c>
-/// MSG-LIB-005); and each automatic reply rule's template is held in each declared language
+/// MSG-LIB-005), with the attachments' storage and scanning seams where attachments are enabled
+/// (<c>09</c> MSG-CONV-007); and each automatic reply rule's template is held in each declared language
 /// (<c>09</c> MSG-CONV-003).
 /// </summary>
 internal sealed class ConversationsStartup(IServiceProvider services) : IHostedLifecycleService
@@ -47,14 +49,33 @@ internal sealed class ConversationsStartup(IServiceProvider services) : IHostedL
             throw new MessagingStartupException(Codes.ConfigurationInvalid, new Dictionary<string, string>(StringComparer.Ordinal) { ["key"] = invalid });
         }
 
-        if (!services.GetRequiredService<IServiceProviderIsService>().IsService(typeof(IConversationMembership)))
+        (AttachmentSettings? attachments, string? invalidAttachment) = AttachmentConfiguration.Read(state.Section);
+        if (invalidAttachment is not null)
+        {
+            throw new MessagingStartupException(Codes.ConfigurationInvalid, new Dictionary<string, string>(StringComparer.Ordinal) { ["key"] = invalidAttachment });
+        }
+
+        IServiceProviderIsService registered = services.GetRequiredService<IServiceProviderIsService>();
+        if (!registered.IsService(typeof(IConversationMembership)))
         {
             throw new MessagingStartupException(Codes.DeclarationMissing, new Dictionary<string, string>(StringComparer.Ordinal) { ["key"] = "conversationMembership" });
+        }
+
+        // The storage and scanning seams, where attachments are enabled (04 MSG-LIB-005, M-037).
+        if (attachments!.Enabled && !registered.IsService(typeof(IAttachmentStore)))
+        {
+            throw new MessagingStartupException(Codes.DeclarationMissing, new Dictionary<string, string>(StringComparer.Ordinal) { ["key"] = "attachmentStore" });
+        }
+
+        if (attachments.Enabled && !registered.IsService(typeof(IAttachmentScanner)))
+        {
+            throw new MessagingStartupException(Codes.DeclarationMissing, new Dictionary<string, string>(StringComparer.Ordinal) { ["key"] = "attachmentScanner" });
         }
 
         ConversationsSettings settings = services.GetRequiredService<ConversationsSettings>();
         settings.AwayKind = away;
         settings.Support = support!;
+        settings.Attachments = attachments;
 
         // The transcript's page, in every declared language, where topics are configured (03 MSG-TPL-004, M-036).
         if (support!.Topics.Count > 0)

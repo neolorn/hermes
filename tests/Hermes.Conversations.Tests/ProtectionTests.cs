@@ -22,8 +22,8 @@ public sealed class ProtectionTests(PostgresFixture postgres) : IClassFixture<Po
     {
         await using ChatHost chat = await ChatHost.StartAsync(postgres);
         ConversationId direct = (await chat.CallAsync(chats => chats.StartDirectAsync("amal", ["omar"], default))).Value!.Conversation;
-        MessageId source = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "the source's words", MessageType.Text, null, null, default))).Value!.Message;
-        MessageId target = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "the target's words", MessageType.Text, null, null, default))).Value!.Message;
+        MessageId source = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "the source's words", MessageType.Text, null, null, null, default))).Value!.Message;
+        MessageId target = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "the target's words", MessageType.Text, null, null, null, default))).Value!.Message;
         Assert.Equal(0L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT count(*) FROM messaging.messages WHERE position(convert_to('words', 'UTF8') in text) > 0", database)));
 
         await chat.ScalarAsync(database =>
@@ -58,9 +58,9 @@ public sealed class ProtectionTests(PostgresFixture postgres) : IClassFixture<Po
         chat.Membership.Add(desk, "amal", "omar");
         ConversationId direct = (await chat.CallAsync(chats => chats.StartDirectAsync("amal", ["omar", "sara"], default))).Value!.Conversation;
         ConversationId group = (await chat.CallAsync(chats => chats.OpenGroupAsync("omar", desk, default))).Value!.Conversation;
-        MessageId erased = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Amal's words", MessageType.Text, null, ["omar"], default))).Value!.Message;
-        MessageId inGroup = (await chat.CallAsync(chats => chats.WriteAsync("amal", group, "Amal in the group", MessageType.Text, null, null, default))).Value!.Message;
-        MessageId kept = (await chat.CallAsync(chats => chats.WriteAsync("omar", direct, "Omar's words", MessageType.Text, erased, ["amal", "sara"], default))).Value!.Message;
+        MessageId erased = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Amal's words", MessageType.Text, null, ["omar"], null, default))).Value!.Message;
+        MessageId inGroup = (await chat.CallAsync(chats => chats.WriteAsync("amal", group, "Amal in the group", MessageType.Text, null, null, null, default))).Value!.Message;
+        MessageId kept = (await chat.CallAsync(chats => chats.WriteAsync("omar", direct, "Omar's words", MessageType.Text, erased, ["amal", "sara"], null, default))).Value!.Message;
 
         await chat.ScalarAsync(database => new NpgsqlCommand("INSERT INTO messaging.connections (id, person, process, last_seen_at) VALUES (gen_random_uuid(), 'amal', gen_random_uuid(), now())", database));
         Result erasure = await chat.SubjectsAsync(subjects => subjects.EraseAsync("amal", default));

@@ -32,14 +32,17 @@ internal sealed class Browser(ChatHost host, string? person = null, string sourc
     internal string? Language { get; set; }
 
     /// <summary>Sends a request to <paramref name="route"/> under the public prefix, with <paramref name="json"/> as <c>application/json</c> where given, keeping any cookie it answers.</summary>
-    internal async Task<HttpResponseMessage> SendAsync(HttpMethod method, string route, string? json = null)
+    internal Task<HttpResponseMessage> SendAsync(HttpMethod method, string route, string? json = null)
+    {
+        return SendAsync(method, route, () => json is null ? null : new StringContent(json, Encoding.UTF8, "application/json"));
+    }
+
+    /// <summary>Sends a request to <paramref name="route"/> under the public prefix with the body <paramref name="content"/> makes, keeping any cookie it answers.</summary>
+    internal async Task<HttpResponseMessage> SendAsync(HttpMethod method, string route, Func<HttpContent?> content)
     {
         using HttpClient client = host.Application.GetTestClient();
         using HttpRequestMessage request = new(method, ChatHost.PublicPrefix + route);
-        if (json is not null)
-        {
-            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-        }
+        request.Content = content();
 
         if (Person is not null)
         {

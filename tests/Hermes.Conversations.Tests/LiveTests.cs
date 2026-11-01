@@ -33,7 +33,7 @@ public sealed partial class LiveTests(PostgresFixture postgres) : IClassFixture<
         await using HubConnection omar = await b.ConnectAsync("omar");
         HubInbox inbox = HubInbox.Of(omar);
 
-        MessageId written = (await a.CallAsync(chats => chats.WriteAsync("amal", direct, "Across processes", MessageType.Text, null, null, default))).Value!.Message;
+        MessageId written = (await a.CallAsync(chats => chats.WriteAsync("amal", direct, "Across processes", MessageType.Text, null, null, null, default))).Value!.Message;
 
         JsonElement[] pushed = await inbox.NextAsync("message");
         Assert.Equal(direct.Value.ToString("D"), pushed[0].GetString());
@@ -53,7 +53,7 @@ public sealed partial class LiveTests(PostgresFixture postgres) : IClassFixture<
         List<MessageId> sent = [];
         foreach (string text in new[] { "Seen", "Missed one", "Missed two" })
         {
-            sent.Add((await chat.CallAsync(chats => chats.WriteAsync("amal", direct, text, MessageType.Text, null, null, default))).Value!.Message);
+            sent.Add((await chat.CallAsync(chats => chats.WriteAsync("amal", direct, text, MessageType.Text, null, null, null, default))).Value!.Message);
         }
 
         MessagePage missed = (await chat.CallAsync(chats => chats.MessagesAsync("omar", direct, null, sent[0], null, default))).Value!;
@@ -82,7 +82,7 @@ public sealed partial class LiveTests(PostgresFixture postgres) : IClassFixture<
 
         ConversationId direct = (await chat.CallAsync(chats => chats.StartDirectAsync("person-amal-31", ["person-omar-47"], default))).Value!.Conversation;
         await using HubConnection omar = await chat.ConnectAsync("person-omar-47");
-        MessageId written = (await chat.CallAsync(chats => chats.WriteAsync("person-amal-31", direct, "a secret text", MessageType.Text, null, ["person-omar-47"], default))).Value!.Message;
+        MessageId written = (await chat.CallAsync(chats => chats.WriteAsync("person-amal-31", direct, "a secret text", MessageType.Text, null, ["person-omar-47"], null, default))).Value!.Message;
         await chat.CallAsync(chats => chats.EditAsync("person-amal-31", direct, written, "another secret text", default));
         await chat.CallAsync(chats => chats.MarkReadAsync("person-omar-47", direct, written, default));
         await omar.InvokeAsync("Typing", direct.Value.ToString("D"), TestContext.Current.CancellationToken);
@@ -112,12 +112,12 @@ public sealed partial class LiveTests(PostgresFixture postgres) : IClassFixture<
         HubInbox linaInbox = HubInbox.Of(lina);
         HubInbox saraInbox = HubInbox.Of(sara);
 
-        await chat.CallAsync(chats => chats.WriteAsync("omar", group, "First", MessageType.Text, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("omar", group, "First", MessageType.Text, null, null, null, default));
         await amalInbox.NextAsync("message");
         await linaInbox.NextAsync("message");
 
         chat.Membership.Remove(Desk, "amal");
-        await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Second", MessageType.Text, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Second", MessageType.Text, null, null, null, default));
         await linaInbox.NextAsync("message", arguments => arguments[1].GetProperty("text").GetString() == "Second");
 
         Assert.Empty(saraInbox.All);
@@ -147,7 +147,7 @@ public sealed partial class LiveTests(PostgresFixture postgres) : IClassFixture<
         });
         Assert.Equal(participant, typing[1].GetString());
         Assert.Equal(before, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT count(*) FROM messaging.messages", database)));
-        await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Synced", MessageType.Text, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("omar", group, "Synced", MessageType.Text, null, null, null, default));
         await amalInbox.NextAsync("message");
         Assert.DoesNotContain(amalInbox.All, each => each.Method == "typing");
     }

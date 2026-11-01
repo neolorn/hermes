@@ -122,6 +122,7 @@ Hermes.Core.IConversations.LiveAsync(string! person, string! topic, System.Threa
 Hermes.Core.IConversations.MarkReadAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.MessageId message, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.MessagesAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.MessageId? before, Hermes.Core.MessageId? after, int? size, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.MessagePage!>!>
 Hermes.Core.IConversations.MuteAsync(string! person, Hermes.Core.ConversationId conversation, bool muted, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
+Hermes.Core.IConversations.OpenAttachmentAsync(string! person, Hermes.Core.ConversationId conversation, Hermes.Core.AttachmentId attachment, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.AttachmentDownload!>!>
 Hermes.Core.IConversations.OpenGroupAsync(string! person, Hermes.Core.ConversationScope! scope, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationRecord!>!>
 Hermes.Core.IConversations.QueueAsync(string! person, string! topic, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationPage!>!>
 Hermes.Core.IConversations.ReadAsync(string! person, Hermes.Core.ConversationId conversation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationRecord!>!>
@@ -134,7 +135,8 @@ Hermes.Core.IConversations.SnoozeAsync(string! person, Hermes.Core.ConversationI
 Hermes.Core.IConversations.StartDirectAsync(string! person, System.Collections.Generic.IReadOnlyList<string!>! participants, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.ConversationRecord!>!>
 Hermes.Core.IConversations.TransferAsync(string! person, Hermes.Core.ConversationId conversation, string? toPerson, string? topic, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
 Hermes.Core.IConversations.UnblockAsync(string! person, Hermes.Core.ConversationId conversation, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result!>
-Hermes.Core.IConversations.WriteAsync(string! person, Hermes.Core.ConversationId conversation, string! text, Hermes.Core.MessageType type, Hermes.Core.MessageId? replyTo, System.Collections.Generic.IReadOnlyList<string!>? mentions, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.MessageRecord!>!>
+Hermes.Core.IConversations.UploadAttachmentAsync(string! person, Hermes.Core.ConversationId conversation, string! name, string! mediaType, System.IO.Stream! content, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.AttachmentRecord!>!>
+Hermes.Core.IConversations.WriteAsync(string! person, Hermes.Core.ConversationId conversation, string! text, Hermes.Core.MessageType type, Hermes.Core.MessageId? replyTo, System.Collections.Generic.IReadOnlyList<string!>? mentions, System.Collections.Generic.IReadOnlyList<Hermes.Core.AttachmentId>? attachments, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<Hermes.Core.Result<Hermes.Core.MessageRecord!>!>
 Hermes.Core.LiveConversation
 Hermes.Core.LiveConversation.<Clone>$() -> Hermes.Core.LiveConversation!
 Hermes.Core.LiveConversation.Assignee.get -> string?
@@ -164,6 +166,8 @@ Hermes.Core.MessagePage.Messages.get -> System.Collections.Generic.IReadOnlyList
 Hermes.Core.MessagePage.Messages.init -> void
 Hermes.Core.MessageRecord
 Hermes.Core.MessageRecord.<Clone>$() -> Hermes.Core.MessageRecord!
+Hermes.Core.MessageRecord.Attachments.get -> System.Collections.Generic.IReadOnlyList<Hermes.Core.AttachmentRecord!>!
+Hermes.Core.MessageRecord.Attachments.init -> void
 Hermes.Core.MessageRecord.Author.get -> string?
 Hermes.Core.MessageRecord.Author.init -> void
 Hermes.Core.MessageRecord.AuthorKind.get -> Hermes.Core.AuthorKind

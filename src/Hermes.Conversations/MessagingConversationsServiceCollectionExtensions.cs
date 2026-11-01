@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 
+using Hermes.Conversations.Attachments;
 using Hermes.Conversations.Chats;
 using Hermes.Conversations.Live;
 using Hermes.Conversations.Support;
@@ -47,9 +48,12 @@ public static class MessagingConversationsServiceCollectionExtensions
         services.TryAddSingleton<TranscriptTemplates>();
         services.TryAddScoped<StaffChats>();
         services.TryAddScoped<IConversations>(provider => provider.GetRequiredService<StaffChats>());
+        services.TryAddScoped<AttachmentWork>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProtectAgain, AttachmentProtection>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ConversationsStartup>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, LiveListener>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ConversationTimersJob>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, AttachmentScansJob>());
         return services;
     }
 }

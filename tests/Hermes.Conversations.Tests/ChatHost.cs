@@ -204,14 +204,17 @@ internal sealed class ChatHost : IAsyncDisposable
     }
 
     /// <summary>Sends a request to <paramref name="route"/> under the prefix, as <paramref name="person"/> where given, with <paramref name="json"/> as <c>application/json</c> where given.</summary>
-    internal async Task<HttpResponseMessage> SendAsync(HttpMethod method, string route, string? person, string? json = null)
+    internal Task<HttpResponseMessage> SendAsync(HttpMethod method, string route, string? person, string? json = null)
+    {
+        return SendAsync(method, route, person, () => json is null ? null : new StringContent(json, Encoding.UTF8, "application/json"));
+    }
+
+    /// <summary>Sends a request to <paramref name="route"/> under the prefix, as <paramref name="person"/> where given, with the body <paramref name="content"/> makes.</summary>
+    internal async Task<HttpResponseMessage> SendAsync(HttpMethod method, string route, string? person, Func<HttpContent?> content)
     {
         using HttpClient client = Application.GetTestClient();
         using HttpRequestMessage request = new(method, Prefix + route);
-        if (json is not null)
-        {
-            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-        }
+        request.Content = content();
 
         if (person is not null)
         {

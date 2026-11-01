@@ -27,13 +27,13 @@ public sealed class AwayTests(PostgresFixture postgres) : IClassFixture<Postgres
         ConversationId direct = (await chat.CallAsync(chats => chats.StartDirectAsync("amal", ["omar", "sara"], default))).Value!.Conversation;
         await using HubConnection sara = await chat.ConnectAsync("sara");
 
-        MessageId first = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "One", MessageType.Text, null, null, default))).Value!.Message;
-        await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Two", MessageType.Text, null, null, default));
+        MessageId first = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "One", MessageType.Text, null, null, null, default))).Value!.Message;
+        await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Two", MessageType.Text, null, null, null, default));
         Assert.Equal(1L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT count(*) FROM messaging.participants WHERE away_told IS NOT NULL", database)));
         Assert.Equal(1L, await ToldAsync(chat));
 
         Assert.True((await chat.CallAsync(chats => chats.MarkReadAsync("omar", direct, first, default))).IsSuccess);
-        MessageId third = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Three", MessageType.Text, null, null, default))).Value!.Message;
+        MessageId third = (await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Three", MessageType.Text, null, null, null, default))).Value!.Message;
 
         Assert.Equal(2L, await ToldAsync(chat));
         Assert.Equal(2L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT count(*) FROM messaging.idempotency", database)));
@@ -51,9 +51,9 @@ public sealed class AwayTests(PostgresFixture postgres) : IClassFixture<Postgres
         ConversationId direct = (await chat.CallAsync(chats => chats.StartDirectAsync("amal", ["lina"], default))).Value!.Conversation;
         await chat.CallAsync(chats => chats.MuteAsync("lina", direct, true, default));
 
-        await chat.CallAsync(chats => chats.WriteAsync("amal", group, "Omar, look", MessageType.Text, null, ["omar"], default));
-        await chat.CallAsync(chats => chats.WriteAsync("amal", group, "Everyone", MessageType.Text, null, null, default));
-        await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Muted", MessageType.Text, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("amal", group, "Omar, look", MessageType.Text, null, ["omar"], null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("amal", group, "Everyone", MessageType.Text, null, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Muted", MessageType.Text, null, null, null, default));
 
         Assert.Equal(1L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT count(*) FROM messaging.participants WHERE away_told IS NOT NULL", database)));
         Assert.Equal(1L, await ToldAsync(chat));
@@ -75,7 +75,7 @@ public sealed class AwayTests(PostgresFixture postgres) : IClassFixture<Postgres
         await using ChatHost chat = await ChatHost.StartAsync(postgres);
         ConversationId direct = (await chat.CallAsync(chats => chats.StartDirectAsync("amal", ["omar"], default))).Value!.Conversation;
 
-        await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Hello", MessageType.Text, null, null, default));
+        await chat.CallAsync(chats => chats.WriteAsync("amal", direct, "Hello", MessageType.Text, null, null, null, default));
 
         Assert.Equal(0L, await chat.ScalarAsync(database => new NpgsqlCommand("SELECT count(*) FROM messaging.sends", database)));
     }

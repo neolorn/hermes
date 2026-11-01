@@ -61,12 +61,12 @@ public sealed class SupervisionTests(PostgresFixture postgres) : IClassFixture<P
         await using ChatHost chat = await StartAsync();
         await using HubConnection amal = await SupportTests.AvailableAsync(chat, "amal");
         Guid conversation = await (await SupportTests.AcknowledgedAsync(chat, "192.0.2.1")).StartAsync();
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "For staff only", MessageType.Note, null, null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "For staff only", MessageType.Note, null, null, null, default))).IsSuccess);
 
         Result<MessagePage> read = await chat.CallAsync(chats => chats.MessagesAsync("sara", new ConversationId(conversation), null, null, null, default));
         Assert.Contains(read.Value!.Messages, message => message.Type == MessageType.Note && message.Text == "For staff only");
 
-        Result<MessageRecord> written = await chat.CallAsync(chats => chats.WriteAsync("sara", new ConversationId(conversation), "Hi", MessageType.Text, null, null, default));
+        Result<MessageRecord> written = await chat.CallAsync(chats => chats.WriteAsync("sara", new ConversationId(conversation), "Hi", MessageType.Text, null, null, null, default));
         Assert.Equal("messaging.conversation.notfound", written.Failure!.Code);
         Result tagged = await chat.CallAsync(chats => chats.SnoozeAsync("sara", new ConversationId(conversation), DateTimeOffset.UtcNow.AddHours(1), default));
         Assert.Equal("messaging.conversation.notfound", tagged.Failure!.Code);
@@ -84,7 +84,7 @@ public sealed class SupervisionTests(PostgresFixture postgres) : IClassFixture<P
         HubInbox supervised = HubInbox.Of(sara);
         Guid conversation = await (await SupportTests.AcknowledgedAsync(chat, "192.0.2.1")).StartAsync();
 
-        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "For staff only", MessageType.Note, null, null, default))).IsSuccess);
+        Assert.True((await chat.CallAsync(chats => chats.WriteAsync("amal", new ConversationId(conversation), "For staff only", MessageType.Note, null, null, null, default))).IsSuccess);
 
         JsonElement[] note = await supervised.NextAsync("message", arguments => arguments[1].GetProperty("type").GetString() == "note");
         Assert.Equal(conversation.ToString("D"), note[0].GetString());

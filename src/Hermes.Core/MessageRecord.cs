@@ -45,6 +45,9 @@ public sealed record MessageRecord
     /// <summary>Whether its text was cleared by its author's erasure.</summary>
     public required bool Erased { get; init; }
 
+    /// <summary>The attachments the message names, the first uploaded first (<c>09</c> MSG-CONV-007).</summary>
+    public IReadOnlyList<AttachmentRecord> Attachments { get; init; } = [];
+
     private bool PrintMembers(StringBuilder builder)
     {
         builder.Append(
