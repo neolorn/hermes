@@ -194,16 +194,23 @@ type is an `init`-only record (`04` MSG-LIB-002); the message it writes has the 
   - `Trigger`: `started`, `unavailable`, `waiting`, `outsidehours` or `closing`;
   - `Topics`: the topics it serves, all when absent;
   - for `waiting`, `After`, from 1 minute to 1 hour.
+- A rule whose `Topics` names a topic not configured, or with `After` while its trigger
+  is not `waiting`, fails the start with `messaging.startup.configurationinvalid`.
 - A rule fires at most once per conversation.
-- `started` fires when a conversation is queued. `unavailable` fires when it is queued
-  while no member is available. `outsidehours` fires on an offline form's conversation.
-  `waiting` fires once a queued conversation has waited `After`. `closing` fires
+- `started` fires when a conversation is queued. `unavailable` fires on an offline
+  form's conversation started within its topic's hours while no member is available,
+  and `outsidehours` on one started outside them (MSG-CONV-002). `waiting` fires once a
+  queued conversation has waited `After`. `closing` fires
   `Hermes:Conversations:Support:CloseWarning` before an automatic close
   (MSG-CONV-005).
+- An automatic reply on an offline form's conversation is written to the conversation
+  only, never emailed.
 - The message written is of type `automatic`, `authorKind` `library`, in the
   conversation's language. That is the visitor's or the customer's language as the
-  public side read it (`Accept-Language` for a visitor, the person's for a customer),
-  matched as `01` MSG-SEND-003 matches.
+  public side read it (`Accept-Language` for a visitor; for a customer, the person's,
+  read as `01` MSG-SEND-003 reads a person's language), matched as `01` MSG-SEND-003
+  matches. It is matched when the conversation starts and kept in the column
+  `language` of `conversations`.
 - Where two rules fire at once, both write, in name order.
 
 **The template (M-035).**
@@ -211,8 +218,12 @@ type is an `init`-only record (`04` MSG-LIB-002); the message it writes has the 
   `Page` none (`04` MSG-LIB-002); the library's own source looks in
   `replies/<name>.<language>.text.liquid` (`03` MSG-TPL-006).
 - A reply's values are `topic`; `place`, the visitor's place, or none; `wait`, the
-  minutes waited; and `opens`, the topic's next opening instant, or none, which the
-  template formats.
+  minutes waited; and `opens`, the topic's next opening instant in the topic's time
+  zone, or none, which the template formats. A reply's template sees these four values
+  alone.
+- A rendered reply is bounded as a message's text is, at 4,000 characters
+  (MSG-CONV-001). A reply that fails to render, or renders past the bound, writes
+  nothing and is logged, and its rule counts as fired.
 - Every rule's template is checked at start in every declared language, as kinds' are
   (`03` MSG-TPL-001, MSG-TPL-004). A missing one fails the start with
   `messaging.startup.templatemissing`, naming the rule and the language.
@@ -258,28 +269,40 @@ live conversations, and reports of waiting time, handling time and survey scores
 **Saved replies (M-035).**
 - A saved reply has a name (1 to 64 characters) and a text (1 to 4,000), plain text
   without templating. It is either shared by a topic or a staff member's own.
-- A topic holds at most 200, and a person at most 100.
+- A topic holds at most 200, and a person at most 100. A name is unique among its
+  owner's replies.
 - Staff of a topic manage its shared replies, and each person their own, through the
   staff group's replies routes, with `topic` or `mine` (`05` MSG-API-009).
+- A name or text outside its bounds answers 400 `messaging.reply.invalid`, `field`
+  `name` or `text`; a reply past its owner's count 409 `messaging.reply.full`; a name
+  its owner already has 409 `messaging.reply.nameexists`; another person's own reply
+  404 `messaging.reply.notfound`.
 - The table `support_replies` holds a person reference for one's own, so the rule that
   the engine knows each table applies (`06` MSG-OPS-002). Erasure deletes a person's own
   replies.
 
 **Tags (M-035).**
 - The tags are declared in `Hermes:Conversations:Tags`, a list of names under `01`
-  MSG-SEND-001's name rule, at most 50.
+  MSG-SEND-001's name rule, at most 50. A name outside the rule, or a 51st, fails the
+  start with `messaging.startup.configurationinvalid`.
 - Staff add and remove them on a support conversation they may read, by putting the
-  whole set (`05` MSG-API-009).
-- An undeclared tag answers 400 `messaging.conversation.invalid`, `field` `tags`.
+  whole set (`05` MSG-API-009). They are kept in the column `tags` of `conversations`.
+- An undeclared tag answers 400 `messaging.conversation.invalid`, `field` `tags`. A tag
+  later dropped from the declaration stays on its conversations, and is refused only
+  when it is put again.
 - Tags are not statuses: statuses stay the fixed set of `08` section 3 (MSG-CONV-001).
 
 **Snoozing (M-035).**
-- Snoozing a support conversation with `until`, from 5 minutes to 30 days ahead, sets
-  its status `snoozed` (`05` MSG-API-009).
+- Snoozing a support conversation they may read with `until`, from 5 minutes to 30 days
+  ahead, sets its status `snoozed` (`05` MSG-API-009). An `until` outside that range
+  answers 400 `messaging.conversation.invalid`, `field` `until`.
 - The conversation wakes to `open` at `until`, or at once when the visitor or the
   customer writes.
 - A snoozed conversation keeps its assignee, and counts toward their limit
   (MSG-CONV-002).
+- Tagging or snoozing a closed conversation answers 409
+  `messaging.conversation.closed`, and a conversation that is not support 400
+  `messaging.conversation.invalid`, `field` `type`.
 
 **Automatic closing (M-035).**
 - `Hermes:Conversations:Support:CloseAfter` (default 24 hours) is the silence after which

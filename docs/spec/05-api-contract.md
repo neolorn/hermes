@@ -320,9 +320,9 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | Method and route | Body | Answers |
 |---|---|---|
 | `GET /conversations` | | **200** `{ "conversations": [ <conversation> ], "next" }`: the person's direct conversations they have not left and the existing group conversations of their scopes, newest activity first, `next` the cursor of the next page or `null`; query `cursor`, and `size`, 1 to 100, default 20; **400** `messaging.request.malformed`, `details.member` `cursor` or `size`, for a cursor that does not read or a size outside its rule; **503** as for `GET /inapp` |
-| `POST /conversations/direct` | `{ "participants" }` | **201** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }`; **400** `messaging.conversation.invalid`, `details.field` `participants`, for none or more than 15 others, a reference named twice, or the person themselves; **503** as for `GET /inapp` |
-| `GET /conversations/group/{kind}/{reference}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }`: the scope's conversation, created the first time a member opens it; **400** `messaging.conversation.invalid`, `details.field` `kind`, for a kind that does not read; **400** `messaging.request.malformed`, `details.member` `reference`, for a reference outside 1 to 128 characters; **404** `messaging.conversation.notfound` for a person who is not a member; **503** as for `GET /inapp` |
-| `GET /conversations/{id}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `POST /conversations/direct` | `{ "participants" }` | **201** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline", "tags", "snoozedUntil" }`; **400** `messaging.conversation.invalid`, `details.field` `participants`, for none or more than 15 others, a reference named twice, or the person themselves; **503** as for `GET /inapp` |
+| `GET /conversations/group/{kind}/{reference}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline", "tags", "snoozedUntil" }`: the scope's conversation, created the first time a member opens it; **400** `messaging.conversation.invalid`, `details.field` `kind`, for a kind that does not read; **400** `messaging.request.malformed`, `details.member` `reference`, for a reference outside 1 to 128 characters; **404** `messaging.conversation.notfound` for a person who is not a member; **503** as for `GET /inapp` |
+| `GET /conversations/{id}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline", "tags", "snoozedUntil" }`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `GET /conversations/{id}/messages` | | **200** `{ "messages": [ <message> ] }`, newest first, or oldest first from `after`; query `before` or `after`, a message's identifier, and `size`, 1 to 100, default 50; **400** `messaging.request.malformed`, `details.member` `before`, `after` or `size`, for one outside its rule; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `POST /conversations/{id}/messages` | `{ "text", "type", "replyTo", "mentions" }` | **201** `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }`; **400** `messaging.message.invalid`, `details.field` `text`, `mentions`, `replyTo` or `type`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `PUT /conversations/{id}/messages/{messageId}` | `{ "text" }` | **204**; **400** `messaging.message.invalid`, `details.field` `text`; **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound`; **409** `messaging.message.deleted` for a deleted message; **503** as for `GET /inapp` |
@@ -337,14 +337,19 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | `POST /support/conversations/{id}/close` | `{ }` | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `POST /support/conversations/{id}/block` | `{ "until" }` | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `DELETE /support/conversations/{id}/block` | | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
-| `PUT /support/conversations/{id}/tags` | `{ "tags" }`, the whole set | **204**; **400** `messaging.conversation.invalid`, `details.field` `tags`, for an undeclared tag; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
-| `POST /support/conversations/{id}/snooze` | `{ "until" }`, 5 minutes to 30 days ahead | **204**; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `PUT /support/conversations/{id}/tags` | `{ "tags" }`, the whole set | **204**; **400** `messaging.conversation.invalid`, `details.field` `tags` for an undeclared tag, or `type` for a conversation that is not support; **404** `messaging.conversation.notfound`; **409** `messaging.conversation.closed` for a closed conversation; **503** as for `GET /inapp` |
+| `POST /support/conversations/{id}/snooze` | `{ "until" }`, 5 minutes to 30 days ahead | **204**; **400** `messaging.conversation.invalid`, `details.field` `until` outside its range, or `type` for a conversation that is not support; **404** `messaging.conversation.notfound`; **409** `messaging.conversation.closed` for a closed conversation; **503** as for `GET /inapp` |
+| `GET /support/replies` | | **200** `{ "replies": [ <reply> ] }`: a topic's shared replies, or the person's own; query `topic` or `mine`; **400** `messaging.request.malformed`, `details.member` `topic`, for a topic not configured; **503** as for `GET /inapp` |
+| `POST /support/replies` | `{ "name", "text", "topic" }`, `topic` none for one's own | **201** `{ "id", "name", "text", "topic" }`; **400** `messaging.reply.invalid`, `details.field` `name` or `text`; **409** `messaging.reply.full` past 200 for a topic or 100 for a person, or `messaging.reply.nameexists` for a name its owner already has; **503** as for `GET /inapp` |
+| `PUT /support/replies/{id}` | `{ "name", "text" }` | **204**; **400** `messaging.reply.invalid`, `details.field` `name` or `text`; **404** `messaging.reply.notfound`; **409** `messaging.reply.nameexists` for a name its owner already has; **503** as for `GET /inapp` |
+| `DELETE /support/replies/{id}` | | **204**; **404** `messaging.reply.notfound`; **503** as for `GET /inapp` |
 
 | Shape | Members |
 |---|---|
-| `<conversation>` | `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline" }` |
+| `<conversation>` | `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt", "topic", "status", "place", "offline", "tags", "snoozedUntil" }` |
 | `<participant>` | `{ "id", "person", "online" }` |
 | `<message>` | `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }` |
+| `<reply>` | `{ "id", "name", "text", "topic" }` |
 
 A conversation is answered as `<conversation>` and a message as `<message>`, the routes
 above writing each out. `id`, `replyTo` and `messageId` are identifiers, lower-case and
@@ -356,29 +361,33 @@ who have not left, and is `[]` for a group or support conversation; `online` is 
 the participant holds a staff-hub connection (`09` MSG-CONV-006); `topic`, `status`,
 `place` and `offline` are a support conversation's (its topic's name, its status's `08`
 spelling, the visitor's place in the queue, `null` once it is assigned, and whether it
-came through the offline form, `09` MSG-CONV-002), and `null` for another; `person` and
+came through the offline form, `09` MSG-CONV-002), and `null` for another; `tags` is a
+support conversation's tags, `[]` for another, and `snoozedUntil` the instant a snoozed
+conversation wakes, an instant as `lastAt` is, `null` otherwise (`09` MSG-CONV-005); a
+saved reply is answered as `<reply>`, its `topic` `null` for one's own; `person` and
 `mentions` are person references; `authorKind` is `person`, `visitor`, or `library` for
 an `automatic` or `system` message, and `author` is the person reference where it is
 `person`, `null` otherwise and once the author is erased (`09` MSG-CONV-009); `text` is
 `null` once the message is deleted or its author erased, and `erased` says which;
 `replyTo`, `editedAt` and `deletedAt` are `null` where the message has none. In a
 request, `type` is optional and defaults to `text`, and `replyTo` and `mentions` are
-optional; `until` is an instant, or `null` for a block until it is lifted.
+optional; `until` is an instant, or `null` for a block until it is lifted, and a
+snooze's is required.
 
 Every route needs a signed-in person (MSG-API-002), the one `IRecipientIdentity`
 answers. A route naming a conversation the person may not read, or by an `id` that does
-not read, answers 404 `messaging.conversation.notfound`, never 403 (`09`
-MSG-CONV-006). The participants and leave routes are for direct conversations alone.
-Bodies and refusals are the engine's, as MSG-API-001 gives. `MapHermesStaffConversations`
-answers the group's `RouteGroupBuilder`, to which the host adds the authorization that
-decides who may use it (`09` MSG-CONV-006). The support routes (M-034) work support's
-queue (`09` MSG-CONV-002, MSG-CONV-011); a staff member writes `text` or `note` in a
-support conversation they are assigned through the messages route, and a visitor never
-sees a `note` (`09` MSG-CONV-001). The desk routes (M-035) put the declared tags on a
-support conversation the staff member may read, the whole set at once, and snooze one
-until an instant (`09` MSG-CONV-005). Staff of a topic manage its shared saved replies,
-and each person their own, through `GET`, `POST`, `PUT` and `DELETE /support/replies`,
-with `topic` or `mine` (`09` MSG-CONV-005).
+not read, answers 404 `messaging.conversation.notfound`, never 403 (`09` MSG-CONV-006).
+The participants and leave routes are for direct conversations alone. Bodies and
+refusals are the engine's, as MSG-API-001 gives. `MapHermesStaffConversations` answers
+the group's `RouteGroupBuilder`, to which the host adds the authorization that decides
+who may use it (`09` MSG-CONV-006). The support routes (M-034) work support's queue
+(`09` MSG-CONV-002, MSG-CONV-011); a staff member writes `text` or `note` in a support
+conversation they are assigned through the messages route, and a visitor never sees a
+`note` (`09` MSG-CONV-001). The desk routes (M-035) put the declared tags on a support
+conversation the staff member may read, the whole set at once, and snooze one until an
+instant (`09` MSG-CONV-005). Staff of a topic manage its shared saved replies, and each
+person their own, through the replies routes: the list takes `topic` or `mine`, and a
+new reply's `topic` is none for one's own (`09` MSG-CONV-005).
 
 **The staff hub (M-033).** The group also maps the staff hub at `/live`, so the host's
 authorization covers it too (`09` MSG-CONV-008). The person comes from

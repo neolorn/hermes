@@ -2256,6 +2256,56 @@ This entry settles the map's C20 to C23, C28 to C31 and L19.
 - `08` sections 1, 4 and 8;
 - `09` MSG-CONV-003, MSG-CONV-005, with their criteria.
 
+> **Amended.** 2026-11-01, on the review of its propagation:
+> - `messaging.startup.templatemissing` is a startup code of its own, its details `rule`
+>   and `language`.
+> - The saved replies' routes: `GET /support/replies`, with `topic` or `mine`, answers
+>   `{ "replies": [ <reply> ] }`, `<reply>` being `{ "id", "name", "text", "topic" }`
+>   with `topic` `null` for one's own, and a topic not configured 400
+>   `messaging.request.malformed`, `member` `topic`. `POST /support/replies` with
+>   `{ "name", "text", "topic" }` answers 201 with the reply. `PUT` and
+>   `DELETE /support/replies/{id}`, the first with `{ "name", "text" }`, answer 204.
+> - A name or text outside its bounds answers 400 `messaging.reply.invalid`, `field`
+>   `name` or `text`; a reply past its owner's count 409 `messaging.reply.full`; another
+>   person's own reply 404 `messaging.reply.notfound`. A name is unique per owner, and a
+>   second answers 409 `messaging.reply.nameexists`.
+> - `IConversations` gains `SetTagsAsync`, `SnoozeAsync`, `RepliesAsync`,
+>   `AddReplyAsync`, `ChangeReplyAsync` and `RemoveReplyAsync`, with a `SavedReplyId`
+>   and a `SavedReplyRecord` (`Id`, `Name`, `Text`, `Topic`). `ConversationRecord`
+>   gains `Tags` and `SnoozedUntil`, and `<conversation>` gains `tags` and
+>   `snoozedUntil`.
+> - The tags and snooze routes answer 204, 404 `messaging.conversation.notfound` and
+>   503. An `until` outside its range answers 400 `messaging.conversation.invalid`,
+>   `field` `until`. Either route on a conversation that is not support answers the same
+>   with `field` `type`, and on a closed one 409 `messaging.conversation.closed`, a new
+>   code. Snoozing follows the tags' rule: a support conversation the staff member may
+>   read.
+> - Tags are kept in the column `tags` of `conversations`. A tag dropped from the
+>   declaration stays on its conversations, and is refused only when it is put again.
+> - `conversation-timers` is turned on by `Hermes:Jobs:Enabled`, where conversations are
+>   registered, and has its row in `06` MSG-OPS-004's table.
+> - The conversation's language is matched when it starts and kept in the column
+>   `language` of `conversations`: a visitor's from `Accept-Language`, a customer's read
+>   as `01` MSG-SEND-003 reads a person's language.
+> - `unavailable` fires on an offline form's conversation started within its topic's
+>   hours while no member is available, and `outsidehours` on one started outside them.
+>   An automatic reply on an offline form's conversation is written to the conversation
+>   only, never emailed.
+> - A reply's `opens` is given in the topic's time zone, and its template sees the four
+>   values alone. A rendered reply is bounded at 4,000 characters, as a message's text
+>   is. One that fails to render, or renders past the bound, writes nothing and is
+>   logged, and its rule counts as fired.
+> - A rule's `Topics` naming a topic not configured, `After` on a rule that is not
+>   `waiting`, a tag name outside the name rule, and a 51st tag each fail the start with
+>   `messaging.startup.configurationinvalid`.
+> - The release notes state the `TemplateKey` warning among what the deployment meets
+>   (`06` MSG-OPS-007).
+> - `08` section 3 gives `snoozed` its meaning.
+>
+> Propagated to `04` MSG-LIB-002; `05` MSG-API-009; `06` MSG-OPS-004, MSG-OPS-007;
+> `08` sections 1, 3 and 4; `09` MSG-CONV-003, MSG-CONV-005; `implementation-plan.md`
+> (phase 17).
+
 ---
 
 # Index

@@ -45,10 +45,15 @@ MSG-OPS-002).
 | `messaging.inbox.notfound` | 404 | A message the development inbox does not hold, or none that matches (`05` MSG-API-007) | |
 | `messaging.inbox.notlocal` | 403 | A request to the development inbox from another machine or under another host name (`02` MSG-DEV-005) | |
 | `messaging.conversation.notfound` | 404 | A conversation that is unknown, or that the person may not read: not a participant, not a member of its scope, or one who left; never 403, so nobody learns a conversation exists (`09` MSG-CONV-006; `05` MSG-API-009) | |
-| `messaging.conversation.invalid` | 400 | A conversation's request outside its rule: a direct conversation's participants, a scope's kind that does not read, a route for direct conversations alone used on a group conversation, a transfer to a person outside the topic's scope or to a topic not configured, or an undeclared tag (`09` MSG-CONV-002, MSG-CONV-005, MSG-CONV-006; `05` MSG-API-009) | `field`: `participants`, `kind`, `type`, `person`, `topic` or `tags` |
+| `messaging.conversation.invalid` | 400 | A conversation's request outside its rule: a direct conversation's participants, a scope's kind that does not read, a route for direct conversations alone used on a group conversation, a transfer to a person outside the topic's scope or to a topic not configured, an undeclared tag, a snooze's `until` outside its range, or a tag or snooze on a conversation that is not support (`09` MSG-CONV-002, MSG-CONV-005, MSG-CONV-006; `05` MSG-API-009) | `field`: `participants`, `kind`, `type`, `person`, `topic`, `tags` or `until` |
 | `messaging.conversation.full` | 409 | A direct conversation's participants past 16 (`09` MSG-CONV-001, MSG-CONV-006) | |
+| `messaging.conversation.closed` | 409 | A tag or snooze on a closed conversation (`09` MSG-CONV-005; `05` MSG-API-009) | |
 | `messaging.message.notfound` | 404 | A message the conversation does not hold (`05` MSG-API-009) | |
 | `messaging.message.invalid` | 400 | A message's text, mentions, reply or type outside its rule (`09` MSG-CONV-001, MSG-CONV-006) | `field`: `text`, `mentions`, `replyTo` or `type` |
+| `messaging.reply.notfound` | 404 | A saved reply that is unknown, or another person's own (`09` MSG-CONV-005; `05` MSG-API-009) | |
+| `messaging.reply.invalid` | 400 | A saved reply's name or text outside its bounds (`09` MSG-CONV-005; `05` MSG-API-009) | `field`: `name` or `text` |
+| `messaging.reply.full` | 409 | A saved reply past its owner's count, 200 for a topic or 100 for a person (`09` MSG-CONV-005; `05` MSG-API-009) | |
+| `messaging.reply.nameexists` | 409 | A saved reply's name its owner already has (`09` MSG-CONV-005; `05` MSG-API-009) | |
 | `messaging.message.notauthor` | 403 | Editing or deleting another person's message, which the person can see, so nothing leaks (`09` MSG-CONV-006) | |
 | `messaging.message.deleted` | 409 | Editing a deleted message (`09` MSG-CONV-006) | |
 | `messaging.support.offline` | 409 | Starting a support conversation outside its topic's hours, or within them while no member is available (`09` MSG-CONV-002; `05` MSG-API-010) | |
@@ -121,7 +126,7 @@ work are tags, not statuses (`09` MSG-CONV-005):
 | Status | `ConversationStatus` member | Meaning |
 |---|---|---|
 | `open` | `Open` | Open. A queued support conversation is `open` with no assignee; `group` and `direct` conversations are always `open` in release 2 |
-| `snoozed` | `Snoozed` | Snoozed (`09` MSG-CONV-005) |
+| `snoozed` | `Snoozed` | Set aside by staff until an instant, keeping its assignee; it wakes to `open` then, or when the visitor or the customer writes (`09` MSG-CONV-005) |
 | `closed` | `Closed` | Closed |
 
 ---
@@ -247,7 +252,7 @@ length in characters is counted as `00` section 1.5 gives.
 | `Conversations:Retention:Visitor` | `365.00:00:00` | How long a visitor's conversation is kept after it closes, and the visitor's cookie lives (`09` MSG-CONV-001, MSG-CONV-010); 1 day to 10 years |
 | `Conversations:Replies:<name>:Trigger` | none; required for each rule | `started`, `unavailable`, `waiting`, `outsidehours` or `closing`; `<name>` under `01` MSG-SEND-001's name rule (`09` MSG-CONV-003) |
 | `Conversations:Replies:<name>:Topics` | none: every topic | The topics the rule serves, each a configured topic (`09` MSG-CONV-003) |
-| `Conversations:Replies:<name>:After` | none; required for a `waiting` rule | 1 minute to 1 hour, how long a queued conversation waits before the rule fires (`09` MSG-CONV-003) |
+| `Conversations:Replies:<name>:After` | none; required for a `waiting` rule, and set on no other | 1 minute to 1 hour, how long a queued conversation waits before the rule fires (`09` MSG-CONV-003) |
 | `Conversations:Tags` | none: no tag | The tags staff put on a support conversation, at most 50 names, each under `01` MSG-SEND-001's name rule (`09` MSG-CONV-005) |
 | `Conversations:Support:CloseAfter` | `1.00:00:00` | 1 hour to 30 days, the silence after which an open or snoozed support conversation closes (`09` MSG-CONV-005) |
 | `Conversations:Support:CloseWarning` | `00:05:00` | 1 minute to 1 hour, and shorter than `Conversations:Support:CloseAfter`: how long before an automatic close the `closing` rule fires (`09` MSG-CONV-003, MSG-CONV-005) |
