@@ -175,6 +175,26 @@ public sealed class BakeryTests(PostgresFixture postgres) : IClassFixture<Postgr
 
         using HttpClient customer = await bakery.SignInAsync("c-1");
     }
+    [Fact]
+    public async Task StaffChat_TheStaffWriteInTheShopsConversationAndACustomerIs403()
+    {
+        await using BakeryFactory bakery = await BakeryFactory.StartAsync(postgres);
+        using HttpClient staff = await bakery.SignInAsync("s-1");
+        using HttpClient customer = await bakery.SignInAsync("c-1");
+
+        using HttpResponseMessage opened = await staff.GetAsync(Route("/notifications/conversations/group/organization/shop"), TestContext.Current.CancellationToken);
+        using JsonDocument conversation = JsonDocument.Parse(await opened.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        string id = conversation.RootElement.GetProperty("id").GetString()!;
+        using HttpResponseMessage written = await staff.PostAsJsonAsync(Route($"/notifications/conversations/{id}/messages"), new { text = "The oven is on" }, TestContext.Current.CancellationToken);
+        using HttpResponseMessage read = await staff.GetAsync(Route($"/notifications/conversations/{id}/messages"), TestContext.Current.CancellationToken);
+        using HttpResponseMessage refused = await customer.GetAsync(Route("/notifications/conversations"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, opened.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, written.StatusCode);
+        Assert.Contains("The oven is on", await read.Content.ReadAsStringAsync(TestContext.Current.CancellationToken), StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+    }
+
     /// <summary>Subscribes as a browser does: with the key <c>GET /notifications/push/key</c> answers, and keys of its own.</summary>
     private static async Task<HttpResponseMessage> SubscribeAsync(HttpClient client, string endpoint)
     {

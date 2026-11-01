@@ -21,6 +21,12 @@ internal sealed class Customers
         return known.GetValueOrDefault(id);
     }
 
+    /// <summary>The staff alone.</summary>
+    internal IReadOnlyList<Customer> Staff()
+    {
+        return [.. known.Values.Where(customer => customer.Staff).OrderBy(customer => customer.Id, StringComparer.Ordinal)];
+    }
+
     /// <summary>Every customer, staff aside.</summary>
     internal IReadOnlyList<Customer> All()
     {

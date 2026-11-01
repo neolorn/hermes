@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `messaging.conversation.notfound`; messages of 1 to 4,000 characters mentioning up to 32
   persons, edited and deleted by their authors alone; read positions that move forward
   only, and each conversation's unread count
+- The sample host lets its staff talk in the shop's group conversation
 
 ### Fixed
 
