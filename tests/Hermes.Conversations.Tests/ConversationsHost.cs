@@ -43,9 +43,10 @@ internal static class ConversationsHost
         return builder.Build();
     }
 
-    /// <summary>Registers the engine with no kind declared.</summary>
+    /// <summary>Registers the engine with no kind declared, and a membership seam that answers no one a member.</summary>
     internal static void AddEngine(IServiceCollection services, IConfiguration configuration)
     {
+        services.AddSingleton<IConversationMembership>(new MembershipFake());
         services.AddHermes(configuration, _ => { });
     }
 }

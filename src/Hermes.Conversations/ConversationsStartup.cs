@@ -14,7 +14,8 @@ namespace Hermes.Conversations;
 /// <summary>
 /// Runs the package's checks in <see cref="StartingAsync"/>, after the engine's, which
 /// <c>AddHermes</c> registers before it (M-031): no key under <c>Hermes:Conversations:</c> is
-/// one the package does not know, read raw from the configuration given to <c>AddHermes</c>.
+/// one the package does not know, read raw from the configuration given to <c>AddHermes</c>, and
+/// the membership seam is registered (<c>04</c> MSG-LIB-005).
 /// </summary>
 internal sealed class ConversationsStartup(IServiceProvider services) : IHostedLifecycleService
 {
@@ -24,6 +25,11 @@ internal sealed class ConversationsStartup(IServiceProvider services) : IHostedL
         if (ConversationsConfiguration.UnknownKey(state.Section) is { } key)
         {
             throw new MessagingStartupException(Codes.ConfigurationInvalid, new Dictionary<string, string>(StringComparer.Ordinal) { ["key"] = key });
+        }
+
+        if (!services.GetRequiredService<IServiceProviderIsService>().IsService(typeof(IConversationMembership)))
+        {
+            throw new MessagingStartupException(Codes.DeclarationMissing, new Dictionary<string, string>(StringComparer.Ordinal) { ["key"] = "conversationMembership" });
         }
 
         return Task.CompletedTask;

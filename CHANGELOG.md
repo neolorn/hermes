@@ -26,6 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   job protects it again as it does a delivery's values, no key version a message uses is
   retired, and erasing a person clears the text of their messages and deletes their
   participant and mention rows
+- Staff chats: `AddHermesConversations` registers `IConversations` as a scoped service and
+  needs `IConversationMembership` registered, its start stopping with
+  `messaging.startup.declarationmissing` (`key` `conversationMembership`) without it, and
+  `MapHermesStaffConversations` maps the staff conversations group: direct conversations
+  of up to 16 participants and one group conversation a scope, whose every read and write
+  asks the membership seam, a conversation the person may not read answering
+  `messaging.conversation.notfound`; messages of 1 to 4,000 characters mentioning up to 32
+  persons, edited and deleted by their authors alone; read positions that move forward
+  only, and each conversation's unread count
 
 ### Fixed
 
