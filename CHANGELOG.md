@@ -76,6 +76,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   assigned to them in their list. `ConversationRecord` gains `Topic`, `Status`, `Place`
   and `Offline`, and `IConversations` support's members. An offline conversation's
   replies are sent by email as `Hermes:Conversations:Support:OfflineReplyKind`
+- Support's live connection: `MapHermesPublicConversations` also maps the public hub at
+  `/live`, authenticated by the visitor's cookie or the signed-in customer, which pushes a
+  message, its edit or delete, typing, the visitor's place in the queue, an assignment and
+  a close, never a note; the staff hub pushes a support conversation's events to its
+  assignee alone, and `conversation` to a person when a direct conversation they are in
+  starts or gains participants, or a support conversation is assigned to them
 
 ### Fixed
 

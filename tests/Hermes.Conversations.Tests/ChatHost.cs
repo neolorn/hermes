@@ -156,6 +156,38 @@ internal sealed class ChatHost : IAsyncDisposable
         return hub;
     }
 
+    /// <summary>Connects <paramref name="browser"/> to the public hub, with its cookie or its person, over long polling through the test server.</summary>
+    internal async Task<HubConnection> ConnectPublicAsync(Browser browser)
+    {
+        TestServer server = Application.GetTestServer();
+        HubConnection hub = new HubConnectionBuilder()
+            .WithUrl(new Uri(server.BaseAddress, PublicPrefix + "/live"), options =>
+            {
+                options.HttpMessageHandlerFactory = _ => server.CreateHandler();
+                options.Transports = HttpTransportType.LongPolling;
+                if (browser.Cookie is { } cookie)
+                {
+                    options.Headers["Cookie"] = "messaging_visitor=" + cookie;
+                }
+
+                if (browser.Person is { } person)
+                {
+                    options.Headers[PersonHeader] = person;
+                }
+            })
+            .Build();
+        await hub.StartAsync(TestContext.Current.CancellationToken);
+
+        // The hub holds a connection once it has read its caller, so a test waits for it.
+        Live.PublicConnections held = Application.Services.GetRequiredService<Live.PublicConnections>();
+        for (int wait = 0; wait < 500 && hub.ConnectionId is { } id && held.KeysOf(id) is null; wait++)
+        {
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        }
+
+        return hub;
+    }
+
     /// <summary>Calls <see cref="ISubjects"/> in a scope of its own.</summary>
     internal async Task<T> SubjectsAsync<T>(Func<ISubjects, ValueTask<T>> call)
     {

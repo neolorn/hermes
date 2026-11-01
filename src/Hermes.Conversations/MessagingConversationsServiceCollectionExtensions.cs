@@ -39,6 +39,7 @@ public static class MessagingConversationsServiceCollectionExtensions
         services.AddSignalR();
         services.TryAddSingleton<ConversationsSettings>();
         services.TryAddSingleton<LiveConnections>();
+        services.TryAddSingleton<PublicConnections>();
         services.TryAddSingleton<LivePresence>();
         services.TryAddSingleton<LivePush>();
         services.TryAddSingleton<SupportAssigner>();

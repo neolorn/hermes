@@ -87,12 +87,12 @@ public sealed partial class LiveTests(PostgresFixture postgres) : IClassFixture<
         await chat.CallAsync(chats => chats.MarkReadAsync("person-omar-47", direct, written, default));
         await omar.InvokeAsync("Typing", direct.Value.ToString("D"), TestContext.Current.CancellationToken);
         await chat.CallAsync(chats => chats.DeleteAsync("person-amal-31", direct, written, default));
-        while (payloads.Count < 6)
+        while (payloads.Count < 7)
         {
             await listening.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         }
 
-        Assert.Equal(["message", "changed", "read", "typing", "changed"], payloads.Select(each => each.Split(':')[0]).Where(kind => kind != "presence").Take(5));
+        Assert.Equal(["conversation", "message", "changed", "read", "typing", "changed"], payloads.Select(each => each.Split(':')[0]).Where(kind => kind != "presence").Take(6));
         Assert.Contains(payloads, payload => payload.StartsWith("presence:", StringComparison.Ordinal));
         Assert.All(payloads, payload => Assert.Matches(Payload(), payload));
         Assert.All(payloads, payload => Assert.DoesNotContain("person-", payload, StringComparison.Ordinal));
@@ -217,6 +217,6 @@ public sealed partial class LiveTests(PostgresFixture postgres) : IClassFixture<
         return read.Value!.Participants.Single(each => each.Person == person).Online;
     }
 
-    [GeneratedRegex(@"^(message|changed|read|typing|presence):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")]
+    [GeneratedRegex(@"^(message|changed|read|typing|presence|place|assigned|closed|conversation):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")]
     private static partial Regex Payload();
 }

@@ -209,6 +209,7 @@ internal sealed partial class StaffChats(
                 }
 
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
+                await LiveNotices.TellAsync(context, LiveNotices.Conversation, row.Id, row.Id, token).ConfigureAwait(false);
                 return (await RecordsAsync(context, person, clock.GetUtcNow(), [row], token).ConfigureAwait(false))[0];
             },
             cancellationToken).ConfigureAwait(false);
@@ -722,6 +723,7 @@ internal sealed partial class StaffChats(
                 }
 
                 await context.SaveChangesAsync(token).ConfigureAwait(false);
+                await LiveNotices.TellAsync(context, LiveNotices.Conversation, reached.Id, reached.Id, token).ConfigureAwait(false);
                 return null;
             },
             cancellationToken).ConfigureAwait(false);
@@ -1035,7 +1037,7 @@ internal sealed partial class StaffChats(
     /// <param name="now">The instant a connection row is fresh from, less 90 seconds.</param>
     /// <param name="rows">The conversations.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
-    private static async Task<List<ConversationRecord>> RecordsAsync(MessagingContext context, string person, DateTimeOffset now, IReadOnlyList<ConversationRow> rows, CancellationToken cancellationToken)
+    internal static async Task<List<ConversationRecord>> RecordsAsync(MessagingContext context, string person, DateTimeOffset now, IReadOnlyList<ConversationRow> rows, CancellationToken cancellationToken)
     {
         Guid[] ids = [.. rows.Select(row => row.Id)];
         List<ParticipantRow> participants = await context.Participants.AsNoTracking()

@@ -54,7 +54,8 @@ public static class MessagingConversationsEndpointRouteBuilderExtensions
     /// <summary>
     /// Maps the public conversations group: support's topics, the privacy notice, starting a
     /// support conversation or leaving one through the offline form, and reading and writing
-    /// it, under <c>/support</c>, reading JSON bodies as <c>application/json</c> alone. No route
+    /// it, under <c>/support</c>, reading JSON bodies as <c>application/json</c> alone, and the
+    /// public hub at <c>/live</c>, which pushes what was written to the caller connected. No route
     /// needs a signed-in person: the group allows anonymous callers, a signed-in customer being
     /// the person a registered <c>IRecipientIdentity</c> answers, and a visitor known by the
     /// cookie <c>messaging_visitor</c>, kept under the prefix. A group is mapped before the
@@ -87,6 +88,7 @@ public static class MessagingConversationsEndpointRouteBuilderExtensions
         RouteGroupBuilder group = endpoints.MapGroup(prefix);
         group.AllowAnonymous();
         PublicEndpoints.Map(group, prefix.TrimEnd('/'));
+        group.MapHub<PublicHub>("/live");
         return group;
     }
 }

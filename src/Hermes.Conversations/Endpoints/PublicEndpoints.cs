@@ -98,7 +98,7 @@ internal static class PublicEndpoints
     /// is registered and answers one; otherwise the visitor the cookie names, renewing it, or one
     /// drawn now where <paramref name="draw"/>; none where there is none.
     /// </summary>
-    internal static async Task<SupportCaller?> CallerAsync(HttpContext context, string path, bool draw)
+    internal static async Task<SupportCaller?> CallerAsync(HttpContext context, string path, bool draw, bool renew = true)
     {
         if (context.RequestServices.GetService<IRecipientIdentity>() is { } identity
             && await identity.CurrentAsync(context.RequestAborted).ConfigureAwait(false) is { } person
@@ -118,7 +118,7 @@ internal static class PublicEndpoints
             return null;
         }
 
-        if (!context.Response.HasStarted)
+        if (renew && !context.Response.HasStarted)
         {
             TimeSpan lives = context.RequestServices.GetRequiredService<ConversationsSettings>().Support.RetentionVisitor;
             context.Response.Cookies.Append(Cookie, reference, new CookieOptions
@@ -134,10 +134,10 @@ internal static class PublicEndpoints
         return SupportCaller.OfVisitor(reference);
     }
 
-    /// <summary>The caller of a hub connection's request, as <see cref="CallerAsync"/> reads it, drawing none.</summary>
+    /// <summary>The caller of a hub connection's request, as <see cref="CallerAsync"/> reads it, drawing and renewing none.</summary>
     internal static Task<SupportCaller?> HubCallerAsync(HttpContext context)
     {
-        return CallerAsync(context, "/", draw: false);
+        return CallerAsync(context, "/", draw: false, renew: false);
     }
 
     /// <summary>The source address a limit counts: the request's remote address, IPv4 as its four bytes, IPv6 grouped by its /64; none where the request has none.</summary>
