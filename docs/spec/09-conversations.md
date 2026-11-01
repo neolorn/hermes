@@ -292,11 +292,14 @@ reads from its last message.
 - **How often.** Once per person per conversation, until their read position passes the
   message that was told. The send's idempotency key is
   `conversation:<id>:away:<participantId>:<messageId>`.
-- **The kind.** It is the one named by `Hermes:Conversations:AwayKind`, which must be a
-  declared kind, or the start fails naming the key. Unset, no away notice is sent.
-- **Values.** The kind's values are the conversation's identifier and type, the
-  message's identifier, and whether the person was mentioned. The text is never
-  included: it is protected, and a notice must not carry it.
+- **The kind.** It is the one named by `Hermes:Conversations:AwayKind`, read at start,
+  which must be a declared kind, or the start fails naming the key. Unset, no away
+  notice is sent.
+- **Values.** The kind's values are `conversation` and `message`, the conversation's and
+  the message's identifiers as text, `conversationType`, the conversation's type as `08`
+  spells it, and `mentioned`, a flag of whether the person was mentioned (`03`
+  MSG-TPL-002). The text is never included: it is protected, and a notice must not carry
+  it.
 - The kind's own channels, preferences and quiet hours apply, as for any send.
 
 *Source: M-011, M-033*
@@ -311,7 +314,6 @@ reads from its last message.
 5. An away participant is told once until they read. A mention is told through a mute.
    A connected one is not told.
 6. `AwayKind` naming an undeclared kind fails the start.
-7. The contract test finds the hub's route and methods.
 
 ---
 

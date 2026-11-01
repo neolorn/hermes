@@ -226,7 +226,7 @@ length in characters is counted as `00` section 1.5 gives.
 | `Push:AuthFailThreshold` | `20` | 1 to 10,000 |
 | `Push:AuthFailWindow` | `01:00:00` | 1 minute to 1 day |
 | `InApp:AlwaysOn` | `false` | Whether the in-app channel of every optional category cannot be turned off (`02` MSG-INAPP-004), set alike in every application of the deployment |
-| `Conversations:AwayKind` | none: no away notice is sent | A declared kind (`01` MSG-SEND-001), the one a person who is away is told of a conversation's message as (`09` MSG-CONV-008); one not declared stops the start, naming the key |
+| `Conversations:AwayKind` | none: no away notice is sent | A declared kind (`01` MSG-SEND-001), the one a person who is away is told of a conversation's message as (`09` MSG-CONV-008); one not declared stops the start, naming the key; start only |
 | `DevelopmentInbox:Folder` | `hermes-inbox` in the operating system's temporary folder | An absolute path (`02` MSG-DEV-002); start only |
 | `DevelopmentInbox:KeepFor` | `7.00:00:00` | 1 hour to 90 days; start only |
 | `DevelopmentInbox:MaxMessages` | `1000` | 10 to 100,000; start only |

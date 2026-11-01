@@ -335,7 +335,7 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | Shape | Members |
 |---|---|
 | `<conversation>` | `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }` |
-| `<participant>` | `{ "id", "person" }` |
+| `<participant>` | `{ "id", "person", "online" }` |
 | `<message>` | `{ "id", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }` |
 
 A conversation is answered as `<conversation>` and a message as `<message>`, the routes
@@ -344,7 +344,8 @@ hyphenated; `sentAt`, `editedAt`, `deletedAt` and `lastAt` are instants in ISO 8
 with milliseconds, `lastAt` the last message's, or the conversation's creation where it
 has none; `type` and `kind` are their `08` spellings; `scope` is `null` but for a group
 conversation; `participants` holds a direct conversation's participants who have not
-left, and is `[]` for a group conversation; `person`, `author` and `mentions` are person
+left, and is `[]` for a group conversation; `online` is whether the participant holds a
+staff-hub connection (`09` MSG-CONV-006); `person`, `author` and `mentions` are person
 references, `author` being `null` once the author is erased (`09` MSG-CONV-009); `text`
 is `null` once the message is deleted or its author erased, and `erased` says which;
 `replyTo`, `editedAt` and `deletedAt` are `null` where the message has none. In a
@@ -367,12 +368,12 @@ it missed from the messages route with `after`, since every push follows the sto
 
 | Hub method | Sent by | Arguments |
 |---|---|---|
-| `message` | The server | `conversationId`, `message`: a new message, in the shape the messages route answers |
-| `messageChanged` | The server | `conversationId`, `message`: an edit or a delete |
+| `message` | The server | `conversationId`, `message`: a new message, as `<message>` |
+| `messageChanged` | The server | `conversationId`, `message`: an edit or a delete, as `<message>` |
 | `read` | The server | `conversationId`, `participantId`, `messageId` |
 | `typing` | The server | `conversationId`, `participantId` |
 | `presence` | The server | `participantId`, `online` |
-| `conversation` | The server | `conversation`: one added to the person's list |
+| `conversation` | The server | `conversation`: one added to the person's list, as `<conversation>` |
 | `Typing` | The client | `conversationId` |
 
 *Source: M-032, M-033*
@@ -380,3 +381,4 @@ it missed from the messages route with `after`, since every push follows the sto
 **Acceptance criteria**
 1. Each route does what its operation does, and the endpoint contract test finds exactly
    these routes.
+2. The contract test finds the hub's route and methods.
