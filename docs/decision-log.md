@@ -2878,6 +2878,44 @@ The lead pushes the tag after the merge.
 
 ---
 
+## M-040 — Phase 22: sender names take the SMS alphabet's basic characters, `1.0.0-rc.4`
+
+**Date:** 2026-11-01 · **Status:** accepted · **Amends:** MSG-SMS-002
+
+**TL;DR.** An alphanumeric sender may hold any character that is both printable ASCII and
+in the GSM 7-bit default alphabet's basic set, not only letters, digits and space. Found
+at a host's first deployment: the operator registered a sender name ending in a full
+stop, the rule refused it, and every host refused to start. Phase 22 ships it as
+`1.0.0-rc.4`.
+
+- **The set.** `A` to `Z`, `a` to `z`, `0` to `9`, space, and
+  `! " # $ % & ' ( ) * + , - . / : ; < = > ? @ _`: the printable ASCII characters of the
+  basic character set of 3GPP TS 23.038 section 6.2.1. Still 1 to 11 characters, or a
+  number of 1 to 15 digits.
+- **Why.** 3GPP TS 23.040 section 9.1.2.5 codes an alphanumeric address in that
+  alphabet, so the old set narrowed the standard with no reason, and operators register
+  names with punctuation.
+- **What stays.** The length, the numeric form, a provider narrowing it
+  (`ISmsProvider.IsValidSender`), and startup checking every declared sender against the
+  registered provider's.
+- **The release.** A fix with no public surface change: one commit with its tests and a
+  `CHANGELOG.md` line, then the release commit `chore: release 1.0.0-rc.4` on the lead's
+  message, and the tag after the merge, which the lead pushes.
+- **Phase 22's criterion.** MSG-SMS-002 criterion 4.
+
+*Rejected:*
+- **The extension table (`[ ] { } \ ^ ~ |` and the euro sign):** each takes two septets,
+  so 11 characters could overrun the 11 septets the address holds.
+- **The basic set's letters outside ASCII (`é`, `Ä`, `£` and the rest):** how a
+  configuration string reaches the gateway is the provider's, and no host needs them yet;
+  a later entry can add them.
+
+**Propagated to:**
+- `02` MSG-SMS-002 (the set; criterion 4);
+- `implementation-plan.md` (row 22).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -2921,3 +2959,4 @@ The lead pushes the tag after the merge.
 | Phase 19: attachments | M-037 |
 | Phase 20: retention, export and threats | M-038 |
 | Phase 21: the contract and release candidate 1.0.0-rc.3 | M-039 |
+| Phase 22: sender names take the SMS alphabet's basic characters, 1.0.0-rc.4 | M-040 |
