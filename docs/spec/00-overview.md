@@ -172,9 +172,11 @@ the public surface (`04` MSG-LIB-006):
 | Email bounce and complaint feedback | `02` MSG-EMAIL-007 |
 
 The first release candidate, `1.0.0-rc.1`, holds the in-application notification list
-(`02` section 5) with all that came before it (`04` MSG-LIB-006, M-027).
+(`02` section 5) with all that came before it (`04` MSG-LIB-006, M-027). The release
+candidate `1.0.0-rc.3` holds conversations (`09`), in the package
+`Hermes.Conversations`, with all that came before it (M-039).
 
-*Source: M-001, M-004, M-026*
+*Source: M-001, M-004, M-026, M-039*
 
 ---
 

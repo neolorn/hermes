@@ -312,7 +312,7 @@ attachment's scan has failed 5 times (`09` MSG-CONV-007, M-037).
 **MSG-OPS-007** — The deployment SHALL meet what the library cannot do alone, and the
 release notes SHALL state it.
 
-**Values (M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-035).**
+**Values (M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-035, M-039).**
 - **Sender rules.** For every sender: SPF or DKIM; forward and reverse DNS that agree
   for the sending server's IP address; TLS. For a bulk sender (about 5,000 or more
   messages a day to Gmail): SPF and DKIM; a DMARC record (its policy may be `none`); a
@@ -377,12 +377,21 @@ release notes SHALL state it.
   also reads `Reply`: a key with `Reply` set names an automatic reply (`04`
   MSG-LIB-002; `09` MSG-CONV-003).
 
+**Release 2's notes (M-039).** `RELEASE-NOTES.md`'s section `1.0.0-rc.3` names:
+- every change since `1.0.0-rc.2`, all additive, with `TemplateKey`'s reply warning
+  above (M-035);
+- the new package `Hermes.Conversations`;
+- the seams a host must supply where it registers conversations (`04` MSG-LIB-005);
+- the migrations, none of which drops or rewrites data (MSG-OPS-002);
+- the keys and the jobs (`08` section 4; MSG-OPS-004).
+
 *Source: M-003, M-005, M-007, M-008, M-009, M-010, M-012, M-013, M-020, M-022, M-024,
-M-026, M-035*
+M-026, M-035, M-039*
 
 **Acceptance criteria**
 1. The release notes of each release (`RELEASE-NOTES.md`, `07` MSG-ENG-001) state every
    requirement above (checked in review).
+2. The notes name every change, and every gate passes on the release commit.
 
 ---
 

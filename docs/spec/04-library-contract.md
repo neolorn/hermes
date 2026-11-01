@@ -383,7 +383,12 @@ its route, its method names and its payload shapes. The endpoint contract test f
 them from the phase that adds the hub (`07` MSG-ENG-006); the release gate reads them,
 and the baseline records them beside the routes, from plan phase 21.
 
-*Source: M-012, M-023, M-027, M-031*
+**The release gate for release 2 (M-039).** `gate-release-compatibility.ps1` and
+`release-baseline.json` gain the hubs: their routes, method names and payload shapes.
+The gate judges against the newest final release. There is none yet, so nothing binds
+(M-027), and the baseline records `1.0.0-rc.3`'s set.
+
+*Source: M-012, M-023, M-027, M-031, M-039*
 
 **Acceptance criteria**
 1. The release gate compares the public surface, the endpoints and their wire shapes,
@@ -400,6 +405,7 @@ and the baseline records them beside the routes, from plan phase 21.
    remove a public member pass the release gate; with a final release `1.0.0` tagged,
    the same removal fails it in a pull request carrying neither `!` nor
    `BREAKING CHANGE:`, and in a tag `v1.1.0-rc.1`.
+3. The release gate reads hubs and passes.
 
 ---
 
