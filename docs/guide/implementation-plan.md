@@ -26,9 +26,10 @@ default and status, and `05-api-contract` for every route and wire shape.
   is built in the later phase, with the criterion that proves it.
 - Each phase implements, in code, the rows of `08` that its items use: the codes, keys,
   enumerations, statuses, alert conditions, reasons and names.
-- Items designed for and not built (the rows of `00` MSG-OVR-003, `02` MSG-PUSH-008 and
-  MSG-CHAN-002, every paragraph marked "designed for, not built", and `09`) are placed
-  in no phase; what the first release must do for them is stated in the items that are.
+- Items designed for and not built (the rows of `00` MSG-OVR-003 save conversations,
+  which release 2 builds from `09` (section 4), `02` MSG-PUSH-008 and MSG-CHAN-002, and
+  every paragraph marked "designed for, not built") are placed in no phase; what the
+  first release must do for them is stated in the items that are.
 - A question about the specification parks its item and what depends on it; the rest of
   the phase goes on.
 
@@ -64,8 +65,40 @@ Releases 1.0.0 and 1.1.0 were withdrawn and 1.2.0 never tagged (M-027): what pha
 
 ## 4. Release 2: conversations
 
-Planned after release 1, from `09`. Its phases are written when release 1 is out, with
-the acceptance criteria `09` leaves to that release.
+Release 2 builds `09` in phases 13 to 21 and is released as `1.0.0-rc.3` (M-027, M-031).
+Each phase is its own working branch and pull request, cut from `main` once the one
+before it is merged. M-031 settles phase 13; each later phase is settled by its own
+decision-log entry, written before it starts, which gives its items and the acceptance
+criteria `09` leaves to it, and the chapters take them with it (`09`'s preamble). Every
+phase follows these rules (M-031):
+- Every conversation table lives in the engine's context and migration chain; a phase
+  that adds one holding a protected value, a keyed hash or a person reference adds it,
+  in that phase, to key retirement, erasure and the person's locks, and from phase 20 to
+  export, with the tests that prove each (`06` MSG-OPS-002).
+- Each seam conversations need is a new interface of `Hermes.Core`, required only where
+  conversations are registered (`04` MSG-LIB-005).
+- Each hub is listed in `05` beside the routes and found by the endpoint contract test
+  in the phase that adds it (`07` MSG-ENG-006); phase 21 makes the release gate read
+  the hubs (`04` MSG-LIB-006).
+- Every change to the surface of `1.0.0-rc.2` is an addition, and no public record gains
+  a `required` member (`04` MSG-LIB-002, MSG-LIB-006).
+
+| # | Phase | Items | Proves |
+|---|---|---|---|
+| 13 | Foundations | M-031: `00` section 2.2 (the package's description); `04` MSG-LIB-001 (the project `Hermes.Conversations` and its references, its test project `tests/Hermes.Conversations.Tests`), MSG-LIB-002 (`AddHermesConversations`; the rule on additions to a public record), MSG-LIB-003 (`AddHermesConversations`, called after `AddHermes`), MSG-LIB-005 (the rule on conversations' seams, none of which phase 13 adds); `06` MSG-OPS-001 (the keys under `Hermes:Conversations:`, checked where conversations are registered), MSG-OPS-002 (conversations' tables in the engine's context and migration chain, and the hooks of the rule that the engine knows each table, proven with a table defined in the tests alone); `07` MSG-ENG-001 (the project, its folders, its test project, the engine's `Conversations` folder, the grants, the sample host referencing the package), MSG-ENG-009 (`Microsoft.AspNetCore.SignalR.Client`, in test projects alone) | `AddHermesConversations` starts with one call after `AddHermes`, and without `AddHermes` the start fails naming it; a key under `Hermes:Conversations:` that the package does not know stops the start; the package's references and grants are exactly those of `04` MSG-LIB-001 and `07` MSG-ENG-001, as the repository tests prove; the sample host references the package and starts; a table defined in the tests alone adds itself to the rule's hooks, and no key version a row of it uses is retired |
+| 14 | The model and staff chats | Its entry's, written before it starts | Its entry's criteria |
+| 15 | The live connection | Its entry's, written before it starts | Its entry's criteria |
+| 16 | Support's public side | Its entry's, written before it starts | Its entry's criteria |
+| 17 | Automatic replies and desk tools | Its entry's, written before it starts, `TemplateKey`'s new member among them, which the entry adds with its rule's new text (`04` MSG-LIB-002; `09` MSG-CONV-003) | Its entry's criteria |
+| 18 | The end of support | Its entry's, written before it starts | Its entry's criteria |
+| 19 | Attachments | Its entry's, written before it starts | Its entry's criteria |
+| 20 | Retention, export and threats | Its entry's, written before it starts, export among them: `SubjectExport`'s member `Conversations` filled, and each conversation table added to export (`04` MSG-LIB-002; `06` MSG-OPS-002) | Its entry's criteria |
+| 21 | Contract and release candidate 1.0.0-rc.3 | Its entry's, written before it starts, the release gate reading the hubs among them (`04` MSG-LIB-006); `06` MSG-OPS-007 and `RELEASE-NOTES.md` for 1.0.0-rc.3. The release commit `chore: release 1.0.0-rc.3` comes in the same pull request once the review has passed, on the lead's message, and the tag `v1.0.0-rc.3` after its merge | Its entry's criteria; version 1.0.0-rc.3 of every package, `Hermes.Conversations` among them, on the tag's release, marked a pre-release |
+
+**Waiting on inputs.**
+- Each phase from 14 on: its decision-log entry, written before it starts (M-031).
+- The release commit and tag of `1.0.0-rc.3`: the lead's message to release, after the
+  review (`07` MSG-ENG-011).
 
 ## 5. Phase report
 

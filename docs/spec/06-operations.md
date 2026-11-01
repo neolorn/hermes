@@ -11,9 +11,9 @@ section 4).
 configuration, bound from the host's configuration section `Hermes`, with the default
 and the rule `08` section 4 gives, validated when the application starts.
 
-**Values (M-005, M-012).** The library checks each key of `08` section 4 itself, on the
-raw configuration value and before binding, so a value outside its rule stops the start
-with `messaging.startup.configurationinvalid`, `details.key` naming the key as `08`
+**Values (M-005, M-012, M-031).** The library checks each key of `08` section 4 itself,
+on the raw configuration value and before binding, so a value outside its rule stops the
+start with `messaging.startup.configurationinvalid`, `details.key` naming the key as `08`
 spells it; the section is then bound through .NET's options, by the configuration
 binder's source generator, with source-generated validation as a second line. A key
 holding a list takes its default only where its section has no child after binding,
@@ -30,7 +30,12 @@ installed) stops the start with `messaging.startup.configurationinvalid`, `detai
 MSG-SEND-003). The checks that depend on which endpoint groups an application maps run
 when the host starts, after its groups are mapped.
 
-*Source: M-005, M-012*
+The keys under `Hermes:Conversations:` are `Hermes.Conversations`' own: they are checked
+on the raw value at start, as the engine's are, only where conversations are registered
+(`04` MSG-LIB-003), and there a key under it that the package does not know stops the
+start, naming it (M-031).
+
+*Source: M-005, M-012, M-031*
 
 **Acceptance criteria**
 1. Every key of `08` section 4 has its default when absent and stops the start when
@@ -39,6 +44,8 @@ when the host starts, after its groups are mapped.
    checked; a change to a start-only key applies only after a restart; a reloaded value
    outside its rule leaves the last valid value in force and raises the alert.
 3. Configuring `Hermes:Push:AllowedHosts` with one host leaves that host alone allowed.
+4. Where conversations are registered, a key under `Hermes:Conversations:` that
+   `Hermes.Conversations` does not know stops the start.
 
 ---
 
@@ -46,8 +53,8 @@ when the host starts, after its groups are mapped.
 changed only by the library's migrations, applied by the deployment's pipeline before
 the new version starts and never by the application at startup.
 
-**Values (M-012, M-013, M-016, M-026).** The schema name is fixed, and does not change
-with the library's name (`00`); the migration history table is
+**Values (M-012, M-013, M-016, M-026, M-031).** The schema name is fixed, and does not
+change with the library's name (`00`); the migration history table is
 `messaging.__migrations_history`, so the library's history never meets a host's. The
 migrations are applied by `hermes migrate`, the command of the `Hermes.Cli` tool of the
 same release, which reads one JSON document on its standard input and nothing else:
@@ -91,7 +98,23 @@ deliveries and the `read` status as it leaves any row it does not know (`01`
 MSG-SEND-007), and its erasure and export answer `messaging.release.newer` (`01`
 MSG-SEND-020).
 
-*Source: M-012, M-013, M-016, M-026, M-027*
+**Conversations' tables (M-031).** Every table of conversations (`09`), and its
+configuration, lives in the engine's own context, `MessagingContext`, and in its one
+migration chain in `Hermes/Migrations`, under the schema `messaging` and the history
+`messaging.__migrations_history`; the conversation entities are the engine's, internal
+(`07` MSG-ENG-001). The tables are created in every deployment, and stay empty where
+conversations are not registered (`04` MSG-LIB-003); `hermes migrate` applies them as it
+applies every other, and the start's check above finds them as it finds every other.
+The engine knows each such table: a phase that adds a table holding a protected value, a
+keyed hash or a person reference adds it, in that same phase, to what the retention job
+reads before it marks a key version retired and to what it protects again
+(MSG-OPS-008); to erasure (`01` MSG-SEND-020), and to the person's locks where the table
+is written for a person (`02` MSG-PUSH-003); and, from plan phase 20, to export (`01`
+MSG-SEND-020). That phase's tests prove each of these for that table: a key version a
+conversation row uses is never retired, and an erased person's rows no longer open. No
+phase adds such a table without them.
+
+*Source: M-012, M-013, M-016, M-026, M-027, M-031*
 
 **Acceptance criteria**
 1. Starting against a database missing the release's last migration stops the start.
@@ -107,6 +130,9 @@ MSG-SEND-020).
    role `SELECT` on it without the right to grant it, the tool exits 1 with
    `messaging.migrate.grantfailed` naming the role, and the role holds no privilege the
    run granted.
+6. The hooks of the rule on conversations' tables exist before any such table does, so a
+   table only adds itself to them: a table defined in the tests alone joins them by
+   adding itself, and no key version a row of it uses is retired.
 
 ---
 

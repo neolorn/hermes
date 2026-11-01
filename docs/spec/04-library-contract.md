@@ -18,6 +18,7 @@ project SHALL reference only what this item allows it.
 | `Hermes.Testing` | `Hermes.Core`, `Hermes.Channels`, `Hermes` |
 | `Hermes.Cli` (a .NET tool, command `hermes`) | `Hermes` |
 | `Hermes.Development` | `Hermes.Core`, `Hermes.Channels` (and MimeKit through it, for the email it keeps and the links it reads); ASP.NET Core's shared framework |
+| `Hermes.Conversations` | `Hermes.Core`, `Hermes`; ASP.NET Core's shared framework |
 | `tests/Hermes.Tests` | `Hermes`, `Hermes.Testing` and `Hermes.Development`, whose group its endpoint contract test maps and whose routes, bodies, codes and keys the release set reads with the engine's (MSG-LIB-006; `07` MSG-ENG-006), and the test packages of `07` MSG-ENG-009 |
 | Any other test project | Its source project, `Hermes.Testing`, and the test packages of `07` MSG-ENG-009 |
 | `tests/Hermes.Repository.Tests` | Every shipped project, whose built assemblies its contract tests read (`07` MSG-ENG-004), and the test packages of `07` MSG-ENG-009 |
@@ -36,9 +37,11 @@ internals (`07` MSG-ENG-001), which the release gate does not guard (MSG-LIB-006
 then reports a host's mix of versions at its restore (NU1605 where a direct reference
 takes a lower version, NU1608 a higher one, NU1107 where two exact ranges meet), where a
 minimum version would let a higher one through unreported, to fail at run time.
-`Hermes.Conversations` is release 2's (`09`).
+`Hermes.Conversations` holds conversations' behaviour, endpoints and hubs (`09`), and the
+engine their tables and entities (`06` MSG-OPS-002), so it references the engine; it is
+release 2's, first released in `1.0.0-rc.3` (M-031).
 
-*Source: M-001, M-003, M-012, M-013, M-015, M-020, M-024, M-025*
+*Source: M-001, M-003, M-012, M-013, M-015, M-020, M-024, M-025, M-031*
 
 **Acceptance criteria**
 1. A test reads each project's references and fails on one this table does not allow.
@@ -52,8 +55,11 @@ minimum version would let a higher one through unreported, to fail at run time.
 files list, each public type SHALL have the shape below, and a change to it SHALL be
 visible in review.
 
-**Values (M-012, M-026).** Data types are records with `init` members, so that a later
-release adds members without a break, a non-nullable member being `required`; every
+**Values (M-012, M-026, M-031).** Data types are records with `init` members, so that a
+later release adds members without a break, a non-nullable member being `required`, save
+that no public record ever gains a `required` member: a member added to one is nullable
+or optional, as `DeliveryNotice.IdempotencyKey` was, and as `SubjectExport`'s member
+`Conversations` will be, nullable and not `required`, filled in plan phase 20; every
 asynchronous member takes a `CancellationToken` as its last parameter and answers a
 `ValueTask`. A type described as having cases is an abstract record whose cases are
 nested sealed records of those names, made with `new`
@@ -143,7 +149,7 @@ to print none of them, so a log line that formats one writes none.
 Everything else is internal: the shipped providers, their options, the endpoints'
 request and response types (their wire shape is the contract, `05`), and the tables.
 
-*Source: M-004, M-005, M-008, M-012, M-020, M-024, M-026*
+*Source: M-004, M-005, M-008, M-012, M-020, M-024, M-026, M-031*
 
 **Acceptance criteria**
 1. The build fails when a public member is added or removed without its public API file
@@ -157,7 +163,7 @@ request and response types (their wire shape is the contract, `05`), and the tab
 sends in that call, and the declarations and the configuration SHALL be validated when
 the application starts.
 
-**Values (M-005, M-012, M-026).**
+**Values (M-005, M-012, M-026, M-031).**
 `services.AddHermes(configuration, declare => { ... })` binds the configuration section
 `Hermes` (through the configuration binder's source generator), registers the engine,
 the shipped providers (as `AddHermesChannels` does), the dispatcher and the background
@@ -201,7 +207,14 @@ throws `InvalidOperationException`, a fault of the calling code, so an applicati
 only maps the unsubscribe or preferences group holds no key that opens content (`06`
 MSG-OPS-008).
 
-*Source: M-005, M-007, M-012, M-020, M-022, M-024, M-026*
+An application **registers conversations** (`09`) where it calls
+`services.AddHermesConversations()` of `Hermes.Conversations`, which it calls after
+`AddHermes`; without `AddHermes` the start fails, naming it. Its keys, under
+`Hermes:Conversations:`, are checked at start only where conversations are registered
+(`06` MSG-OPS-001), and the seams conversations need are required only there
+(MSG-LIB-005).
+
+*Source: M-005, M-007, M-012, M-020, M-022, M-024, M-026, M-031*
 
 **Acceptance criteria**
 1. A host with valid declarations and configuration starts with the one call.
@@ -218,6 +231,8 @@ MSG-OPS-008).
    `contentKeys`, and its `SendAsync` throws.
 6. With a host's hosted service registered before `AddHermes` that sends in its
    `StartAsync`, the send is recorded only after the startup checks ran.
+7. A host that calls `AddHermesConversations` once, after `AddHermes`, starts; one that
+   calls it without `AddHermes` does not, and the failure names `AddHermes`.
 
 ---
 
@@ -257,7 +272,7 @@ prefix and answering the group's `RouteGroupBuilder`:
 **MSG-LIB-005** — A host SHALL supply what only it knows through the seams of
 MSG-LIB-002, and the library SHALL refuse to start without a required one.
 
-**Values (M-005, M-006, M-007, M-026).**
+**Values (M-005, M-006, M-007, M-026, M-031).**
 
 | Seam | Required | `details.key` |
 |---|---|---|
@@ -274,7 +289,13 @@ MSG-LIB-002, and the library SHALL refuse to start without a required one.
 A required seam missing stops the start with `messaging.startup.declarationmissing`, its
 `details.key` as above.
 
-*Source: M-005, M-006, M-007, M-022, M-026*
+Each seam conversations need (`09`) is a new interface of `Hermes.Core`, as every seam
+is, and never a new member of an existing interface (MSG-LIB-006). It is required only
+where conversations are registered (MSG-LIB-003), and joins the table above, with its
+`details.key`, in the phase that adds it; missing there, it stops the start with
+`messaging.startup.declarationmissing` and that key.
+
+*Source: M-005, M-006, M-007, M-022, M-026, M-031*
 
 **Acceptance criteria**
 1. Each required seam, missing where it is required, stops the start naming it.
@@ -324,7 +345,14 @@ notes of each release candidate name every change and removal since the release 
 it, so a host knows what to adapt. From the first final release on, a release candidate
 `X.Y.Z-rc.N` is held to what `X.Y.Z` needs against the newest final release.
 
-*Source: M-012, M-023, M-027*
+**Release 2 (M-031).** Release 2 (`09`) is released as `1.0.0-rc.3`, and every change it
+makes to the surface of `1.0.0-rc.2` is an addition (checked in review, since before the
+first final release the gate's baseline is empty). Each hub of `05` is public surface:
+its route, its method names and its payload shapes. The endpoint contract test finds
+them from the phase that adds the hub (`07` MSG-ENG-006); the release gate reads them,
+and the baseline records them beside the routes, from plan phase 21.
+
+*Source: M-012, M-023, M-027, M-031*
 
 **Acceptance criteria**
 1. The release gate compares the public surface, the endpoints and their wire shapes,

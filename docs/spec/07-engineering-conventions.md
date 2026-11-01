@@ -21,28 +21,33 @@ packages' built assemblies (MSG-ENG-004, MSG-ENG-007's type names, `04` MSG-LIB-
 test project with no source project. Each project's namespace root is its name; a file's
 namespace matches its folder; one public top-level type per file, a type's cases
 declared in its file. Projects are flat but for these folders: in `Hermes`, `Sending`
-(`01`), `Content` (`03`), `Endpoints` (`05`), `Operations` (`06`) and `Migrations`, into
-which the migrations are generated; in `Hermes.Channels`, `Email`, `Sms` and `Push`
-(`02`); every other project, the test projects and the sample host's included, keeps its
-files at its root (which file goes in which folder is checked in review). A shipped
-project's types are internal unless `04` MSG-LIB-002 makes them public, and its public
-types sit at its root, so each is in its package's namespace; a test project's test
-classes are public, since xUnit.net runs no other. `InternalsVisibleTo` is granted only
-from a source project to its own test project; from `Hermes.Channels` to `Hermes`,
-`Hermes.Testing` and `Hermes.Development`, since the rules they need (the address and
-sender rules, the allowed hosts and prefixes; the segment count is public, `SmsText` of
-`Hermes.Core`) live in `Hermes.Channels`, and the development inbox builds an email as
-the SMTP provider does and takes the provider precedence and the dispatched delivery's
-kind, category, language and person from there (`02` MSG-DEV-001, MSG-DEV-003); and from
-`Hermes` to `Hermes.Cli`, which applies the migrations `Hermes` holds (`06`
-MSG-OPS-002), and to `Hermes.Testing`, which removes, or keeps from being registered,
-the engine's hosted dispatcher and `observer` job by their types and applies the
-migrations for a test (`04` MSG-LIB-008). The packages are released together (`04`
-MSG-LIB-001). The sample host has an invented domain naming no real product or company
-(checked in review), declares a few kinds in an essential and an optional category,
-captures its messages in the development inbox when it runs (`02` MSG-DEV-001) while its
-tests send through the in-memory providers of `Hermes.Testing`, maps every endpoint
-group, and runs in the gate (MSG-ENG-012) from packages packed from the same commit into
+(`01`), `Content` (`03`), `Endpoints` (`05`), `Operations` (`06`), `Conversations` (the
+conversation entities, internal, `06` MSG-OPS-002) and `Migrations`, into which the
+migrations are generated; in `Hermes.Channels`, `Email`, `Sms` and `Push` (`02`); in
+`Hermes.Conversations`, `Chats` (`09` section 3), `Support` (`09` section 2),
+`Attachments` (`09` section 4), `Live` (`09` section 5) and `Endpoints`; every other
+project, the test projects and the sample host's included, keeps its files at its root
+(which file goes in which folder is checked in review). A shipped project's types are
+internal unless `04` MSG-LIB-002 makes them public, and its public types sit at its
+root, so each is in its package's namespace; a test project's test classes are public,
+since xUnit.net runs no other. `InternalsVisibleTo` is granted only from a source
+project to its own test project; from `Hermes.Channels` to `Hermes`, `Hermes.Testing`
+and `Hermes.Development`, since the rules they need (the address and sender rules, the
+allowed hosts and prefixes; the segment count is public, `SmsText` of `Hermes.Core`)
+live in `Hermes.Channels`, and the development inbox builds an email as the SMTP
+provider does and takes the provider precedence and the dispatched delivery's kind,
+category, language and person from there (`02` MSG-DEV-001, MSG-DEV-003); from `Hermes`
+to `Hermes.Cli`, which applies the migrations `Hermes` holds (`06` MSG-OPS-002), to
+`Hermes.Testing`, which removes, or keeps from being registered, the engine's hosted
+dispatcher and `observer` job by their types and applies the migrations for a test (`04`
+MSG-LIB-008), and to `Hermes.Conversations`, whose entities and tables the engine holds
+(`06` MSG-OPS-002); and from `Hermes.Conversations` to `Hermes.Testing` (M-031). The
+packages are released together (`04` MSG-LIB-001). The sample host has an invented
+domain naming no real product or company (checked in review), declares a few kinds in an
+essential and an optional category, captures its messages in the development inbox when
+it runs (`02` MSG-DEV-001) while its tests send through the in-memory providers of
+`Hermes.Testing`, references `Hermes.Conversations` (M-031), maps every endpoint group,
+and runs in the gate (MSG-ENG-012) from packages packed from the same commit into
 `artifacts/packages/`, which `.gitignore` lists, at a version the gate passes it; it
 alone has no lockfile and no locked restore, since its packages change with every
 commit. The sample host and its test project are outside `Hermes.sln`, in
@@ -83,13 +88,14 @@ scripts, and the pipeline runs on GitHub's `ubuntu-24.04` runner using no action
 latest release when the workflow is written and pinned by that release's full commit SHA
 (all checked in review).
 
-*Source: M-012, M-013, M-015, M-020, M-024*
+*Source: M-012, M-013, M-015, M-020, M-024, M-031*
 
 **Acceptance criteria**
 1. A test fails on a project outside this layout, a grant outside this rule, or an entry
    the repository adds to the scanner's configuration that is not of the form above.
 2. The sample host builds from the packages packed from the same commit, and its tests
    pass.
+3. The sample host references `Hermes.Conversations` and starts.
 
 ---
 
@@ -244,7 +250,11 @@ are UUID version 7; a delivery reference (`00` glossary) is 128 bits from
 **MSG-ENG-006** — Endpoints SHALL be ASP.NET Core minimal APIs returning typed results,
 each declaring the responses `05` gives it.
 
-*Source: M-012, M-025*
+**Values (M-031).** A hub of `05` is an ASP.NET Core SignalR hub (`09` MSG-CONV-008),
+whose route, method names and payload shapes are public surface (`04` MSG-LIB-006); the
+contract test below finds each from the phase that adds it.
+
+*Source: M-012, M-025, M-031*
 
 **Acceptance criteria**
 1. A contract test in `tests/Hermes.Tests`, which maps every group of `05`, the
@@ -252,7 +262,8 @@ each declaring the responses `05` gives it.
    mapped endpoint's metadata and finds exactly the routes, methods and response
    statuses of `05`, and finds each request and response body's members, read from the
    library's serializer contexts as the release gate reads them (`04` MSG-LIB-006), to
-   be those `05` gives.
+   be those `05` gives; and it finds each hub's route, method names and payload shapes
+   to be those `05` gives (M-031).
 
 ---
 
@@ -331,7 +342,7 @@ the projects `04` MSG-LIB-001 allows.
 | Templates | `Fluid.Core` | MIT |
 | Public surface | `Microsoft.CodeAnalysis.PublicApiAnalyzers` (build-only) | MIT |
 | Versioning | `MinVer` (build-only) | Apache 2.0 |
-| Tests | `xunit.v3`, `Testcontainers.PostgreSql`, `Microsoft.AspNetCore.Mvc.Testing` | Apache 2.0, MIT, MIT |
+| Tests | `xunit.v3`, `Testcontainers.PostgreSql`, `Microsoft.AspNetCore.Mvc.Testing`, `Microsoft.AspNetCore.SignalR.Client` (the hubs' client, in test projects alone) | Apache 2.0, MIT, MIT, MIT |
 
 MailKit 4.18.2, Fluid.Core 2.40.0 and Lib.Net.Http.WebPush 3.3.1 are pinned at those
 versions, whose listings were checked on 2026-10-21 (MailKit's on 2026-10-26) and
@@ -339,11 +350,13 @@ against whose sources the chapters' claims about them were checked (MailKit's ag
 4.18.1, whose code 4.18.2 keeps, M-017), so moving one, for a security update too
 (MSG-ENG-010), is a decision-log entry; every other package is taken at its latest
 stable release when added, the Microsoft packages at the release that matches the SDK's
-.NET 10 runtime, and its listing checked then (all checked in review). The reasons and
-the rejected alternatives are M-002, M-013 and M-017. Adding a package is a decision-log
-entry.
+.NET 10 runtime, and its listing checked then (all checked in review).
+`Microsoft.AspNetCore.SignalR.Client` is taken at the version of ASP.NET Core's shared
+framework, which brings the SignalR server, so no shipped project references a SignalR
+package (M-031). The reasons and the rejected alternatives are M-002, M-013 and M-017.
+Adding a package is a decision-log entry.
 
-*Source: M-002, M-012, M-013, M-015, M-017, M-020*
+*Source: M-002, M-012, M-013, M-015, M-017, M-020, M-031*
 
 **Acceptance criteria**
 1. The set of direct package references is within this table, and the tool manifest

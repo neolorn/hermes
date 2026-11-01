@@ -140,14 +140,17 @@ Versions are pinned in `07` MSG-ENG-009.
 | `Hermes.Testing` | In-memory providers, fixed secrets, an on-demand dispatcher and a test database's migration | A host's tests, and the sample host (`07` MSG-ENG-001) |
 | `Hermes.Cli` | A .NET tool, command `hermes`, that applies the migrations (`06` MSG-OPS-002) | A deployment's pipeline |
 | `Hermes.Development` | The development inbox: in Development, every message kept on the machine instead of sent, with a page, a JSON API and a test helper to read it. It does nothing in any other environment | An application while it is developed, and its tests and tools (`02` MSG-DEV-001) |
-| `Hermes.Conversations` | Conversations (`09`). **Release 2** | An application with support or staff chat |
+| `Hermes.Conversations` | Conversations (`09`): their behaviour, endpoints and hubs, over tables the engine holds (`06` MSG-OPS-002). **Release 2** | An application with support or staff chat |
 
 The engine depends on the channels and never the reverse, so an application that needs a
-provider alone never carries the engine. No package knows another library: a host that
-uses this library beside others (an identity library, say) connects them in its own
-code, through the seams of `04` MSG-LIB-005 and the providers of `02` (M-020).
+provider alone never carries the engine. `Hermes.Conversations` depends on the engine,
+which holds conversations' tables and entities in its own context, schema and migrations,
+so erasure, export, key retirement and the schema check reach them directly (`06`
+MSG-OPS-002, M-031). No package knows another library: a host that uses this library
+beside others (an identity library, say) connects them in its own code, through the seams
+of `04` MSG-LIB-005 and the providers of `02` (M-020).
 
-*Source: M-001, M-003, M-020, M-022, M-024*
+*Source: M-001, M-003, M-020, M-022, M-024, M-031*
 
 ---
 
