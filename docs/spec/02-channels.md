@@ -296,8 +296,10 @@ character over 70 costs two segments, so each kind's budget is its own decision.
 deployment's default, and only to a number the deployment allows.
 
 **Values (M-006, M-008).** `Sms(sender: ...)` or `Hermes:Sms:Sender`. A sender is an
-alphanumeric name of 1 to 11 characters of `A` to `Z`, `a` to `z`, `0` to `9` and space,
-or a number of 1 to 15 digits (3GPP TS 23.040 section 9.1.2.5); a provider MAY narrow
+alphanumeric name of 1 to 11 characters of `A` to `Z`, `a` to `z`, `0` to `9`, space and
+`! " # $ % & ' ( ) * + , - . / : ; < = > ? @ _` (the printable ASCII characters of the GSM
+7-bit default alphabet's basic set, 3GPP TS 23.038 section 6.2.1; M-040), or a number of
+1 to 15 digits (3GPP TS 23.040 section 9.1.2.5); a provider MAY narrow
 the rule (`ISmsProvider.IsValidSender`), and startup checks every declared sender
 against the registered provider's. A sender name is registered with the provider and the
 operators beforehand; one nobody registered is refused by the provider
@@ -308,7 +310,7 @@ with `messaging.send.destinationnotallowed`, and the rule is checked again at di
 ends `failed` with the reason `destinationnotallowed`, so narrowing the list in an
 incident stops what is already queued, without a restart.
 
-*Source: M-005, M-006, M-008*
+*Source: M-005, M-006, M-008, M-040*
 
 **Acceptance criteria**
 1. A kind's own sender name is used for its SMS.
@@ -316,6 +318,9 @@ incident stops what is already queued, without a restart.
    nothing.
 3. A prefix removed from the list while a delivery to it waits ends that delivery
    `failed` with the reason `destinationnotallowed`, without a restart.
+4. A sender `Bakery Co.` passes startup and is the sender of its SMS; a sender
+   `Bakery[1]`, one of 12 characters, and one with a character outside the set are each
+   refused at startup with `messaging.startup.configurationinvalid`, key `Sms:Sender`.
 
 ---
 

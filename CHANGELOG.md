@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.4] - 2026-11-01
+
+### Fixed
+
+- An SMS sender name may hold any printable ASCII character of the GSM 7-bit default
+  alphabet's basic set: letters, digits, space and
+  `! " # $ % & ' ( ) * + , - . / : ; < = > ? @ _`, still 1 to 11 characters, so a
+  registered name such as one ending in a full stop no longer stops the start; the
+  extension table's characters, which take two septets, stay refused
+
 ## [1.0.0-rc.3] - 2026-11-01
 
 ### Added
