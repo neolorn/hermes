@@ -220,7 +220,8 @@ type is an `init`-only record (`04` MSG-LIB-002); the message it writes has the 
 - A rule whose `Topics` names a topic not configured, or with `After` while its trigger
   is not `waiting`, fails the start with `messaging.startup.configurationinvalid`.
 - A rule fires at most once per conversation.
-- `started` fires when a conversation is queued. `unavailable` fires on an offline
+- `started` fires on a conversation created queued, by a start or an offline form, never
+  on a transfer. `unavailable` fires on an offline
   form's conversation started within its topic's hours while no member is available,
   and `outsidehours` on one started outside them (MSG-CONV-002). `waiting` fires once a
   queued conversation has waited `After`. `closing` fires
@@ -242,14 +243,17 @@ type is an `init`-only record (`04` MSG-LIB-002); the message it writes has the 
   `replies/<name>.<language>.text.liquid` (`03` MSG-TPL-006).
 - A reply's values are `topic`; `place`, the visitor's place, or none; `wait`, the
   minutes waited; and `opens`, the topic's next opening instant in the topic's time
-  zone, or none, which the template formats. A reply's template sees these four values
-  alone.
+  zone, which the template formats: none within the topic's hours, otherwise the start
+  of its next range, searched up to a year ahead, and none where there is none. A
+  reply's template sees these four values alone.
 - A rendered reply is bounded as a message's text is, at 4,000 characters
   (MSG-CONV-001). A reply that fails to render, or renders past the bound, writes
   nothing and is logged, and its rule counts as fired.
 - Every rule's template is checked at start in every declared language, as kinds' are
   (`03` MSG-TPL-001, MSG-TPL-004). A missing one fails the start with
-  `messaging.startup.templatemissing`, naming the rule and the language.
+  `messaging.startup.templatemissing`, naming the rule and the language. One that does
+  not parse fails it with `messaging.startup.declarationinvalid`, `details.declaration`
+  the rule and `details.field` `<language>.text`.
 
 *Source: M-011, M-035*
 
@@ -333,17 +337,21 @@ live conversations, and reports of waiting time, handling time and survey scores
 **Automatic closing (M-035).**
 - `Hermes:Conversations:Support:CloseAfter` (default 24 hours) is the silence after which
   an open or snoozed support conversation closes.
-- The silence is measured from its last message of any type but `note`.
+- The silence is measured from the last `text` written by a staff member, a visitor or a
+  customer. Library messages (`automatic`, `system`) and notes never restart it.
 - `Hermes:Conversations:Support:CloseWarning` (default 5 minutes, shorter than
   `CloseAfter`) is how long before the close the `closing` rule fires (MSG-CONV-003).
-- A message after the warning restarts the silence. The close is a `system` message and
-  the status `closed`, as a staff close is.
+- Such a `text` after the warning restarts the silence. The close is a `system` message
+  and the status `closed`, as a staff close is. The `system` message carries no text:
+  its type says what happened.
 
 **The timers (M-035).**
 - The job `conversation-timers` runs every 30 seconds under the engine's job claims (`06`
   MSG-OPS-004). It fires `waiting` and `closing`, wakes snoozes, and closes.
 - Each timer fires once, survives a restart, and fires nothing on a closed conversation.
-  Each timer's next instant is a column, moved in the transaction that fires it.
+  Each timer's next instant is a column of `conversations`, `waiting_at`,
+  `closing_at`, `close_at` or `snoozed_until`, moved in the transaction that fires it,
+  and the rules already fired are kept in `replies_fired` (`08` section 8).
 
 *Source: M-011, M-033, M-035*
 
