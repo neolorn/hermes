@@ -141,7 +141,9 @@ application starts, and any failure SHALL stop the start.
 Where conversations are registered, every automatic reply rule's template (`09`
 MSG-CONV-003) is checked in every declared language as a kind's is, and a missing one
 fails the start with `messaging.startup.templatemissing`, naming the rule and the
-language (M-035).
+language (M-035). One that does not parse fails it with
+`messaging.startup.declarationinvalid`, `details.declaration` the rule and
+`details.field` `<language>.text`.
 
 *Source: M-002, M-005, M-035*
 
