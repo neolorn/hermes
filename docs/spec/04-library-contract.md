@@ -96,9 +96,9 @@ log line that formats one writes none.
 | `InAppPage`, `InAppEntry` | `IReadOnlyList<InAppEntry> Entries`, `string? Next` (the next page's cursor, none on the last); `EntryId Entry`, `string Kind`, `string Category`, `DateTimeOffset WrittenAt`, `DateTimeOffset? ReadAt`, `string Language` (the one it reads in), `string Title`, `string? Body`, `string? Target`, `IReadOnlyDictionary<string, SendValue> TargetValues` (`02` MSG-INAPP-003) |
 | `ConversationScope` | `ScopeKind Kind`, `string Reference`: a scope of the membership seam, `ScopeKind` having the members `Organization` and `Group` (`09` MSG-CONV-006) |
 | `ConversationPage`, `ConversationRecord`, `ParticipantRecord` | `IReadOnlyList<ConversationRecord> Conversations`, `string? Next` (the next page's cursor, none on the last); `ConversationId Conversation`, `ConversationType Type`, `ConversationScope? Scope` (a group conversation's, none otherwise), `IReadOnlyList<ParticipantRecord> Participants` (a direct conversation's participants who have not left, none for a group conversation), `int Unread`, `bool Muted`, `DateTimeOffset LastAt` (its last message's instant, or its creation's where it has none); `ParticipantId Participant`, `string Person` (`09` MSG-CONV-001, MSG-CONV-006; `05` MSG-API-009) |
-| `MessagePage`, `MessageRecord` | `IReadOnlyList<MessageRecord> Messages`; `MessageId Message`, `string? Author` (none once the author is erased), `MessageType Type`, `string? Text` (none once the message is deleted or its author erased), `MessageId? ReplyTo`, `IReadOnlyList<string> Mentions`, `DateTimeOffset SentAt`, `DateTimeOffset? EditedAt`, `DateTimeOffset? DeletedAt`, `bool Erased` (its text cleared by its author's erasure, `09` MSG-CONV-009) (`09` MSG-CONV-001, MSG-CONV-006; `05` MSG-API-009) |
+| `MessagePage`, `MessageRecord` | `IReadOnlyList<MessageRecord> Messages`; `MessageId Message`, `AuthorKind AuthorKind` (`Person`, `Visitor`, or `Library` for an `automatic` or `system` message), `string? Author` (the person reference where `AuthorKind` is `Person`, none otherwise and once the author is erased), `MessageType Type`, `string? Text` (none once the message is deleted or its author erased), `MessageId? ReplyTo`, `IReadOnlyList<string> Mentions`, `DateTimeOffset SentAt`, `DateTimeOffset? EditedAt`, `DateTimeOffset? DeletedAt`, `bool Erased` (its text cleared by its author's erasure, `09` MSG-CONV-009) (`09` MSG-CONV-001, MSG-CONV-006; `05` MSG-API-009) |
 | `SubjectExport` | `IReadOnlyList<CategoryPreferences> Preferences`; `IReadOnlyList<SubscriptionExport> Subscriptions`, each `PushService Service`, `DateTimeOffset MadeAt`, `DateTimeOffset? LastAcceptedAt`; `IReadOnlyList<DeliveryExport> Deliveries`, each `string Kind`, `Channel Channel`, `DeliveryStatus Status`, `DateTimeOffset RecordedAt`, `DateTimeOffset LastMovedAt`, `string? Destination`, `IReadOnlyDictionary<string, string> Content` (by part), `bool ContentDeleted` (past content retention, so it carries no destination or content), `bool Erased` (its values' key was erased, so it carries no destination or content), `bool Rejected` (a value did not open under its binding, so it carries none either), `string? IdempotencyKey` (the key it keeps of its send, while kept, none where it is marked as above; declared last, M-029, M-030); `IReadOnlyList<InAppEntryExport> Entries`, each `string Kind`, `string Category`, `DateTimeOffset WrittenAt`, `DateTimeOffset? ReadAt`, `IReadOnlyDictionary<string, string> Content` (by part and language, `title.en`), `string? Target`, `IReadOnlyDictionary<string, SendValue> TargetValues`, `bool Erased` and `bool Rejected` (as for a delivery, so it carries no content or target values); `IReadOnlyList<IdempotencyKeyExport> IdempotencyKeys`, each `string Kind`, `string Key`, `DateTimeOffset RecordedAt`, the person's live idempotency rows (`01` MSG-SEND-020) |
-| Enumerations | `Channel`, `DeliveryStatus`, `AttemptClass`, `AttemptReason`, `PushUrgency`, `PushService`, `PushPlatform`, `SmsEncoding`, `SmsReportOutcome`, `ConsentAnswer`, `ConversationType`, `ConversationStatus`, `MessageType`, `ScopeKind`, with the members of `08` sections 2, 3 and 6 that are built |
+| Enumerations | `Channel`, `DeliveryStatus`, `AttemptClass`, `AttemptReason`, `PushUrgency`, `PushService`, `PushPlatform`, `SmsEncoding`, `SmsReportOutcome`, `ConsentAnswer`, `ConversationType`, `ConversationStatus`, `MessageType`, `ScopeKind`, `AuthorKind`, with the members of `08` sections 2, 3 and 6 that are built |
 
 **Operations** (`Hermes.Core`, implemented by `Hermes`):
 
@@ -172,7 +172,7 @@ request and response types (their wire shape is the contract, `05`), and the tab
 sends in that call, and the declarations and the configuration SHALL be validated when
 the application starts.
 
-**Values (M-005, M-012, M-026, M-031).**
+**Values (M-005, M-012, M-026, M-031, M-032).**
 `services.AddHermes(configuration, declare => { ... })` binds the configuration section
 `Hermes` (through the configuration binder's source generator), registers the engine,
 the shipped providers (as `AddHermesChannels` does), the dispatcher and the background
@@ -223,9 +223,10 @@ An application **registers conversations** (`09`) where it calls
 MSG-ENG-003), so it fails at the call and not at start. Its keys, under
 `Hermes:Conversations:`, are checked at start only where conversations are registered
 (`06` MSG-OPS-001), and the seams conversations need are required only there
-(MSG-LIB-005).
+(MSG-LIB-005). `AddHermesConversations` registers `IConversations` as a scoped service,
+as `AddHermes` registers `IInApp`.
 
-*Source: M-005, M-007, M-012, M-020, M-022, M-024, M-026, M-031*
+*Source: M-005, M-007, M-012, M-020, M-022, M-024, M-026, M-031, M-032*
 
 **Acceptance criteria**
 1. A host with valid declarations and configuration starts with the one call.

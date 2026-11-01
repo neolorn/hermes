@@ -324,7 +324,7 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 | `GET /conversations/group/{kind}/{reference}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }`: the scope's conversation, created the first time a member opens it; **400** `messaging.conversation.invalid`, `details.field` `kind`, for a kind that does not read; **404** `messaging.conversation.notfound` for a person who is not a member; **503** as for `GET /inapp` |
 | `GET /conversations/{id}` | | **200** `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `GET /conversations/{id}/messages` | | **200** `{ "messages": [ <message> ] }`, newest first; query `before`, a message's identifier, and `size`, 1 to 100, default 50; **400** `messaging.request.malformed`, `details.member` `before` or `size`, for one outside its rule; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
-| `POST /conversations/{id}/messages` | `{ "text", "type", "replyTo", "mentions" }` | **201** `{ "id", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }`; **400** `messaging.message.invalid`, `details.field` `text`, `mentions`, `replyTo` or `type`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
+| `POST /conversations/{id}/messages` | `{ "text", "type", "replyTo", "mentions" }` | **201** `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }`; **400** `messaging.message.invalid`, `details.field` `text`, `mentions`, `replyTo` or `type`; **404** `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `PUT /conversations/{id}/messages/{messageId}` | `{ "text" }` | **204**; **400** `messaging.message.invalid`, `details.field` `text`; **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound`; **409** `messaging.message.deleted` for a deleted message; **503** as for `GET /inapp` |
 | `DELETE /conversations/{id}/messages/{messageId}` | | **204**, a message already deleted included; **403** `messaging.message.notauthor` for another person's message; **404** `messaging.message.notfound`, or `messaging.conversation.notfound`; **503** as for `GET /inapp` |
 | `POST /conversations/{id}/read` | `{ "messageId" }` | **204**; **404** `messaging.message.notfound` for a message the conversation does not hold, or `messaging.conversation.notfound`; **503** as for `GET /inapp` |
@@ -336,17 +336,19 @@ lets them, each route thin over one operation of `IConversations` (`04` MSG-LIB-
 |---|---|
 | `<conversation>` | `{ "id", "type", "scope": { "kind", "reference" }, "participants": [ <participant> ], "unread", "muted", "lastAt" }` |
 | `<participant>` | `{ "id", "person" }` |
-| `<message>` | `{ "id", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }` |
+| `<message>` | `{ "id", "authorKind", "author", "type", "text", "replyTo", "mentions", "sentAt", "editedAt", "deletedAt", "erased" }` |
 
 A conversation is answered as `<conversation>` and a message as `<message>`, the routes
 above writing each out. `id`, `replyTo` and `messageId` are identifiers, lower-case and
 hyphenated; `sentAt`, `editedAt`, `deletedAt` and `lastAt` are instants in ISO 8601 UTC
 with milliseconds, `lastAt` the last message's, or the conversation's creation where it
-has none; `type` and `kind` are their `08` spellings; `scope` is `null` but for a group
-conversation; `participants` holds a direct conversation's participants who have not
-left, and is `[]` for a group conversation; `person`, `author` and `mentions` are person
-references, `author` being `null` once the author is erased (`09` MSG-CONV-009); `text`
-is `null` once the message is deleted or its author erased, and `erased` says which;
+has none; `type`, `kind` and `authorKind` are their `08` spellings; `scope` is `null`
+but for a group conversation; `participants` holds a direct conversation's participants
+who have not left, and is `[]` for a group conversation; `person` and `mentions` are
+person references; `authorKind` is `person`, `visitor`, or `library` for an `automatic`
+or `system` message, and `author` is the person reference where it is `person`, `null`
+otherwise and once the author is erased (`09` MSG-CONV-009); `text` is `null` once the
+message is deleted or its author erased, and `erased` says which;
 `replyTo`, `editedAt` and `deletedAt` are `null` where the message has none. In a
 request, `type` is optional and defaults to `text`, and `replyTo` and `mentions` are
 optional.
