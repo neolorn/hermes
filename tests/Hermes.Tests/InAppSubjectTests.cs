@@ -28,6 +28,9 @@ public sealed class InAppSubjectTests(PostgresFixture postgres) : IClassFixture<
         Result erased = await SubjectTests.EraseAsync(engine.Host, InApp.Person);
 
         InAppEntryExport entry = Assert.Single(export.Entries);
+
+        // Conversations are not registered here, so the export holds none (09 MSG-CONV-010).
+        Assert.Null(export.Conversations);
         Assert.Equal((InApp.Kind, InApp.Category, InApp.Target, false, false), (entry.Kind, entry.Category, entry.Target, entry.Erased, entry.Rejected));
         Assert.NotNull(entry.ReadAt);
         Assert.Equal(["body.ar", "body.en", "title.ar", "title.en"], entry.Content.Keys.Order(StringComparer.Ordinal));

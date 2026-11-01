@@ -33,7 +33,8 @@ internal sealed class Subjects(
     Alerts alerts,
     Notices notices,
     TimeProvider clock,
-    IEnumerable<KeyedTable> tables) : ISubjects
+    IEnumerable<KeyedTable> tables,
+    IEnumerable<ISubjectConversations> conversations) : ISubjects
 {
     /// <summary>The other tables holding a person reference, each erased as it says (M-031).</summary>
     private readonly IReadOnlyList<KeyedTable> others = [.. tables];
@@ -151,6 +152,8 @@ internal sealed class Subjects(
         ready.ThrowIfNotReady();
         CheckPerson(person);
         MessagingOptions current = options.CurrentValue;
+        ISubjectConversations? package = conversations.LastOrDefault();
+        Func<CancellationToken, Task<Result<IReadOnlyList<ConversationExport>>>>? openConversations = null;
         Read read = await LibraryTransactions.RunAsync(
             database,
             current,
@@ -163,6 +166,8 @@ internal sealed class Subjects(
                     return new Read(migration, [], [], [], [], []);
                 }
 
+                // The person's conversations, where conversations are registered (09 MSG-CONV-010).
+                openConversations = package is null ? null : await package.ReadAsync(context, person, token).ConfigureAwait(false);
                 DateTimeOffset now = clock.GetUtcNow();
                 byte[] scope = Encoding.UTF8.GetBytes(person);
                 return new Read(
@@ -251,6 +256,18 @@ internal sealed class Subjects(
                 cancellationToken).ConfigureAwait(false);
         }
 
+        IReadOnlyList<ConversationExport>? exported = null;
+        if (openConversations is not null)
+        {
+            Result<IReadOnlyList<ConversationExport>> opened = await openConversations(cancellationToken).ConfigureAwait(false);
+            if (opened.Failure is { } unopened)
+            {
+                return Result.Fail<SubjectExport>(unopened);
+            }
+
+            exported = opened.Value;
+        }
+
         return Result.Success(new SubjectExport
         {
             Preferences = Preferences.Of(declarations, read.Preferences),
@@ -260,6 +277,7 @@ internal sealed class Subjects(
             Deliveries = deliveries,
             Entries = entries,
             IdempotencyKeys = [.. read.Idempotency.Select(row => new IdempotencyKeyExport { Kind = row.Kind, Key = row.Key, RecordedAt = row.RecordedAt })],
+            Conversations = exported,
         });
     }
 

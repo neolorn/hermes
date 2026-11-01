@@ -168,6 +168,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stored: it counts as one message toward the caller's limit, answering
   `messaging.support.limited` with `Retry-After` past it, and a block or a notice not yet
   acknowledged refuses it as it refuses a message
+- The records `ConversationExport`, `ConversationMessageExport`, `AttachmentExport` and
+  `SurveyExport`, and `SubjectExport.Conversations`, none where conversations are not
+  registered; the retention job runs a package's own retention steps after its deletions
 
 ### Fixed
 
