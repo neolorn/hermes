@@ -100,6 +100,17 @@ public sealed class DeskTests(PostgresFixture postgres) : IClassFixture<Postgres
     }
 
     [Fact]
+    public async Task AddReply_ManyAtOnceUnderOneName_AddsOneAndAnswersTheRestNameExists()
+    {
+        await using ChatHost chat = await StartAsync();
+
+        Result<SavedReplyRecord>[] added = await Task.WhenAll(Enumerable.Range(0, 8).Select(each => chat.CallAsync(chats => chats.AddReplyAsync(each % 2 == 0 ? "amal" : "omar", "Same", "Text", "billing", default))));
+
+        Assert.Single(added, result => result.IsSuccess);
+        Assert.All(added.Where(result => !result.IsSuccess), result => Assert.Equal("messaging.reply.nameexists", result.Failure!.Code));
+    }
+
+    [Fact]
     public async Task MSG_CONV_005_AC3_AnUndeclaredTagIsRefusedAndTheTagsAreOnStaffBodiesOnly()
     {
         await using ChatHost chat = await StartAsync();

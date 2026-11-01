@@ -1,6 +1,9 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,6 +12,8 @@ using Hermes.Core;
 using Hermes.Operations;
 
 using Microsoft.EntityFrameworkCore;
+
+using Npgsql;
 
 namespace Hermes.Conversations.Chats;
 
@@ -175,6 +180,7 @@ internal sealed partial class StaffChats
             async (context, token) =>
             {
                 await LockAsync(context, current, [person], token).ConfigureAwait(false);
+                await LockRepliesAsync(context, topic, topic is null ? person : null, token).ConfigureAwait(false);
                 IQueryable<SupportReplyRow> owned = topic is null
                     ? context.SupportReplies.Where(each => each.Person == person)
                     : context.SupportReplies.Where(each => each.Topic == topic);
@@ -227,6 +233,7 @@ internal sealed partial class StaffChats
             async (context, token) =>
             {
                 await LockAsync(context, current, [person], token).ConfigureAwait(false);
+                await LockRepliesAsync(context, reached.Topic, reached.Person, token).ConfigureAwait(false);
                 SupportReplyRow? row = await context.SupportReplies.FirstOrDefaultAsync(each => each.Id == reached.Id, token).ConfigureAwait(false);
                 if (row is null)
                 {
@@ -311,6 +318,18 @@ internal sealed partial class StaffChats
     {
         return settings.Support.Topics.TryGetValue(topic, out SupportTopic? configured)
             && await membership.IsMemberAsync(person, configured.Scope, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Takes, until the transaction ends, the lock of the replies of <paramref name="topic"/>,
+    /// or of <paramref name="person"/>'s own where none, so that two writers of one owner's
+    /// replies count them and check their names in turn.
+    /// </summary>
+    private static async Task LockRepliesAsync(MessagingContext context, string? topic, string? person, CancellationToken cancellationToken)
+    {
+        string owner = topic is not null ? "support_replies:topic:" + topic : "support_replies:person:" + person;
+        long key = BinaryPrimitives.ReadInt64BigEndian(SHA256.HashData(Encoding.UTF8.GetBytes(owner)));
+        await context.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(@key)", [new NpgsqlParameter("key", key)], cancellationToken).ConfigureAwait(false);
     }
 
     private static Failure? ReplyBounds(string name, string text)

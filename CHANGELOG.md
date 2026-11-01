@@ -125,6 +125,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the 503 they answer where a person's locks are not had in time
 - A block's `until` given through the staff group is read in UTC, as written, on a host
   whose time zone is not UTC
+- Two staff members adding or renaming one owner's saved replies at once are taken in
+  turn, so a name stays unique and a count within its bound without an error
 - `Hermes:Languages` set item by item through a web host's test factory, which gives the
   list itself an empty value, no longer stops the start
 
