@@ -1,5 +1,33 @@
 # Release notes
 
+## 1.0.0-rc.5
+
+The fifth release candidate of 1.0.0. It makes the key-table timer's stop safe to call more
+than once. It ships the seven packages of 1.0.0-rc.4, each at this version and each
+depending on the others it uses at exactly this version. Until a final release, a release
+candidate may change or remove anything; this one changes no public type or member, no
+route, code or key, and removes nothing.
+
+### Changes since 1.0.0-rc.4
+
+- **The key-table timer stops once.** The engine's key-table timer writes the write
+  versions' last-made instants when the host stops it, and now does so on the first stop
+  only. Every later stop returns at once, with no write, no wait and no read of a service.
+  A host may stop its hosted services twice: under `WebApplicationFactory` they are
+  stopped once when the application's run ends and again when the factory is disposed,
+  after the library's data source is disposed. Before, the second stop's write threw
+  `ObjectDisposedException` out of the stop. The first stop's write, its skip where the
+  host's time to stop is already over, its wait for a tick in flight and its warnings on a
+  failed write are unchanged.
+
+### Migrations that drop or rewrite data
+
+None, and no migration is added since 1.0.0-rc.4.
+
+### What the deployment does
+
+Nothing new since 1.0.0-rc.4. The list of 1.0.0-rc.3 still applies.
+
 ## 1.0.0-rc.4
 
 The fourth release candidate of 1.0.0. It widens the characters an SMS sender name may
