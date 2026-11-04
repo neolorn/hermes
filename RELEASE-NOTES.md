@@ -1,5 +1,32 @@
 # Release notes
 
+## 1.0.0-rc.6
+
+The sixth release candidate of 1.0.0. It makes a later stop of the key-table timer wait for
+the first stop's write. It ships the seven packages of 1.0.0-rc.5, each at this version and
+each depending on the others it uses at exactly this version. Until a final release, a
+release candidate may change or remove anything; this one changes no public type or
+member, no route, code or key, and removes nothing.
+
+### Changes since 1.0.0-rc.5
+
+- **A later stop waits for the first stop's write.** In 1.0.0-rc.5 a later stop of the
+  key-table timer returned at once. Under `WebApplicationFactory` the application's own run
+  and the factory's dispose stop the host concurrently, so the host could dispose the
+  library's data source while the first stop's write was still running, and that write
+  threw `ObjectDisposedException`. A later stop now returns the first stop's task and ends
+  only once that write has ended, whatever its own cancellation token says. The instants
+  are still written once, by the first stop, which keeps its skip where the host's time to
+  stop is already over, its wait for a tick in flight and its warnings on a failed write.
+
+### Migrations that drop or rewrite data
+
+None, and no migration is added since 1.0.0-rc.5.
+
+### What the deployment does
+
+Nothing new since 1.0.0-rc.5. The list of 1.0.0-rc.3 still applies.
+
 ## 1.0.0-rc.5
 
 The fifth release candidate of 1.0.0. It makes the key-table timer's stop safe to call more
