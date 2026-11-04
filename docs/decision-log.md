@@ -2916,6 +2916,44 @@ stop, the rule refused it, and every host refused to start. Phase 22 ships it as
 
 ---
 
+## M-041 — Phase 23: the key-table timer stops once, `1.0.0-rc.5`
+
+**Date:** 2026-11-04 · **Status:** accepted · **Amends:** MSG-OPS-008
+
+**TL;DR.** The key-table timer's stop writes the last-made instants once, however many
+times the host calls it. Found by a host's tests: under `WebApplicationFactory` a host's
+hosted services are stopped twice, once when the application's own run ends and again when
+the factory is disposed, and the second stop's write reached a data source the host had
+already disposed, throwing `ObjectDisposedException` out of the stop. Phase 23 ships it as
+`1.0.0-rc.5`.
+
+- **The rule.** The first call to `StopAsync` stops the loop, waits for a tick in flight,
+  and writes once, as today. Every later call returns at once and touches nothing: no
+  write, no wait, no read of a service. The guard is the timer's own state, set
+  atomically by the first call, so two calls racing write once between them.
+- **Why the timer and not the host.** A hosted service's stop being called more than once
+  is the host's behaviour, and `BackgroundService` already tolerates it for its loop. The
+  write is the timer's own addition, so it is the timer's to make safe.
+- **What stays.** The write on the first stop, its skip when the host's time to stop is
+  already over, the wait for a tick in flight, and the warnings on a failed write.
+- **The release.** A fix with no public surface change: one commit with its tests and a
+  `CHANGELOG.md` line, then the release commit `chore: release 1.0.0-rc.5` on the lead's
+  message, and the tag after the merge, which the lead pushes.
+- **Phase 23's criterion.** MSG-OPS-008 criterion 12.
+
+*Rejected:*
+- **Catching `ObjectDisposedException` in the write:** it hides a write that should not
+  have been attempted, and would hide a real disposal fault elsewhere.
+- **Leaving it to the host's test setup:** every host that tests with
+  `WebApplicationFactory` would meet it, and a library's stop must not throw on a second
+  call.
+
+**Propagated to:**
+- `06` MSG-OPS-008 (the stop writes once; criterion 12);
+- `implementation-plan.md` (row 23).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -2960,3 +2998,4 @@ stop, the rule refused it, and every host refused to start. Phase 22 ships it as
 | Phase 20: retention, export and threats | M-038 |
 | Phase 21: the contract and release candidate 1.0.0-rc.3 | M-039 |
 | Phase 22: sender names take the SMS alphabet's basic characters, 1.0.0-rc.4 | M-040 |
+| Phase 23: the key-table timer stops once, 1.0.0-rc.5 | M-041 |
