@@ -45,6 +45,51 @@ public sealed class KeyTableTimerTests(PostgresFixture postgres) : IClassFixture
         await held.RollbackAsync(TestContext.Current.CancellationToken);
     }
 
+    [Fact]
+    public async Task MSG_OPS_008_AC13_ASecondStopCalledWhileTheFirstStopsWriteRunsReturnsOnlyOnceThatWriteHasEndedAndTheInstantsAreWrittenOnce()
+    {
+        string connection = await EngineHost.DatabaseAsync(postgres);
+        ManualClock clock = new(EngineHost.Start);
+        await using EngineHost host = await EngineHost.StartAsync(connection, clock: clock);
+        KeyTableTimer timer = host.Services.GetServices<IHostedService>().OfType<KeyTableTimer>().Single();
+        clock.Advance(TimeSpan.FromSeconds(2));
+
+        // Another session holds the key table's rows, so the first stop's write waits on them.
+        await using NpgsqlConnection holder = new(connection);
+        await holder.OpenAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlTransaction held = await holder.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (NpgsqlCommand lockRows = new("SELECT * FROM messaging.key_versions FOR UPDATE", holder, held))
+        {
+            await lockRows.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        Task first = timer.StopAsync(CancellationToken.None);
+        await WaitBlockedAsync(connection, holder.ProcessID);
+        clock.Advance(TimeSpan.FromSeconds(2));
+
+        // The second stop's own time is already over, and it still waits for the first stop's write.
+        Task second = timer.StopAsync(new CancellationToken(canceled: true));
+        await Task.Delay(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
+        bool returnedEarly = second.IsCompleted;
+        await held.CommitAsync(TestContext.Current.CancellationToken);
+        await first.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        await second.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        Assert.False(returnedEarly);
+        Assert.Equal(EngineHost.Start.AddSeconds(2), await LastMadeAsync(connection));
+    }
+
+    /// <summary>The <c>hashKeys</c> write version's last-made instant.</summary>
+    private static async Task<DateTimeOffset> LastMadeAsync(string connection)
+    {
+        await using NpgsqlConnection database = new(connection);
+        await database.OpenAsync(TestContext.Current.CancellationToken);
+        await using NpgsqlCommand command = new("SELECT last_made_at FROM messaging.key_versions WHERE key = 'hashKeys' AND version = 1", database);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+        Assert.True(await reader.ReadAsync(TestContext.Current.CancellationToken));
+        return await reader.GetFieldValueAsync<DateTimeOffset>(0, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Waits until a session other than <paramref name="holder"/> waits on a lock.</summary>
     private static async Task WaitBlockedAsync(string connection, int holder)
     {

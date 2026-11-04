@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- A later stop of the key-table timer returns only once the first stop's write has ended,
+  whatever its own cancellation token says, so a host that stops twice concurrently, as
+  under `WebApplicationFactory`, no longer disposes the data source under that write
+
 ## [1.0.0-rc.5] - 2026-11-04
 
 ### Fixed
