@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The key-table timer writes the last-made instants once however many times the host
+  stops it, so a second stop, as `WebApplicationFactory` makes after the data source is
+  disposed, returns at once instead of throwing `ObjectDisposedException`
+
 ## [1.0.0-rc.4] - 2026-11-01
 
 ### Fixed

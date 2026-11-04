@@ -18,6 +18,9 @@ internal sealed partial class KeyTableTimer(KeyTable table, TimerChecks checks, 
 {
     private PeriodicTimer? timer;
 
+    /// <summary>One once the first stop has begun, set atomically so that two stops racing write once between them.</summary>
+    private int stopped;
+
     /// <summary>Starts the timer before the loop, which the host runs apart, so the first tick falls one interval after the start.</summary>
     public override Task StartAsync(CancellationToken cancellationToken)
     {
@@ -29,10 +32,17 @@ internal sealed partial class KeyTableTimer(KeyTable table, TimerChecks checks, 
     /// Stops the loop and waits for a tick in flight to end, whatever the host's token says, so
     /// that no tick runs on while the host disposes the data source; the tick honours its
     /// stopping token, so the wait is short. Then writes once more, unless the host's time to
-    /// stop is already over.
+    /// stop is already over. Only the first call does so: a host may stop its hosted services
+    /// more than once, the later stops after it has disposed the data source, so every later
+    /// call returns at once and touches nothing (M-041).
     /// </summary>
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        if (Interlocked.Exchange(ref stopped, 1) != 0)
+        {
+            return;
+        }
+
         await base.StopAsync(CancellationToken.None).ConfigureAwait(false);
         if (cancellationToken.IsCancellationRequested)
         {

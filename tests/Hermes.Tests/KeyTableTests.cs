@@ -168,6 +168,39 @@ public sealed class KeyTableTests(PostgresFixture postgres) : IClassFixture<Post
         Assert.Equal(Start.AddSeconds(7), (await RowsAsync(connection))[("hashKeys", 1)].LastMadeAt);
     }
 
+    [Fact]
+    public async Task MSG_OPS_008_AC12_AHostStoppedTwiceTheSecondTimeAfterItsDataSourceIsDisposedWritesTheLastMadeInstantsOnceAndNeitherStopThrows()
+    {
+        string connection = await MigratedAsync();
+        ManualClock clock = new(Start);
+        using IHost host = Host(Secrets.Held(connection), clock);
+        await host.StartAsync(TestContext.Current.CancellationToken);
+
+        clock.Advance(TimeSpan.FromSeconds(2));
+        await host.StopAsync(TestContext.Current.CancellationToken);
+        await host.Services.GetRequiredService<MessagingDatabase>().DisposeAsync();
+        clock.Advance(TimeSpan.FromSeconds(2));
+        await host.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(Start.AddSeconds(2), (await RowsAsync(connection))[("hashKeys", 1)].LastMadeAt);
+    }
+
+    [Fact]
+    public async Task Timer_StoppedAgain_WritesNothingMore()
+    {
+        string connection = await MigratedAsync();
+        ManualClock clock = new(Start);
+        using IHost host = Host(Secrets.Held(connection), clock);
+        await host.StartAsync(TestContext.Current.CancellationToken);
+
+        clock.Advance(TimeSpan.FromSeconds(2));
+        await host.StopAsync(TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromSeconds(2));
+        await host.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(Start.AddSeconds(2), (await RowsAsync(connection))[("hashKeys", 1)].LastMadeAt);
+    }
+
     private static void Essential(DeclarationBuilder declare)
     {
         declare.Category("security").Essential();
