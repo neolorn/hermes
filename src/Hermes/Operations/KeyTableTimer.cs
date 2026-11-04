@@ -18,8 +18,11 @@ internal sealed partial class KeyTableTimer(KeyTable table, TimerChecks checks, 
 {
     private PeriodicTimer? timer;
 
-    /// <summary>One once the first stop has begun, set atomically so that two stops racing write once between them.</summary>
-    private int stopped;
+    /// <summary>
+    /// The first stop's task, kept from its call: set atomically by that call, so that two stops
+    /// racing write once between them, and returned to every later call.
+    /// </summary>
+    private TaskCompletionSource<Task>? stopping;
 
     /// <summary>Starts the timer before the loop, which the host runs apart, so the first tick falls one interval after the start.</summary>
     public override Task StartAsync(CancellationToken cancellationToken)
@@ -33,30 +36,22 @@ internal sealed partial class KeyTableTimer(KeyTable table, TimerChecks checks, 
     /// that no tick runs on while the host disposes the data source; the tick honours its
     /// stopping token, so the wait is short. Then writes once more, unless the host's time to
     /// stop is already over. Only the first call does so: a host may stop its hosted services
-    /// more than once, the later stops after it has disposed the data source, so every later
-    /// call returns at once and touches nothing (M-041).
+    /// more than once, concurrently, and dispose the data source once a stop returns, so every
+    /// later call writes nothing and returns the first call's task, whatever its own token
+    /// says, so that no stop returns before the first call's write has ended (M-041, M-042).
     /// </summary>
-    public override async Task StopAsync(CancellationToken cancellationToken)
+    public override Task StopAsync(CancellationToken cancellationToken)
     {
-        if (Interlocked.Exchange(ref stopped, 1) != 0)
+        TaskCompletionSource<Task> first = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<Task>? earlier = Interlocked.CompareExchange(ref stopping, first, null);
+        if (earlier is not null)
         {
-            return;
+            return earlier.Task.Unwrap();
         }
 
-        await base.StopAsync(CancellationToken.None).ConfigureAwait(false);
-        if (cancellationToken.IsCancellationRequested)
-        {
-            return;
-        }
-
-        try
-        {
-            await WriteAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            // The host's time to stop ran out during the write; the next process's timer writes.
-        }
+        Task stop = StopOnceAsync(cancellationToken);
+        first.SetResult(stop);
+        return stop;
     }
 
     public override void Dispose()
@@ -86,6 +81,25 @@ internal sealed partial class KeyTableTimer(KeyTable table, TimerChecks checks, 
             }
 
             await WriteAsync(stoppingToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>The first stop's work: the loop stopped, a tick in flight ended, and the one write.</summary>
+    private async Task StopOnceAsync(CancellationToken cancellationToken)
+    {
+        await base.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        try
+        {
+            await WriteAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The host's time to stop ran out during the write; the next process's timer writes.
         }
     }
 
