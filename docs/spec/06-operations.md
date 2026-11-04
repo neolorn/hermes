@@ -480,7 +480,8 @@ connection and never from a send, so no host transaction touches the key table, 
 start, before it makes any value and in one statement, the first-made instant of each of
 its write versions where it is empty and their last-made instant, clearing their retired
 mark, then writes their last-made instant every `Hermes:Dispatch:Interval` and when it
-stops, once however many times the host stops it (M-041), at each tick also reading the migration history and, where the database holds a
+stops, once however many times the host stops it, no later stop returning before that
+write has ended (M-041, M-042), at each tick also reading the migration history and, where the database holds a
 migration its release does not know, writing on the `newer-release` alert's row the
 instant it holds until (MSG-OPS-006, MSG-OPS-007). A version whose check value differs
 from the one recorded stops the start with `secretinvalid`, so a key changed in place
@@ -590,3 +591,6 @@ values it would protect again under their version.
     start without `pushVapidKeys`.
 12. A host whose hosted services are stopped twice, the second time after its data
     source is disposed, writes the last-made instants once, and neither stop throws.
+13. A second stop called while the first stop's write is still running returns only once
+    that write has ended, whatever the second stop's cancellation token says, and the
+    instants are written once.

@@ -2954,6 +2954,44 @@ already disposed, throwing `ObjectDisposedException` out of the stop. Phase 23 s
 
 ---
 
+## M-042 — Phase 24: a later stop waits for the first stop's write, `1.0.0-rc.6`
+
+**Date:** 2026-11-05 · **Status:** accepted · **Amends:** MSG-OPS-008, M-041
+
+**TL;DR.** A later call to the key-table timer's `StopAsync` returns only once the first
+call's write has ended. Found by a host's tests after `1.0.0-rc.5`: under
+`WebApplicationFactory` the application's own run and the factory's dispose call the stop
+concurrently, M-041's later call returned at once, and the host disposed the data source
+while the first call's write was still running, throwing `ObjectDisposedException` out of
+that write. Phase 24 ships it as `1.0.0-rc.6`.
+
+- **The rule.** The first call stops the loop, waits for a tick in flight and writes once,
+  as M-041 has it. The timer keeps that call's task, and every later call returns it: a
+  later call writes nothing and reads no service, and returns once the first call's work
+  has ended, as the first call does. This replaces M-041's "no wait".
+- **Cancellation.** A later call waits for the first call's task whatever its own
+  cancellation token says, as the first call already waits for a tick in flight whatever
+  its token says. The host's time to stop bounds the first call's write as before (its skip
+  when that time is already over stays), so a later call waits no longer than the first.
+- **What stays.** One write however many calls, the guard set atomically by the first
+  call, the skip when the host's time to stop is over, and the warnings on a failed write.
+- **The release.** A fix with no public surface change: one commit with its tests and a
+  `CHANGELOG.md` line, the release commit `chore: release 1.0.0-rc.6` in the same pull
+  request, and the tag after the merge, which the lead pushes.
+- **Phase 24's criterion.** MSG-OPS-008 criterion 13.
+
+*Rejected:*
+- **A later call honouring its own token:** a token cancelled early would return it before
+  the write ends, which is the fault itself.
+- **Leaving it to the host:** stopping twice, concurrently, is ASP.NET Core's behaviour
+  under `WebApplicationFactory`, and the write is the timer's own.
+
+**Propagated to:**
+- `06` MSG-OPS-008 (a later stop waits for the first's write; criterion 13);
+- `implementation-plan.md` (row 24).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -2999,3 +3037,4 @@ already disposed, throwing `ObjectDisposedException` out of the stop. Phase 23 s
 | Phase 21: the contract and release candidate 1.0.0-rc.3 | M-039 |
 | Phase 22: sender names take the SMS alphabet's basic characters, 1.0.0-rc.4 | M-040 |
 | Phase 23: the key-table timer stops once, 1.0.0-rc.5 | M-041 |
+| Phase 24: a later stop waits for the first stop's write, 1.0.0-rc.6 | M-042 |
