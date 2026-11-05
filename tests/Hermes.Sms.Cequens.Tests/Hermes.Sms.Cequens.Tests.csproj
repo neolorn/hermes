@@ -12,10 +12,12 @@
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Hermes.Sms.Cequens\Hermes.Sms.Cequens.csproj" />
+    <ProjectReference Include="..\..\src\Hermes.Testing\Hermes.Testing.csproj" />
   </ItemGroup>
 
 </Project>
