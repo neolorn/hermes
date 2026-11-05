@@ -3030,6 +3030,18 @@ it as `1.0.0-rc.7`.
   console's token is the credential), send to several numbers in one request (one
   delivery, one number, MSG-CHAN-001), bulk or group sends, or read message details
   (the report gives the outcome).
+- **Answers at phase 25.**
+  - *A call's bound* is the caller's `Dispatch:Timeout`, through the call's
+    cancellation, as the dispatcher and the balance job already apply it. The package
+    reads no configuration, and the factory's own timeout stays as an outer bound.
+  - *An answer the table does not name* (a 200 whose `replyCode` is not 0, another 2xx, a
+    3xx) is one that does not read, `Transient(connectionfailed)`. A retry may send a
+    second text; a lost one-time code costs the person more than a duplicate does.
+  - *The token missing at a call* after the start check answers `keyunavailable`, never
+    an exception: the delivery waits, with no attempt spent, as for a key this process
+    does not hold, until the secret source answers again.
+  - *An answer's body* is read to at most 64 KiB, so a gateway or a proxy in the way
+    cannot make the provider hold an unbounded answer.
 
 *Rejected:*
 - **The provider in the host,** as the deployment's WE provider is: only that host could

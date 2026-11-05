@@ -491,7 +491,14 @@ test), and a lifecycle service that checks its secret at start.
   as `Authorization: Bearer <token>`. At start, a host with the package registered whose
   secret source does not answer `smsCequens` fails with
   `messaging.startup.secretunavailable`, and one whose highest version is outside the
-  form fails with `messaging.startup.secretinvalid`, each with `key` `smsCequens`.
+  form fails with `messaging.startup.secretinvalid`, each with `key` `smsCequens`. A call
+  that later finds the secret unanswered or outside its form makes no request and answers
+  `Transient(keyunavailable)`, a balance `Failed(keyunavailable)`, so the delivery waits
+  as for a key this process does not hold, with no attempt spent (M-043).
+- **A call's bound** is its caller's: the dispatcher and the balance job bound each call
+  by `Dispatch:Timeout` through the call's cancellation, which the request carries; the
+  named client keeps the factory's own timeout as an outer bound, and the client giving
+  up is `timeout`. An answer's body is read to at most 64 KiB; a longer one does not read.
 - **A send** is one `POST /sms/v1/messages` with `Accept: application/json` and a JSON
   body holding `messageText` (the text), `senderName` (the sender), `messageType`
   (`text` for `gsm7`, `unicode` for `ucs2`), `recipients` (the number without its `+`)
@@ -513,7 +520,8 @@ test), and a lifecycle service that checks its secret at start.
 | 401 or 403 | `Transient(authfailed)` |
 | 429 | `Transient(ratelimited)` |
 | 5xx | `Transient(temporary)` |
-| No answer within `Dispatch:Timeout`; a refused or broken connection, or an answer that does not read; TLS not completed | `Transient(timeout)`; `Transient(connectionfailed)`; `Transient(tlsfailed)` |
+| No answer within the call's bound; a refused or broken connection, or an answer that does not read; TLS not completed | `Transient(timeout)`; `Transient(connectionfailed)`; `Transient(tlsfailed)` |
+| Any status the rows above do not name (a 200 whose `replyCode` is not 0, another 2xx, a 3xx, which the client never follows) | `Transient(connectionfailed)` with the status, as an answer that does not read |
 
 - **A report** is Cequens's delivery report: a request to the message's `dlrUrl` whose
   query holds `msgid` (the `SMSId`), `statusid` (`1` delivered, `2` not delivered) and
