@@ -73,6 +73,7 @@ internal static class PublicTypeTable
             "MessagingDevelopmentExtensions", "DevelopmentInbox", "InboxFilter", "InboxMessage", "InboxEmail", "InboxSms", "InboxPush", "InboxNotification",
         ],
         [Packages.Conversations] = ["MessagingConversationsServiceCollectionExtensions", "MessagingConversationsEndpointRouteBuilderExtensions"],
+        [Packages.SmsCequens] = ["CequensSmsServiceCollectionExtensions"],
     }.ToFrozenDictionary(
         entry => entry.Key,
         entry => entry.Value.Select(type => entry.Key + "." + type).ToFrozenSet(StringComparer.Ordinal),

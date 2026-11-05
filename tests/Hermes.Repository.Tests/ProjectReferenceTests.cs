@@ -59,6 +59,55 @@ public sealed class ProjectReferenceTests
         Assert.DoesNotContain(ReferenceRules.ReferenceViolations(fixture.Root), violation => violation.Contains("Hermes.Conversations.csproj references the project", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(Packages.Channels)]
+    [InlineData(Packages.Engine)]
+    [InlineData(Packages.Testing)]
+    public void MSG_LIB_001_AC1_SmsCequensReferencingAProjectOutsideItsRowIsFound(string project)
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSource(Packages.SmsCequens, [Packages.Core, project]);
+
+        Assert.Contains(
+            $"src/Hermes.Sms.Cequens/Hermes.Sms.Cequens.csproj references the project {project}, which MSG-LIB-001 does not allow it.",
+            ReferenceRules.ReferenceViolations(fixture.Root));
+    }
+
+    [Fact]
+    public void MSG_LIB_001_AC1_SmsCequensReferencingTheCoreAndTheHttpFactoryIsAccepted()
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteProject("src/Hermes.Sms.Cequens/Hermes.Sms.Cequens.csproj", """
+              <ItemGroup>
+                <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+                <PackageReference Include="MinVer" PrivateAssets="all" />
+                <PackageReference Include="Microsoft.Extensions.Http" />
+                <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+              </ItemGroup>
+              <ItemGroup>
+                <ProjectReference Include="..\Hermes.Core\Hermes.Core.csproj" />
+              </ItemGroup>
+            """);
+
+        Assert.DoesNotContain(ReferenceRules.ReferenceViolations(fixture.Root), violation => violation.StartsWith("src/Hermes.Sms.Cequens/", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(Packages.Channels)]
+    [InlineData(Packages.Engine)]
+    [InlineData(Packages.Testing)]
+    [InlineData(Packages.Development)]
+    [InlineData(Packages.Conversations)]
+    public void MSG_LIB_001_AC1_APackageReferencingSmsCequensIsFound(string package)
+    {
+        using RepositoryFixture fixture = new();
+        fixture.WriteSource(package, [Packages.Core, Packages.SmsCequens]);
+
+        Assert.Contains(
+            $"src/{package}/{package}.csproj references the project {Packages.SmsCequens}, which MSG-LIB-001 does not allow it.",
+            ReferenceRules.ReferenceViolations(fixture.Root));
+    }
+
     [Fact]
     public void MSG_LIB_001_AC1_TheTestingPackageReferencingConversationsIsAccepted()
     {
@@ -368,6 +417,9 @@ public sealed class ProjectReferenceTests
     [InlineData(Packages.Conversations, Packages.Development)]
     [InlineData(Packages.Development, Packages.Conversations)]
     [InlineData(Packages.Channels, Packages.Conversations)]
+    [InlineData(Packages.Channels, Packages.SmsCequens)]
+    [InlineData(Packages.SmsCequens, Packages.Testing)]
+    [InlineData(Packages.SmsCequens, Packages.Engine)]
     public void MSG_ENG_001_AC1_GrantOutsideTheRuleIsFound(string grantor, string grantee)
     {
         string[] violations = [.. ReferenceRules.GrantViolations($"src/{grantor}/{grantor}.csproj", grantor, [grantee])];
@@ -391,6 +443,7 @@ public sealed class ProjectReferenceTests
     [InlineData(Packages.Engine, Packages.Conversations)]
     [InlineData(Packages.Conversations, "Hermes.Conversations.Tests")]
     [InlineData(Packages.Conversations, Packages.Testing)]
+    [InlineData(Packages.SmsCequens, "Hermes.Sms.Cequens.Tests")]
     public void MSG_ENG_001_AC1_GrantWithinTheRuleIsAccepted(string grantor, string grantee)
     {
         Assert.Empty(ReferenceRules.GrantViolations($"src/{grantor}/{grantor}.csproj", grantor, [grantee]));

@@ -220,6 +220,12 @@
           "Hermes.Core": "[1.0.0, )"
         }
       },
+      "hermes.sms.cequens": {
+        "type": "Project",
+        "dependencies": {
+          "Hermes.Core": "[1.0.0, )"
+        }
+      },
       "hermes.testing": {
         "type": "Project",
         "dependencies": {

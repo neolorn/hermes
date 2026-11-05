@@ -24,6 +24,8 @@ internal static class Packages
 
     internal const string Conversations = "Hermes.Conversations";
 
+    internal const string SmsCequens = "Hermes.Sms.Cequens";
+
     /// <summary>The packages' authors, the name the owner's first message of phase 0 gives (<c>07</c> MSG-ENG-011).</summary>
     internal const string Authors = "neolorn";
 
@@ -33,7 +35,7 @@ internal static class Packages
     /// <summary>The test project over the whole repository, the one with no source project.</summary>
     internal const string RepositoryTests = "Hermes.Repository.Tests";
 
-    internal static IReadOnlyList<string> All { get; } = [Core, Channels, Engine, Testing, Cli, Development, Conversations];
+    internal static IReadOnlyList<string> All { get; } = [Core, Channels, Engine, Testing, Cli, Development, Conversations, SmsCequens];
 
     /// <summary>The folders a project may hold, by project (<c>07</c> MSG-ENG-001); every other project is flat.</summary>
     internal static FrozenDictionary<string, IReadOnlyList<string>> Folders { get; } = new Dictionary<string, IReadOnlyList<string>>

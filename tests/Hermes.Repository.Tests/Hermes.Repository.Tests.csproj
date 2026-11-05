@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\Hermes.Cli\Hermes.Cli.csproj" />
     <ProjectReference Include="..\..\src\Hermes.Development\Hermes.Development.csproj" />
     <ProjectReference Include="..\..\src\Hermes.Conversations\Hermes.Conversations.csproj" />
+    <ProjectReference Include="..\..\src\Hermes.Sms.Cequens\Hermes.Sms.Cequens.csproj" />
   </ItemGroup>
 
 </Project>

@@ -49,6 +49,7 @@ public sealed class RepositoryLayoutTests
     [InlineData(Packages.Cli)]
     [InlineData(Packages.Development)]
     [InlineData(Packages.Conversations)]
+    [InlineData(Packages.SmsCequens)]
     public void MSG_ENG_001_AC1_PackageWithoutItsProjectIsFound(string package)
     {
         using RepositoryFixture fixture = new();
