@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 
 namespace Hermes.Sms.Cequens.Tests;
@@ -98,6 +99,14 @@ internal static class GatewayAnswers
               }
             }
             """);
+    }
+
+    /// <summary><paramref name="answer"/>, an object, with a member <c>padding</c> added first so that it is <paramref name="length"/> ASCII characters long.</summary>
+    internal static string Padded(string answer, int length)
+    {
+        const string Member = "\"padding\":\"\",";
+        int padding = length - answer.Length - Member.Length;
+        return "{\"padding\":\"" + new string('x', padding) + "\"," + answer[(answer.IndexOf('{', StringComparison.Ordinal) + 1)..];
     }
 
     /// <summary>The balance's 200, "Result", with <paramref name="credit"/> as the account's credit.</summary>

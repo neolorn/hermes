@@ -17,11 +17,15 @@ namespace Hermes.Sms.Cequens;
 /// The SMS provider for the Cequens SMS API (<c>02</c> MSG-SMS-007): one request to the
 /// gateway for each send, through the named client <c>Hermes.Sms.Cequens</c>, with the
 /// account's access token read at each call, so a new version is used without a restart.
-/// Every answer is classed as the answer table gives it, and none of its text is kept or
-/// logged.
+/// A call is bounded by its caller's cancellation, and an answer's body is read to at most
+/// 64 KiB. Every answer is classed as the answer table gives it, and none of its text is
+/// kept or logged.
 /// </summary>
 internal sealed class CequensSmsProvider(IHttpClientFactory clients, ISecretSource secrets) : ISmsProvider
 {
+    /// <summary>The longest answer body read; a longer one does not read.</summary>
+    internal const int MaxBody = 64 * 1024;
+
     public async ValueTask<Attempt> SendAsync(SmsMessage message, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -41,7 +45,7 @@ internal sealed class CequensSmsProvider(IHttpClientFactory clients, ISecretSour
         try
         {
             using HttpClient client = clients.CreateClient(CequensClient.Name);
-            using HttpResponseMessage response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            using HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             int status = (int)response.StatusCode;
             AnswerBody? answer = status is 200 or 400 ? await ReadAsync(response, cancellationToken).ConfigureAwait(false) : null;
             return CequensAnswer.Send(status, answer);
@@ -49,6 +53,11 @@ internal sealed class CequensSmsProvider(IHttpClientFactory clients, ISecretSour
         catch (HttpRequestException failure)
         {
             return new Attempt.Transient(Reason(failure), null, null);
+        }
+        catch (IOException)
+        {
+            // The connection broke while the answer's body was read.
+            return new Attempt.Transient(AttemptReason.ConnectionFailed, null, null);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -76,7 +85,7 @@ internal sealed class CequensSmsProvider(IHttpClientFactory clients, ISecretSour
         try
         {
             using HttpClient client = clients.CreateClient(CequensClient.Name);
-            using HttpResponseMessage response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            using HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             int status = (int)response.StatusCode;
             AnswerBody? answer = status is 200 ? await ReadAsync(response, cancellationToken).ConfigureAwait(false) : null;
             return CequensAnswer.Balance(status, answer);
@@ -84,6 +93,11 @@ internal sealed class CequensSmsProvider(IHttpClientFactory clients, ISecretSour
         catch (HttpRequestException failure)
         {
             return new BalanceReading.Failed(Reason(failure));
+        }
+        catch (IOException)
+        {
+            // The connection broke while the answer's body was read.
+            return new BalanceReading.Failed(AttemptReason.ConnectionFailed);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -133,20 +147,41 @@ internal sealed class CequensSmsProvider(IHttpClientFactory clients, ISecretSour
         return failure.HttpRequestError == HttpRequestError.SecureConnectionError ? AttemptReason.TlsFailed : AttemptReason.ConnectionFailed;
     }
 
-    /// <summary>The body of <paramref name="response"/>, or none where it does not read as the gateway's answer.</summary>
+    /// <summary>
+    /// The body of <paramref name="response"/>, read to at most <see cref="MaxBody"/> bytes, or
+    /// none where it is longer or does not read as the gateway's answer.
+    /// </summary>
     private static async Task<AnswerBody?> ReadAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
+        if (response.Content.Headers.ContentLength > MaxBody)
+        {
+            return null;
+        }
+
+        byte[] buffer = new byte[MaxBody + 1];
+        int length = 0;
         Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         await using (stream.ConfigureAwait(false))
         {
-            try
+            int read;
+            while (length < buffer.Length && (read = await stream.ReadAsync(buffer.AsMemory(length), cancellationToken).ConfigureAwait(false)) > 0)
             {
-                return await JsonSerializer.DeserializeAsync(stream, CequensJson.Default.AnswerBody, cancellationToken).ConfigureAwait(false);
+                length += read;
             }
-            catch (JsonException)
-            {
-                return null;
-            }
+        }
+
+        if (length > MaxBody)
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize(buffer.AsSpan(0, length), CequensJson.Default.AnswerBody);
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 

@@ -38,6 +38,9 @@ internal sealed class GatewayFake : IAsyncDisposable
     /// <summary>The JSON body each request is answered with, none for an empty one.</summary>
     internal string? Body { get; set; } = GatewayAnswers.Sent;
 
+    /// <summary>Whether each answer declares its body's length; otherwise the body is streamed with none.</summary>
+    internal bool DeclaresLength { get; set; }
+
     /// <summary>Whether each request waits until the caller gives up.</summary>
     internal bool Hangs { get; set; }
 
@@ -79,6 +82,11 @@ internal sealed class GatewayFake : IAsyncDisposable
         if (Body is not null)
         {
             context.Response.ContentType = "application/json";
+            if (DeclaresLength)
+            {
+                context.Response.ContentLength = Encoding.UTF8.GetByteCount(Body);
+            }
+
             await context.Response.WriteAsync(Body, context.RequestAborted).ConfigureAwait(false);
         }
     }

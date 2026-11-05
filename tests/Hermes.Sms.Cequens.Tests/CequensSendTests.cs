@@ -195,6 +195,30 @@ public sealed class CequensSendTests
     }
 
     [Theory]
+    [InlineData(200, CequensSmsProvider.MaxBody, true, false)]
+    [InlineData(200, CequensSmsProvider.MaxBody, true, true)]
+    [InlineData(200, CequensSmsProvider.MaxBody + 1, false, false)]
+    [InlineData(200, CequensSmsProvider.MaxBody + 1, false, true)]
+    [InlineData(400, CequensSmsProvider.MaxBody + 1, false, false)]
+    public async Task SendAsync_AnswerBodyOfALength_ReadsOnlyUpTo64KiB(int status, int length, bool reads, bool declared)
+    {
+        await using CequensHarness harness = await CequensHarness.StartAsync();
+        harness.Gateway.DeclaresLength = declared;
+        harness.Gateway.Status = status;
+        harness.Gateway.Body = GatewayAnswers.Padded(status == 200 ? GatewayAnswers.Sent : GatewayAnswers.Refused(-12, "Invalid Sender Name"), length);
+
+        Attempt attempt = await harness.Provider.SendAsync(CequensHarness.Message(), TestContext.Current.CancellationToken);
+
+        Attempt expected = (status, reads) switch
+        {
+            (200, true) => new Attempt.Accepted(GatewayAnswers.SmsId),
+            (200, false) => new Attempt.Transient(AttemptReason.ConnectionFailed, 200, null),
+            _ => new Attempt.Permanent(AttemptReason.Permanent, 400),
+        };
+        Assert.Equal(expected, attempt);
+    }
+
+    [Theory]
     [InlineData("Notices")]
     [InlineData("Bakery Co.")]
     [InlineData("447700900123")]

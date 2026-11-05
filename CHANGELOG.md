@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   references it
 - A Cequens call that finds `smsCequens` unanswered or outside its form after the start
   makes no request and answers `Transient(keyunavailable)`, a balance
-  `Failed(keyunavailable)`, where it threw before
+  `Failed(keyunavailable)`, and never throws
+- The Cequens provider reads an answer's body to at most 64 KiB, a longer one being an
+  answer that does not read
 
 ## [1.0.0-rc.6] - 2026-11-04
 

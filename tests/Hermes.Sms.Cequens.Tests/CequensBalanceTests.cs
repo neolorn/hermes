@@ -109,6 +109,19 @@ public sealed class CequensBalanceTests
         Assert.Empty(harness.Gateway.Requests);
     }
 
+    [Theory]
+    [InlineData(CequensSmsProvider.MaxBody, true)]
+    [InlineData(CequensSmsProvider.MaxBody + 1, false)]
+    public async Task BalanceAsync_AnswerBodyOfALength_ReadsOnlyUpTo64KiB(int length, bool reads)
+    {
+        await using CequensHarness harness = await CequensHarness.StartAsync();
+        harness.Gateway.Body = GatewayAnswers.Padded(GatewayAnswers.Balance(12m), length);
+
+        BalanceReading reading = await harness.Provider.BalanceAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(reads ? new BalanceReading.Balance(12m) : new BalanceReading.Failed(AttemptReason.ConnectionFailed), reading);
+    }
+
     [Fact]
     public async Task BalanceAsync_HighestVersion_IsTheBearerToken()
     {
