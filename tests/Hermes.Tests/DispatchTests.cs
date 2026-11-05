@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Hermes.Core;
+using Hermes.Sending;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -600,11 +601,6 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
             configure: UnsubscribeLinkTests.Configure,
             declare: UnsubscribeLinkTests.Declare,
             templates: UnsubscribeLinkTests.Templates);
-        engine.Email.Before = (_, _) =>
-        {
-            engine.Host.Clock.Advance(TimeSpan.FromSeconds(20));
-            return Task.CompletedTask;
-        };
         for (int index = 0; index < 1_000; index++)
         {
             await engine.Host.SendAsync(UnsubscribeLinkTests.LetterTo($"reader-{index}@example.com"));
@@ -614,8 +610,19 @@ public sealed class DispatchTests(PostgresFixture postgres) : IClassFixture<Post
         await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Email]));
         await engine.Host.SendAsync(SendTests.Code(channels: [Channel.Sms], recipient: new Recipient.Person("person-2")));
 
-        await engine.Host.DispatchAsync();
+        // The passes run side by side, as DispatchAsync runs them. The email call takes the
+        // timeout on the shared test clock only once the SMS pass has ended: moved while that
+        // pass ran, the clock would count the email call's time as the SMS pass's own, and how
+        // far the SMS pass had got would then depend on how fast the machine runs.
+        Task<PassOutcome> sms = engine.Host.PassAsync(Channel.Sms);
+        engine.Email.Before = async (_, _) =>
+        {
+            await sms;
+            engine.Host.Clock.Advance(TimeSpan.FromSeconds(20));
+        };
+        PassOutcome[] passes = await Task.WhenAll(sms, engine.Host.PassAsync(Channel.Email));
 
+        Assert.Equal(1, passes[0].Took);
         Assert.Single(engine.Sms.Received);
         Assert.Equal("someone@example.com", engine.Email.Received[0].ToAddress);
     }
