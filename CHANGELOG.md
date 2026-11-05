@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Hermes.Sms.Cequens`, an optional SMS provider for the Cequens SMS API, registered by
+  `AddHermesCequensSms` in place of any earlier `ISmsProvider`: its access token is the
+  secret `smsCequens`, checked at start and read at each call, and no other package
+  references it
+
 ## [1.0.0-rc.6] - 2026-11-04
 
 ### Fixed
