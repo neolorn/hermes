@@ -145,6 +145,7 @@ internal sealed class RepositoryFixture : IDisposable
               <package pattern="Hermes.Cli" />
               <package pattern="Hermes.Development" />
               <package pattern="Hermes.Conversations" />
+              <package pattern="Hermes.Sms.Cequens" />
             </packageSource>
             <packageSource key="nuget.org">
               <package pattern="*" />

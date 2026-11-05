@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.7] - 2026-11-05
+
+### Added
+
+- `Hermes.Sms.Cequens`, an optional SMS provider for the Cequens SMS API, registered by
+  `AddHermesCequensSms` in place of any earlier `ISmsProvider`: its access token is the
+  secret `smsCequens`, checked at start and read at each call, and no other package
+  references it
+- A Cequens call that finds `smsCequens` unanswered or outside its form after the start
+  makes no request and answers `Transient(keyunavailable)`, a balance
+  `Failed(keyunavailable)`, and never throws
+- The Cequens provider reads an answer's body to at most 64 KiB, a longer one being an
+  answer that does not read
+
 ## [1.0.0-rc.6] - 2026-11-04
 
 ### Fixed

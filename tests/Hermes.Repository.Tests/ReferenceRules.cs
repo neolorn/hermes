@@ -48,6 +48,7 @@ internal static class ReferenceRules
         [Packages.Cli] = [Packages.Engine],
         [Packages.Development] = [Packages.Core, Packages.Channels],
         [Packages.Conversations] = [Packages.Core, Packages.Engine],
+        [Packages.SmsCequens] = [Packages.Core],
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>The packages each package's project may reference at run time.</summary>
@@ -60,6 +61,7 @@ internal static class ReferenceRules
         [Packages.Cli] = [],
         [Packages.Development] = [],
         [Packages.Conversations] = [],
+        [Packages.SmsCequens] = [.. HostingAbstractions],
     }.ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>Answers each reference of a project of the repository at <paramref name="root"/> that MSG-LIB-001 does not allow.</summary>

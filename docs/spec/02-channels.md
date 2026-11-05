@@ -27,7 +27,9 @@ escapes a provider is a fault of that provider: the dispatcher records it as
 `Transient(providerfault)` and logs the exception's type, never its message, which can
 carry a destination. `Hermes.Channels` ships a provider for email (SMTP, section 2) and
 for push (Web Push, section 4), and none for SMS, since SMS gateways share no protocol
-(M-022): a host that uses SMS registers its own `ISmsProvider` (`04` MSG-LIB-005). The
+(M-022): a host that uses SMS registers its own `ISmsProvider` (`04` MSG-LIB-005), or
+one of the optional provider packages beside the core, which the host adds itself
+(MSG-SMS-007, M-043). The
 shipped push provider makes its requests through the named client `Hermes.Push` of
 `IHttpClientFactory`, which follows no redirect and times out after
 `Hermes:Dispatch:Timeout`; its handler chain carries the library's handler that replaces
@@ -468,6 +470,100 @@ provider that does not report a balance has no floor and raises neither balance 
    history, the first spend raises nothing.
 3. With a provider that reports no balance, no SMS ends `balancefloor` and no balance
    alert is raised.
+
+---
+
+**MSG-SMS-007** — The optional package `Hermes.Sms.Cequens` SHALL be an `ISmsProvider`
+for the Cequens SMS API, which a host adds and registers itself; no other package
+references it, and the library's core is the same with it or without it.
+
+**Values (M-043).** The API is Cequens's SMS API at `https://apis.cequens.com`, as its
+reference (`developer.cequens.com/reference`) and a live account gave it on 2026-11-05.
+`AddHermesCequensSms(IServiceCollection)` registers the provider as the `ISmsProvider`,
+replacing any earlier one, the named HTTP client `Hermes.Sms.Cequens`, built as
+`Hermes.Push` is (its request logging removed, its primary handler replaceable by a
+test), and a lifecycle service that checks its secret at start.
+
+- **The credential** is the account's access token, a JWT the Cequens console gives, held
+  as the secret `smsCequens` (`06` MSG-OPS-008, `08` section 7): 1 to 8,192 bytes of
+  printable ASCII with no space, its highest version used. It is read through the host's
+  `ISecretSource` at each call, so a new version is used without a restart, and is sent
+  as `Authorization: Bearer <token>`. At start, a host with the package registered whose
+  secret source does not answer `smsCequens` fails with
+  `messaging.startup.secretunavailable`, and one whose highest version is outside the
+  form fails with `messaging.startup.secretinvalid`, each with `key` `smsCequens`. A call
+  that later finds the secret unanswered or outside its form makes no request and answers
+  `Transient(keyunavailable)`, a balance `Failed(keyunavailable)`: an attempt like any
+  transient one (`01` MSG-SEND-007), retried with its pause and ending `failed` with that
+  reason after `Retry:MaxAttempts`, since a provider's answer is not one of the holds
+  for a key (M-043).
+- **A call's bound** is its caller's: the dispatcher and the balance job bound each call
+  by `Dispatch:Timeout` through the call's cancellation, which the request carries; the
+  named client keeps the factory's own timeout as an outer bound, and the client giving
+  up is `timeout`. An answer's body is read to at most 64 KiB; a longer one does not read.
+- **A send** is one `POST /sms/v1/messages` with `Accept: application/json` and a JSON
+  body holding `messageText` (the text), `senderName` (the sender), `messageType`
+  (`text` for `gsm7`, `unicode` for `ucs2`), `recipients` (the number without its `+`)
+  and, where the message's `ReportAddress` is set, `dlrUrl` (that address); nothing else.
+  A message of more than 20 segments, which the gateway refuses, is answered
+  `Permanent(messagerefused)` with no request.
+- **The send's answer:**
+
+| Answer | Attempt |
+|---|---|
+| 200, `replyCode` 0, the number not in `data.InvalidRecipients`, `data.SentSMSIDs[0].SMSId` present | `Accepted(SMSId)` |
+| 200, `replyCode` 0, the number in `data.InvalidRecipients` | `Permanent(recipientrefused)` |
+| 200, `replyCode` 0, no `SMSId` | `Permanent(permanent)` |
+| 400 with `error.internalErrors[].code` -6 | `Permanent(recipientrefused)` |
+| 400 with code -12 | `Permanent(senderrefused)` |
+| 400 with code -8, -9 or -41 | `Permanent(messagerefused)` |
+| 400 with code -17 (not enough credits) | `Transient(temporary)` |
+| Any other 400, or another 4xx below | `Permanent(permanent)` |
+| 401 or 403 | `Transient(authfailed)` |
+| 429 | `Transient(ratelimited)` |
+| 5xx | `Transient(temporary)` |
+| No answer within the call's bound; a refused or broken connection, or an answer that does not read; TLS not completed | `Transient(timeout)`; `Transient(connectionfailed)`; `Transient(tlsfailed)` |
+| Any status the rows above do not name (a 200 whose `replyCode` is not 0, another 2xx, a 3xx, which the client never follows) | `Transient(connectionfailed)` with the status, as an answer that does not read |
+
+- **A report** is Cequens's delivery report: a request to the message's `dlrUrl` whose
+  query holds `msgid` (the `SMSId`), `statusid` (`1` delivered, `2` not delivered) and
+  `ClientMsgID`, `from`, `to`, `accountid`, `SubmitDate` and `statusmsg`, which the
+  provider does not read. `ReadReportAsync` reads, whatever the method, a query with one
+  `msgid` and one `statusid`: the provider reference `msgid`, and the outcome
+  `delivered` for `1`, `failed` for `2` and `notfinal` for any other; a query without
+  both does not read. Either way the response is 200 with an empty body.
+- **The balance** is one `GET /sms/v1/account/balance`: 200 with `replyCode` 0 answers
+  `Balance(data.Account.Credit)`, the account's credit in its currency; 401 or 403
+  `Failed(authfailed)`, 429 `Failed(ratelimited)`, a timeout, a connection failure or an
+  answer that does not read the reason of the table above, and anything else
+  `Failed(temporary)`.
+- **`IsValidSender`** answers `true` for every sender MSG-SMS-002's rule allows; Cequens
+  documents no narrower rule, and refuses a name not registered for the destination's
+  networks with code -12.
+- **Logs.** No log line and no attempt record holds the number, the text, the token or
+  any text the gateway answered; a log line names at most the HTTP status and the
+  gateway's numeric code.
+
+*Source: M-043*
+
+**Acceptance criteria**
+1. A send makes exactly one request, `POST https://apis.cequens.com/sms/v1/messages`,
+   with the bearer token of `smsCequens`'s highest version and the body above, with
+   `dlrUrl` where the message has a report address and without it otherwise, and answers
+   `Accepted` with the `SMSId`.
+2. Each row of the answer table gives its attempt, from the gateway's documented answers.
+3. A message of 21 segments makes no request and is answered
+   `Permanent(messagerefused)`.
+4. A report with `msgid` and `statusid` `1`, `2` and `3` reads `delivered`, `failed` and
+   `notfinal` with the provider reference `msgid`; one without `msgid` does not read;
+   each is answered 200 with an empty body.
+5. The balance reads `data.Account.Credit`, and a 401 answers `Failed(authfailed)`.
+6. A start with the package registered and `smsCequens` unanswered fails with
+   `messaging.startup.secretunavailable`, `key` `smsCequens`; a new highest version is
+   used by the next send with no restart.
+7. Under a host logging at Debug, no log line holds the number, the text, the token or
+   the gateway's answer text.
+8. Every other package's public surface is unchanged.
 
 ---
 

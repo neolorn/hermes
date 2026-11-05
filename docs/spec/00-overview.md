@@ -141,6 +141,7 @@ Versions are pinned in `07` MSG-ENG-009.
 | `Hermes.Cli` | A .NET tool, command `hermes`, that applies the migrations (`06` MSG-OPS-002) | A deployment's pipeline |
 | `Hermes.Development` | The development inbox: in Development, every message kept on the machine instead of sent, with a page, a JSON API and a test helper to read it. It does nothing in any other environment | An application while it is developed, and its tests and tools (`02` MSG-DEV-001) |
 | `Hermes.Conversations` | Conversations (`09`): their behaviour, endpoints and hubs, over tables the engine holds (`06` MSG-OPS-002) | An application with support or staff chat |
+| `Hermes.Sms.Cequens` | An optional SMS provider for the Cequens SMS API, beside the core: no other package references it (`02` MSG-SMS-007, M-043) | An application that sends SMS through Cequens |
 
 The engine depends on the channels and never the reverse, so an application that needs a
 provider alone never carries the engine. `Hermes.Conversations` depends on the engine,

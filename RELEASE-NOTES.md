@@ -1,5 +1,49 @@
 # Release notes
 
+## 1.0.0-rc.7
+
+The seventh release candidate of 1.0.0. It adds `Hermes.Sms.Cequens`, an optional SMS
+provider for the Cequens SMS API, beside the core. It ships the seven packages of
+1.0.0-rc.6 and the new one, eight in all, each at this version and each depending on the
+others it uses at exactly this version. No other package references the new one, and no
+other package changes: no public type or member, no route, code or key, and nothing is
+removed. Until a final release, a release candidate may change or remove anything.
+
+### Changes since 1.0.0-rc.6
+
+- **The Cequens SMS package.** `AddHermesCequensSms` registers the provider as the
+  `ISmsProvider`, in place of any registered before it, with the named client
+  `Hermes.Sms.Cequens` and a check of its credential at start. A send is one request to
+  `https://apis.cequens.com/sms/v1/messages`, a balance one to
+  `/sms/v1/account/balance`, and a report is read from the query Cequens sends to the
+  message's report address. The credential is the access token the Cequens console
+  gives, the secret `smsCequens`, read through the host's `ISecretSource` at each call,
+  so a new version is used without a restart. A call that later finds it unanswered
+  makes no request and answers `keyunavailable`, an ordinary transient attempt. A call is
+  bounded by its caller's `Hermes:Dispatch:Timeout`, and an answer's body is read to at
+  most 64 KiB.
+
+### Migrations that drop or rewrite data
+
+None, and no migration is added since 1.0.0-rc.6.
+
+### What the deployment does
+
+Nothing new for a deployment that does not add the package; the list of 1.0.0-rc.3 still
+applies. A deployment that sends SMS through Cequens:
+
+- references `Hermes.Sms.Cequens` at this version and calls `AddHermesCequensSms`,
+  replacing its own `ISmsProvider`;
+- holds the console's access token as the secret `smsCequens` in its secret source, 1 to
+  8,192 bytes of printable ASCII with no space, a new token as a new, higher version; a
+  host whose source does not answer it stops at its start with
+  `messaging.startup.secretunavailable`, and one whose highest version is outside that
+  form with `messaging.startup.secretinvalid`;
+- sets `Hermes:Sms:ReportBaseAddress` where it wants Cequens's delivery reports, which
+  then reach the mapped report group;
+- registers each sender name it declares with Cequens for the destinations' networks,
+  since the gateway refuses one it does not know.
+
 ## 1.0.0-rc.6
 
 The sixth release candidate of 1.0.0. It makes a later stop of the key-table timer wait for

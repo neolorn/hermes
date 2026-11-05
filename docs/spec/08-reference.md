@@ -345,6 +345,9 @@ A delivery that ends `failed` after its last attempt carries that attempt's reas
 `smsReportKey` · `emailSubmission` · `pushVapidKeys`. Their forms and uses are `06`
 MSG-OPS-008.
 
+An optional provider package reads its own: `smsCequens`, the Cequens access token, only
+where `Hermes.Sms.Cequens` is registered; its form and use are `02` MSG-SMS-007 (M-043).
+
 ---
 
 ## 8. Metrics and other names
@@ -362,7 +365,8 @@ The meter is `Hermes`, with these instruments:
 
 These names carry the library's name (`00`): the meter and its instruments, the solution
 file `Hermes.sln` (`07` MSG-ENG-001), the health check `hermes.dispatch` (`06`
-MSG-OPS-005), the named HTTP client `Hermes.Push` (`02` MSG-CHAN-001), the configuration
+MSG-OPS-005), the named HTTP clients `Hermes.Push` (`02` MSG-CHAN-001) and
+`Hermes.Sms.Cequens` (`02` MSG-SMS-007), the configuration
 section, the command `hermes`, and the development inbox's default folder
 `hermes-inbox` and header `X-Hermes-Inbox` (`02` MSG-DEV-002, MSG-DEV-005).
 

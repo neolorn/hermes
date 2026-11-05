@@ -1160,6 +1160,9 @@ keep for a one-off).
 
 ## M-022 — The library ships no SMS gateway, and `Hermes` is the final name
 
+> **Amended.** M-043: optional SMS provider packages beside the core, in this
+> repository, the core still shipping none.
+
 **Date:** 2026-10-29 · **Status:** accepted · **Amends:** M-001, M-008, M-020
 
 The owner's rule of M-020 reaches the SMS gateway too: a library that carries one
@@ -2990,6 +2993,74 @@ that write. Phase 24 ships it as `1.0.0-rc.6`.
 - `06` MSG-OPS-008 (a later stop waits for the first's write; criterion 13);
 - `implementation-plan.md` (row 24).
 
+## M-043 — Phase 25: an optional Cequens SMS package beside the core, `1.0.0-rc.7`
+
+**Date:** 2026-11-05 · **Status:** accepted · **Amends:** M-022, MSG-CHAN-001
+
+**TL;DR.** The owner chose on 2026-11-05 that SMS gateways are reached through optional
+packages beside the core, in this repository and released with it, which the core never
+references: "Packages beside Hermes". The first is `Hermes.Sms.Cequens`, an
+`ISmsProvider` for the Cequens SMS API, which one deployment now uses beside the gateway
+it already has. The core is unchanged: `Hermes.Channels` still ships no SMS provider, and
+the seam stays the host's to fill, with its own provider or with a package. Phase 25 ships
+it as `1.0.0-rc.7`.
+
+- **Why the owner's choice stands with M-022's reason.** M-022 kept one provider's API out
+  of the library so that the library is never shaped by one deployment's contract. A
+  package beside the core keeps that: the core changes when no gateway does, a gateway's
+  change touches its own package alone, and a host that sends no SMS, or uses another
+  gateway, never takes it. What M-022 rejected, a WE adapter in a package within the
+  library, now holds for gateways the owner names. WE stays the host's own provider for
+  now, as the owner said, and can become a package of the same kind later.
+- **The package's shape.** Its own project `src/Hermes.Sms.Cequens`, referencing
+  `Hermes.Core` alone among the library's packages; its own public surface, one
+  registration method; its tests in `tests/Hermes.Sms.Cequens.Tests`; versioned and
+  released with every other package.
+- **The credential** goes through the host's `ISecretSource`, as the library's own
+  secrets do, under a name of the package's own (`smsCequens`), so a deployment keeps it
+  where it keeps the rest, the secrets agent included, and never in configuration.
+- **The API** was read from Cequens's reference and checked against a live account on
+  2026-11-05: the send, its documented error codes, the balance, the delivery report's
+  query. Two facts came from the live account alone: a token the console issues is
+  itself the access token, so no sign-in call is made, and the gateway refuses a
+  message list over 7 days, which the provider never reads. Delivery to a handset waits
+  on the deployment's sender name being registered with the destination's networks; the
+  package is tested against the gateway's documented answers.
+- **What the package does not do:** sign in with an API key and a user name (the
+  console's token is the credential), send to several numbers in one request (one
+  delivery, one number, MSG-CHAN-001), bulk or group sends, or read message details
+  (the report gives the outcome).
+- **Answers at phase 25.**
+  - *A call's bound* is the caller's `Dispatch:Timeout`, through the call's
+    cancellation, as the dispatcher and the balance job already apply it. The package
+    reads no configuration, and the factory's own timeout stays as an outer bound.
+  - *An answer the table does not name* (a 200 whose `replyCode` is not 0, another 2xx, a
+    3xx) is one that does not read, `Transient(connectionfailed)`. A retry may send a
+    second text; a lost one-time code costs the person more than a duplicate does.
+  - *The token missing at a call* after the start check answers `keyunavailable`, never
+    an exception: an ordinary transient attempt, retried with its pause and ending
+    `failed` after `Retry:MaxAttempts`. The engine's holds for a key (`01`
+    MSG-SEND-007) stay its own; making a provider's answer one of them would change the
+    core, which this package leaves as it is. An outage of the secret source long
+    enough to spend every attempt is an outage the failed deliveries show.
+  - *An answer's body* is read to at most 64 KiB, so a gateway or a proxy in the way
+    cannot make the provider hold an unbounded answer.
+
+*Rejected:*
+- **The provider in the host,** as the deployment's WE provider is: only that host could
+  use it, against the owner's rule that whatever is general is shared.
+- **A separate repository for providers:** the same packages, with a second pipeline,
+  release and set of conventions to keep in step with the core's contract.
+- **Signing in at each call** with the API key and the user name: a second credential
+  and a second request, where the console's token is accepted as it is.
+
+**Propagated to:**
+- `00` section 2.2 (the package's row);
+- `02` MSG-CHAN-001 (the packages beside the core) and MSG-SMS-007 (new);
+- `04` MSG-LIB-001 (the package's references and its registration);
+- `08` sections 7 (the secret) and 8 (the named client);
+- `implementation-plan.md` (row 25).
+
 ---
 
 # Index
@@ -3038,3 +3109,4 @@ that write. Phase 24 ships it as `1.0.0-rc.6`.
 | Phase 22: sender names take the SMS alphabet's basic characters, 1.0.0-rc.4 | M-040 |
 | Phase 23: the key-table timer stops once, 1.0.0-rc.5 | M-041 |
 | Phase 24: a later stop waits for the first stop's write, 1.0.0-rc.6 | M-042 |
+| Phase 25: an optional Cequens SMS package beside the core, 1.0.0-rc.7 | M-043 |
