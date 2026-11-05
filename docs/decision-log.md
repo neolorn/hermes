@@ -3038,8 +3038,11 @@ it as `1.0.0-rc.7`.
     3xx) is one that does not read, `Transient(connectionfailed)`. A retry may send a
     second text; a lost one-time code costs the person more than a duplicate does.
   - *The token missing at a call* after the start check answers `keyunavailable`, never
-    an exception: the delivery waits, with no attempt spent, as for a key this process
-    does not hold, until the secret source answers again.
+    an exception: an ordinary transient attempt, retried with its pause and ending
+    `failed` after `Retry:MaxAttempts`. The engine's holds for a key (`01`
+    MSG-SEND-007) stay its own; making a provider's answer one of them would change the
+    core, which this package leaves as it is. An outage of the secret source long
+    enough to spend every attempt is an outage the failed deliveries show.
   - *An answer's body* is read to at most 64 KiB, so a gateway or a proxy in the way
     cannot make the provider hold an unbounded answer.
 

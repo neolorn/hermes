@@ -493,8 +493,10 @@ test), and a lifecycle service that checks its secret at start.
   `messaging.startup.secretunavailable`, and one whose highest version is outside the
   form fails with `messaging.startup.secretinvalid`, each with `key` `smsCequens`. A call
   that later finds the secret unanswered or outside its form makes no request and answers
-  `Transient(keyunavailable)`, a balance `Failed(keyunavailable)`, so the delivery waits
-  as for a key this process does not hold, with no attempt spent (M-043).
+  `Transient(keyunavailable)`, a balance `Failed(keyunavailable)`: an attempt like any
+  transient one (`01` MSG-SEND-007), retried with its pause and ending `failed` with that
+  reason after `Retry:MaxAttempts`, since a provider's answer is not one of the holds
+  for a key (M-043).
 - **A call's bound** is its caller's: the dispatcher and the balance job bound each call
   by `Dispatch:Timeout` through the call's cancellation, which the request carries; the
   named client keeps the factory's own timeout as an outer bound, and the client giving
