@@ -19,6 +19,7 @@ project SHALL reference only what this item allows it.
 | `Hermes.Cli` (a .NET tool, command `hermes`) | `Hermes` |
 | `Hermes.Development` | `Hermes.Core`, `Hermes.Channels` (and MimeKit through it, for the email it keeps and the links it reads); ASP.NET Core's shared framework |
 | `Hermes.Conversations` | `Hermes.Core`, `Hermes`; ASP.NET Core's shared framework |
+| `Hermes.Sms.Cequens` | `Hermes.Core`; `Microsoft.Extensions.Http` and the Microsoft.Extensions abstractions of `07` MSG-ENG-009; no other package references it (M-043) |
 | `tests/Hermes.Tests` | `Hermes`, `Hermes.Testing`, `Hermes.Development`, whose group its endpoint contract test maps and whose routes, bodies, codes and keys the release set reads with the engine's (MSG-LIB-006; `07` MSG-ENG-006), `Hermes.Conversations`, whose endpoints and hubs its endpoint contract test maps (`07` MSG-ENG-006), and the test packages of `07` MSG-ENG-009 |
 | Any other test project | Its source project, `Hermes.Testing`, and the test packages of `07` MSG-ENG-009 |
 | `tests/Hermes.Repository.Tests` | Every shipped project, whose built assemblies its contract tests read (`07` MSG-ENG-004), and the test packages of `07` MSG-ENG-009 |
@@ -162,6 +163,7 @@ template's content, `InboxMessage`, `InboxEmail`, `InboxSms`, `InboxPush` and
 | | `InboxMessage` | `string Id`, `Channel Channel`, `string App`, `DateTimeOffset At`, `string? To`, `string? Person`, `string? Kind`, `string? Category`, `string? Language`, `string Summary`, `string Text`, `IReadOnlyList<string> Links`, `InboxEmail? Email`, `InboxSms? Sms`, `InboxPush? Push` (`02` MSG-DEV-003; `05` MSG-API-007) |
 | | `InboxEmail`, `InboxSms`, `InboxPush`, `InboxNotification` | `InboxEmail`: `EmailAddress From`, `EmailAddress? ReplyTo`, `string Subject`, `string Text`, `string? Html`, `string MessageId`, `Uri? Unsubscribe`, `IReadOnlyList<KeyValuePair<string, string>> Headers`, `string EmlPath` (the `.eml` beside the record). `InboxSms`: `string Sender`, `string Text`, `SmsEncoding Encoding`, `int Segments`, `string DeliveryReference`. `InboxPush`: `PushService Service`, `InboxNotification Notification`, `TimeSpan Ttl`, `PushUrgency Urgency`, `string? Topic`. `InboxNotification`: `string Title`, `string Body`, `string? Url`, `string? Tag`, `string? Lang`, `string? Dir`, `string? Icon`, `string? Badge` |
 | `Hermes.Conversations` | `MessagingConversationsServiceCollectionExtensions` | `AddHermesConversations(IServiceCollection)` answers the `IServiceCollection` (MSG-LIB-003) |
+| `Hermes.Sms.Cequens` | `CequensSmsServiceCollectionExtensions` | `AddHermesCequensSms(IServiceCollection)` answers the `IServiceCollection`; its only public type (`02` MSG-SMS-007) |
 | | `MessagingConversationsEndpointRouteBuilderExtensions` | `MapHermesStaffConversations(IEndpointRouteBuilder, string prefix)` and `MapHermesPublicConversations(IEndpointRouteBuilder, string prefix)` each answer its group's `RouteGroupBuilder` (MSG-LIB-004; `05` MSG-API-009, MSG-API-010) |
 
 Everything else is internal: the shipped providers, their options, the endpoints'
