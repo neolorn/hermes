@@ -86,6 +86,30 @@ public sealed class CequensBalanceTests
     }
 
     [Fact]
+    public async Task BalanceAsync_SecretNoLongerAnswered_IsFailedKeyUnavailableAndMakesNoRequest()
+    {
+        await using CequensHarness harness = await CequensHarness.StartAsync();
+        harness.Secrets.WithVersions(CequensToken.Name);
+
+        BalanceReading reading = await harness.Provider.BalanceAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(new BalanceReading.Failed(AttemptReason.KeyUnavailable), reading);
+        Assert.Empty(harness.Gateway.Requests);
+    }
+
+    [Fact]
+    public async Task BalanceAsync_HighestVersionOutsideTheForm_IsFailedKeyUnavailableAndMakesNoRequest()
+    {
+        await using CequensHarness harness = await CequensHarness.StartAsync();
+        harness.Secrets.WithVersions(CequensToken.Name, (1, []));
+
+        BalanceReading reading = await harness.Provider.BalanceAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(new BalanceReading.Failed(AttemptReason.KeyUnavailable), reading);
+        Assert.Empty(harness.Gateway.Requests);
+    }
+
+    [Fact]
     public async Task BalanceAsync_HighestVersion_IsTheBearerToken()
     {
         await using CequensHarness harness = await CequensHarness.StartAsync();

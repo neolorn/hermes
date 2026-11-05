@@ -31,7 +31,12 @@ internal sealed class CequensSmsProvider(IHttpClientFactory clients, ISecretSour
         }
 
         MessageBody body = new(message.Text, message.Sender, MessageType(message.Encoding), Recipient(message.ToNumber), message.ReportAddress?.AbsoluteUri);
-        using HttpRequestMessage request = await RequestAsync(HttpMethod.Post, CequensClient.Messages, cancellationToken).ConfigureAwait(false);
+        using HttpRequestMessage? request = await RequestAsync(HttpMethod.Post, CequensClient.Messages, cancellationToken).ConfigureAwait(false);
+        if (request is null)
+        {
+            return new Attempt.Transient(AttemptReason.KeyUnavailable, null, null);
+        }
+
         request.Content = JsonContent.Create(body, CequensJson.Default.MessageBody);
         try
         {
@@ -62,7 +67,12 @@ internal sealed class CequensSmsProvider(IHttpClientFactory clients, ISecretSour
 
     public async ValueTask<BalanceReading> BalanceAsync(CancellationToken cancellationToken)
     {
-        using HttpRequestMessage request = await RequestAsync(HttpMethod.Get, CequensClient.Balance, cancellationToken).ConfigureAwait(false);
+        using HttpRequestMessage? request = await RequestAsync(HttpMethod.Get, CequensClient.Balance, cancellationToken).ConfigureAwait(false);
+        if (request is null)
+        {
+            return new BalanceReading.Failed(AttemptReason.KeyUnavailable);
+        }
+
         try
         {
             using HttpClient client = clients.CreateClient(CequensClient.Name);
@@ -162,15 +172,16 @@ internal sealed class CequensSmsProvider(IHttpClientFactory clients, ISecretSour
 
     /// <summary>
     /// A request to <paramref name="address"/> taking JSON, with the bearer token of the
-    /// highest version of <c>smsCequens</c>.
+    /// highest version of <c>smsCequens</c>; none where the secret source answers no version or
+    /// its highest is outside the token's form, so the call makes no request and answers
+    /// <c>keyunavailable</c>.
     /// </summary>
-    /// <exception cref="InvalidOperationException">The secret source answers no version, or its highest is outside the token's form, which the start checked.</exception>
-    private async Task<HttpRequestMessage> RequestAsync(HttpMethod method, Uri address, CancellationToken cancellationToken)
+    private async Task<HttpRequestMessage?> RequestAsync(HttpMethod method, Uri address, CancellationToken cancellationToken)
     {
         SecretVersion? highest = await CequensToken.HighestAsync(secrets, cancellationToken).ConfigureAwait(false);
         if (highest is null || !CequensToken.IsInForm(highest.Value.Span))
         {
-            throw new InvalidOperationException($"The secret {CequensToken.Name} is not answered, or its highest version is outside its form.");
+            return null;
         }
 
         HttpRequestMessage request = new(method, address);

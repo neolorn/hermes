@@ -171,13 +171,26 @@ public sealed class CequensSendTests
     }
 
     [Fact]
-    public async Task SendAsync_SecretNoLongerAnswered_ThrowsAndMakesNoRequest()
+    public async Task SendAsync_SecretNoLongerAnswered_IsTransientKeyUnavailableAndMakesNoRequest()
     {
         await using CequensHarness harness = await CequensHarness.StartAsync();
         harness.Secrets.WithVersions(CequensToken.Name);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await harness.Provider.SendAsync(CequensHarness.Message(), TestContext.Current.CancellationToken));
+        Attempt attempt = await harness.Provider.SendAsync(CequensHarness.Message(), TestContext.Current.CancellationToken);
 
+        Assert.Equal(new Attempt.Transient(AttemptReason.KeyUnavailable, null, null), attempt);
+        Assert.Empty(harness.Gateway.Requests);
+    }
+
+    [Fact]
+    public async Task SendAsync_HighestVersionOutsideTheForm_IsTransientKeyUnavailableAndMakesNoRequest()
+    {
+        await using CequensHarness harness = await CequensHarness.StartAsync();
+        harness.Secrets.WithVersions(CequensToken.Name, (1, CequensHarness.Token()), (2, Encoding.ASCII.GetBytes("header payload")));
+
+        Attempt attempt = await harness.Provider.SendAsync(CequensHarness.Message(), TestContext.Current.CancellationToken);
+
+        Assert.Equal(new Attempt.Transient(AttemptReason.KeyUnavailable, null, null), attempt);
         Assert.Empty(harness.Gateway.Requests);
     }
 

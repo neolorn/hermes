@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AddHermesCequensSms` in place of any earlier `ISmsProvider`: its access token is the
   secret `smsCequens`, checked at start and read at each call, and no other package
   references it
+- A Cequens call that finds `smsCequens` unanswered or outside its form after the start
+  makes no request and answers `Transient(keyunavailable)`, a balance
+  `Failed(keyunavailable)`, where it threw before
 
 ## [1.0.0-rc.6] - 2026-11-04
 
