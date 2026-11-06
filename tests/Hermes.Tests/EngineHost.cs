@@ -178,6 +178,16 @@ internal sealed class EngineHost : IAsyncDisposable
         return Services.GetRequiredService<IDispatcher>().RunPassAsync(cancellationToken ?? TestContext.Current.CancellationToken).AsTask();
     }
 
+    /// <summary>
+    /// Runs one pass of <paramref name="channel"/> alone, as <see cref="DispatchAsync"/> runs one
+    /// of each channel side by side, so a test orders what another channel's pass does by this
+    /// pass's end rather than by how fast the machine runs.
+    /// </summary>
+    internal Task<PassOutcome> PassAsync(Channel channel)
+    {
+        return Services.GetRequiredService<DispatchPasses>().RunAsync(channel, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>The send as <c>IMessages.ReadAsync</c> answers it.</summary>
     internal async Task<SendRecord> ReadAsync(SendId send)
     {

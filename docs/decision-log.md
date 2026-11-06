@@ -3063,6 +3063,40 @@ it as `1.0.0-rc.7`.
 
 ---
 
+## M-044 — Phase 26: the dispatch test that failed on the release run
+
+**Date:** 2026-11-06 · **Status:** accepted · **Amends:** nothing
+
+**TL;DR.** The release run of `v1.0.0-rc.7` failed on one test,
+`MSG_SEND_007_AC11_WithEveryEmailCallTakingTheTimeoutAndAThousandOptionalEmailsDueADueSmsIsSentAndAnEssentialEmailIsClaimedFirst`
+(`Assert.Single` found no SMS, after 5.8 s), while the pull request's run and `main`'s on
+the same commit passed. A rerun passed. Phase 26 finds the cause and removes it.
+
+- **The rule.** A dispatch test decides its outcome by the test clock and the engine's own
+  ordering, never by how fast the machine runs. No retry, no longer timeout, no skipped or
+  quarantined test.
+- **The cause first.** Find what made the SMS go unsent on that run: the test, the test
+  host (`DispatchAsync` returning before the work it started, a wall-clock wait, a race
+  between the advanced clock and the dispatcher's batches), or the engine.
+- **Where it lies.**
+  - *In the test or the test host:* fix it there, and find every test of the same shape
+    in the repository and fix it the same way. No release.
+  - *In the engine* (a due SMS can wait behind email calls that each take the timeout,
+    against MSG-SEND-007 criterion 11): that is a defect in the library's behaviour.
+    Report it as a question with the cause, the line, and what a fix would change; build
+    nothing of it until the lead's answer, which comes with its release candidate.
+- **Phase 26's criterion.** The test passes 200 runs in a row alone, and `Hermes.Tests`
+  passes 5 full runs in a row; the cause is named in the report.
+
+*Rejected:*
+- **Rerunning until green,** as the release run was: it hides a cause the next release
+  run meets again.
+
+**Propagated to:**
+- `implementation-plan.md` (row 26).
+
+---
+
 # Index
 
 | Title | Entry |
@@ -3110,3 +3144,4 @@ it as `1.0.0-rc.7`.
 | Phase 23: the key-table timer stops once, 1.0.0-rc.5 | M-041 |
 | Phase 24: a later stop waits for the first stop's write, 1.0.0-rc.6 | M-042 |
 | Phase 25: an optional Cequens SMS package beside the core, 1.0.0-rc.7 | M-043 |
+| Phase 26: the dispatch test that failed on the release run | M-044 |
